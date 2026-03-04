@@ -368,9 +368,98 @@ pub trait Record: Serialize + Deserialize {
 
 This is the **defining feature** of emCore: the recursive, infinitely-zoomable panel hierarchy.
 
-#### 3.4.1 Panel (`emPanel`)
+#### 3.4.1 Decision: Arena + Handles with PanelCtx
 
-**Behavioral contract -- the core abstraction:**
+The C++ panel tree uses parent-owns-children via raw pointers, with mutable backpointers, self-deletion (`delete this` in `Notice()`), and tree mutation during traversal (guarded by `RestartInputRecursion` flags). This is the classic Rust borrow-checker fight: mutable parent + mutable children + backpointers + self-deletion.
+
+**We use arena allocation with handle-based references and a borrowed PanelCtx for callbacks.**
+
+Panels are stored in a flat `SlotMap`. All parent/child/sibling links are `PanelId` values (generational indices), not references. Tree mutation is inserting/removing from the arena. Panel behavior is a trait object extracted from the arena during callbacks to avoid aliased `&mut`.
+
+```
+pub struct PanelId(slotmap::DefaultKey);  // Generational index
+
+pub struct PanelData {
+    // Tree links (all by ID, no references)
+    parent: Option<PanelId>,
+    first_child: Option<PanelId>,
+    last_child: Option<PanelId>,
+    prev_sibling: Option<PanelId>,
+    next_sibling: Option<PanelId>,
+
+    // Name lookup (replaces C++ AVL tree)
+    name: String,
+
+    // Behavior (extracted during callbacks)
+    behavior: Option<Box<dyn PanelBehavior>>,
+
+    // Layout, viewing state, flags...
+    layout_rect: (f64, f64, f64, f64),
+    canvas_color: Color,
+    // ...
+}
+
+pub struct PanelTree {
+    arena: SlotMap<PanelId, PanelData>,
+    root: Option<PanelId>,
+    // Child name lookup: HashMap<(PanelId, String), PanelId>
+    name_index: HashMap<(PanelId, String), PanelId>,
+}
+```
+
+**Callback pattern — extract, call, reinsert:**
+
+During `paint()`, `input()`, `notice()`, etc., the behavior is temporarily taken out of the arena so the trait method can receive `&mut PanelCtx` (which holds `&mut PanelTree`) without aliased borrows:
+
+```
+// Inside the framework (not user code):
+let mut behavior = tree.arena[id].behavior.take().unwrap();
+let mut ctx = PanelCtx { id, tree: &mut tree };
+behavior.notice(&mut ctx, flags);
+ctx.tree.arena[id].behavior = Some(behavior);
+```
+
+**PanelCtx provides safe tree operations to panel implementations:**
+
+```
+pub struct PanelCtx<'a> {
+    id: PanelId,
+    tree: &'a mut PanelTree,
+}
+
+impl PanelCtx<'_> {
+    // Tree mutation
+    fn create_child(&mut self, name: &str, behavior: Box<dyn PanelBehavior>) -> PanelId;
+    fn delete_child(&mut self, id: PanelId);
+    fn delete_self(&mut self);  // Sets flag; actual removal after callback returns
+
+    // Layout
+    fn layout_child(&mut self, child: PanelId, x: f64, y: f64, w: f64, h: f64, canvas_color: Color);
+
+    // Tree queries
+    fn parent(&self) -> Option<PanelId>;
+    fn children(&self) -> ChildIter;
+    fn view_condition(&self) -> f64;
+    fn name(&self) -> &str;
+
+    // Context access (Decision #3)
+    fn context(&self) -> &Context;
+}
+```
+
+**Why this works:**
+- **No borrow checker fights.** `PanelId` is `Copy` — passing IDs around never borrows anything.
+- **Self-deletion** becomes `ctx.delete_self()` setting a flag. The caller (framework notice loop) handles removal after the callback returns, same as C++ removing from the notice ring before calling `HandleNotice()`.
+- **Tree mutation during input** uses the same restart pattern as C++: collect panel IDs to visit, check a `restart_input` flag after each callback.
+- **Cache-friendly.** Panels packed in contiguous arena memory, not scattered heap allocations.
+- **Generational keys** catch use-after-remove at runtime (panic on stale ID), replacing the C++ `emCrossPtr` weak pointer pattern.
+- **No `Rc`, no `RefCell`, no `unsafe`** in the panel tree.
+
+**What we intentionally change from C++:**
+- `HashMap<(PanelId, String), PanelId>` replaces the per-panel AVL tree for child name lookup. Same O(1) amortized lookup, simpler implementation.
+- `behavior: Option<Box<dyn PanelBehavior>>` with take/replace replaces C++ virtual dispatch on the panel node itself. Panel data (layout, viewing state) is separate from panel behavior (paint, input, notice).
+
+#### 3.4.2 Panel Behavioral Contract
 
 - Panels form a **tree**. Each panel has zero or more children.
 - Every panel has its own **coordinate system**: width is always `1.0`, height is the panel's **tallness** (aspect ratio).
@@ -384,7 +473,7 @@ This is the **defining feature** of emCore: the recursive, infinitely-zoomable p
 4. Auto-expansion: when zoom level crosses threshold, `AutoExpand()` creates children dynamically
 5. Painting: `Paint(painter, canvasColor)` called if visible
 6. Auto-shrink: when zoom level drops, `AutoShrink()` destroys children
-7. Destruction: destructor deletes all children
+7. Destruction: removes from arena and recursively removes all children
 
 **Key properties:**
 - `name: String` -- unique among siblings
@@ -407,18 +496,18 @@ panel_to_view_x(x) = x * viewed_width + viewed_x
 panel_to_view_y(y) = y * viewed_width / pixel_tallness + viewed_y
 ```
 
-**Virtual methods (trait in Rust):**
+**PanelBehavior trait:**
 ```
 pub trait PanelBehavior {
-    fn paint(&self, painter: &mut Painter, canvas_color: Color);
-    fn input(&mut self, event: &InputEvent, state: &InputState, mx: f64, my: f64);
-    fn get_cursor(&self) -> Cursor;
-    fn is_opaque(&self) -> bool;
-    fn layout_children(&mut self);
-    fn notice(&mut self, flags: NoticeFlags);
-    fn auto_expand(&mut self);
-    fn auto_shrink(&mut self);
-    fn cycle(&mut self) -> bool;  // Engine integration
+    fn paint(&self, ctx: &PanelCtx, painter: &mut Painter, canvas_color: Color);
+    fn input(&mut self, ctx: &mut PanelCtx, event: &InputEvent, state: &InputState, mx: f64, my: f64);
+    fn get_cursor(&self, ctx: &PanelCtx) -> Cursor;
+    fn is_opaque(&self, ctx: &PanelCtx) -> bool;
+    fn layout_children(&mut self, ctx: &mut PanelCtx);
+    fn notice(&mut self, ctx: &mut PanelCtx, flags: NoticeFlags);
+    fn auto_expand(&mut self, ctx: &mut PanelCtx);
+    fn auto_shrink(&mut self, ctx: &mut PanelCtx);
+    fn cycle(&mut self, ctx: &mut PanelCtx) -> bool;
 }
 ```
 
