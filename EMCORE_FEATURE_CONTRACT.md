@@ -46,7 +46,7 @@ emCore has five major subsystems that compose into a complete UI framework:
 +------------------------------------------------------------------+
 |                     Rendering Backend                             |
 |   C++: emPainter (CPU scanline rasterizer, AVX2 SIMD)           |
-|   Rust: wgpu (GPU-accelerated, shader-based)                     |
+|   Rust: CPU rasterizer (port of emPainter) + wgpu tile compositor |
 +------------------------------------------------------------------+
          |
 +------------------------------------------------------------------+
@@ -138,7 +138,7 @@ The boundary is: the entire panel/model/signal/scheduler domain is `Rc`-only (or
 | `emThreadEvent` (semaphore) | `std::sync::mpsc` channels or `tokio::sync::Semaphore` | Thread signaling |
 | RAII lock guards | `MutexGuard`, `RwLockReadGuard` | Automatic via Rust's `Drop` |
 
-**Design note:** The emCore scheduler is fundamentally single-threaded (cooperative). Threading is used primarily for the render thread pool. Prefer `Send + Sync` trait bounds over manual locking where possible.
+**Design note:** The emCore scheduler is fundamentally single-threaded (cooperative). Threading primitives are included for completeness but the initial implementation is fully single-threaded — tile rasterization can be parallelized later if benchmarks warrant it.
 
 #### 3.1.6 Process & I/O
 
@@ -282,8 +282,8 @@ Analysis of real C++ usage shows the service locator served two distinct roles:
 
 ```
 pub struct Context {
-    parent: Option<...>,  // ownership TBD (Decision #4)
-    children: Vec<...>,
+    parent: Option<Weak<Context>>,
+    children: Vec<Rc<Context>>,
 
     // Typed singletons — known at compile time
     clipboard: Option<Rc<Clipboard>>,
@@ -339,9 +339,8 @@ The C++ model types map as follows under the hybrid approach:
 | `emSigModel` | Named signal field on relevant struct | Typed singleton or direct field |
 | `emVarModel<T>` | `Rc<RefCell<T>>` or typed singleton | Depends on usage — most become typed fields |
 | `emVarSigModel<T>` | `Rc<WatchedVar<T>>` (value + change signal) | Typed singleton or direct field |
-| `emConfigModel` | `ConfigModel<T: Serialize + Deserialize>` | Typed singleton, file-backed |
+| `emConfigModel` | `ConfigModel<T: Record>` | Typed singleton, file-backed, KDL serialization |
 | `emFileModel` | `FileModel<T>` | `ResourceCache<FileModel<T>>` keyed by path |
-| `emCoreConfig` | `CoreConfig` | Typed singleton on root context |
 
 #### 3.3.3 Record System (`emRec`) → KDL Serialization
 
@@ -556,7 +555,7 @@ pub trait PanelBehavior {
 - `UPDATE_PRIORITY_CHANGED` -- priority changed
 - `MEMORY_LIMIT_CHANGED` -- memory limit changed
 
-#### 3.4.2 View (`emView`)
+#### 3.4.3 View (`emView`)
 
 **Behavioral contract:**
 
@@ -605,7 +604,7 @@ After VIF chain, events propagate **bottom-up** from the topmost panel at the cu
 3. Each panel painted with appropriate coordinate transform and clip rect
 4. Siblings painted in stacking order (first child = back, last child = front)
 
-#### 3.4.3 View Animators
+#### 3.4.4 View Animators
 
 **Behavioral contract:**
 
@@ -621,7 +620,7 @@ Animators provide smooth, physically-modeled camera movement.
 
 Animators have master/slave relationships and can overlay each other. Each produces velocity deltas that the view integrates per frame. Implement the three essential animators first; Swiping and Magnetic are deferred until touch support and UI polish phases respectively.
 
-#### 3.4.4 Window (`emWindow`)
+#### 3.4.5 Window (`emWindow`)
 
 **Behavioral contract:**
 - Extends View with OS window management
@@ -634,7 +633,7 @@ Animators have master/slave relationships and can overlay each other. Each produ
 
 **Rust mapping:** Use `winit` for window creation. The emWindow abstraction wraps a winit `Window` + a wgpu `Surface`.
 
-#### 3.4.5 Screen (`emScreen`)
+#### 3.4.6 Screen (`emScreen`)
 
 **Behavioral contract:**
 - Desktop geometry: virtual desktop bounds, per-monitor rects
@@ -645,7 +644,7 @@ Animators have master/slave relationships and can overlay each other. Each produ
 
 **Rust mapping:** Use `winit` monitor enumeration and window building.
 
-#### 3.4.6 Input System
+#### 3.4.7 Input System
 
 **Behavioral contract:**
 
@@ -665,7 +664,7 @@ Hotkey type: combination of modifiers + key, parseable from strings like `"Ctrl+
 
 Cursor types: `Normal`, `Invisible`, `Wait`, `Crosshair`, `Text`, `Hand`, `LeftRightArrow`, `UpDownArrow`, `LeftRightUpDownArrow`.
 
-#### 3.4.7 Clipboard
+#### 3.4.8 Clipboard
 
 **Behavioral contract:**
 - `put_text(text, selection)` -- put text to clipboard or X11 selection
@@ -1021,10 +1020,9 @@ Phase 2: Engine Scheduler
     Timer
 
 Phase 3: Model System
-    Context (registry)
-    Model (base, ref-counted, GC)
-    VarModel, SigModel, VarSigModel
-    Record system (serialization)
+    Context (typed singletons + ResourceCache, inherited lookup)
+    WatchedVar, named signals
+    Record trait (KDL serialization)
     ConfigModel, FileModel
 
 Phase 4: Rendering
@@ -1093,7 +1091,7 @@ em_core/
 **Key Rust crate dependencies:**
 - `wgpu` -- GPU compositing (tile display, not rasterization)
 - `winit` -- window creation and event loop
-- `serde` -- serialization for Record system
+- `kdl` -- KDL serialization for Record/config system
 - `log` + `tracing` -- logging
 - `rand` -- random numbers
 - `arboard` -- clipboard access
@@ -1114,7 +1112,7 @@ These invariants must hold across the entire reimplementation:
 
 5. **Signal instant chaining:** A signal fired during `Cycle()` wakes the connected engine within the same time slice (not deferred to next slice).
 
-6. **Model identity:** Two `Acquire()` calls with the same `(TypeId, context, name)` must return the same model instance.
+6. **Resource identity:** Two `ResourceCache::get_or_insert_with()` calls with the same key must return the same `Rc<T>` instance. Typed singleton accessors always return the same instance per context level.
 
 7. **Focus follows zoom:** As the user zooms into a panel, the active panel updates to reflect the current navigation position.
 
