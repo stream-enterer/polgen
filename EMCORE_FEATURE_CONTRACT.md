@@ -112,10 +112,20 @@ These provide the building blocks all other subsystems depend on. Most map direc
 
 | C++ Type | Rust Equivalent | Contract |
 |---|---|---|
-| `emRef<T>` (intrusive refcount) | `Arc<T>` or `Rc<T>` | Shared ownership of models |
+| `emRef<T>` (intrusive refcount) | `Rc<T>` | Shared ownership of models (see Decision #5 below) |
 | `emOwnPtr<T>` (unique ownership) | `Box<T>` | Exclusive ownership |
 | `emCrossPtr<T>` (weak auto-null) | `Weak<T>` (from `Rc`/`Arc`) | Must handle upgrade failure via `Option` |
 | `emAnything` (type-erased value) | `Box<dyn Any>` with `downcast_ref` | Runtime type checking |
+
+**Decision #5: `Rc` everywhere, no `Arc`.**
+
+The tension was: `Rc<T>` avoids atomic overhead but isn't `Send + Sync`, while wgpu requires `Send + Sync` for GPU resources. This resolved cleanly given our other decisions:
+
+- **Panel tree** (Decision #4) uses arena + `PanelId` handles — no smart pointers at all.
+- **Model/Context** (Decision #3) uses `Rc<T>` for typed singletons and `ResourceCache` entries — all single-threaded, never crosses to GPU.
+- **Rendering** (Decision #2) hands off tile bitmaps as plain `Vec<u8>` to the wgpu compositor. No shared ownership across threads.
+
+The boundary is: the entire panel/model/signal/scheduler domain is `Rc`-only (or handle-based). The GPU compositor owns its wgpu device/queue exclusively and receives tile data by value through a channel. `Arc` is not needed anywhere. If a future need arises (e.g., background file loading on a thread pool), only the specific data crossing the thread boundary needs `Arc`, and that would be a localized addition, not a global refactor.
 
 #### 3.1.5 Threading & Concurrency
 
