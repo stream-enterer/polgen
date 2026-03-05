@@ -1,9 +1,9 @@
-mod compositor;
+pub mod compositor;
 pub mod font_cache;
 mod painter;
 mod stroke;
 mod texture;
-mod tile_cache;
+pub mod tile_cache;
 
 pub use compositor::WgpuCompositor;
 pub use painter::Painter;

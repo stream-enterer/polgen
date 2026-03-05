@@ -4,6 +4,8 @@ use crate::foundation::Color;
 use crate::input::{Cursor, InputEvent};
 use crate::render::Painter;
 
+use super::ctx::PanelCtx;
+
 bitflags! {
     /// Flags indicating what kinds of changes a panel needs to be notified about.
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -47,7 +49,7 @@ pub trait PanelBehavior {
     }
 
     /// Layout child panels. Called when the panel's layout rect changes.
-    fn layout_children(&mut self) {}
+    fn layout_children(&mut self, _ctx: &mut PanelCtx) {}
 
     /// Receive a notice about state changes.
     fn notice(&mut self, _flags: NoticeFlags) {}

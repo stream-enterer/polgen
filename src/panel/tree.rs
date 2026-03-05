@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use slotmap::{new_key_type, SlotMap};
 
 use super::behavior::{NoticeFlags, PanelBehavior};
+use super::ctx::PanelCtx;
 use crate::foundation::Color;
 
 new_key_type! {
@@ -256,6 +257,10 @@ impl PanelTree {
             self.panels[id].pending_notices = NoticeFlags::empty();
             if let Some(mut behavior) = self.take_behavior(id) {
                 behavior.notice(flags);
+                if flags.contains(NoticeFlags::LAYOUT_CHANGED) {
+                    let mut ctx = PanelCtx::new(self, id);
+                    behavior.layout_children(&mut ctx);
+                }
                 self.put_behavior(id, behavior);
             }
         }

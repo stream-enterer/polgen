@@ -100,4 +100,28 @@ impl<'a> PanelCtx<'a> {
             panel.focusable = focusable;
         }
     }
+
+    /// Get the preferred size of a child by extracting its behavior, calling
+    /// `preferred_size()`, and putting the behavior back.
+    pub fn child_preferred_size(&mut self, child: PanelId) -> (f64, f64) {
+        if let Some(behavior) = self.tree.take_behavior(child) {
+            let size = behavior.preferred_size();
+            self.tree.put_behavior(child, behavior);
+            size
+        } else {
+            (0.0, 0.0)
+        }
+    }
+
+    /// Get the minimum size of a child by extracting its behavior, calling
+    /// `min_size()`, and putting the behavior back.
+    pub fn child_min_size(&mut self, child: PanelId) -> (f64, f64) {
+        if let Some(behavior) = self.tree.take_behavior(child) {
+            let size = behavior.min_size();
+            self.tree.put_behavior(child, behavior);
+            size
+        } else {
+            (0.0, 0.0)
+        }
+    }
 }
