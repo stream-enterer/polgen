@@ -113,9 +113,9 @@ impl Color {
     /// `self` is the current target pixel, `source` is the color being painted,
     /// `canvas` is the background canvas color, `alpha` is blend strength (0–255).
     pub fn canvas_blend(self, source: Color, canvas: Color, alpha: u8) -> Color {
-        let a = alpha as i16;
+        let a = alpha as i32;
         let blend_ch = |target: u8, src: u8, cvs: u8| -> u8 {
-            let result = target as i16 + ((src as i16 - cvs as i16) * a) / 255;
+            let result = target as i32 + ((src as i32 - cvs as i32) * a) / 255;
             result.clamp(0, 255) as u8
         };
         Color::rgba(

@@ -5,6 +5,7 @@ edition = "2021"
 description = "A zoomable UI framework inspired by Eagle Mode's emCore"
 
 [dependencies]
+bitflags = "2"
 kdl = "6"
 log = "0.4"
 slotmap = "1"
