@@ -3,6 +3,7 @@ name = "zuicchini"
 version = "0.1.0"
 edition = "2021"
 description = "A zoomable UI framework inspired by Eagle Mode's emCore"
+license = "MIT"
 
 [dependencies]
 bitflags = "2"
