@@ -230,6 +230,8 @@ impl ZuiWindow {
                     variant,
                     chars: String::new(),
                     is_repeat: event.repeat,
+                    mouse_x: 0.0,
+                    mouse_y: 0.0,
                 };
                 if let Some(ref text) = event.text {
                     input_event.chars = text.to_string();
@@ -254,6 +256,8 @@ impl ZuiWindow {
                     variant,
                     chars: String::new(),
                     is_repeat: false,
+                    mouse_x: 0.0,
+                    mouse_y: 0.0,
                 })
             }
             _ => None,

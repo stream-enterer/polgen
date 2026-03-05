@@ -71,6 +71,10 @@ pub struct InputEvent {
     pub chars: String,
     /// Whether this is a repeated event from holding a key.
     pub is_repeat: bool,
+    /// Mouse X position in panel coordinates.
+    pub mouse_x: f64,
+    /// Mouse Y position in panel coordinates.
+    pub mouse_y: f64,
 }
 
 impl InputEvent {
@@ -80,6 +84,8 @@ impl InputEvent {
             variant: InputVariant::Press,
             chars: String::new(),
             is_repeat: false,
+            mouse_x: 0.0,
+            mouse_y: 0.0,
         }
     }
 
@@ -89,11 +95,19 @@ impl InputEvent {
             variant: InputVariant::Release,
             chars: String::new(),
             is_repeat: false,
+            mouse_x: 0.0,
+            mouse_y: 0.0,
         }
     }
 
     pub fn with_chars(mut self, chars: &str) -> Self {
         self.chars = chars.to_string();
+        self
+    }
+
+    pub fn with_mouse(mut self, x: f64, y: f64) -> Self {
+        self.mouse_x = x;
+        self.mouse_y = y;
         self
     }
 }
