@@ -13,6 +13,9 @@ pub struct Button {
     look: Rc<Look>,
     pressed: bool,
     hovered: bool,
+    /// Cached dimensions for hover hit testing.
+    last_w: f64,
+    last_h: f64,
     pub on_click: Option<Box<dyn FnMut()>>,
 }
 
@@ -23,6 +26,8 @@ impl Button {
             look,
             pressed: false,
             hovered: false,
+            last_w: 0.0,
+            last_h: 0.0,
             on_click: None,
         }
     }
@@ -39,7 +44,9 @@ impl Button {
         self.hovered
     }
 
-    pub fn paint(&self, painter: &mut Painter, w: f64, h: f64) {
+    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+        self.last_w = w;
+        self.last_h = h;
         let face_color = if self.pressed {
             self.look.button_press_color
         } else if self.hovered {
@@ -52,7 +59,18 @@ impl Button {
         self.border.paint_border(painter, w, h, &self.look, false);
     }
 
+    /// Update hover state based on mouse position within button bounds.
+    fn update_hover(&mut self, mx: f64, my: f64) {
+        self.hovered = mx >= 0.0 && mx <= self.last_w && my >= 0.0 && my <= self.last_h;
+    }
+
     pub fn input(&mut self, event: &InputEvent) -> bool {
+        // Update hover on any event with mouse coordinates
+        if event.variant == InputVariant::Move {
+            self.update_hover(event.mouse_x, event.mouse_y);
+            return false;
+        }
+
         match event.key {
             InputKey::MouseLeft => match event.variant {
                 InputVariant::Press => {

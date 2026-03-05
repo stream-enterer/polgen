@@ -1,6 +1,11 @@
+use crate::render::font_cache::FontCache;
 use crate::render::{Painter, Stroke};
 
 use super::look::Look;
+
+/// Height allocated for caption and description text, derived from font metrics.
+/// Uses glyph height + 4px padding.
+const TEXT_ROW_HEIGHT: f64 = FontCache::GLYPH_HEIGHT as f64 + 4.0;
 
 /// Outer border style.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -63,11 +68,11 @@ impl Border {
     /// Compute the content area after border and label insets.
     pub fn content_rect(&self, w: f64, h: f64, _look: &Look) -> (f64, f64, f64, f64) {
         let (ox, oy, ow, oh) = self.outer_insets();
-        let caption_h = if self.caption.is_empty() { 0.0 } else { 11.0 };
+        let caption_h = if self.caption.is_empty() { 0.0 } else { TEXT_ROW_HEIGHT };
         let desc_h = if self.description.is_empty() {
             0.0
         } else {
-            11.0
+            TEXT_ROW_HEIGHT
         };
         let (ix, iy, iw, ih) = self.inner_insets();
 
@@ -81,11 +86,11 @@ impl Border {
     /// Preferred size to fit the given content size.
     pub fn preferred_size_for_content(&self, cw: f64, ch: f64) -> (f64, f64) {
         let (_, _, ow, oh) = self.outer_insets();
-        let caption_h = if self.caption.is_empty() { 0.0 } else { 11.0 };
+        let caption_h = if self.caption.is_empty() { 0.0 } else { TEXT_ROW_HEIGHT };
         let desc_h = if self.description.is_empty() {
             0.0
         } else {
-            11.0
+            TEXT_ROW_HEIGHT
         };
         let (_, _, iw, ih) = self.inner_insets();
         (cw + ow + iw, ch + oh + caption_h + desc_h + ih)
@@ -160,7 +165,7 @@ impl Border {
 
         // Inner border
         let (ox, oy, _, _) = self.outer_insets();
-        let caption_h = if self.caption.is_empty() { 0.0 } else { 11.0 };
+        let caption_h = if self.caption.is_empty() { 0.0 } else { TEXT_ROW_HEIGHT };
         let ix = ox;
         let iy = oy + caption_h;
         let iw = w - ox * 2.0;
@@ -170,7 +175,7 @@ impl Border {
             - if self.description.is_empty() {
                 0.0
             } else {
-                11.0
+                TEXT_ROW_HEIGHT
             };
 
         match self.inner {
