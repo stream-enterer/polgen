@@ -121,6 +121,11 @@ impl<'a> PanelCtx<'a> {
         }
     }
 
+    /// Remove all children of the current panel.
+    pub fn delete_all_children(&mut self) {
+        self.tree.delete_all_children(self.id);
+    }
+
     /// Find a child by name.
     pub fn find_child_by_name(&self, name: &str) -> Option<PanelId> {
         self.tree.find_child_by_name(self.id, name)

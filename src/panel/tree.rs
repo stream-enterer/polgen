@@ -231,6 +231,14 @@ impl PanelTree {
         self.panels.get(id).and_then(|p| p.parent)
     }
 
+    /// Remove all children of a panel.
+    pub fn delete_all_children(&mut self, parent: PanelId) {
+        let children: Vec<PanelId> = self.children(parent).collect();
+        for child in children {
+            self.remove(child);
+        }
+    }
+
     /// Set the layout rectangle for a panel.
     pub fn set_layout_rect(&mut self, id: PanelId, x: f64, y: f64, w: f64, h: f64) {
         if let Some(panel) = self.panels.get_mut(id) {

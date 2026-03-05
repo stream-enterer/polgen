@@ -108,6 +108,17 @@ impl Color {
         Color::rgba(r as u8, g as u8, b as u8, out_a as u8)
     }
 
+    /// Linearly interpolate between `self` and `other` by factor `t` (0.0–1.0).
+    pub fn lerp(self, other: Color, t: f64) -> Color {
+        let t = t.clamp(0.0, 1.0);
+        let inv_t = 1.0 - t;
+        let r = (self.r() as f64 * inv_t + other.r() as f64 * t) as u8;
+        let g = (self.g() as f64 * inv_t + other.g() as f64 * t) as u8;
+        let b = (self.b() as f64 * inv_t + other.b() as f64 * t) as u8;
+        let a = (self.a() as f64 * inv_t + other.a() as f64 * t) as u8;
+        Color::rgba(r, g, b, a)
+    }
+
     /// emCore canvas blend: `target += (source - canvas) * alpha`.
     ///
     /// `self` is the current target pixel, `source` is the color being painted,

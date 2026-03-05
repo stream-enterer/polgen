@@ -161,6 +161,74 @@ impl<'a> Painter<'a> {
         }
     }
 
+    /// Fill an ellipse sector (pie slice) defined by center, radii, and angle range.
+    /// Angles are in radians, measured counter-clockwise from the +X axis.
+    #[allow(clippy::too_many_arguments)]
+    pub fn paint_ellipse_sector(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        rx: f64,
+        ry: f64,
+        start_angle: f64,
+        end_angle: f64,
+        color: Color,
+    ) {
+        // Build sector as polygon: center + arc points
+        let segments = CIRCLE_SEGMENTS;
+        let mut verts = Vec::with_capacity(segments + 2);
+        verts.push((cx, cy));
+        let sweep = end_angle - start_angle;
+        for i in 0..=segments {
+            let t = i as f64 / segments as f64;
+            let angle = start_angle + t * sweep;
+            verts.push((cx + rx * angle.cos(), cy + ry * angle.sin()));
+        }
+        self.paint_polygon(&verts, color);
+    }
+
+    /// Fill a rectangle with a linear gradient between two colors.
+    #[allow(clippy::too_many_arguments)]
+    pub fn paint_linear_gradient(
+        &mut self,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        color_a: Color,
+        color_b: Color,
+        horizontal: bool,
+    ) {
+        let px = self.to_pixel_x(x);
+        let py = self.to_pixel_y(y);
+        let pw = (w * self.state.scale_x) as i32;
+        let ph = (h * self.state.scale_y) as i32;
+
+        let (clip_x, clip_y, clip_w, clip_h) = self.state.clip;
+        let start_x = px.max(clip_x).max(0);
+        let start_y = py.max(clip_y).max(0);
+        let end_x = (px + pw).min(clip_x + clip_w).min(self.target.width() as i32);
+        let end_y = (py + ph).min(clip_y + clip_h).min(self.target.height() as i32);
+
+        for row in start_y..end_y {
+            for col in start_x..end_x {
+                let t = if horizontal {
+                    if pw > 0 {
+                        (col - px) as f64 / pw as f64
+                    } else {
+                        0.0
+                    }
+                } else if ph > 0 {
+                    (row - py) as f64 / ph as f64
+                } else {
+                    0.0
+                };
+                let color = color_a.lerp(color_b, t);
+                self.blend_pixel(col, row, color);
+            }
+        }
+    }
+
     /// Draw a line between two points.
     pub fn paint_line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, color: Color) {
         let px0 = self.to_pixel_x(x0);
