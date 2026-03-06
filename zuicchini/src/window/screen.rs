@@ -67,4 +67,99 @@ impl Screen {
     pub fn primary(&self) -> Option<&MonitorInfo> {
         self.monitors.iter().find(|m| m.primary)
     }
+
+    /// Find the monitor with maximum overlap area with the given rect.
+    pub fn monitor_index_of_rect(&self, x: i32, y: i32, w: u32, h: u32) -> Option<usize> {
+        let rx1 = x as i64;
+        let ry1 = y as i64;
+        let rx2 = rx1 + w as i64;
+        let ry2 = ry1 + h as i64;
+
+        let mut best_idx = None;
+        let mut best_area: i64 = 0;
+
+        for (i, m) in self.monitors.iter().enumerate() {
+            let mx1 = m.position.0 as i64;
+            let my1 = m.position.1 as i64;
+            let mx2 = mx1 + m.size.0 as i64;
+            let my2 = my1 + m.size.1 as i64;
+
+            let ox = (rx2.min(mx2) - rx1.max(mx1)).max(0);
+            let oy = (ry2.min(my2) - ry1.max(my1)).max(0);
+            let area = ox * oy;
+
+            if area > best_area {
+                best_area = area;
+                best_idx = Some(i);
+            }
+        }
+
+        best_idx
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_screen(monitors: Vec<MonitorInfo>) -> Screen {
+        Screen {
+            monitors,
+            virtual_bounds: (0, 0, 3840, 1080),
+        }
+    }
+
+    #[test]
+    fn monitor_index_of_rect_single() {
+        let screen = make_screen(vec![MonitorInfo {
+            name: None,
+            position: (0, 0),
+            size: (1920, 1080),
+            scale_factor: 1.0,
+            primary: true,
+        }]);
+        assert_eq!(screen.monitor_index_of_rect(100, 100, 200, 200), Some(0));
+    }
+
+    #[test]
+    fn monitor_index_of_rect_picks_max_overlap() {
+        let screen = make_screen(vec![
+            MonitorInfo {
+                name: None,
+                position: (0, 0),
+                size: (1920, 1080),
+                scale_factor: 1.0,
+                primary: true,
+            },
+            MonitorInfo {
+                name: None,
+                position: (1920, 0),
+                size: (1920, 1080),
+                scale_factor: 1.0,
+                primary: false,
+            },
+        ]);
+        // Mostly on monitor 1 (right)
+        assert_eq!(screen.monitor_index_of_rect(1900, 0, 200, 100), Some(1));
+        // Mostly on monitor 0 (left)
+        assert_eq!(screen.monitor_index_of_rect(1800, 0, 200, 100), Some(0));
+    }
+
+    #[test]
+    fn monitor_index_of_rect_no_overlap() {
+        let screen = make_screen(vec![MonitorInfo {
+            name: None,
+            position: (0, 0),
+            size: (1920, 1080),
+            scale_factor: 1.0,
+            primary: true,
+        }]);
+        assert_eq!(screen.monitor_index_of_rect(2000, 2000, 100, 100), None);
+    }
+
+    #[test]
+    fn monitor_index_of_rect_empty_monitors() {
+        let screen = make_screen(vec![]);
+        assert_eq!(screen.monitor_index_of_rect(0, 0, 100, 100), None);
+    }
 }

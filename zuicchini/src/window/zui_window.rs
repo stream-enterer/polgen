@@ -401,6 +401,16 @@ impl ZuiWindow {
         self.winit_window.request_redraw();
     }
 
+    /// Request the window manager to bring this window to front.
+    pub fn raise(&self) {
+        self.winit_window.focus_window();
+    }
+
+    /// Set the window title.
+    pub fn set_title(&self, title: &str) {
+        self.winit_window.set_title(title);
+    }
+
     /// Mark all tiles as dirty so the next render repaints everything.
     pub fn invalidate(&mut self) {
         self.tile_cache.mark_all_dirty();
