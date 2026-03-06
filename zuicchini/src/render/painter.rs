@@ -10,6 +10,8 @@ const ARROW_BASE_SIZE: f64 = 10.0;
 const ARROW_NOTCH: f64 = 0.3;
 /// Number of segments for circle approximation.
 const CIRCLE_SEGMENTS: usize = 32;
+/// Maximum miter extension factor.
+const MAX_MITER: f64 = 5.0;
 /// Bezier subdivision flatness threshold (pixels).
 const BEZIER_FLATNESS: f64 = 0.5;
 /// Maximum Bezier subdivision depth.
@@ -740,6 +742,31 @@ impl<'a> Painter<'a> {
         }
     }
 
+    /// Stroke a closed Bezier path outline (tessellated to polyline, then stroked).
+    /// Corresponds to C++ `PaintBezierOutline`: tessellates + strokes as closed path.
+    pub fn paint_bezier_outline(&mut self, points: &[(f64, f64)], stroke: &Stroke) {
+        if points.len() < 4 {
+            return;
+        }
+        let mut verts = Vec::new();
+        for chunk in points.chunks(4) {
+            if chunk.len() == 4 {
+                tessellate_cubic(
+                    &mut verts,
+                    chunk[0],
+                    chunk[1],
+                    chunk[2],
+                    chunk[3],
+                    BEZIER_FLATNESS,
+                    0,
+                );
+            }
+        }
+        if verts.len() >= 2 {
+            self.paint_polyline_without_arrows(&verts, stroke, true);
+        }
+    }
+
     /// Stroke a cubic Bezier curve (tessellated to polyline).
     pub fn paint_bezier_line(&mut self, points: &[(f64, f64)], stroke: &Stroke) {
         if points.len() < 4 {
@@ -1414,6 +1441,182 @@ impl<'a> Painter<'a> {
         self.fill_polygon_aa(&outer, stroke.color, WindingRule::NonZero);
     }
 
+    /// Correct blending artifacts along a shared edge between two adjacent polygons.
+    ///
+    /// Walks along the edge using DDA stepping, computes area coverage for both
+    /// sides, and blends a correction pixel. Corresponds to C++ `PaintEdgeCorrection`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn paint_edge_correction(
+        &mut self,
+        mut x1: f64,
+        mut y1: f64,
+        mut x2: f64,
+        mut y2: f64,
+        mut color1: Color,
+        mut color2: Color,
+    ) {
+        // Transform to pixel coordinates.
+        x1 = x1 * self.state.scale_x + self.state.offset_x;
+        y1 = y1 * self.state.scale_y + self.state.offset_y;
+        x2 = x2 * self.state.scale_x + self.state.offset_x;
+        y2 = y2 * self.state.scale_y + self.state.offset_y;
+
+        // Ensure y1 <= y2.
+        if y1 > y2 {
+            std::mem::swap(&mut x1, &mut x2);
+            std::mem::swap(&mut y1, &mut y2);
+            std::mem::swap(&mut color1, &mut color2);
+        }
+
+        if color1.a() == 0 || color2.a() == 0 {
+            return;
+        }
+
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let adx = dx.abs();
+
+        if dy < 0.0001 && adx < 0.0001 {
+            return;
+        }
+
+        let gx = if dy >= 0.0001 { dx / dy } else { 0.0 };
+        let gy = if adx >= 0.0001 { dy / adx } else { 0.0 };
+
+        let clip = self.state.clip;
+        let clip_x1f = clip.x as f64;
+        let clip_y1f = clip.y as f64;
+        let clip_x2f = (clip.x + clip.w) as f64;
+        let clip_y2f = (clip.y + clip.h) as f64;
+
+        if y1 < clip_y1f {
+            x1 += gx * (clip_y1f - y1);
+            y1 = clip_y1f;
+        }
+        if y2 > clip_y2f {
+            x2 += gx * (clip_y2f - y2);
+            y2 = clip_y2f;
+        }
+        if y1 >= y2 {
+            return;
+        }
+
+        if dx >= 0.0 {
+            if x1 < clip_x1f {
+                y1 += gy * (clip_x1f - x1);
+                x1 = clip_x1f;
+            }
+            if x2 > clip_x2f {
+                y2 += gy * (clip_x2f - x2);
+                x2 = clip_x2f;
+            }
+        } else {
+            if x2 < clip_x1f {
+                y2 -= gy * (clip_x1f - x2);
+                x2 = clip_x1f;
+            }
+            if x1 > clip_x2f {
+                y1 -= gy * (x1 - clip_x2f);
+                x1 = clip_x2f;
+            }
+        }
+
+        if y1 >= y2 {
+            return;
+        }
+
+        let cy1 = y1.floor() as i32;
+        let cy2 = y2.ceil() as i32;
+        let (cx1, cx2) = if dx >= 0.0 {
+            (x1.floor() as i32, x2.ceil() as i32)
+        } else {
+            (x2.floor() as i32, x1.ceil() as i32)
+        };
+
+        let mut sx = if dx >= 0.0 {
+            x1.floor() as i32
+        } else {
+            x1.ceil() as i32 - 1
+        };
+        let mut sy = y1.floor() as i32;
+
+        let tw = self.target.width() as i32;
+        let th = self.target.height() as i32;
+
+        loop {
+            if sy >= cy2 {
+                break;
+            }
+            if sx < cx1 || sx >= cx2 || sy < cy1 {
+                sy += 1;
+                continue;
+            }
+
+            if sx >= 0 && sx < tw && sy >= 0 && sy < th {
+                let px_left = sx as f64;
+                let px_right = (sx + 1) as f64;
+                let ey_top = (sy as f64).max(y1);
+                let ey_bot = ((sy + 1) as f64).min(y2);
+
+                if ey_top < ey_bot {
+                    let ex_top = x1 + gx * (ey_top - y1);
+                    let ex_bot = x1 + gx * (ey_bot - y1);
+                    let edge_x_min = ex_top.min(ex_bot).max(px_left);
+                    let edge_x_max = ex_top.max(ex_bot).min(px_right);
+                    let edge_y_span = ey_bot - ey_top;
+                    let mid_x = (edge_x_min + edge_x_max) * 0.5;
+                    let a1 = ((mid_x - px_left) * edge_y_span).clamp(0.0, 1.0);
+                    let a2 = ((px_right - mid_x) * edge_y_span).clamp(0.0, 1.0);
+
+                    if a1 >= 0.001 && a2 >= 0.001 {
+                        let inv = 1.0 / ((1.0 - a1) * (1.0 - a2));
+                        let t = (255.0 * (1.0 - inv.min(1.0))).max(0.0);
+                        let alpha3 = (t * a1 * a2) as i32;
+
+                        if alpha3 > 0 {
+                            let total_a = a1 + a2;
+                            let w1 = a1 / total_a;
+                            let w2 = a2 / total_a;
+                            let cr =
+                                (color1.r() as f64 * w1 + color2.r() as f64 * w2).round() as u8;
+                            let cg =
+                                (color1.g() as f64 * w1 + color2.g() as f64 * w2).round() as u8;
+                            let cb =
+                                (color1.b() as f64 * w1 + color2.b() as f64 * w2).round() as u8;
+                            let ca = alpha3.min(255) as u8;
+                            let correction = Color::rgba(cr, cg, cb, ca);
+                            self.blend_pixel(sx, sy, correction);
+                        }
+                    }
+                }
+            }
+
+            if dx >= 0.0 {
+                if (sy as f64 + 1.0 - y1) * dx > (sx as f64 + 1.0 - x1) * dy {
+                    sx += 1;
+                    if sx >= cx2 {
+                        break;
+                    }
+                } else {
+                    sy += 1;
+                    if sy >= cy2 {
+                        break;
+                    }
+                }
+            } else if (sy as f64 + 1.0 - y1) * dx < (sx as f64 - x1) * dy {
+                sx -= 1;
+                if sx < cx1 {
+                    break;
+                }
+            } else {
+                sy += 1;
+                if sy >= cy2 {
+                    break;
+                }
+            }
+        }
+    }
+
     /// Fill the current clip rect with a solid color.
     pub fn clear(&mut self, color: Color) {
         let clip = self.state.clip;
@@ -1515,6 +1718,21 @@ impl<'a> Painter<'a> {
         // Flush any remaining dash segment.
         if is_dash && current_segment.len() >= 2 {
             self.paint_solid_polyline(&current_segment, &dash_stroke, false);
+        }
+    }
+
+    /// Dispatch polyline rendering: if dashed call dashed, else call solid.
+    /// Corresponds to C++ `PaintPolylineWithoutArrows`.
+    pub fn paint_polyline_without_arrows(
+        &mut self,
+        vertices: &[(f64, f64)],
+        stroke: &Stroke,
+        closed: bool,
+    ) {
+        if !stroke.dash_pattern.is_empty() {
+            self.paint_dashed_polyline(vertices, stroke, closed);
+        } else {
+            self.paint_solid_polyline(vertices, stroke, closed);
         }
     }
 
@@ -1842,6 +2060,33 @@ impl<'a> Painter<'a> {
                 rounded,
             );
         }
+    }
+
+    /// Calculate the maximum radius that a line point (including any arrow
+    /// decorations) can extend from the vertex. Used for clip-rectangle
+    /// expansion when testing visibility.
+    /// Corresponds to C++ `CalculateLinePointMinMaxRadius`.
+    pub fn calculate_line_point_min_max_radius(
+        thickness: f64,
+        stroke: &Stroke,
+        stroke_start: &StrokeEnd,
+        stroke_end: &StrokeEnd,
+    ) -> f64 {
+        let mut r = thickness * 0.5;
+        if stroke.join != super::stroke::LineJoin::Round {
+            r *= MAX_MITER.max(1.415);
+        }
+        if stroke_start.is_decorated() {
+            let w = thickness * ARROW_BASE_SIZE * 0.5 * stroke_start.width_factor;
+            let l = thickness * ARROW_BASE_SIZE * stroke_start.length_factor;
+            r = r.max((w * w + l * l).sqrt());
+        }
+        if stroke_end.is_decorated() {
+            let w = thickness * ARROW_BASE_SIZE * 0.5 * stroke_end.width_factor;
+            let l = thickness * ARROW_BASE_SIZE * stroke_end.length_factor;
+            r = r.max((w * w + l * l).sqrt());
+        }
+        r
     }
 
     /// Calculate how far to shorten a line end so decorations don't overlap the stroke body.
@@ -2574,4 +2819,241 @@ fn expand_tabs(s: &str) -> String {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::foundation::Image;
+
+    fn make_painter<'a>(target: &'a mut Image, font_cache: &'a mut FontCache) -> Painter<'a> {
+        Painter::new(target, font_cache)
+    }
+
+    #[test]
+    fn edge_correction_no_crash() {
+        let mut img = Image::new(32, 32, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_polygon(&[(0.0, 0.0), (16.0, 0.0), (16.0, 16.0)], Color::RED);
+        p.paint_polygon(&[(0.0, 0.0), (16.0, 16.0), (0.0, 16.0)], Color::BLUE);
+        p.paint_edge_correction(0.0, 0.0, 16.0, 16.0, Color::RED, Color::BLUE);
+    }
+
+    #[test]
+    fn edge_correction_transparent_noop() {
+        let mut img = Image::new(16, 16, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_edge_correction(0.0, 0.0, 10.0, 10.0, Color::TRANSPARENT, Color::RED);
+        p.paint_edge_correction(0.0, 0.0, 10.0, 10.0, Color::RED, Color::TRANSPARENT);
+    }
+
+    #[test]
+    fn bezier_outline_paints_pixels() {
+        let mut img = Image::new(64, 64, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        let stroke = Stroke::new(Color::WHITE, 2.0);
+        let points = [
+            (32.0, 10.0),
+            (50.0, 10.0),
+            (50.0, 32.0),
+            (50.0, 32.0),
+            (50.0, 32.0),
+            (50.0, 54.0),
+            (32.0, 54.0),
+            (32.0, 54.0),
+            (32.0, 54.0),
+            (14.0, 54.0),
+            (14.0, 32.0),
+            (14.0, 32.0),
+            (14.0, 32.0),
+            (14.0, 10.0),
+            (32.0, 10.0),
+            (32.0, 10.0),
+        ];
+        p.paint_bezier_outline(&points, &stroke);
+        let px = img.pixel(32, 10);
+        assert!(px[0] > 0 || px[1] > 0 || px[2] > 0);
+    }
+
+    #[test]
+    fn line_radius_miter_no_arrow() {
+        let stroke = Stroke::new(Color::BLACK, 4.0);
+        let butt = StrokeEnd::butt();
+        let r = Painter::calculate_line_point_min_max_radius(4.0, &stroke, &butt, &butt);
+        assert!((r - 10.0).abs() < 0.01, "miter: expected 10.0, got {r}");
+    }
+
+    #[test]
+    fn line_radius_round_no_arrow() {
+        let stroke = Stroke {
+            join: super::super::stroke::LineJoin::Round,
+            ..Stroke::new(Color::BLACK, 4.0)
+        };
+        let butt = StrokeEnd::butt();
+        let r = Painter::calculate_line_point_min_max_radius(4.0, &stroke, &butt, &butt);
+        assert!((r - 2.0).abs() < 0.01, "round: expected 2.0, got {r}");
+    }
+
+    #[test]
+    fn line_radius_with_arrow() {
+        let stroke = Stroke {
+            join: super::super::stroke::LineJoin::Round,
+            ..Stroke::new(Color::BLACK, 4.0)
+        };
+        let butt = StrokeEnd::butt();
+        let arrow = StrokeEnd::new(StrokeEndType::Arrow);
+        let r = Painter::calculate_line_point_min_max_radius(4.0, &stroke, &arrow, &butt);
+        let expected = (20.0f64 * 20.0 + 40.0 * 40.0).sqrt();
+        assert!(
+            (r - expected).abs() < 0.1,
+            "arrow: expected {expected}, got {r}"
+        );
+    }
+
+    #[test]
+    fn polyline_without_arrows_solid() {
+        let mut img = Image::new(32, 32, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        let stroke = Stroke::new(Color::WHITE, 2.0);
+        let verts = [(5.0, 5.0), (25.0, 5.0), (25.0, 25.0)];
+        p.paint_polyline_without_arrows(&verts, &stroke, false);
+        let px = img.pixel(15, 5);
+        assert!(px[0] > 0, "solid polyline should paint pixels");
+    }
+
+    #[test]
+    fn paint_image_scaled_bilinear() {
+        let mut src = Image::new(4, 4, 4);
+        for y in 0..4u32 {
+            for x in 0..4u32 {
+                let v = ((x + y) * 32) as u8;
+                let p = src.pixel_mut(x, y);
+                p[0] = v;
+                p[1] = v;
+                p[2] = v;
+                p[3] = 255;
+            }
+        }
+        let mut img = Image::new(16, 16, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_image_scaled(
+            0.0,
+            0.0,
+            16.0,
+            16.0,
+            &src,
+            super::super::texture::ImageQuality::Bilinear,
+            super::super::texture::ImageExtension::Clamp,
+        );
+        // Center pixel should be interpolated (non-zero).
+        let px = img.pixel(8, 8);
+        assert!(px[0] > 0, "scaled image should paint pixels");
+    }
+
+    #[test]
+    fn paint_radial_gradient_fills() {
+        let mut img = Image::new(32, 32, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_radial_gradient(16.0, 16.0, 12.0, 12.0, Color::WHITE, Color::BLACK);
+        let center = img.pixel(16, 16);
+        assert!(center[0] > 200, "center should be near white");
+    }
+
+    fn make_gradient_src() -> Image {
+        let mut src = Image::new(8, 8, 4);
+        for y in 0..8u32 {
+            for x in 0..8u32 {
+                let v = ((x + y) * 16).min(255) as u8;
+                let p = src.pixel_mut(x, y);
+                p[0] = v;
+                p[1] = v;
+                p[2] = v;
+                p[3] = 255;
+            }
+        }
+        src
+    }
+
+    #[test]
+    fn paint_image_scaled_bicubic() {
+        let src = make_gradient_src();
+        let mut img = Image::new(32, 32, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_image_scaled(
+            0.0,
+            0.0,
+            32.0,
+            32.0,
+            &src,
+            super::super::texture::ImageQuality::Bicubic,
+            super::super::texture::ImageExtension::Clamp,
+        );
+        let px = img.pixel(16, 16);
+        assert!(px[0] > 0, "bicubic: center pixel should be non-zero");
+    }
+
+    #[test]
+    fn paint_image_scaled_lanczos() {
+        let src = make_gradient_src();
+        let mut img = Image::new(32, 32, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_image_scaled(
+            0.0,
+            0.0,
+            32.0,
+            32.0,
+            &src,
+            super::super::texture::ImageQuality::Lanczos,
+            super::super::texture::ImageExtension::Clamp,
+        );
+        let px = img.pixel(16, 16);
+        assert!(px[0] > 0, "lanczos: center pixel should be non-zero");
+    }
+
+    #[test]
+    fn paint_image_scaled_adaptive() {
+        let src = make_gradient_src();
+        let mut img = Image::new(32, 32, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        p.paint_image_scaled(
+            0.0,
+            0.0,
+            32.0,
+            32.0,
+            &src,
+            super::super::texture::ImageQuality::Adaptive,
+            super::super::texture::ImageExtension::Clamp,
+        );
+        let px = img.pixel(16, 16);
+        assert!(px[0] > 0, "adaptive: center pixel should be non-zero");
+    }
+
+    #[test]
+    fn paint_image_scaled_area_sampled() {
+        let src = make_gradient_src();
+        let mut img = Image::new(4, 4, 4);
+        let mut fc = FontCache::new();
+        let mut p = make_painter(&mut img, &mut fc);
+        // Downscale: 8x8 -> 4x4 (area sampling)
+        p.paint_image_scaled(
+            0.0,
+            0.0,
+            4.0,
+            4.0,
+            &src,
+            super::super::texture::ImageQuality::AreaSampled,
+            super::super::texture::ImageExtension::Clamp,
+        );
+        let px = img.pixel(2, 2);
+        assert!(px[0] > 0, "area-sampled: center pixel should be non-zero");
+    }
 }

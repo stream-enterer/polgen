@@ -357,6 +357,241 @@ impl Border {
         }
     }
 
+    /// Returns `true` if this border type fully fills its rect so nothing behind
+    /// it is visible. Only the border types that paint a solid background over the
+    /// entire panel area qualify, and only when the background color is opaque.
+    ///
+    /// C++ equivalent: `emBorder::IsOpaque`.
+    pub fn is_opaque(&self, look: &Look) -> bool {
+        match self.outer {
+            OuterBorderType::Filled
+            | OuterBorderType::MarginFilled
+            | OuterBorderType::PopupRoot => look.bg_color.is_opaque(),
+            _ => false,
+        }
+    }
+
+    /// Returns the *substance* round rectangle -- the outermost region where this
+    /// border actually paints pixels. For simple rect-based types the radius is 0.
+    /// For round types the radius matches the outer corner radius. For
+    /// group/instrument types the rect is slightly expanded (per C++ TGA ratios)
+    /// to cover the border-image area even though the Rust port paints simple
+    /// fills.
+    ///
+    /// Returns `(rect, corner_radius)`.
+    ///
+    /// C++ equivalent: `emBorder::GetSubstanceRect`
+    /// (via `DoBorder(BORDER_FUNC_SUBSTANCE_ROUND_RECT)`).
+    pub fn substance_round_rect(&self, w: f64, h: f64) -> (Rect, f64) {
+        let s = self.base_unit(w, h);
+        match self.outer {
+            OuterBorderType::None | OuterBorderType::Filled => (
+                Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    w,
+                    h,
+                },
+                0.0,
+            ),
+            OuterBorderType::Margin | OuterBorderType::MarginFilled => {
+                let d = s * 0.04;
+                (
+                    Rect {
+                        x: d,
+                        y: d,
+                        w: (w - 2.0 * d).max(0.0),
+                        h: (h - 2.0 * d).max(0.0),
+                    },
+                    0.0,
+                )
+            }
+            OuterBorderType::Rect => {
+                // Substance rect at the stroke center line.
+                let d = s * 0.006;
+                (
+                    Rect {
+                        x: d,
+                        y: d,
+                        w: (w - 2.0 * d).max(0.0),
+                        h: (h - 2.0 * d).max(0.0),
+                    },
+                    0.0,
+                )
+            }
+            OuterBorderType::RoundRect => {
+                let d = s * 0.006; // half-stroke
+                let f = s * 0.22; // outer radius
+                (
+                    Rect {
+                        x: d,
+                        y: d,
+                        w: (w - 2.0 * d).max(0.0),
+                        h: (h - 2.0 * d).max(0.0),
+                    },
+                    (f - d).max(0.0),
+                )
+            }
+            OuterBorderType::Group => {
+                let d = s * 0.0104;
+                let rnd_r = s * 0.0188;
+                let r = rnd_r * 280.0 / 209.0;
+                let e = r - rnd_r;
+                (
+                    Rect {
+                        x: (d - e).max(0.0),
+                        y: (d - e).max(0.0),
+                        w: (w - 2.0 * d + 2.0 * e).max(0.0),
+                        h: (h - 2.0 * d + 2.0 * e).max(0.0),
+                    },
+                    r,
+                )
+            }
+            OuterBorderType::Instrument => {
+                let d = s * 0.052;
+                let rnd_r = s * 0.094;
+                let r = rnd_r * 280.0 / 209.0;
+                let e = r - rnd_r;
+                (
+                    Rect {
+                        x: (d - e).max(0.0),
+                        y: (d - e).max(0.0),
+                        w: (w - 2.0 * d + 2.0 * e).max(0.0),
+                        h: (h - 2.0 * d + 2.0 * e).max(0.0),
+                    },
+                    r,
+                )
+            }
+            OuterBorderType::InstrumentMoreRound => {
+                let d = s * 0.02;
+                let rnd_r = s * 0.223;
+                let r = rnd_r * 336.0 / 293.4;
+                let e = r - rnd_r;
+                (
+                    Rect {
+                        x: (d - e).max(0.0),
+                        y: (d - e).max(0.0),
+                        w: (w - 2.0 * d + 2.0 * e).max(0.0),
+                        h: (h - 2.0 * d + 2.0 * e).max(0.0),
+                    },
+                    r,
+                )
+            }
+            OuterBorderType::PopupRoot => (
+                Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    w,
+                    h,
+                },
+                0.0,
+            ),
+        }
+    }
+
+    /// Returns the content area as a round rectangle with corner radius.
+    /// Unlike [`content_rect`](Self::content_rect) which returns the axis-aligned
+    /// inscribed rectangle, this returns the round-rect boundary and its radius so
+    /// callers can perform round-rect hit-testing or clipping.
+    ///
+    /// Returns `(rect, corner_radius)`.
+    ///
+    /// C++ equivalent: `emBorder::GetContentRoundRect`
+    /// (via `DoBorder(BORDER_FUNC_CONTENT_ROUND_RECT)`).
+    pub fn content_round_rect(&self, w: f64, h: f64, _look: &Look) -> (Rect, f64) {
+        let (ox, oy, ow, oh) = self.outer_insets(w, h);
+        let label_area_w = (w - ow).max(0.0);
+        let label_h = if self.has_label() {
+            self.label_layout(ox, oy, label_area_w, h).total_height
+        } else {
+            0.0
+        };
+
+        // Round rect after outer insets + label.
+        let rnd_x = ox;
+        let rnd_y = oy + label_h;
+        let rnd_w = (w - ow).max(0.0);
+        let rnd_h = (h - oh - label_h).max(0.0);
+        let mut rnd_r = self.outer_radius(w, h);
+
+        // Inner border processing: adjust round rect.
+        let inner_s = rnd_w.min(rnd_h) * self.border_scaling;
+        match self.inner {
+            InnerBorderType::None => {}
+            InnerBorderType::Group => {
+                let r = inner_s * 0.0188;
+                if rnd_r < r {
+                    rnd_r = r;
+                }
+            }
+            InnerBorderType::InputField | InnerBorderType::OutputField => {
+                let r = inner_s * 0.094;
+                // For IO fields, the content round rect is the inner field area.
+                let (ix, iy, iw, ih) = self.inner_insets(rnd_w, rnd_h);
+                return (
+                    Rect {
+                        x: rnd_x + ix,
+                        y: rnd_y + iy,
+                        w: (rnd_w - iw).max(0.0),
+                        h: (rnd_h - ih).max(0.0),
+                    },
+                    r,
+                );
+            }
+            InnerBorderType::CustomRect => {
+                let r = inner_s * 0.0125;
+                if rnd_r < r {
+                    rnd_r = r;
+                }
+            }
+        }
+
+        let (ix, iy, iw, ih) = self.inner_insets(rnd_w, rnd_h);
+        let ir = self.inner_radius(rnd_w, rnd_h);
+        let final_r = if self.inner != InnerBorderType::None {
+            ir
+        } else {
+            rnd_r
+        };
+        (
+            Rect {
+                x: rnd_x + ix,
+                y: rnd_y + iy,
+                w: (rnd_w - iw).max(0.0),
+                h: (rnd_h - ih).max(0.0),
+            },
+            final_r.max(0.0),
+        )
+    }
+
+    /// Returns the content rect with areas obscured by inner-border overlays
+    /// removed. For input/output field inner borders, this is slightly smaller
+    /// than [`content_rect`](Self::content_rect) because the field shadow/border
+    /// images paint over the edges of the content area. For all other inner
+    /// border types the result equals `content_rect`.
+    ///
+    /// C++ equivalent: `emBorder::GetContentRectUnobscured`
+    /// (via `DoBorder(BORDER_FUNC_CONTENT_RECT_UNOBSCURED)`).
+    pub fn content_rect_unobscured(&self, w: f64, h: f64, look: &Look) -> Rect {
+        match self.inner {
+            InnerBorderType::InputField | InnerBorderType::OutputField => {
+                // IO fields have an overlay border that obscures a strip along
+                // each edge. C++ computes d = 220/216 * rndR, then insets by d.
+                let cr = self.content_rect(w, h, look);
+                let inner_s = cr.w.min(cr.h) * self.border_scaling;
+                let rnd_r = inner_s * 0.094;
+                let d = rnd_r * 220.0 / 216.0;
+                Rect {
+                    x: cr.x + d,
+                    y: cr.y + d,
+                    w: (cr.w - 2.0 * d).max(0.0),
+                    h: (cr.h - 2.0 * d).max(0.0),
+                }
+            }
+            _ => self.content_rect(w, h, look),
+        }
+    }
+
     /// Compute the content area after border and label insets.
     pub fn content_rect(&self, w: f64, h: f64, _look: &Look) -> Rect {
         let (ox, oy, ow, oh) = self.outer_insets(w, h);
@@ -406,7 +641,7 @@ impl Border {
         focused: bool,
         enabled: bool,
     ) {
-        // Dimming for disabled state: C++ "GetTransparented(75.0)" ≈ alpha * 0.25.
+        // Dimming for disabled state: C++ "GetTransparented(75.0)" ~ alpha * 0.25.
         let dim_color = |c: crate::foundation::Color| -> crate::foundation::Color {
             if enabled {
                 c
@@ -808,5 +1043,216 @@ mod tests {
         assert!(empty.is_empty());
         let nonempty = Image::new(1, 1, 1);
         assert!(!nonempty.is_empty());
+    }
+
+    // --- is_opaque tests ---
+
+    #[test]
+    fn is_opaque_filled_opaque_bg() {
+        let look = test_look();
+        assert!(
+            look.bg_color.is_opaque(),
+            "default look bg should be opaque"
+        );
+        let border = Border::new(OuterBorderType::Filled);
+        assert!(border.is_opaque(&look));
+    }
+
+    #[test]
+    fn is_opaque_margin_filled() {
+        let border = Border::new(OuterBorderType::MarginFilled);
+        assert!(border.is_opaque(&test_look()));
+    }
+
+    #[test]
+    fn is_opaque_popup_root() {
+        let border = Border::new(OuterBorderType::PopupRoot);
+        assert!(border.is_opaque(&test_look()));
+    }
+
+    #[test]
+    fn is_opaque_false_for_non_filled() {
+        let look = test_look();
+        for outer in [
+            OuterBorderType::None,
+            OuterBorderType::Margin,
+            OuterBorderType::Rect,
+            OuterBorderType::RoundRect,
+            OuterBorderType::Group,
+            OuterBorderType::Instrument,
+            OuterBorderType::InstrumentMoreRound,
+        ] {
+            let border = Border::new(outer);
+            assert!(!border.is_opaque(&look), "expected false for {outer:?}");
+        }
+    }
+
+    #[test]
+    fn is_opaque_transparent_bg() {
+        use crate::foundation::Color;
+        let mut look = test_look();
+        look.bg_color = Color::rgba(100, 100, 100, 128);
+        let border = Border::new(OuterBorderType::Filled);
+        assert!(!border.is_opaque(&look));
+    }
+
+    // --- substance_round_rect tests ---
+
+    #[test]
+    fn substance_none_is_full_rect() {
+        let border = Border::new(OuterBorderType::None);
+        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        assert!(rect.x.abs() < 0.001);
+        assert!(rect.y.abs() < 0.001);
+        assert!((rect.w - 200.0).abs() < 0.001);
+        assert!((rect.h - 100.0).abs() < 0.001);
+        assert!(r.abs() < 0.001);
+    }
+
+    #[test]
+    fn substance_filled_is_full_rect() {
+        let border = Border::new(OuterBorderType::Filled);
+        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        assert!((rect.w - 200.0).abs() < 0.001);
+        assert!((rect.h - 100.0).abs() < 0.001);
+        assert!(r.abs() < 0.001);
+    }
+
+    #[test]
+    fn substance_margin_is_inset() {
+        let border = Border::new(OuterBorderType::Margin);
+        let (rect, r) = border.substance_round_rect(100.0, 100.0);
+        let d = 100.0 * 0.04;
+        assert!((rect.x - d).abs() < 0.01);
+        assert!((rect.y - d).abs() < 0.01);
+        assert!((rect.w - (100.0 - 2.0 * d)).abs() < 0.01);
+        assert!((rect.h - (100.0 - 2.0 * d)).abs() < 0.01);
+        assert!(r.abs() < 0.001);
+    }
+
+    #[test]
+    fn substance_round_rect_has_radius() {
+        let border = Border::new(OuterBorderType::RoundRect);
+        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        assert!(r > 0.0, "round rect substance should have positive radius");
+        assert!(rect.w < 200.0, "should be inset from full width");
+    }
+
+    #[test]
+    fn substance_group_expanded_from_rnd() {
+        let border = Border::new(OuterBorderType::Group);
+        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        let s = 100.0; // min(200,100) * 1.0
+        let d = s * 0.0104; // outer inset
+        let rnd_r = s * 0.0188;
+        let expanded_r = rnd_r * 280.0 / 209.0;
+        let e = expanded_r - rnd_r;
+        assert!((r - expanded_r).abs() < 0.01);
+        assert!((rect.x - (d - e)).abs() < 0.01);
+    }
+
+    #[test]
+    fn substance_popup_root_is_full_rect() {
+        let border = Border::new(OuterBorderType::PopupRoot);
+        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        assert!(rect.x.abs() < 0.001);
+        assert!((rect.w - 200.0).abs() < 0.001);
+        assert!(r.abs() < 0.001);
+    }
+
+    // --- content_round_rect tests ---
+
+    #[test]
+    fn content_round_rect_none_border() {
+        let border = Border::new(OuterBorderType::None);
+        let look = test_look();
+        let (rect, r) = border.content_round_rect(100.0, 50.0, &look);
+        assert!(rect.x.abs() < 0.01);
+        assert!(rect.y.abs() < 0.01);
+        assert!((rect.w - 100.0).abs() < 0.01);
+        assert!((rect.h - 50.0).abs() < 0.01);
+        assert!(r.abs() < 0.01);
+    }
+
+    #[test]
+    fn content_round_rect_with_inner_input_field() {
+        let border = Border::new(OuterBorderType::None).with_inner(InnerBorderType::InputField);
+        let look = test_look();
+        let (rect, r) = border.content_round_rect(100.0, 50.0, &look);
+        // Should be inset by input field inset
+        let d = 50.0 * 0.094;
+        assert!((rect.x - d).abs() < 0.5);
+        assert!((rect.y - d).abs() < 0.5);
+        assert!(r > 0.0, "IO field should have positive radius");
+    }
+
+    #[test]
+    fn content_round_rect_matches_content_rect_position() {
+        // For non-IO inner borders, the rect position should match content_rect.
+        let border = Border::new(OuterBorderType::Rect).with_inner(InnerBorderType::Group);
+        let look = test_look();
+        let (rr, _radius) = border.content_round_rect(100.0, 60.0, &look);
+        let cr = border.content_rect(100.0, 60.0, &look);
+        assert!((rr.x - cr.x).abs() < 0.5);
+        assert!((rr.y - cr.y).abs() < 0.5);
+        assert!((rr.w - cr.w).abs() < 0.5);
+        assert!((rr.h - cr.h).abs() < 0.5);
+    }
+
+    // --- content_rect_unobscured tests ---
+
+    #[test]
+    fn content_rect_unobscured_equals_content_rect_for_none() {
+        let border = Border::new(OuterBorderType::Rect);
+        let look = test_look();
+        let cr = border.content_rect(100.0, 50.0, &look);
+        let cu = border.content_rect_unobscured(100.0, 50.0, &look);
+        assert!((cr.x - cu.x).abs() < 0.001);
+        assert!((cr.y - cu.y).abs() < 0.001);
+        assert!((cr.w - cu.w).abs() < 0.001);
+        assert!((cr.h - cu.h).abs() < 0.001);
+    }
+
+    #[test]
+    fn content_rect_unobscured_smaller_for_input_field() {
+        let border = Border::new(OuterBorderType::None).with_inner(InnerBorderType::InputField);
+        let look = test_look();
+        let cr = border.content_rect(200.0, 100.0, &look);
+        let cu = border.content_rect_unobscured(200.0, 100.0, &look);
+        // Unobscured should be strictly inset from content rect.
+        assert!(
+            cu.x > cr.x,
+            "unobscured x ({}) > content x ({})",
+            cu.x,
+            cr.x
+        );
+        assert!(
+            cu.y > cr.y,
+            "unobscured y ({}) > content y ({})",
+            cu.y,
+            cr.y
+        );
+        assert!(
+            cu.w < cr.w,
+            "unobscured w ({}) < content w ({})",
+            cu.w,
+            cr.w
+        );
+        assert!(
+            cu.h < cr.h,
+            "unobscured h ({}) < content h ({})",
+            cu.h,
+            cr.h
+        );
+    }
+
+    #[test]
+    fn content_rect_unobscured_equals_content_rect_for_group_inner() {
+        let border = Border::new(OuterBorderType::None).with_inner(InnerBorderType::Group);
+        let look = test_look();
+        let cr = border.content_rect(200.0, 100.0, &look);
+        let cu = border.content_rect_unobscured(200.0, 100.0, &look);
+        assert!((cr.x - cu.x).abs() < 0.001);
+        assert!((cr.w - cu.w).abs() < 0.001);
     }
 }

@@ -20,6 +20,11 @@ pub struct RasterLayout {
     pub max_child_tallness: f64,
     pub alignment: Alignment,
     pub spacing: Spacing,
+    /// Minimum number of cells (pads with empty space if fewer children).
+    pub min_cell_count: usize,
+    /// If true, increase cols/rows to keep cell tallness within min/max range
+    /// rather than clamping tallness after the fact.
+    pub strict_raster: bool,
 }
 
 impl Default for RasterLayout {
@@ -33,6 +38,8 @@ impl Default for RasterLayout {
             max_child_tallness: 1e4,
             alignment: Alignment::Center,
             spacing: Spacing::default(),
+            min_cell_count: 0,
+            strict_raster: false,
         }
     }
 }
@@ -62,15 +69,60 @@ impl RasterLayout {
         self
     }
 
+    pub fn with_min_cell_count(mut self, count: usize) -> Self {
+        self.min_cell_count = count;
+        self
+    }
+
+    pub fn with_strict_raster(mut self, strict: bool) -> Self {
+        self.strict_raster = strict;
+        self
+    }
+
     fn do_layout(&mut self, ctx: &mut PanelCtx) {
         let Rect { w, h, .. } = ctx.layout_rect();
         let children = ctx.children();
-        let n = children.len();
+        let n = children.len().max(self.min_cell_count);
         if n == 0 {
             return;
         }
 
-        let (cols, rows) = self.compute_grid_dims(n, w, h);
+        let (mut cols, mut rows) = self.compute_grid_dims(n, w, h);
+
+        // Strict raster: increase cols or rows so cell tallness stays within bounds
+        if self.strict_raster {
+            let sp = &self.spacing;
+            let compute_tallness = |c: usize, r: usize| -> f64 {
+                let ux = sp.margin_left + sp.inner_h * (c - 1) as f64 + sp.margin_right + c as f64;
+                let uy = sp.margin_top + sp.inner_v * (r - 1) as f64 + sp.margin_bottom + r as f64;
+                if ux < 1e-100 || uy < 1e-100 || w < 1e-100 {
+                    return 1.0;
+                }
+                (h * ux * c as f64) / (w * uy * r as f64)
+            };
+
+            if self.row_major && self.fixed_columns.is_none() {
+                // Increase cols while ct < min_child_tallness
+                while cols < n {
+                    let ct = compute_tallness(cols, rows);
+                    if ct >= self.min_child_tallness {
+                        break;
+                    }
+                    cols += 1;
+                    rows = n.div_ceil(cols);
+                }
+            } else if !self.row_major && self.fixed_rows.is_none() {
+                // Increase rows while ct > max_child_tallness
+                while rows < n {
+                    let ct = compute_tallness(cols, rows);
+                    if ct <= self.max_child_tallness {
+                        break;
+                    }
+                    rows += 1;
+                    cols = n.div_ceil(rows);
+                }
+            }
+        }
         if cols == 0 || rows == 0 {
             return;
         }
@@ -132,6 +184,7 @@ impl RasterLayout {
             (actual_ml, actual_mt + offset_y)
         };
 
+        // Only place actual children; padding cells from min_cell_count are empty.
         for (i, child) in children.iter().enumerate() {
             let (col, row) = if self.row_major {
                 (i % cols, i / cols)
@@ -266,7 +319,7 @@ mod tests {
         let mut layout = RasterLayout::new().with_preferred_tallness(1.0);
         layout.do_layout(&mut PanelCtx::new(&mut tree, root));
 
-        // 4 items in 400x400 with tallness 1.0 → 2x2 grid, each 200x200
+        // 4 items in 400x400 with tallness 1.0 -> 2x2 grid, each 200x200
         let r0 = tree.get(children[0]).unwrap().layout_rect;
         assert!((r0.w - 200.0).abs() < 0.01);
         assert!((r0.h - 200.0).abs() < 0.01);
@@ -274,9 +327,9 @@ mod tests {
 
     #[test]
     fn alignment_center() {
-        // 2 items in 400x600. Log scoring picks 1 col × 2 rows.
-        // cell_w=400, unclamped tallness=0.75, clamped to max 0.5 → cell_h=200.
-        // Grid is 400×400, vertical surplus=200. Center → offset_y=100.
+        // 2 items in 400x600. Log scoring picks 1 col x 2 rows.
+        // cell_w=400, unclamped tallness=0.75, clamped to max 0.5 -> cell_h=200.
+        // Grid is 400x400, vertical surplus=200. Center -> offset_y=100.
         let (mut tree, root, children) = setup(2, 400.0, 600.0);
         let mut layout = RasterLayout::new();
         layout.row_major = true;
@@ -301,12 +354,54 @@ mod tests {
         layout.row_major = false;
         layout.do_layout(&mut PanelCtx::new(&mut tree, root));
 
-        // Column-major: child 0 at (0,0), child 1 at (0,100), child 2 at (100,0), child 3 at (100,100)
+        // Column-major: child 0 at (0,0), child 1 at (0,100), child 2 at (100,0)
         let r1 = tree.get(children[1]).unwrap().layout_rect;
         assert!((r1.x - 0.0).abs() < 0.01);
         assert!((r1.y - 100.0).abs() < 0.01);
         let r2 = tree.get(children[2]).unwrap().layout_rect;
         assert!((r2.x - 100.0).abs() < 0.01);
         assert!((r2.y - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn min_cell_count_pads_grid() {
+        // 2 children but min_cell_count=6, fixed 3 cols -> 2 rows.
+        // Each cell is 100x100; children only placed in first 2 slots.
+        let (mut tree, root, children) = setup(2, 300.0, 200.0);
+        let mut layout = RasterLayout::new().with_columns(3).with_min_cell_count(6);
+        layout.row_major = true;
+        layout.do_layout(&mut PanelCtx::new(&mut tree, root));
+
+        let r0 = tree.get(children[0]).unwrap().layout_rect;
+        let r1 = tree.get(children[1]).unwrap().layout_rect;
+        // 6 cells in 3 cols -> 2 rows, each cell 100x100
+        assert!((r0.w - 100.0).abs() < 0.01, "child 0 w: {}", r0.w);
+        assert!((r0.h - 100.0).abs() < 0.01, "child 0 h: {}", r0.h);
+        assert!((r1.x - 100.0).abs() < 0.01, "child 1 x: {}", r1.x);
+        assert!((r1.y - 0.0).abs() < 0.01, "child 1 y: {}", r1.y);
+    }
+
+    #[test]
+    fn strict_raster_row_major_increases_cols() {
+        // 4 children in 100x400 (very tall). Without strict, auto picks 1 col x 4 rows
+        // (tallness=1.0). With strict + min_child_tallness=2.0, it should increase cols
+        // until tallness >= 2.0.
+        let (mut tree, root, children) = setup(4, 100.0, 400.0);
+        let mut layout = RasterLayout::new()
+            .with_preferred_tallness(1.0)
+            .with_strict_raster(true);
+        layout.row_major = true;
+        layout.min_child_tallness = 2.0;
+        layout.max_child_tallness = 1e4;
+        layout.do_layout(&mut PanelCtx::new(&mut tree, root));
+
+        // All children should be laid out with positive sizes
+        for child in &children {
+            let r = tree.get(*child).unwrap().layout_rect;
+            assert!(r.w > 0.0);
+            assert!(r.h > 0.0);
+            // Cell tallness should be >= 2.0 (after clamping)
+            assert!(r.h / r.w >= 2.0 - 0.01, "tallness: {}", r.h / r.w);
+        }
     }
 }

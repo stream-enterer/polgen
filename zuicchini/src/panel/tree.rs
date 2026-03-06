@@ -463,6 +463,234 @@ impl PanelTree {
         None
     }
 
+    // ── Coordinate transforms ─────────────────────────────────────────
+
+    /// Convert panel-space X to view-space X.
+    pub fn panel_to_view_x(&self, id: PanelId, x: f64) -> f64 {
+        let p = &self.panels[id];
+        p.viewed_x + x * p.viewed_width
+    }
+
+    /// Convert panel-space Y to view-space Y.
+    pub fn panel_to_view_y(&self, id: PanelId, y: f64) -> f64 {
+        let p = &self.panels[id];
+        p.viewed_y + y * p.viewed_height
+    }
+
+    /// Convert view-space X to panel-space X.
+    pub fn view_to_panel_x(&self, id: PanelId, vx: f64) -> f64 {
+        let p = &self.panels[id];
+        (vx - p.viewed_x) / p.viewed_width
+    }
+
+    /// Convert view-space Y to panel-space Y.
+    pub fn view_to_panel_y(&self, id: PanelId, vy: f64) -> f64 {
+        let p = &self.panels[id];
+        (vy - p.viewed_y) / p.viewed_height
+    }
+
+    /// Convert a panel-space delta X to view-space delta X.
+    pub fn panel_to_view_delta_x(&self, id: PanelId, dx: f64) -> f64 {
+        dx * self.panels[id].viewed_width
+    }
+
+    /// Convert a panel-space delta Y to view-space delta Y.
+    pub fn panel_to_view_delta_y(&self, id: PanelId, dy: f64) -> f64 {
+        dy * self.panels[id].viewed_height
+    }
+
+    /// Convert a view-space delta X to panel-space delta X.
+    pub fn view_to_panel_delta_x(&self, id: PanelId, dvx: f64) -> f64 {
+        dvx / self.panels[id].viewed_width
+    }
+
+    /// Convert a view-space delta Y to panel-space delta Y.
+    pub fn view_to_panel_delta_y(&self, id: PanelId, dvy: f64) -> f64 {
+        dvy / self.panels[id].viewed_height
+    }
+
+    // ── Geometry accessors ───────────────────────────────────────────
+
+    /// Panel height in its own coordinate system: `layout_h / layout_w`.
+    ///
+    /// In the C++ source this is `GetHeight()` / `GetTallness()`.
+    pub fn get_height(&self, id: PanelId) -> f64 {
+        let p = &self.panels[id];
+        p.layout_rect.h / p.layout_rect.w
+    }
+
+    /// Alias for [`get_height`](Self::get_height).
+    pub fn get_tallness(&self, id: PanelId) -> f64 {
+        self.get_height(id)
+    }
+
+    /// Return the substance rectangle and corner radius for a panel.
+    ///
+    /// The base `emPanel` implementation returns `(0, 0, 1, GetHeight(), 0)` --
+    /// i.e. the full panel rect with zero radius. Subclass overrides (border
+    /// panels) may return a smaller rect with a nonzero radius; those will be
+    /// handled by the behavior trait. This method provides the default.
+    pub fn get_substance_rect(&self, id: PanelId) -> (f64, f64, f64, f64, f64) {
+        let h = self.get_height(id);
+        (0.0, 0.0, 1.0, h, 0.0)
+    }
+
+    /// Test whether a point lies inside the substance rectangle (with rounded
+    /// corners).
+    pub fn is_point_in_substance_rect(&self, id: PanelId, x: f64, y: f64) -> bool {
+        let h = self.get_height(id);
+
+        // Quick rejection: outside panel bounds
+        if !(0.0..1.0).contains(&x) || !(0.0..h).contains(&y) {
+            return false;
+        }
+
+        let (sx, sy, sw, sh, sr) = self.get_substance_rect(id);
+        let sw2 = sw * 0.5;
+        let sh2 = sh * 0.5;
+
+        // Distance from center of substance rect
+        let dx = (x - sx - sw2).abs();
+        let dy = (y - sy - sh2).abs();
+
+        // Outside substance rect entirely
+        if dx > sw2 || dy > sh2 {
+            return false;
+        }
+
+        // Clamp radius to half-dimensions
+        let r = sr.min(sw2).min(sh2);
+
+        // Distance from the inner rect edge (where rounding begins)
+        let cdx = dx - (sw2 - r);
+        let cdy = dy - (sh2 - r);
+
+        // Inside the non-rounded portion
+        if cdx < 0.0 || cdy < 0.0 {
+            return true;
+        }
+
+        // Corner arc test
+        cdx * cdx + cdy * cdy <= r * r
+    }
+
+    /// Return the essence rectangle -- the substance rectangle without the
+    /// corner-radius inset.
+    pub fn get_essence_rect(&self, id: PanelId) -> (f64, f64, f64, f64) {
+        let (sx, sy, sw, sh, _sr) = self.get_substance_rect(id);
+        (sx, sy, sw, sh)
+    }
+
+    // ── Focusable navigation ─────────────────────────────────────────
+
+    /// DFS for the first focusable descendant of `id`.
+    pub fn focusable_first_child(&self, id: PanelId) -> Option<PanelId> {
+        let mut p = self.panels.get(id)?.first_child?;
+        loop {
+            if self.panels[p].focusable {
+                return Some(p);
+            }
+            if let Some(child) = self.panels[p].first_child {
+                p = child;
+                continue;
+            }
+            // Backtrack
+            loop {
+                if let Some(next) = self.panels[p].next_sibling {
+                    p = next;
+                    break;
+                }
+                let parent = self.panels[p].parent?;
+                if parent == id {
+                    return None;
+                }
+                p = parent;
+            }
+        }
+    }
+
+    /// Reverse DFS for the last focusable descendant of `id`.
+    pub fn focusable_last_child(&self, id: PanelId) -> Option<PanelId> {
+        let mut p = self.panels.get(id)?.last_child?;
+        loop {
+            if self.panels[p].focusable {
+                return Some(p);
+            }
+            if let Some(child) = self.panels[p].last_child {
+                p = child;
+                continue;
+            }
+            // Backtrack
+            loop {
+                if let Some(prev) = self.panels[p].prev_sibling {
+                    p = prev;
+                    break;
+                }
+                let parent = self.panels[p].parent?;
+                if parent == id {
+                    return None;
+                }
+                p = parent;
+            }
+        }
+    }
+
+    /// Find the previous focusable panel relative to `id` in pre-order
+    /// traversal. Searches within the same focusable ancestor boundary.
+    pub fn focusable_prev(&self, id: PanelId) -> Option<PanelId> {
+        let mut p = id;
+        loop {
+            match self.panels[p].prev_sibling {
+                Some(prev) => {
+                    p = prev;
+                    loop {
+                        if self.panels[p].focusable {
+                            return Some(p);
+                        }
+                        match self.panels[p].last_child {
+                            Some(child) => p = child,
+                            None => break,
+                        }
+                    }
+                }
+                None => {
+                    p = self.panels[p].parent?;
+                    if self.panels[p].focusable {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Find the next focusable panel relative to `id` in pre-order
+    /// traversal. Searches within the same focusable ancestor boundary.
+    pub fn focusable_next(&self, id: PanelId) -> Option<PanelId> {
+        let mut p = id;
+        loop {
+            match self.panels[p].next_sibling {
+                Some(next) => {
+                    p = next;
+                    loop {
+                        if self.panels[p].focusable {
+                            return Some(p);
+                        }
+                        match self.panels[p].first_child {
+                            Some(child) => p = child,
+                            None => break,
+                        }
+                    }
+                }
+                None => {
+                    p = self.panels[p].parent?;
+                    if self.panels[p].focusable {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
+
     /// Clear all viewing flags on all panels.
     pub fn clear_viewing_flags(&mut self) {
         for (_, panel) in self.panels.iter_mut() {
@@ -531,7 +759,7 @@ impl<'a> Iterator for ChildIter<'a> {
     }
 }
 
-/// Iterator over children of a panel in reverse order (last → first).
+/// Iterator over children of a panel in reverse order (last -> first).
 pub struct ChildRevIter<'a> {
     tree: &'a PanelTree,
     current: Option<PanelId>,
@@ -544,5 +772,138 @@ impl<'a> Iterator for ChildRevIter<'a> {
         let id = self.current?;
         self.current = self.tree.panels.get(id).and_then(|p| p.prev_sibling);
         Some(id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build a tree:
+    ///   root (focusable)
+    ///     a (not focusable)
+    ///       a1 (focusable)
+    ///       a2 (focusable)
+    ///     b (focusable)
+    ///     c (not focusable)
+    ///       c1 (not focusable)
+    ///         c1a (focusable)
+    fn make_tree() -> (
+        PanelTree,
+        PanelId,
+        PanelId,
+        PanelId,
+        PanelId,
+        PanelId,
+        PanelId,
+    ) {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        t.set_focusable(root, true);
+        t.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+
+        let a = t.create_child(root, "a");
+        t.set_layout_rect(a, 0.0, 0.0, 0.5, 0.5);
+
+        let a1 = t.create_child(a, "a1");
+        t.set_focusable(a1, true);
+        t.set_layout_rect(a1, 0.0, 0.0, 0.5, 1.0);
+
+        let a2 = t.create_child(a, "a2");
+        t.set_focusable(a2, true);
+        t.set_layout_rect(a2, 0.5, 0.0, 0.5, 1.0);
+
+        let b = t.create_child(root, "b");
+        t.set_focusable(b, true);
+        t.set_layout_rect(b, 0.5, 0.0, 0.5, 0.5);
+
+        let c = t.create_child(root, "c");
+        t.set_layout_rect(c, 0.0, 0.5, 1.0, 0.5);
+
+        let c1 = t.create_child(c, "c1");
+        t.set_layout_rect(c1, 0.0, 0.0, 1.0, 1.0);
+
+        let c1a = t.create_child(c1, "c1a");
+        t.set_focusable(c1a, true);
+        t.set_layout_rect(c1a, 0.0, 0.0, 1.0, 1.0);
+
+        (t, root, a1, a2, b, c1a, c)
+    }
+
+    #[test]
+    fn test_get_height_and_tallness() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("r");
+        t.set_layout_rect(root, 0.0, 0.0, 2.0, 6.0);
+        assert!((t.get_height(root) - 3.0).abs() < 1e-12);
+        assert!((t.get_tallness(root) - t.get_height(root)).abs() < 1e-15);
+    }
+
+    #[test]
+    fn test_substance_rect_default() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("r");
+        t.set_layout_rect(root, 0.0, 0.0, 2.0, 4.0);
+        let (sx, sy, sw, sh, sr) = t.get_substance_rect(root);
+        assert_eq!((sx, sy, sw), (0.0, 0.0, 1.0));
+        assert!((sh - 2.0).abs() < 1e-12);
+        assert_eq!(sr, 0.0);
+    }
+
+    #[test]
+    fn test_point_in_substance_rect() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("r");
+        t.set_layout_rect(root, 0.0, 0.0, 1.0, 2.0);
+        assert!(t.is_point_in_substance_rect(root, 0.5, 1.0));
+        assert!(t.is_point_in_substance_rect(root, 0.0, 0.0));
+        assert!(!t.is_point_in_substance_rect(root, 1.0, 0.0));
+        assert!(!t.is_point_in_substance_rect(root, 0.5, 2.0));
+        assert!(!t.is_point_in_substance_rect(root, -0.1, 0.5));
+    }
+
+    #[test]
+    fn test_essence_rect() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("r");
+        t.set_layout_rect(root, 0.0, 0.0, 1.0, 3.0);
+        let (ex, ey, ew, eh) = t.get_essence_rect(root);
+        assert_eq!((ex, ey, ew), (0.0, 0.0, 1.0));
+        assert!((eh - 3.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_focusable_first_child() {
+        let (t, root, a1, _a2, _b, _c1a, _c) = make_tree();
+        assert_eq!(t.focusable_first_child(root), Some(a1));
+    }
+
+    #[test]
+    fn test_focusable_last_child() {
+        let (t, root, _a1, _a2, _b, c1a, _c) = make_tree();
+        assert_eq!(t.focusable_last_child(root), Some(c1a));
+    }
+
+    #[test]
+    fn test_focusable_first_child_none() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("r");
+        let _child = t.create_child(root, "c");
+        assert_eq!(t.focusable_first_child(root), None);
+    }
+
+    #[test]
+    fn test_focusable_next_prev() {
+        let (t, _root, a1, a2, _b, _c1a, _c) = make_tree();
+        assert_eq!(t.focusable_next(a1), Some(a2));
+        assert_eq!(t.focusable_prev(a2), Some(a1));
+        assert_eq!(t.focusable_prev(a1), None);
+    }
+
+    #[test]
+    fn test_focusable_next_crosses_subtree() {
+        let (t, _root, _a1, a2, b, _c1a, _c) = make_tree();
+        // a2 -> next: walk up to 'a' (not focusable), a.next = b (focusable)
+        assert_eq!(t.focusable_next(a2), Some(b));
     }
 }

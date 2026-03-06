@@ -12,6 +12,8 @@ pub struct PackLayout {
     pub spacing: Spacing,
     pub child_constraints: HashMap<PanelId, ChildConstraint>,
     pub default_constraint: ChildConstraint,
+    /// Minimum number of cells (pads with empty space if fewer children).
+    pub min_cell_count: usize,
 }
 
 impl PackLayout {
@@ -20,11 +22,17 @@ impl PackLayout {
             spacing: Spacing::default(),
             child_constraints: HashMap::new(),
             default_constraint: ChildConstraint::default(),
+            min_cell_count: 0,
         }
     }
 
     pub fn with_spacing(mut self, spacing: Spacing) -> Self {
         self.spacing = spacing;
+        self
+    }
+
+    pub fn with_min_cell_count(mut self, count: usize) -> Self {
+        self.min_cell_count = count;
         self
     }
 
@@ -65,17 +73,27 @@ impl PackLayout {
         };
 
         // Build items with weights and preferred tallness
-        let items: Vec<PackItem> = children
+        let mut items: Vec<PackItem> = children
             .iter()
             .map(|&id| {
                 let cc = get_constraint(&self.child_constraints, id, &self.default_constraint);
                 PackItem {
-                    id,
+                    id: Some(id),
                     weight: cc.weight,
                     preferred_tallness: cc.preferred_tallness,
                 }
             })
             .collect();
+
+        // Pad with empty cells for min_cell_count
+        let pad_count = self.min_cell_count.saturating_sub(items.len());
+        for _ in 0..pad_count {
+            items.push(PackItem {
+                id: None,
+                weight: self.default_constraint.weight,
+                preferred_tallness: self.default_constraint.preferred_tallness,
+            });
+        }
 
         let mut assignments = Vec::with_capacity(items.len());
         // Pack uses a single gap. Convert inner spacing to absolute using min scale.
@@ -83,7 +101,9 @@ impl PackLayout {
         self.partition(&items, rect, gap, &mut assignments);
 
         for (id, r) in assignments {
-            ctx.layout_child(id, r.x, r.y, r.w, r.h);
+            if let Some(panel_id) = id {
+                ctx.layout_child(panel_id, r.x, r.y, r.w, r.h);
+            }
         }
     }
 
@@ -92,7 +112,7 @@ impl PackLayout {
         items: &[PackItem],
         rect: PackRect,
         gap: f64,
-        out: &mut Vec<(PanelId, PackRect)>,
+        out: &mut Vec<(Option<PanelId>, PackRect)>,
     ) {
         if items.len() == 1 {
             out.push((items[0].id, rect));
@@ -304,7 +324,8 @@ struct PackRect {
 
 #[derive(Clone, Debug)]
 struct PackItem {
-    id: PanelId,
+    /// None for padding cells from min_cell_count.
+    id: Option<PanelId>,
     weight: f64,
     preferred_tallness: f64,
 }
@@ -393,5 +414,40 @@ mod tests {
             assert!(r.w > 0.0);
             assert!(r.h > 0.0);
         }
+    }
+
+    #[test]
+    fn min_cell_count_pads_with_empty() {
+        // 2 children with min_cell_count=4: the 2 real children should get
+        // less space because 2 virtual padding cells also consume area.
+        let (mut tree_no_pad, root_no_pad, children_no_pad) = setup(2, 400.0, 200.0);
+        let mut layout_no_pad = PackLayout::new();
+        layout_no_pad.do_layout(&mut PanelCtx::new(&mut tree_no_pad, root_no_pad));
+
+        let (mut tree_pad, root_pad, children_pad) = setup(2, 400.0, 200.0);
+        let mut layout_pad = PackLayout::new().with_min_cell_count(4);
+        layout_pad.do_layout(&mut PanelCtx::new(&mut tree_pad, root_pad));
+
+        // With padding, the 2 real children should occupy less total area
+        let area_no_pad: f64 = children_no_pad
+            .iter()
+            .map(|c| {
+                let r = tree_no_pad.get(*c).unwrap().layout_rect;
+                r.w * r.h
+            })
+            .sum();
+        let area_pad: f64 = children_pad
+            .iter()
+            .map(|c| {
+                let r = tree_pad.get(*c).unwrap().layout_rect;
+                r.w * r.h
+            })
+            .sum();
+        assert!(
+            area_pad < area_no_pad,
+            "padded area {} should be less than unpadded {}",
+            area_pad,
+            area_no_pad
+        );
     }
 }
