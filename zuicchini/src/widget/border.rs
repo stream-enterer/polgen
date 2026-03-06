@@ -57,6 +57,10 @@ pub struct Border {
     pub icon: Option<Image>,
     pub icon_above_caption: bool,
     pub max_icon_area_tallness: f64,
+    /// Name of the auxiliary child panel, if any.
+    pub(crate) aux_panel_name: Option<String>,
+    /// Height/width ratio of the auxiliary area (default 1.0 when absent).
+    pub(crate) aux_tallness: f64,
 }
 
 impl Border {
@@ -73,6 +77,8 @@ impl Border {
             icon: None,
             icon_above_caption: false,
             max_icon_area_tallness: 1.0,
+            aux_panel_name: None,
+            aux_tallness: 1.0,
         }
     }
 
@@ -142,6 +148,144 @@ impl Border {
 
     pub fn set_max_icon_area_tallness(&mut self, t: f64) {
         self.max_icon_area_tallness = t.max(1e-10);
+    }
+
+    /// Create or update the auxiliary panel area.
+    ///
+    /// If aux data does not exist yet, it is created. If it does exist,
+    /// `panel_name` and `tallness` are updated independently only when they
+    /// differ from the current values.
+    ///
+    /// C++ equivalent: `emBorder::HaveAux`.
+    pub fn have_aux(&mut self, panel_name: &str, tallness: f64) {
+        match self.aux_panel_name {
+            None => {
+                self.aux_panel_name = Some(panel_name.to_string());
+                self.aux_tallness = tallness;
+            }
+            Some(ref mut name) => {
+                if name.as_str() != panel_name {
+                    *name = panel_name.to_string();
+                }
+                if (self.aux_tallness - tallness).abs() > f64::EPSILON {
+                    self.aux_tallness = tallness;
+                }
+            }
+        }
+    }
+
+    /// Remove the auxiliary panel area if present. No-op if already absent.
+    ///
+    /// C++ equivalent: `emBorder::RemoveAux`.
+    pub fn remove_aux(&mut self) {
+        self.aux_panel_name = None;
+        self.aux_tallness = 1.0;
+    }
+
+    /// Return the auxiliary panel name, or an empty string if no aux data.
+    ///
+    /// C++ equivalent: `emBorder::GetAuxPanelName`.
+    pub fn get_aux_panel_name(&self) -> &str {
+        match self.aux_panel_name {
+            Some(ref name) => name.as_str(),
+            None => "",
+        }
+    }
+
+    /// Return the auxiliary area tallness, or `1.0` if no aux data.
+    ///
+    /// C++ equivalent: `emBorder::GetAuxTallness`.
+    pub fn get_aux_tallness(&self) -> f64 {
+        if self.aux_panel_name.is_some() {
+            self.aux_tallness
+        } else {
+            1.0
+        }
+    }
+
+    /// Return whether an auxiliary panel is configured.
+    ///
+    /// In C++ `GetAuxPanel` returned a panel pointer by walking the child tree
+    /// and caching the result. Rust `Border` is not a panel, so this method
+    /// returns whether aux data exists. The caller can use
+    /// [`get_aux_panel_name`](Self::get_aux_panel_name) to resolve the panel by
+    /// name in the widget tree.
+    ///
+    /// C++ equivalent: `emBorder::GetAuxPanel` (structural adaptation).
+    pub fn has_aux_panel(&self) -> bool {
+        self.aux_panel_name.is_some()
+    }
+
+    /// Compute the auxiliary area rectangle.
+    ///
+    /// Returns `Some(Rect)` when aux data is present, or `None` otherwise.
+    /// When aux data is present and the label is shown, the aux rect is placed
+    /// at the right side of the label area. When there is no label, it is placed
+    /// at the right side of the content round-rect area, sized at 10% of the
+    /// smaller dimension.
+    ///
+    /// C++ equivalent: `emBorder::GetAuxRect`
+    /// (via `DoBorder(BORDER_FUNC_AUX_RECT)`).
+    pub fn get_aux_rect(&self, w: f64, h: f64) -> Option<Rect> {
+        self.aux_panel_name.as_ref()?;
+
+        let (ox, oy, ow, oh) = self.outer_insets(w, h);
+        let rnd_x = ox;
+        let rnd_y = oy;
+        let rnd_w = (w - ow).max(0.0);
+        let rnd_h = (h - oh).max(0.0);
+
+        if self.has_label() {
+            // Label path: aux is placed at the right of the label text area.
+            let label_area_w = rnd_w;
+            let layout = self.label_layout(rnd_x, rnd_y, label_area_w, rnd_h);
+            let th = layout.total_height;
+            if th <= 0.0 {
+                return Some(Rect {
+                    x: 0.0,
+                    y: 0.0,
+                    w: 1e-100,
+                    h: 1e-100,
+                });
+            }
+            // Aux gap and width per C++ DoBorder logic.
+            let gap = th * 0.2;
+            let aux_w = th / self.aux_tallness;
+            let label_tallness = th / label_area_w.max(1e-100);
+            let needed = gap + aux_w + th / label_tallness.max(1e-100) * 0.5;
+            let final_aux_w = if label_area_w < needed {
+                // Scale down proportionally.
+                let scale = label_area_w / needed.max(1e-100);
+                aux_w * scale
+            } else {
+                aux_w
+            };
+            Some(Rect {
+                x: rnd_x + label_area_w - final_aux_w,
+                y: rnd_y,
+                w: final_aux_w,
+                h: th,
+            })
+        } else {
+            // No label path: aux is 10% of the smaller dimension.
+            let s = rnd_w.min(rnd_h);
+            let mut aux_w = s * 0.1;
+            let mut aux_h = aux_w * self.aux_tallness;
+            // Space available for aux (vertically).
+            let avail_h = rnd_h;
+            if aux_h > avail_h {
+                aux_h = avail_h.max(1e-100);
+                aux_w = aux_h / self.aux_tallness.max(1e-100);
+            }
+            // Margin from right edge.
+            let d = s * 0.015;
+            Some(Rect {
+                x: rnd_x + rnd_w - aux_w - d,
+                y: rnd_y + (rnd_h - aux_h) * 0.5,
+                w: aux_w,
+                h: aux_h,
+            })
+        }
     }
 
     fn has_label(&self) -> bool {
@@ -1254,5 +1398,110 @@ mod tests {
         let cu = border.content_rect_unobscured(200.0, 100.0, &look);
         assert!((cr.x - cu.x).abs() < 0.001);
         assert!((cr.w - cu.w).abs() < 0.001);
+    }
+
+    // --- aux system tests ---
+
+    #[test]
+    fn aux_defaults_absent() {
+        let border = Border::new(OuterBorderType::None);
+        assert_eq!(border.get_aux_panel_name(), "");
+        assert!((border.get_aux_tallness() - 1.0).abs() < f64::EPSILON);
+        assert!(!border.has_aux_panel());
+        assert!(border.get_aux_rect(200.0, 100.0).is_none());
+    }
+
+    #[test]
+    fn have_aux_creates_aux() {
+        let mut border = Border::new(OuterBorderType::None);
+        border.have_aux("my_panel", 2.0);
+        assert_eq!(border.get_aux_panel_name(), "my_panel");
+        assert!((border.get_aux_tallness() - 2.0).abs() < f64::EPSILON);
+        assert!(border.has_aux_panel());
+    }
+
+    #[test]
+    fn have_aux_updates_name() {
+        let mut border = Border::new(OuterBorderType::None);
+        border.have_aux("p1", 1.0);
+        border.have_aux("p2", 1.0);
+        assert_eq!(border.get_aux_panel_name(), "p2");
+    }
+
+    #[test]
+    fn have_aux_updates_tallness() {
+        let mut border = Border::new(OuterBorderType::None);
+        border.have_aux("p1", 1.0);
+        border.have_aux("p1", 3.5);
+        assert!((border.get_aux_tallness() - 3.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn remove_aux_clears() {
+        let mut border = Border::new(OuterBorderType::None);
+        border.have_aux("p1", 2.0);
+        border.remove_aux();
+        assert_eq!(border.get_aux_panel_name(), "");
+        assert!((border.get_aux_tallness() - 1.0).abs() < f64::EPSILON);
+        assert!(!border.has_aux_panel());
+        assert!(border.get_aux_rect(200.0, 100.0).is_none());
+    }
+
+    #[test]
+    fn remove_aux_noop_when_absent() {
+        let mut border = Border::new(OuterBorderType::None);
+        border.remove_aux(); // should not panic
+        assert!(!border.has_aux_panel());
+    }
+
+    #[test]
+    fn aux_rect_no_label_positive_dimensions() {
+        let mut border = Border::new(OuterBorderType::Rect);
+        border.have_aux("aux", 1.0);
+        let rect = border
+            .get_aux_rect(200.0, 100.0)
+            .expect("aux should be present");
+        assert!(rect.w > 0.0, "aux width should be positive");
+        assert!(rect.h > 0.0, "aux height should be positive");
+        assert!(rect.x >= 0.0, "aux x should be non-negative");
+        assert!(rect.y >= 0.0, "aux y should be non-negative");
+        // Should be on the right side.
+        assert!(
+            rect.x + rect.w <= 200.0 + 0.01,
+            "aux should fit within widget width"
+        );
+    }
+
+    #[test]
+    fn aux_rect_with_label_positive_dimensions() {
+        let mut border = Border::new(OuterBorderType::Rect).with_caption("Caption");
+        border.have_aux("aux", 1.5);
+        let rect = border
+            .get_aux_rect(200.0, 100.0)
+            .expect("aux should be present");
+        assert!(rect.w > 0.0, "aux width should be positive");
+        assert!(rect.h > 0.0, "aux height should be positive");
+        // Should be at right side of label area.
+        assert!(
+            rect.x + rect.w <= 200.0 + 0.01,
+            "aux should fit within widget width"
+        );
+    }
+
+    #[test]
+    fn aux_rect_tallness_affects_shape() {
+        let mut b1 = Border::new(OuterBorderType::None);
+        b1.have_aux("aux", 1.0);
+        let r1 = b1.get_aux_rect(200.0, 200.0).unwrap();
+
+        let mut b2 = Border::new(OuterBorderType::None);
+        b2.have_aux("aux", 2.0);
+        let r2 = b2.get_aux_rect(200.0, 200.0).unwrap();
+
+        // Higher tallness means taller relative to width.
+        assert!(
+            (r2.h / r2.w) > (r1.h / r1.w),
+            "tallness 2.0 should be taller than 1.0"
+        );
     }
 }

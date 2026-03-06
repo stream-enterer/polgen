@@ -58,6 +58,10 @@ pub struct View {
     background_color: Color,
     svp_update_count: u32,
     window_focused: bool,
+    /// Panel targeted by the visiting animator's seek operation.
+    seek_pos_panel: Option<PanelId>,
+    /// Child name being sought within `seek_pos_panel`.
+    seek_pos_child_name: String,
 }
 
 impl View {
@@ -80,6 +84,8 @@ impl View {
             background_color: Color::rgba(0x80, 0x80, 0x80, 0xFF),
             svp_update_count: 0,
             window_focused: true,
+            seek_pos_panel: None,
+            seek_pos_child_name: String::new(),
         }
     }
 
@@ -115,6 +121,76 @@ impl View {
 
     pub fn set_window_focused(&mut self, focused: bool) {
         self.window_focused = focused;
+    }
+
+    // --- Seeking ---
+
+    /// Set the seek target panel and child name for the visiting animator.
+    ///
+    /// When the visiting animator is navigating to a panel that doesn't yet
+    /// exist, this records which panel to watch and which child name is being
+    /// sought, so the animator can monitor creation progress.
+    pub fn set_seek_pos(&mut self, tree: &mut PanelTree, panel: Option<PanelId>, child_name: &str) {
+        let child_name = if panel.is_some() { child_name } else { "" };
+
+        if self.seek_pos_panel != panel {
+            // Notify old panel that sought name is cleared
+            if let Some(old_id) = self.seek_pos_panel {
+                if let Some(p) = tree.get_mut(old_id) {
+                    p.pending_notices
+                        .insert(super::behavior::NoticeFlags::SOUGHT_NAME_CHANGED);
+                }
+            }
+
+            self.seek_pos_panel = panel;
+            self.seek_pos_child_name = child_name.to_string();
+
+            // Notify new panel that sought name is set
+            if let Some(new_id) = self.seek_pos_panel {
+                if let Some(p) = tree.get_mut(new_id) {
+                    p.pending_notices
+                        .insert(super::behavior::NoticeFlags::SOUGHT_NAME_CHANGED);
+                }
+            }
+        } else if panel.is_some() && self.seek_pos_child_name != child_name {
+            self.seek_pos_child_name = child_name.to_string();
+            if let Some(id) = self.seek_pos_panel {
+                if let Some(p) = tree.get_mut(id) {
+                    p.pending_notices
+                        .insert(super::behavior::NoticeFlags::SOUGHT_NAME_CHANGED);
+                }
+            }
+        }
+    }
+
+    /// Returns the current seek target panel, if any.
+    pub fn seek_pos_panel(&self) -> Option<PanelId> {
+        self.seek_pos_panel
+    }
+
+    /// Returns the child name being sought.
+    pub fn seek_pos_child_name(&self) -> &str {
+        &self.seek_pos_child_name
+    }
+
+    /// Returns true if seeking can still succeed — the seek panel exists in
+    /// the tree and has the potential to create the sought child.
+    pub fn is_hope_for_seeking(&self, tree: &PanelTree) -> bool {
+        if let Some(id) = self.seek_pos_panel {
+            if let Some(panel) = tree.get(id) {
+                if self.seek_pos_child_name.is_empty() {
+                    return true;
+                }
+                if tree
+                    .find_child_by_name(id, &self.seek_pos_child_name)
+                    .is_some()
+                {
+                    return true;
+                }
+                return panel.behavior.is_some();
+            }
+        }
+        false
     }
 
     pub fn current_visit(&self) -> &VisitState {

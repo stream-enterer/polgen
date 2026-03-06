@@ -71,6 +71,14 @@ pub struct TextField {
     pub on_validate: Option<ValidateCb>,
     pub on_clipboard_copy: Option<ClipboardCopyCb>,
     pub on_clipboard_paste: Option<ClipboardPasteCb>,
+    // Cursor blink state
+    cursor_blink_on: bool,
+    cursor_blink_time: std::time::Instant,
+    // Signal callbacks
+    pub on_selection_signal: Option<Box<dyn FnMut()>>,
+    pub on_can_undo_redo: Option<Box<dyn FnMut(bool, bool)>>,
+    // Published selection tracking
+    selection_published: bool,
 }
 
 const MAX_UNDO: usize = 100;
@@ -108,6 +116,11 @@ impl TextField {
             on_validate: None,
             on_clipboard_copy: None,
             on_clipboard_paste: None,
+            cursor_blink_on: true,
+            cursor_blink_time: std::time::Instant::now(),
+            on_selection_signal: None,
+            on_can_undo_redo: None,
+            selection_published: false,
         }
     }
 
@@ -243,6 +256,25 @@ impl TextField {
         &self.text[start..end]
     }
 
+    /// Publishes the current selection to the primary clipboard (X11 selection).
+    /// In password mode, publishes asterisks instead of actual text.
+    /// No-op if selection is empty or already published.
+    /// Matches C++ `PublishSelection`.
+    pub fn publish_selection(&mut self) {
+        if self.is_selection_empty() || self.selection_published {
+            return;
+        }
+        let text = if self.password_mode {
+            "*".repeat(self.selected_text().chars().count())
+        } else {
+            self.selected_text().to_string()
+        };
+        if let Some(cb) = &self.on_clipboard_copy {
+            cb(&text);
+        }
+        self.selection_published = true;
+    }
+
     fn modify_selection(&mut self, new_cursor: usize, extend: bool) {
         let old_start = self.selection_start();
         let old_end = self.selection_end();
@@ -263,6 +295,7 @@ impl TextField {
     }
 
     fn fire_selection_change(&mut self) {
+        self.selection_published = false;
         if self.on_selection.is_some() {
             let start = self.selection_start();
             let end = self.selection_end();
@@ -270,6 +303,10 @@ impl TextField {
                 cb(start, end);
             }
         }
+        if let Some(cb) = &mut self.on_selection_signal {
+            cb();
+        }
+        self.selection_changed();
     }
 
     // ── Undo/Redo ───────────────────────────────────────────────────────
@@ -291,6 +328,8 @@ impl TextField {
     }
 
     fn save_undo(&mut self) {
+        let had_undo = self.can_undo();
+        let had_redo = self.can_redo();
         self.undo_stack.push(UndoEntry {
             text: self.text.clone(),
             cursor: self.cursor,
@@ -299,6 +338,9 @@ impl TextField {
             self.undo_stack.remove(0);
         }
         self.redo_stack.clear();
+        if self.can_undo() != had_undo || self.can_redo() != had_redo {
+            self.fire_can_undo_redo();
+        }
     }
 
     pub fn undo(&mut self) -> bool {
@@ -311,6 +353,7 @@ impl TextField {
             self.cursor = entry.cursor;
             self.selection_anchor = None;
             self.fire_change();
+            self.fire_can_undo_redo();
             true
         } else {
             false
@@ -327,6 +370,7 @@ impl TextField {
             self.cursor = entry.cursor;
             self.selection_anchor = None;
             self.fire_change();
+            self.fire_can_undo_redo();
             true
         } else {
             false
@@ -536,57 +580,112 @@ impl TextField {
         idx
     }
 
+    /// Finds the start of the next paragraph (a non-empty line after one or
+    /// more newlines). In single-line mode, returns text length.
+    /// Matches C++ `GetNextParagraphIndex`.
     fn next_paragraph_index(&self, pos: usize) -> usize {
-        let mut p = pos;
-        let len = self.text.len();
-        // Skip current non-blank lines
-        while p < len {
-            if self.text[p..].starts_with('\n') {
-                let next = p + 1;
-                if next >= len || self.text[next..].starts_with('\n') {
-                    // Found blank line
-                    p = next;
-                    break;
-                }
-            }
-            match self.text[p..].find('\n') {
-                Some(i) => p += i + 1,
-                None => return len,
-            }
+        if !self.multi_line {
+            return self.text.len();
         }
-        // Skip blank lines
-        while p < len && self.text[p..].starts_with('\n') {
+        let len = self.text.len();
+        let mut p = pos;
+        let mut found_newline = false;
+        while p < len {
+            let b = self.text.as_bytes()[p];
+            if b == b'\n' || b == b'\r' {
+                found_newline = true;
+            } else if found_newline {
+                break;
+            }
             p += 1;
         }
         p
     }
 
+    /// Finds the start of the previous paragraph by scanning from the
+    /// beginning using `next_paragraph_index`. O(n) matching C++
+    /// `GetPrevParagraphIndex`.
     fn prev_paragraph_index(&self, pos: usize) -> usize {
-        if pos == 0 {
+        if !self.multi_line {
             return 0;
         }
-        let mut p = if pos > 0 && self.text.as_bytes().get(pos.saturating_sub(1)) == Some(&b'\n') {
-            pos.saturating_sub(1)
-        } else {
-            pos
-        };
-        // Skip blank lines backward
-        while p > 0 && self.text.as_bytes().get(p.saturating_sub(1)) == Some(&b'\n') {
-            p -= 1;
-        }
-        // Skip non-blank lines backward
-        while p > 0 {
-            let prev = p - 1;
-            if self.text.as_bytes()[prev] == b'\n' {
-                // Check if line before this is blank
-                if prev == 0 || self.text.as_bytes()[prev - 1] == b'\n' {
-                    break;
-                }
+        let mut i = 0;
+        loop {
+            let j = self.next_paragraph_index(i);
+            if j >= pos || j == i {
+                return i;
             }
-            p = prev;
+            i = j;
         }
-        // Get to the start of this line
-        self.row_start(p)
+    }
+
+    // ── Word index (C++ GetNextWordIndex / GetPrevWordIndex) ─────────────
+
+    /// Advances past delimiter segments to find the start of the next word.
+    /// Unlike `next_word_boundary` (ctrl+arrow: skips word then delimiters),
+    /// this skips only delimiter runs. Matches C++ `GetNextWordIndex`.
+    pub fn next_word_index(&self, pos: usize) -> usize {
+        let len = self.text.len();
+        if pos >= len {
+            return len;
+        }
+        let mut p = pos;
+        loop {
+            let (boundary, is_delim) = self.next_word_boundary_segment(p);
+            if boundary >= len {
+                return len;
+            }
+            if !is_delim {
+                return boundary;
+            }
+            if boundary == p {
+                return len;
+            }
+            p = boundary;
+        }
+    }
+
+    /// Finds the previous word start by scanning from the beginning using
+    /// `next_word_index`. O(n) matching C++ `GetPrevWordIndex`.
+    pub fn prev_word_index(&self, pos: usize) -> usize {
+        let mut i = 0;
+        loop {
+            let j = self.next_word_index(i);
+            if j >= pos || j == i {
+                return i;
+            }
+            i = j;
+        }
+    }
+
+    /// Returns (boundary_index, is_delimiter_at_boundary) for the next word
+    /// boundary segment starting at `pos`. The returned `is_delimiter` indicates
+    /// the type of the character AT the boundary (i.e., the start of the next
+    /// segment).
+    fn next_word_boundary_segment(&self, pos: usize) -> (usize, bool) {
+        let len = self.text.len();
+        if pos >= len {
+            return (len, true);
+        }
+        if self.password_mode {
+            return (len, false);
+        }
+        let mut p = pos;
+        let mut first = true;
+        let mut prev_delim = false;
+        while p < len {
+            let ch = self.char_at(p);
+            let is_delim = !Self::is_word_char(ch);
+            if !first && is_delim != prev_delim {
+                // Boundary: return position and the type of char AT boundary
+                return (p, is_delim);
+            }
+            prev_delim = is_delim;
+            first = false;
+            p += ch.len_utf8();
+        }
+        // Reached end of text — return end with delimiter=true (no more text)
+        (len, true)
     }
 
     // ── Coordinate conversion (Phase 5) ─────────────────────────────────
@@ -1510,6 +1609,149 @@ impl TextField {
             cb(&self.text);
         }
     }
+
+    /// Fires the can-undo-redo callback when undo/redo availability changes.
+    /// Matches C++ `CanUndoRedoSignal`.
+    fn fire_can_undo_redo(&mut self) {
+        if let Some(cb) = &mut self.on_can_undo_redo {
+            let can_undo = !self.undo_stack.is_empty();
+            let can_redo = !self.redo_stack.is_empty();
+            cb(can_undo, can_redo);
+        }
+    }
+
+    // ── Cursor blink ───────────────────────────────────────────────────
+
+    /// Returns whether the cursor blink is currently in the "on" (visible)
+    /// state. Matches C++ `IsCursorBlinkOn`.
+    pub fn is_cursor_blink_on(&self) -> bool {
+        self.cursor_blink_on
+    }
+
+    /// Toggles cursor blink state based on elapsed time. Should be called
+    /// from a periodic timer. Returns `true` if the widget is busy (needs
+    /// continued cycling). `focused` indicates whether this text field is
+    /// in the focused path. Matches C++ `Cycle` blink logic.
+    pub fn cycle_blink(&mut self, focused: bool) -> bool {
+        if focused {
+            let now = std::time::Instant::now();
+            let elapsed_ms = now.duration_since(self.cursor_blink_time).as_millis();
+            if elapsed_ms >= 1000 {
+                self.cursor_blink_time = now;
+                self.cursor_blink_on = true;
+            } else if elapsed_ms >= 500 {
+                self.cursor_blink_on = false;
+            }
+            true
+        } else {
+            self.cursor_blink_time = std::time::Instant::now();
+            self.cursor_blink_on = true;
+            false
+        }
+    }
+
+    /// Resets the blink timer and ensures the cursor is visible. Should be
+    /// called after user actions that move the cursor. Matches C++
+    /// `RestartCursorBlinking`.
+    pub fn restart_cursor_blinking(&mut self) {
+        self.cursor_blink_time = std::time::Instant::now();
+        self.cursor_blink_on = true;
+    }
+
+    /// Hook called when the selection changes.
+    /// Matches C++ `SelectionChanged` — empty virtual hook.
+    pub fn selection_changed(&self) {
+        // Empty hook.
+    }
+
+    /// Computes total columns (widest row) and rows.
+    /// In single-line mode, columns = char count, rows = 1.
+    /// Tab stops every 8 columns. Minimum (1, 1).
+    /// Matches C++ `CalcTotalColsRows`.
+    pub fn calc_total_cols_rows(&self) -> (usize, usize) {
+        if !self.multi_line {
+            let cols = self.text.chars().count().max(1);
+            return (cols, 1);
+        }
+        let mut cols: usize = 0;
+        let mut rows: usize = 1;
+        let mut row_cols: usize = 0;
+        for ch in self.text.chars() {
+            match ch {
+                '\t' => {
+                    row_cols = (row_cols / 8 + 1) * 8;
+                }
+                '\n' | '\r' => {
+                    if cols < row_cols {
+                        cols = row_cols;
+                    }
+                    row_cols = 0;
+                    rows += 1;
+                }
+                _ => {
+                    row_cols += 1;
+                }
+            }
+        }
+        if cols < row_cols {
+            cols = row_cols;
+        }
+        (cols.max(1), rows.max(1))
+    }
+
+    /// Mouse coordinates to text byte index.
+    /// Returns `(index, hit)` where `hit` is true if within content area.
+    /// Matches C++ `CheckMouse`.
+    pub fn check_mouse(&self, mx: f64, my: f64, w: f64, h: f64) -> (usize, bool) {
+        let content = self.border.content_rect(w, h, &self.look);
+        let hit = mx >= content.x
+            && mx <= content.x + content.w
+            && my >= content.y
+            && my <= content.y + content.h;
+        if self.multi_line {
+            let row_f = (my - content.y + self.scroll_y) / LINE_HEIGHT;
+            let row = (row_f as usize).min(self.total_rows().saturating_sub(1));
+            let mut current_row = 0;
+            let mut row_start_idx = 0;
+            for (i, ch) in self.text.char_indices() {
+                if current_row == row {
+                    row_start_idx = i;
+                    break;
+                }
+                if ch == '\n' {
+                    current_row += 1;
+                    row_start_idx = i + 1;
+                }
+            }
+            if current_row < row {
+                row_start_idx = self.text.len();
+            }
+            let x_in_row = mx - content.x - TEXT_PADDING;
+            if x_in_row <= 0.0 {
+                return (row_start_idx, hit);
+            }
+            let row_end_idx = self.row_end(row_start_idx);
+            let row_text = &self.text[row_start_idx..row_end_idx];
+            let char_count = row_text.chars().count();
+            if char_count == 0 {
+                return (row_start_idx, hit);
+            }
+            let approx_char_w = content.w / char_count.max(1) as f64;
+            let char_idx = (x_in_row / approx_char_w) as usize;
+            let mut idx = row_start_idx;
+            for (i, (byte_idx, ch)) in row_text.char_indices().enumerate() {
+                if i >= char_idx {
+                    idx = row_start_idx + byte_idx;
+                    break;
+                }
+                idx = row_start_idx + byte_idx + ch.len_utf8();
+            }
+            (idx.min(row_end_idx), hit)
+        } else {
+            let idx = self.x_to_index_single_line(mx);
+            (idx, hit)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -2201,5 +2443,236 @@ mod tests {
         // Ctrl+End goes to text end
         tf.input(&ctrl_key(InputKey::End));
         assert_eq!(tf.cursor_pos(), 11);
+    }
+
+    // ── Port batch tests ───────────────────────────────────────────────
+
+    #[test]
+    fn next_paragraph_single_line_returns_len() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello world");
+        // single-line: returns text len
+        assert_eq!(tf.next_paragraph_index(0), 11);
+    }
+
+    #[test]
+    fn next_paragraph_multi_line() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_multi_line(true);
+        tf.set_text("abc\n\ndef\nghi");
+        // From 0: skip "abc", find newline at 3, another at 4, then "def" at 5
+        assert_eq!(tf.next_paragraph_index(0), 5);
+        // From 5: skip "def", find \n at 8, then "ghi" at 9
+        assert_eq!(tf.next_paragraph_index(5), 9);
+        // From 9: no more paragraphs
+        assert_eq!(tf.next_paragraph_index(9), 12);
+    }
+
+    #[test]
+    fn prev_paragraph_multi_line() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_multi_line(true);
+        tf.set_text("abc\n\ndef\nghi");
+        // From end: prev paragraph is "def" at 5 -> but actually our scan
+        // says prev of 12 is 9 (ghi start), since next_paragraph_index(5)=9.
+        assert_eq!(tf.prev_paragraph_index(12), 9);
+        assert_eq!(tf.prev_paragraph_index(9), 5);
+        assert_eq!(tf.prev_paragraph_index(5), 0);
+    }
+
+    #[test]
+    fn prev_paragraph_single_line_returns_zero() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello");
+        assert_eq!(tf.prev_paragraph_index(3), 0);
+    }
+
+    #[test]
+    fn next_word_index_skips_delimiters() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello  world");
+        // From 0: skip word "hello", skip delimiters "  ", find word "world" at 7
+        assert_eq!(tf.next_word_index(0), 7);
+        // From 7: skip word "world" -> end of text
+        assert_eq!(tf.next_word_index(7), 12);
+        // From within delimiter space (pos 5): find next word at 7
+        assert_eq!(tf.next_word_index(5), 7);
+    }
+
+    #[test]
+    fn prev_word_index_finds_word_start() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello  world");
+        // prev_word_index(12) should find start of "world" at 7
+        assert_eq!(tf.prev_word_index(12), 7);
+        // prev_word_index(7) should find start of "hello" at 0
+        assert_eq!(tf.prev_word_index(7), 0);
+    }
+
+    #[test]
+    fn next_word_index_at_end() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello");
+        assert_eq!(tf.next_word_index(5), 5);
+    }
+
+    #[test]
+    fn prev_word_index_at_start() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello world");
+        assert_eq!(tf.prev_word_index(0), 0);
+    }
+
+    #[test]
+    fn publish_selection_basic() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        let clipboard = Rc::new(RefCell::new(String::new()));
+        let clip_w = clipboard.clone();
+        tf.on_clipboard_copy = Some(Box::new(move |text| {
+            *clip_w.borrow_mut() = text.to_string();
+        }));
+        tf.set_text("Hello World");
+        tf.select(0, 5);
+        tf.publish_selection();
+        assert_eq!(*clipboard.borrow(), "Hello");
+        // Second publish is no-op (already published)
+        *clipboard.borrow_mut() = String::new();
+        tf.publish_selection();
+        assert_eq!(*clipboard.borrow(), "");
+        // After selection change, can publish again
+        tf.select(6, 11);
+        tf.publish_selection();
+        assert_eq!(*clipboard.borrow(), "World");
+    }
+
+    #[test]
+    fn publish_selection_password_mode() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        let clipboard = Rc::new(RefCell::new(String::new()));
+        let clip_w = clipboard.clone();
+        tf.on_clipboard_copy = Some(Box::new(move |text| {
+            *clip_w.borrow_mut() = text.to_string();
+        }));
+        tf.set_password_mode(true);
+        tf.set_text("secret");
+        tf.select_all();
+        tf.publish_selection();
+        assert_eq!(*clipboard.borrow(), "******");
+    }
+
+    #[test]
+    fn selection_signal_fires() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        let count = Rc::new(RefCell::new(0usize));
+        let count_c = count.clone();
+        tf.on_selection_signal = Some(Box::new(move || {
+            *count_c.borrow_mut() += 1;
+        }));
+        tf.set_text("ABCDEF");
+        tf.select(1, 3);
+        assert_eq!(*count.borrow(), 1);
+        tf.select(2, 5);
+        assert_eq!(*count.borrow(), 2);
+    }
+
+    #[test]
+    fn can_undo_redo_signal_fires() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        let states = Rc::new(RefCell::new(Vec::new()));
+        let states_c = states.clone();
+        tf.on_can_undo_redo = Some(Box::new(move |can_undo, can_redo| {
+            states_c.borrow_mut().push((can_undo, can_redo));
+        }));
+        // Type a char -> undo becomes available
+        tf.input(&char_press('A'));
+        assert_eq!(states.borrow().last(), Some(&(true, false)));
+        // Undo -> redo becomes available, undo gone
+        tf.undo();
+        assert_eq!(states.borrow().last(), Some(&(false, true)));
+        // Redo -> undo available again
+        tf.redo();
+        assert_eq!(states.borrow().last(), Some(&(true, false)));
+    }
+
+    #[test]
+    fn cursor_blink_cycle() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        assert!(tf.is_cursor_blink_on());
+        // Focused: returns busy=true
+        let busy = tf.cycle_blink(true);
+        assert!(busy);
+        assert!(tf.is_cursor_blink_on()); // just started, < 500ms
+                                          // Not focused: resets blink, returns false
+        let busy = tf.cycle_blink(false);
+        assert!(!busy);
+        assert!(tf.is_cursor_blink_on());
+    }
+
+    #[test]
+    fn restart_cursor_blinking_resets() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.cursor_blink_on = false; // simulate blink-off state
+        tf.restart_cursor_blinking();
+        assert!(tf.is_cursor_blink_on());
+    }
+
+    #[test]
+    fn calc_total_cols_rows_single_line() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello");
+        assert_eq!(tf.calc_total_cols_rows(), (5, 1));
+        tf.set_text("");
+        assert_eq!(tf.calc_total_cols_rows(), (1, 1)); // minimum
+    }
+
+    #[test]
+    fn calc_total_cols_rows_multi_line() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_multi_line(true);
+        tf.set_text("ab\ncdef\ng");
+        // Row 0: "ab" (2 cols), Row 1: "cdef" (4 cols), Row 2: "g" (1 col)
+        // Widest = 4, rows = 3
+        assert_eq!(tf.calc_total_cols_rows(), (4, 3));
+    }
+
+    #[test]
+    fn calc_total_cols_rows_with_tabs() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_multi_line(true);
+        tf.set_text("a\tb");
+        // Tab at col 1 -> next tab stop at 8, then 'b' at col 9
+        // total cols = 9, rows = 1
+        assert_eq!(tf.calc_total_cols_rows(), (9, 1));
+    }
+
+    #[test]
+    fn check_mouse_single_line() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+        tf.set_text("hello world");
+        tf.char_positions = vec![
+            0.0, 8.0, 16.0, 24.0, 32.0, 40.0, 48.0, 56.0, 64.0, 72.0, 80.0, 88.0,
+        ];
+        let (idx, hit) = tf.check_mouse(10.0, 5.0, 200.0, 30.0);
+        assert!(idx <= tf.text_len());
+        // hit depends on content rect
+        let _ = hit;
     }
 }

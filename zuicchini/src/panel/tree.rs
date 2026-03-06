@@ -6,6 +6,85 @@ use super::behavior::{NoticeFlags, PanelBehavior};
 use super::ctx::PanelCtx;
 use crate::foundation::{Color, Rect};
 
+// ── Identity encode/decode free functions ─────────────────────────────
+
+/// Encode an array of panel names into a colon-delimited identity string,
+/// escaping `:` and `\` with backslash prefixes.
+///
+/// Corresponds to `emPanel::EncodeIdentity`.
+pub fn encode_identity(names: &[&str]) -> String {
+    // First pass: compute total length for the output
+    let mut len = 0usize;
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            len += 1; // ':'
+        }
+        for ch in name.chars() {
+            if ch == ':' || ch == '\\' {
+                len += 2; // escape char + original
+            } else {
+                len += ch.len_utf8();
+            }
+        }
+    }
+
+    let mut result = String::with_capacity(len);
+    for (i, name) in names.iter().enumerate() {
+        if i > 0 {
+            result.push(':');
+        }
+        for ch in name.chars() {
+            if ch == ':' || ch == '\\' {
+                result.push('\\');
+            }
+            result.push(ch);
+        }
+    }
+    result
+}
+
+/// Decode a colon-delimited identity string back into a list of panel names,
+/// handling backslash-escaped colons and backslashes.
+///
+/// Corresponds to `emPanel::DecodeIdentity`.
+pub fn decode_identity(identity: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let bytes = identity.as_bytes();
+    let mut pos = 0;
+
+    loop {
+        if pos >= bytes.len() {
+            break;
+        }
+        // Collect one name
+        let mut name = String::new();
+        loop {
+            if pos >= bytes.len() {
+                break;
+            }
+            let ch = bytes[pos] as char;
+            if ch == ':' {
+                // End of this name segment; skip the ':'
+                pos += 1;
+                break;
+            }
+            if ch == '\\' {
+                pos += 1; // skip escape
+                if pos >= bytes.len() {
+                    break;
+                }
+                name.push(bytes[pos] as char);
+                pos += 1;
+            } else {
+                name.push(ch);
+                pos += 1;
+            }
+        }
+        names.push(name);
+    }
+    names
+}
+
 new_key_type! {
     /// Unique handle for a panel in the panel tree.
     pub struct PanelId;
@@ -318,6 +397,299 @@ impl PanelTree {
     /// Get the parent of a panel.
     pub fn parent(&self, id: PanelId) -> Option<PanelId> {
         self.panels.get(id).and_then(|p| p.parent)
+    }
+
+    /// Build a colon-delimited identity string by walking from `id` up to the
+    /// root, collecting names, and encoding them.
+    ///
+    /// Corresponds to `emPanel::GetIdentity`.
+    pub fn get_identity(&self, id: PanelId) -> String {
+        // Walk up to root collecting names
+        let mut names = Vec::new();
+        let mut cur = id;
+        while let Some(panel) = self.panels.get(cur) {
+            names.push(panel.name.as_str());
+            match panel.parent {
+                Some(parent) => cur = parent,
+                None => break,
+            }
+        }
+        // names is child-to-root; reverse to root-to-child
+        names.reverse();
+        encode_identity(&names)
+    }
+
+    // ── Sibling reordering ───────────────────────────────────────────
+
+    /// Unlink a panel from its position in the sibling chain, without
+    /// removing it from the arena or name index. The panel must have a parent.
+    fn unlink_sibling(&mut self, id: PanelId) {
+        let prev = self.panels[id].prev_sibling;
+        let next = self.panels[id].next_sibling;
+        let parent = self.panels[id]
+            .parent
+            .expect("unlink_sibling called on root panel");
+
+        if let Some(prev_id) = prev {
+            self.panels[prev_id].next_sibling = next;
+        } else {
+            self.panels[parent].first_child = next;
+        }
+
+        if let Some(next_id) = next {
+            self.panels[next_id].prev_sibling = prev;
+        } else {
+            self.panels[parent].last_child = prev;
+        }
+
+        self.panels[id].prev_sibling = None;
+        self.panels[id].next_sibling = None;
+    }
+
+    /// After a sibling reorder, notify parent of child list change.
+    fn notify_sibling_reorder(&mut self, id: PanelId) {
+        if let Some(parent) = self.panels[id].parent {
+            self.panels[parent]
+                .pending_notices
+                .insert(NoticeFlags::CHILDREN_CHANGED);
+        }
+    }
+
+    /// Move this panel to the front (first) of its parent's child list.
+    /// No-op if already first or if the panel is the root.
+    ///
+    /// Corresponds to `emPanel::BeFirst`.
+    pub fn be_first(&mut self, id: PanelId) {
+        // No-op if no parent or already first
+        let parent = match self.panels.get(id).and_then(|p| p.parent) {
+            Some(p) => p,
+            None => return,
+        };
+        if self.panels[id].prev_sibling.is_none() {
+            return;
+        }
+
+        self.unlink_sibling(id);
+
+        // Relink as first child
+        let old_first = self.panels[parent].first_child;
+        self.panels[id].next_sibling = old_first;
+        if let Some(old_first_id) = old_first {
+            self.panels[old_first_id].prev_sibling = Some(id);
+        }
+        self.panels[parent].first_child = Some(id);
+        if self.panels[parent].last_child.is_none() {
+            self.panels[parent].last_child = Some(id);
+        }
+
+        self.notify_sibling_reorder(id);
+    }
+
+    /// Move this panel to the end (last) of its parent's child list.
+    /// No-op if already last or if the panel is the root.
+    ///
+    /// Corresponds to `emPanel::BeLast`.
+    pub fn be_last(&mut self, id: PanelId) {
+        let parent = match self.panels.get(id).and_then(|p| p.parent) {
+            Some(p) => p,
+            None => return,
+        };
+        if self.panels[id].next_sibling.is_none() {
+            return;
+        }
+
+        self.unlink_sibling(id);
+
+        // Relink as last child
+        let old_last = self.panels[parent].last_child;
+        self.panels[id].prev_sibling = old_last;
+        if let Some(old_last_id) = old_last {
+            self.panels[old_last_id].next_sibling = Some(id);
+        }
+        self.panels[parent].last_child = Some(id);
+        if self.panels[parent].first_child.is_none() {
+            self.panels[parent].first_child = Some(id);
+        }
+
+        self.notify_sibling_reorder(id);
+    }
+
+    /// Move this panel to be immediately before the given sibling.
+    /// If `sibling` is `None`, calls [`be_last`](Self::be_last).
+    /// No-op if `sibling` is this panel, is already the next sibling, or has
+    /// a different parent.
+    ///
+    /// Corresponds to `emPanel::BePrevOf`.
+    pub fn be_prev_of(&mut self, id: PanelId, sibling: Option<PanelId>) {
+        let sibling = match sibling {
+            Some(s) => s,
+            None => {
+                self.be_last(id);
+                return;
+            }
+        };
+
+        // No-op checks
+        if sibling == id {
+            return;
+        }
+        if self.panels[id].next_sibling == Some(sibling) {
+            return;
+        }
+        let my_parent = self.panels[id].parent;
+        let sib_parent = self.panels[sibling].parent;
+        if my_parent != sib_parent || my_parent.is_none() {
+            return;
+        }
+        let parent = my_parent.expect("checked above");
+
+        self.unlink_sibling(id);
+
+        // Insert before sibling
+        let sib_prev = self.panels[sibling].prev_sibling;
+        self.panels[id].next_sibling = Some(sibling);
+        self.panels[id].prev_sibling = sib_prev;
+        self.panels[sibling].prev_sibling = Some(id);
+        if let Some(prev_id) = sib_prev {
+            self.panels[prev_id].next_sibling = Some(id);
+        } else {
+            self.panels[parent].first_child = Some(id);
+        }
+
+        self.notify_sibling_reorder(id);
+    }
+
+    /// Move this panel to be immediately after the given sibling.
+    /// If `sibling` is `None`, calls [`be_first`](Self::be_first).
+    /// No-op if `sibling` is this panel, is already the prev sibling, or has
+    /// a different parent.
+    ///
+    /// Corresponds to `emPanel::BeNextOf`.
+    pub fn be_next_of(&mut self, id: PanelId, sibling: Option<PanelId>) {
+        let sibling = match sibling {
+            Some(s) => s,
+            None => {
+                self.be_first(id);
+                return;
+            }
+        };
+
+        // No-op checks
+        if sibling == id {
+            return;
+        }
+        if self.panels[id].prev_sibling == Some(sibling) {
+            return;
+        }
+        let my_parent = self.panels[id].parent;
+        let sib_parent = self.panels[sibling].parent;
+        if my_parent != sib_parent || my_parent.is_none() {
+            return;
+        }
+        let parent = my_parent.expect("checked above");
+
+        self.unlink_sibling(id);
+
+        // Insert after sibling
+        let sib_next = self.panels[sibling].next_sibling;
+        self.panels[id].prev_sibling = Some(sibling);
+        self.panels[id].next_sibling = sib_next;
+        self.panels[sibling].next_sibling = Some(id);
+        if let Some(next_id) = sib_next {
+            self.panels[next_id].prev_sibling = Some(id);
+        } else {
+            self.panels[parent].last_child = Some(id);
+        }
+
+        self.notify_sibling_reorder(id);
+    }
+
+    /// Sort the children of a panel using the given comparator.
+    /// Notifies `CHILDREN_CHANGED` only if the order actually changed.
+    ///
+    /// Corresponds to `emPanel::SortChildren`.
+    pub fn sort_children<F>(&mut self, parent: PanelId, mut compare: F)
+    where
+        F: FnMut(PanelId, PanelId) -> std::cmp::Ordering,
+    {
+        // Collect children into a vec
+        let children: Vec<PanelId> = self.children(parent).collect();
+        if children.len() <= 1 {
+            return;
+        }
+
+        // Sort
+        let mut sorted = children.clone();
+        sorted.sort_by(|&a, &b| compare(a, b));
+
+        // Check if order actually changed
+        if sorted == children {
+            return;
+        }
+
+        // Relink the sibling chain according to sorted order
+        for (i, &child) in sorted.iter().enumerate() {
+            self.panels[child].prev_sibling = if i > 0 { Some(sorted[i - 1]) } else { None };
+            self.panels[child].next_sibling = if i + 1 < sorted.len() {
+                Some(sorted[i + 1])
+            } else {
+                None
+            };
+        }
+        self.panels[parent].first_child = Some(sorted[0]);
+        self.panels[parent].last_child = Some(sorted[sorted.len() - 1]);
+
+        self.panels[parent]
+            .pending_notices
+            .insert(NoticeFlags::CHILDREN_CHANGED);
+    }
+
+    // ── Title / Icon ─────────────────────────────────────────────────
+
+    /// Walk up the parent chain trying each panel's behavior for a title.
+    /// If no behavior provides one, the root returns `"untitled"`.
+    ///
+    /// Corresponds to `emPanel::GetTitle`.
+    pub fn get_title(&self, id: PanelId) -> String {
+        let mut cur = id;
+        loop {
+            if let Some(panel) = self.panels.get(cur) {
+                if let Some(ref behavior) = panel.behavior {
+                    if let Some(title) = behavior.get_title() {
+                        return title;
+                    }
+                }
+                match panel.parent {
+                    Some(parent) => cur = parent,
+                    None => return "untitled".to_string(),
+                }
+            } else {
+                return "untitled".to_string();
+            }
+        }
+    }
+
+    /// Walk up the parent chain trying each panel's behavior for an icon
+    /// filename. If no behavior provides one, the root returns `""`.
+    ///
+    /// Corresponds to `emPanel::GetIconFileName`.
+    pub fn get_icon_file_name(&self, id: PanelId) -> String {
+        let mut cur = id;
+        loop {
+            if let Some(panel) = self.panels.get(cur) {
+                if let Some(ref behavior) = panel.behavior {
+                    if let Some(name) = behavior.get_icon_file_name() {
+                        return name;
+                    }
+                }
+                match panel.parent {
+                    Some(parent) => cur = parent,
+                    None => return String::new(),
+                }
+            } else {
+                return String::new();
+            }
+        }
     }
 
     /// Remove all children of a panel.
@@ -905,5 +1277,245 @@ mod tests {
         let (t, _root, _a1, a2, b, _c1a, _c) = make_tree();
         // a2 -> next: walk up to 'a' (not focusable), a.next = b (focusable)
         assert_eq!(t.focusable_next(a2), Some(b));
+    }
+
+    // ── Identity tests ───────────────────────────────────────────────
+
+    #[test]
+    fn test_encode_identity_basic() {
+        assert_eq!(
+            encode_identity(&["root", "child", "leaf"]),
+            "root:child:leaf"
+        );
+    }
+
+    #[test]
+    fn test_encode_identity_escaping() {
+        assert_eq!(encode_identity(&["a:b", "c\\d"]), r"a\:b:c\\d");
+    }
+
+    #[test]
+    fn test_encode_identity_empty() {
+        assert_eq!(encode_identity(&[]), "");
+        assert_eq!(encode_identity(&[""]), "");
+    }
+
+    #[test]
+    fn test_decode_identity_basic() {
+        assert_eq!(
+            decode_identity("root:child:leaf"),
+            vec!["root", "child", "leaf"]
+        );
+    }
+
+    #[test]
+    fn test_decode_identity_escaping() {
+        assert_eq!(decode_identity(r"a\:b:c\\d"), vec!["a:b", "c\\d"]);
+    }
+
+    #[test]
+    fn test_decode_identity_empty_segments() {
+        assert_eq!(decode_identity("a::b"), vec!["a", "", "b"]);
+    }
+
+    #[test]
+    fn test_encode_decode_round_trip() {
+        let names = vec!["root", "child:with:colons", "back\\slash"];
+        let encoded = encode_identity(&names);
+        let decoded = decode_identity(&encoded);
+        let expected: Vec<String> = names.iter().map(|s| s.to_string()).collect();
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_get_identity() {
+        let (t, root, a1, _a2, _b, c1a, _c) = make_tree();
+        assert_eq!(t.get_identity(root), "root");
+        assert_eq!(t.get_identity(a1), "root:a:a1");
+        assert_eq!(t.get_identity(c1a), "root:c:c1:c1a");
+    }
+
+    // ── Sibling reordering tests ─────────────────────────────────────
+
+    /// Helper: collect children names in order.
+    fn child_names(t: &PanelTree, parent: PanelId) -> Vec<String> {
+        t.children(parent)
+            .map(|id| t.name(id).unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn test_be_first() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let a = t.create_child(root, "a");
+        let b = t.create_child(root, "b");
+        let c = t.create_child(root, "c");
+
+        // Move c to front
+        t.be_first(c);
+        assert_eq!(child_names(&t, root), vec!["c", "a", "b"]);
+
+        // Move c again (already first → no-op)
+        t.be_first(c);
+        assert_eq!(child_names(&t, root), vec!["c", "a", "b"]);
+
+        // Move b to front
+        t.be_first(b);
+        assert_eq!(child_names(&t, root), vec!["b", "c", "a"]);
+
+        // Already first → no-op
+        t.be_first(a);
+        // a is last, move to first
+        assert_eq!(child_names(&t, root), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_be_last() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let a = t.create_child(root, "a");
+        let _b = t.create_child(root, "b");
+        let _c = t.create_child(root, "c");
+
+        // Move a to end
+        t.be_last(a);
+        assert_eq!(child_names(&t, root), vec!["b", "c", "a"]);
+    }
+
+    #[test]
+    fn test_be_prev_of() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let a = t.create_child(root, "a");
+        let b = t.create_child(root, "b");
+        let c = t.create_child(root, "c");
+
+        // Move c before a → c, a, b
+        t.be_prev_of(c, Some(a));
+        assert_eq!(child_names(&t, root), vec!["c", "a", "b"]);
+
+        // Move b before a → c, b, a
+        t.be_prev_of(b, Some(a));
+        assert_eq!(child_names(&t, root), vec!["c", "b", "a"]);
+
+        // be_prev_of with None → be_last
+        t.be_prev_of(c, None);
+        assert_eq!(child_names(&t, root), vec!["b", "a", "c"]);
+    }
+
+    #[test]
+    fn test_be_next_of() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let a = t.create_child(root, "a");
+        let _b = t.create_child(root, "b");
+        let c = t.create_child(root, "c");
+
+        // Move a after c → b, c, a
+        t.be_next_of(a, Some(c));
+        assert_eq!(child_names(&t, root), vec!["b", "c", "a"]);
+
+        // be_next_of with None → be_first
+        t.be_next_of(a, None);
+        assert_eq!(child_names(&t, root), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_be_prev_of_no_op_cases() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let a = t.create_child(root, "a");
+        let b = t.create_child(root, "b");
+
+        // Same panel → no-op
+        t.be_prev_of(a, Some(a));
+        assert_eq!(child_names(&t, root), vec!["a", "b"]);
+
+        // Already before sibling → no-op
+        t.be_prev_of(a, Some(b));
+        assert_eq!(child_names(&t, root), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn test_be_next_of_no_op_cases() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let a = t.create_child(root, "a");
+        let b = t.create_child(root, "b");
+
+        // Same panel → no-op
+        t.be_next_of(b, Some(b));
+        assert_eq!(child_names(&t, root), vec!["a", "b"]);
+
+        // Already after sibling → no-op
+        t.be_next_of(b, Some(a));
+        assert_eq!(child_names(&t, root), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn test_sort_children() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let _c = t.create_child(root, "c");
+        let _a = t.create_child(root, "a");
+        let _b = t.create_child(root, "b");
+
+        // Build a name map before sorting so the closure doesn't borrow t
+        let names: HashMap<PanelId, String> = t
+            .children(root)
+            .map(|id| (id, t.name(id).unwrap().to_string()))
+            .collect();
+        t.sort_children(root, |a_id, b_id| names[&a_id].cmp(&names[&b_id]));
+        assert_eq!(child_names(&t, root), vec!["a", "b", "c"]);
+    }
+
+    #[test]
+    fn test_sort_children_no_change() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let _a = t.create_child(root, "a");
+        let _b = t.create_child(root, "b");
+
+        // Clear pending notices before sort
+        t.deliver_notices();
+
+        // Build name map
+        let names: HashMap<PanelId, String> = t
+            .children(root)
+            .map(|id| (id, t.name(id).unwrap().to_string()))
+            .collect();
+
+        // Already sorted -> should not set CHILDREN_CHANGED
+        t.sort_children(root, |a_id, b_id| names[&a_id].cmp(&names[&b_id]));
+        assert!(!t
+            .pending_notices(root)
+            .contains(NoticeFlags::CHILDREN_CHANGED));
+    }
+
+    #[test]
+    fn test_sort_children_reverse() {
+        let mut t = PanelTree::new();
+        let root = t.create_root("root");
+        let _a = t.create_child(root, "a");
+        let _b = t.create_child(root, "b");
+        let _c = t.create_child(root, "c");
+
+        // Build name map
+        let names: HashMap<PanelId, String> = t
+            .children(root)
+            .map(|id| (id, t.name(id).unwrap().to_string()))
+            .collect();
+
+        // Sort in reverse
+        t.sort_children(root, |a_id, b_id| names[&b_id].cmp(&names[&a_id]));
+        assert_eq!(child_names(&t, root), vec!["c", "b", "a"]);
+
+        // Verify reverse iteration also works
+        let rev_names: Vec<String> = t
+            .children_rev(root)
+            .map(|id| t.name(id).unwrap().to_string())
+            .collect();
+        assert_eq!(rev_names, vec!["a", "b", "c"]);
     }
 }

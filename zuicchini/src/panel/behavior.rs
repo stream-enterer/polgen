@@ -24,6 +24,8 @@ bitflags! {
         const VIEW_CHANGED    = 0b0010_0000;
         /// Panel's enable state changed.
         const ENABLE_CHANGED  = 0b0100_0000;
+        /// The sought child name (for seeking navigation) changed.
+        const SOUGHT_NAME_CHANGED = 0b1000_0000;
     }
 }
 
@@ -82,5 +84,22 @@ pub trait PanelBehavior {
     /// Get the canvas color for this panel (used for canvas blending).
     fn canvas_color(&self) -> Color {
         Color::TRANSPARENT
+    }
+
+    /// Return a title for this panel, or `None` to delegate to the parent.
+    ///
+    /// The tree walks up the parent chain; the root returns `"untitled"` if
+    /// no behavior along the chain provides a title.
+    fn get_title(&self) -> Option<String> {
+        None
+    }
+
+    /// Return an icon filename for this panel, or `None` to delegate to the
+    /// parent.
+    ///
+    /// The tree walks up the parent chain; the root returns `""` if no
+    /// behavior along the chain provides an icon filename.
+    fn get_icon_file_name(&self) -> Option<String> {
+        None
     }
 }

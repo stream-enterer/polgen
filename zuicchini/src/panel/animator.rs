@@ -365,6 +365,25 @@ impl ViewAnimator for SpeedingViewAnimator {
     }
 }
 
+/// State for the visiting animator's seek/navigation progress.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum VisitingState {
+    /// No goal set.
+    NoGoal,
+    /// Animating along a curved path.
+    Curve,
+    /// Animating directly toward the target.
+    Direct,
+    /// Seeking: waiting for panels to be lazily created.
+    Seek,
+    /// Seek failed, showing "Not found" overlay briefly.
+    GivingUp,
+    /// Terminal: gave up after showing overlay.
+    GivenUp,
+    /// Terminal: goal reached.
+    GoalReached,
+}
+
 /// Visiting view animator — smoothly animates the camera to a target visit state.
 /// Uses logarithmic interpolation for zoom dimension.
 pub struct VisitingViewAnimator {
@@ -373,6 +392,20 @@ pub struct VisitingViewAnimator {
     target_a: f64,
     speed: f64,
     active: bool,
+    /// Whether smooth animation is enabled (false = instant visit).
+    animated: bool,
+    /// Acceleration for speed ramping (units/s^2).
+    acceleration: f64,
+    /// Maximum speed at zoom cusp (zoom-out-then-in transition).
+    max_cusp_speed: f64,
+    /// Maximum absolute animation speed.
+    max_absolute_speed: f64,
+    /// Current state in the seek/navigation state machine.
+    state: VisitingState,
+    /// Target panel identity string (slash-separated path).
+    identity: String,
+    /// Human-readable subject description for seek overlay.
+    subject: String,
 }
 
 impl VisitingViewAnimator {
@@ -383,7 +416,213 @@ impl VisitingViewAnimator {
             target_a,
             speed,
             active: true,
+            animated: false,
+            acceleration: 5.0,
+            max_cusp_speed: 2.0,
+            max_absolute_speed: 5.0,
+            state: VisitingState::Curve,
+            identity: String::new(),
+            subject: String::new(),
         }
+    }
+
+    /// Configure animation parameters from a speed config value.
+    ///
+    /// Mirrors C++ `emVisitingViewAnimator::SetAnimParamsByCoreConfig`.
+    /// `speed_factor` is the user's configured visit speed (typically 0..max).
+    /// `max_speed_factor` is the maximum value of that config range.
+    ///
+    /// When `speed_factor` is near `max_speed_factor`, animation is disabled
+    /// (instant visit). Otherwise, acceleration and max speeds are scaled by
+    /// `35.0 * speed_factor`, and cusp speed is half of max absolute speed.
+    pub fn set_anim_params_by_speed_config(&mut self, speed_factor: f64, max_speed_factor: f64) {
+        self.animated = speed_factor < max_speed_factor * 0.99999;
+        self.acceleration = 35.0 * speed_factor;
+        self.max_absolute_speed = 35.0 * speed_factor;
+        self.max_cusp_speed = self.max_absolute_speed * 0.5;
+    }
+
+    /// Returns the current visiting state.
+    pub(crate) fn visiting_state(&self) -> VisitingState {
+        self.state
+    }
+
+    /// Set state (used by seek logic / tests).
+    pub(crate) fn set_visiting_state(&mut self, state: VisitingState) {
+        self.state = state;
+    }
+
+    /// Set the identity and subject for seek overlay display.
+    pub fn set_identity(&mut self, identity: &str, subject: &str) {
+        self.identity = identity.to_string();
+        self.subject = subject.to_string();
+    }
+
+    /// Returns the identity string being visited.
+    pub fn identity(&self) -> &str {
+        &self.identity
+    }
+
+    /// Handle input during visiting animation.
+    ///
+    /// Mirrors C++ `emVisitingViewAnimator::Input`.
+    /// During seek or giving-up states, any key/mouse event aborts the
+    /// seek and deactivates the animator. Returns true if the event was
+    /// consumed (eaten).
+    pub fn handle_input(&mut self, event: &crate::input::InputEvent) -> bool {
+        if !self.active {
+            return false;
+        }
+        if self.state != VisitingState::Seek && self.state != VisitingState::GivingUp {
+            return false;
+        }
+        // Any non-empty event aborts the seek
+        if event.key != crate::input::InputKey::MouseLeft
+            || event.variant != crate::input::InputVariant::Move
+        {
+            // An actual key/button event (not just mouse move) — abort
+            self.active = false;
+            self.state = VisitingState::GivenUp;
+            return true;
+        }
+        false
+    }
+
+    /// Paint the seek progress overlay.
+    ///
+    /// Mirrors C++ `emVisitingViewAnimator::Paint`.
+    /// Shows a semi-transparent overlay with the target identity and a
+    /// progress bar when in Seek or GivingUp state.
+    pub fn paint_seek_overlay(&self, painter: &mut crate::render::Painter<'_>, view: &View) {
+        if !self.active {
+            return;
+        }
+        if self.state != VisitingState::Seek && self.state != VisitingState::GivingUp {
+            return;
+        }
+
+        let (vw, vh) = view.viewport_size();
+        let w = (vw.max(vh) * 0.6).min(vw);
+        let mut h = w * 0.25;
+
+        let f = vh * 0.8 / h;
+        if f < 1.0 {
+            h *= f;
+        }
+
+        let x = (vw - w) * 0.5;
+        let y = (vh - h) * 0.5;
+
+        // Shadow
+        let shadow_off = w * 0.03;
+        painter.paint_round_rect(
+            x + shadow_off,
+            y + shadow_off,
+            w,
+            h,
+            h * 0.2,
+            crate::foundation::Color::rgba(0, 0, 0, 160),
+        );
+
+        // Background box
+        painter.paint_round_rect(
+            x,
+            y,
+            w,
+            h,
+            h * 0.2,
+            crate::foundation::Color::rgba(34, 102, 153, 208),
+        );
+
+        let ch = h * 0.22;
+
+        if self.state == VisitingState::GivingUp {
+            // "Not found" text
+            painter.paint_text(
+                x + w * 0.1,
+                y + h * 0.15,
+                "Not found",
+                ch,
+                crate::foundation::Color::rgba(255, 136, 136, 255),
+            );
+            return;
+        }
+
+        // "Seeking..." text
+        let mut seeking_text = String::from("Seeking...");
+        if !self.subject.is_empty() {
+            seeking_text.push_str(" for ");
+            seeking_text.push_str(&self.subject);
+        }
+        painter.paint_text(
+            x + w * 0.05,
+            y + h * 0.1,
+            &seeking_text,
+            ch * 0.7,
+            crate::foundation::Color::rgba(221, 221, 221, 255),
+        );
+
+        // Progress bar background
+        let bar_x = x + w * 0.05;
+        let bar_y = y + h * 0.45;
+        let bar_w = w * 0.9;
+        let bar_h = h * 0.15;
+
+        // Compute progress from identity match
+        let seek_id = view
+            .seek_pos_panel()
+            .map(|_| view.seek_pos_child_name())
+            .unwrap_or("");
+        let total_len = self.identity.len().max(1);
+        let found_len = if !seek_id.is_empty() {
+            self.identity
+                .find(seek_id)
+                .map(|pos| pos + seek_id.len())
+                .unwrap_or(0)
+                .min(total_len)
+        } else {
+            0
+        };
+        let progress = found_len as f64 / total_len as f64;
+
+        // Found portion (green)
+        if progress > 0.0 {
+            painter.paint_rect(
+                bar_x,
+                bar_y,
+                bar_w * progress,
+                bar_h,
+                crate::foundation::Color::rgba(136, 255, 136, 80),
+            );
+        }
+        // Remaining portion (gray)
+        if progress < 1.0 {
+            painter.paint_rect(
+                bar_x + bar_w * progress,
+                bar_y,
+                bar_w * (1.0 - progress),
+                bar_h,
+                crate::foundation::Color::rgba(136, 136, 136, 80),
+            );
+        }
+
+        // Identity text
+        painter.paint_text(
+            bar_x,
+            bar_y + bar_h + h * 0.05,
+            &self.identity,
+            ch * 0.5,
+            crate::foundation::Color::rgba(221, 221, 221, 255),
+        );
+
+        // Abort instruction
+        painter.paint_text(
+            x + w * 0.05,
+            y + h * 0.8,
+            "Press any key to abort",
+            ch * 0.5,
+            crate::foundation::Color::rgba(170, 170, 170, 255),
+        );
     }
 }
 
@@ -391,6 +630,22 @@ impl ViewAnimator for VisitingViewAnimator {
     fn animate(&mut self, view: &mut View, tree: &mut PanelTree, dt: f64) -> bool {
         if !self.active {
             return false;
+        }
+
+        match self.visiting_state() {
+            VisitingState::NoGoal | VisitingState::GivenUp | VisitingState::GoalReached => {
+                return false;
+            }
+            VisitingState::GivingUp => {
+                // Still showing "Not found" — just stay active
+                return true;
+            }
+            VisitingState::Seek => {
+                // Seek state not fully implemented; fall through to animate
+            }
+            VisitingState::Curve | VisitingState::Direct => {
+                // Continue with animation below
+            }
         }
 
         let t = (self.speed * dt).min(1.0);
@@ -415,12 +670,23 @@ impl ViewAnimator for VisitingViewAnimator {
             let (vw, vh) = view.viewport_size();
             view.raw_scroll_and_zoom(tree, vw * 0.5, vh * 0.5, dx, dy, dz);
 
+            // Transition from Curve to Direct when close enough
+            if self.visiting_state() == VisitingState::Curve {
+                let dist = (new_x - self.target_x).abs()
+                    + (new_y - self.target_y).abs()
+                    + (new_log_a - log_target).abs();
+                if dist < 0.1 {
+                    self.set_visiting_state(VisitingState::Direct);
+                }
+            }
+
             // Check convergence
             if (new_x - self.target_x).abs() < 0.001
                 && (new_y - self.target_y).abs() < 0.001
                 && (new_log_a - log_target).abs() < 0.01
             {
                 self.active = false;
+                self.set_visiting_state(VisitingState::GoalReached);
             }
         }
 
@@ -433,6 +699,7 @@ impl ViewAnimator for VisitingViewAnimator {
 
     fn stop(&mut self) {
         self.active = false;
+        self.set_visiting_state(VisitingState::NoGoal);
     }
 }
 
@@ -569,5 +836,54 @@ mod tests {
 
         // Inner kinetic should have applied zoom via raw_scroll_and_zoom
         assert!((view.current_visit().rel_a - initial_a).abs() > 0.001);
+    }
+
+    #[test]
+    fn visiting_set_anim_params() {
+        let mut anim = VisitingViewAnimator::new(0.0, 0.0, 1.0, 5.0);
+
+        // Below max: animated
+        anim.set_anim_params_by_speed_config(2.0, 10.0);
+        assert!(anim.animated);
+        assert!((anim.acceleration - 70.0).abs() < 0.01);
+        assert!((anim.max_absolute_speed - 70.0).abs() < 0.01);
+        assert!((anim.max_cusp_speed - 35.0).abs() < 0.01);
+
+        // At max: not animated (instant)
+        anim.set_anim_params_by_speed_config(10.0, 10.0);
+        assert!(!anim.animated);
+    }
+
+    #[test]
+    fn visiting_handle_input_abort() {
+        let mut anim = VisitingViewAnimator::new(0.0, 0.0, 1.0, 5.0);
+
+        // Not in seek state — should not consume
+        let event = crate::input::InputEvent::press(crate::input::InputKey::Escape);
+        assert!(!anim.handle_input(&event));
+
+        // Set to seek state
+        anim.set_visiting_state(VisitingState::Seek);
+        assert!(anim.handle_input(&event));
+        assert!(!anim.is_active());
+        assert_eq!(anim.visiting_state(), VisitingState::GivenUp);
+    }
+
+    #[test]
+    fn visiting_state_direct_transitions() {
+        let mut anim = VisitingViewAnimator::new(0.0, 0.0, 1.0, 5.0);
+
+        // Exercise all state variants to ensure they exist
+        anim.set_visiting_state(VisitingState::NoGoal);
+        assert_eq!(anim.visiting_state(), VisitingState::NoGoal);
+
+        anim.set_visiting_state(VisitingState::Direct);
+        assert_eq!(anim.visiting_state(), VisitingState::Direct);
+
+        anim.set_visiting_state(VisitingState::GivingUp);
+        assert_eq!(anim.visiting_state(), VisitingState::GivingUp);
+
+        anim.set_visiting_state(VisitingState::GoalReached);
+        assert_eq!(anim.visiting_state(), VisitingState::GoalReached);
     }
 }
