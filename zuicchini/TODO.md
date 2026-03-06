@@ -24,7 +24,7 @@ Tracked here so they don't get forgotten. Sourced from EMCORE_FEATURE_CONTRACT.m
 
 ## Font System Follow-ups
 
-- [ ] Hinted rasterization — skrifa's `HintingInstance` requires per-size instances; currently using `DrawSettings::unhinted`. Add hinting for crisper text at small sizes (no API changes needed)
+- [x] Hinted rasterization — skrifa's `HintingInstance` requires per-size instances; currently using `DrawSettings::unhinted`. Add hinting for crisper text at small sizes (no API changes needed)
 - [ ] Thread FontCache through PanelBehavior/PanelCtx — when widgets start implementing `PanelBehavior::preferred_size` via the trait (not just inherent methods), the trait signature and PanelCtx need `&FontCache`
 - [ ] Variable font weight selection — Inter Variable is embedded but always renders at default weight; expose weight axis via `skrifa::instance::Location`
 - [x] Text scroll in TextField — `scroll_x` updated in `paint()` to keep cursor visible

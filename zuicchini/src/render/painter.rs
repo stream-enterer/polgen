@@ -1299,10 +1299,10 @@ impl<'a> Painter<'a> {
             w: cw,
             h: ch,
         } = self.state.clip;
-        let canvas_color = self.state.canvas_color;
-        let global_alpha = self.state.alpha;
+        let global_alpha = self.state.alpha as u16;
         let tw = self.target.width() as i32;
         let th = self.target.height() as i32;
+        let color_a = color.a() as u16;
 
         let mut pen_x = 0i32;
         for sg in &shaped {
@@ -1339,21 +1339,35 @@ impl<'a> Painter<'a> {
                             if a == 0 {
                                 continue;
                             }
-                            let c = Color::rgba(
-                                color.r(),
-                                color.g(),
-                                color.b(),
-                                ((color.a() as u16 * a as u16 + 127) / 255) as u8,
-                            );
-                            let existing = self.target.pixel(px as u32, py as u32);
-                            let bg =
-                                Color::rgba(existing[0], existing[1], existing[2], existing[3]);
-                            let result = bg.canvas_blend(c, canvas_color, global_alpha);
-                            let out = self.target.pixel_mut(px as u32, py as u32);
-                            out[0] = result.r();
-                            out[1] = result.g();
-                            out[2] = result.b();
-                            out[3] = result.a();
+                            // Standard alpha blend: coverage * color_alpha * global_alpha
+                            let ca = (color_a * a as u16 + 127) / 255;
+                            let ea = if global_alpha == 255 {
+                                ca
+                            } else {
+                                (ca * global_alpha + 127) / 255
+                            };
+                            if ea == 0 {
+                                continue;
+                            }
+                            if ea >= 255 {
+                                let out = self.target.pixel_mut(px as u32, py as u32);
+                                out[0] = color.r();
+                                out[1] = color.g();
+                                out[2] = color.b();
+                                out[3] = 255;
+                            } else {
+                                let inv = 255 - ea;
+                                let bg = self.target.pixel(px as u32, py as u32);
+                                let r = (bg[0] as u16 * inv + color.r() as u16 * ea + 127) / 255;
+                                let g = (bg[1] as u16 * inv + color.g() as u16 * ea + 127) / 255;
+                                let b = (bg[2] as u16 * inv + color.b() as u16 * ea + 127) / 255;
+                                let a = (bg[3] as u16 * inv + 255 * ea + 127) / 255;
+                                let out = self.target.pixel_mut(px as u32, py as u32);
+                                out[0] = r as u8;
+                                out[1] = g as u8;
+                                out[2] = b as u8;
+                                out[3] = a as u8;
+                            }
                         }
                     }
                 }
