@@ -26,15 +26,16 @@ fn canvas_blend_works_in_painter() {
     let mut fc = FontCache::new();
     {
         let mut p = Painter::new(&mut img, &mut fc);
-        // Canvas = rgb(50,50,50), source = rgb(150,150,150)
-        // target += (150 - 50) * 255 / 255 = target + 100
+        // Canvas = rgb(50,50,50), source = rgb(150,150,150), alpha = 128
+        // target += (150 - 50) * 128 / 255 = target + 50 = 150
         p.set_canvas_color(Color::rgb(50, 50, 50));
+        p.set_alpha(128);
         p.paint_rect(0.0, 0.0, 4.0, 4.0, Color::rgb(150, 150, 150));
     }
     let px = img.pixel(0, 0);
-    assert_eq!(px[0], 200);
-    assert_eq!(px[1], 200);
-    assert_eq!(px[2], 200);
+    assert_eq!(px[0], 150);
+    assert_eq!(px[1], 150);
+    assert_eq!(px[2], 150);
 }
 
 #[test]

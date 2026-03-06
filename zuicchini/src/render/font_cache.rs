@@ -320,23 +320,24 @@ struct ZenoPen {
 
 impl skrifa::outline::OutlinePen for ZenoPen {
     fn move_to(&mut self, x: f32, y: f32) {
-        self.commands.push(zeno::Command::MoveTo([x, y].into()));
+        // Negate y: skrifa uses font coords (y-up), zeno uses screen coords (y-down).
+        self.commands.push(zeno::Command::MoveTo([x, -y].into()));
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        self.commands.push(zeno::Command::LineTo([x, y].into()));
+        self.commands.push(zeno::Command::LineTo([x, -y].into()));
     }
 
     fn quad_to(&mut self, cx: f32, cy: f32, x: f32, y: f32) {
         self.commands
-            .push(zeno::Command::QuadTo([cx, cy].into(), [x, y].into()));
+            .push(zeno::Command::QuadTo([cx, -cy].into(), [x, -y].into()));
     }
 
     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
         self.commands.push(zeno::Command::CurveTo(
-            [cx0, cy0].into(),
-            [cx1, cy1].into(),
-            [x, y].into(),
+            [cx0, -cy0].into(),
+            [cx1, -cy1].into(),
+            [x, -y].into(),
         ));
     }
 

@@ -2626,14 +2626,23 @@ impl<'a> Painter<'a> {
             return;
         }
 
-        let px = self.target.pixel(x as u32, y as u32);
-        let existing = Color::rgba(px[0], px[1], px[2], px[3]);
-        let result = existing.canvas_blend(color, self.state.canvas_color, self.state.alpha);
-        let out = self.target.pixel_mut(x as u32, y as u32);
-        out[0] = result.r();
-        out[1] = result.g();
-        out[2] = result.b();
-        out[3] = result.a();
+        if color.is_opaque() && self.state.alpha == 255 {
+            // Fully opaque: direct write, no blending needed.
+            let out = self.target.pixel_mut(x as u32, y as u32);
+            out[0] = color.r();
+            out[1] = color.g();
+            out[2] = color.b();
+            out[3] = 255;
+        } else {
+            let px = self.target.pixel(x as u32, y as u32);
+            let existing = Color::rgba(px[0], px[1], px[2], px[3]);
+            let result = existing.canvas_blend(color, self.state.canvas_color, self.state.alpha);
+            let out = self.target.pixel_mut(x as u32, y as u32);
+            out[0] = result.r();
+            out[1] = result.g();
+            out[2] = result.b();
+            out[3] = result.a();
+        }
     }
 
     fn fill_rect_pixels(&mut self, x: i32, y: i32, w: i32, h: i32, color: Color) {
