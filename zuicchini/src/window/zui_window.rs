@@ -34,6 +34,10 @@ pub struct ZuiWindow {
     tile_cache: TileCache,
     font_cache: FontCache,
     view: View,
+    /// Pre-allocated viewport-sized buffer for single-pass rendering.
+    /// Used when many tiles are dirty (e.g. during panning) to avoid
+    /// redundant tree walks and primitive rasterization across tiles.
+    viewport_buffer: crate::foundation::Image,
     pub flags: WindowFlags,
     pub close_signal: SignalId,
     root_panel: PanelId,
@@ -101,6 +105,7 @@ impl ZuiWindow {
         let compositor = WgpuCompositor::new(&gpu.device, format, w, h);
         let tile_cache = TileCache::new(w, h, 256);
         let font_cache = FontCache::new();
+        let viewport_buffer = crate::foundation::Image::new(w, h, 4);
         let view = View::new(root_panel, w as f64, h as f64);
 
         let vif_chain: Vec<Box<dyn ViewInputFilter>> = vec![
@@ -115,6 +120,7 @@ impl ZuiWindow {
             compositor,
             tile_cache,
             font_cache,
+            viewport_buffer,
             view,
             flags,
             close_signal,
@@ -133,6 +139,7 @@ impl ZuiWindow {
         self.surface.configure(&gpu.device, &self.surface_config);
         self.compositor.resize(w, h);
         self.tile_cache.resize(w, h);
+        self.viewport_buffer.setup(w, h, 4);
         self.view.set_viewport(w as f64, h as f64);
     }
 
@@ -140,27 +147,63 @@ impl ZuiWindow {
     pub fn render(&mut self, tree: &mut crate::panel::PanelTree, gpu: &GpuContext) {
         use crate::render::Painter;
 
-        // Paint dirty tiles
         let (cols, rows) = self.tile_cache.grid_size();
+        let tile_size = crate::render::TILE_SIZE;
+
+        // Count dirty tiles to choose rendering strategy.
+        let mut dirty_count = 0u32;
         for row in 0..rows {
             for col in 0..cols {
-                let tile = self.tile_cache.get_or_create(col, row);
-                if tile.dirty {
-                    // Clear and repaint
-                    tile.image.fill(crate::foundation::Color::BLACK);
-                    {
-                        let mut painter = Painter::new(&mut tile.image, &mut self.font_cache);
-                        // Offset painter to tile position
-                        let tile_size = crate::render::TILE_SIZE as f64;
-                        painter.translate(-(col as f64 * tile_size), -(row as f64 * tile_size));
-                        self.view.paint(tree, &mut painter);
-                    }
-                    tile.dirty = false;
+                if self.tile_cache.get_or_create(col, row).dirty {
+                    dirty_count += 1;
+                }
+            }
+        }
 
-                    // Upload to GPU
-                    let tile_ref = self.tile_cache.get(col, row).unwrap();
-                    self.compositor
-                        .upload_tile(&gpu.device, &gpu.queue, col, row, tile_ref);
+        if dirty_count > cols * rows / 2 {
+            // Many dirty tiles (e.g. panning): paint into viewport-sized buffer
+            // once, then copy tile-sized chunks. Avoids redundant tree walks and
+            // re-rasterization of primitives across tiles.
+            self.viewport_buffer.fill(crate::foundation::Color::BLACK);
+            {
+                let mut painter = Painter::new(&mut self.viewport_buffer, &mut self.font_cache);
+                self.view.paint(tree, &mut painter);
+            }
+            for row in 0..rows {
+                for col in 0..cols {
+                    let tile = self.tile_cache.get_or_create(col, row);
+                    if tile.dirty {
+                        tile.image.copy_from_rect(
+                            0,
+                            0,
+                            &self.viewport_buffer,
+                            (col * tile_size, row * tile_size, tile_size, tile_size),
+                        );
+                        tile.dirty = false;
+                        let tile_ref = self.tile_cache.get(col, row).unwrap();
+                        self.compositor
+                            .upload_tile(&gpu.device, &gpu.queue, col, row, tile_ref);
+                    }
+                }
+            }
+        } else {
+            // Few dirty tiles: paint per-tile (avoids painting the full viewport).
+            for row in 0..rows {
+                for col in 0..cols {
+                    let tile = self.tile_cache.get_or_create(col, row);
+                    if tile.dirty {
+                        tile.image.fill(crate::foundation::Color::BLACK);
+                        {
+                            let mut painter = Painter::new(&mut tile.image, &mut self.font_cache);
+                            let ts = tile_size as f64;
+                            painter.translate(-(col as f64 * ts), -(row as f64 * ts));
+                            self.view.paint(tree, &mut painter);
+                        }
+                        tile.dirty = false;
+                        let tile_ref = self.tile_cache.get(col, row).unwrap();
+                        self.compositor
+                            .upload_tile(&gpu.device, &gpu.queue, col, row, tile_ref);
+                    }
                 }
             }
         }
@@ -386,8 +429,8 @@ impl ZuiWindow {
             panel_ev.mouse_y = tree.view_to_panel_y(active, ev.mouse_y);
 
             if let Some(mut behavior) = tree.take_behavior(active) {
-                let state = tree.build_panel_state(active, wf);
-                consumed = behavior.input(&panel_ev, &state);
+                let panel_state = tree.build_panel_state(active, wf);
+                consumed = behavior.input(&panel_ev, &panel_state, state);
                 tree.put_behavior(active, behavior);
             }
 
@@ -401,8 +444,8 @@ impl ZuiWindow {
                     parent_ev.mouse_y = tree.view_to_panel_y(parent_id, ev.mouse_y);
 
                     if let Some(mut behavior) = tree.take_behavior(parent_id) {
-                        let state = tree.build_panel_state(parent_id, wf);
-                        consumed = behavior.input(&parent_ev, &state);
+                        let panel_state = tree.build_panel_state(parent_id, wf);
+                        consumed = behavior.input(&parent_ev, &panel_state, state);
                         tree.put_behavior(parent_id, behavior);
                         if consumed {
                             break;

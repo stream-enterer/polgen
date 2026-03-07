@@ -1,4 +1,6 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 
 use skrifa::instance::Size;
 use skrifa::outline::{DrawSettings, HintingInstance, HintingOptions};
@@ -7,6 +9,7 @@ use skrifa::MetadataProvider;
 static DEFAULT_FONT_DATA: &[u8] = include_bytes!("../../res/fonts/default.ttf");
 
 /// Result of shaping a single glyph within a text run.
+#[derive(Clone)]
 pub struct ShapedGlyph {
     pub glyph_id: u16,
     pub x_offset: f64,
@@ -56,6 +59,10 @@ struct LoadedFont {
 pub struct FontCache {
     fonts: Vec<LoadedFont>,
     glyph_cache: HashMap<GlyphCacheKey, CachedGlyph>,
+    /// Cache of shaped text results, keyed by (font_id, size_px, text_hash).
+    /// Uses RefCell because shape_text/measure_text take &self (used by widget
+    /// preferred_size methods that only have &FontCache).
+    shaping_cache: RefCell<HashMap<(u16, u16, u64), Vec<ShapedGlyph>>>,
     cache_byte_budget: usize,
     cache_bytes_used: usize,
     frame_counter: u64,
@@ -69,6 +76,7 @@ impl FontCache {
         let mut cache = Self {
             fonts: Vec::new(),
             glyph_cache: HashMap::new(),
+            shaping_cache: RefCell::new(HashMap::new()),
             cache_byte_budget: 16 * 1024 * 1024,
             cache_bytes_used: 0,
             frame_counter: 0,
@@ -130,11 +138,26 @@ impl FontCache {
     }
 
     /// Shape text using rustybuzz. Returns positioned glyph IDs with offsets.
+    /// Results are cached to avoid repeated shaping of the same text.
     pub fn shape_text(&self, text: &str, font_id: u16, size_px: u16) -> Vec<ShapedGlyph> {
         let font = match self.fonts.get(font_id as usize) {
             Some(f) => f,
             None => return Vec::new(),
         };
+
+        let text_hash = {
+            let mut hasher = std::collections::hash_map::DefaultHasher::new();
+            text.hash(&mut hasher);
+            hasher.finish()
+        };
+        let cache_key = (font_id, size_px, text_hash);
+
+        {
+            let cache = self.shaping_cache.borrow();
+            if let Some(cached) = cache.get(&cache_key) {
+                return cached.clone();
+            }
+        }
 
         let mut buffer = rustybuzz::UnicodeBuffer::new();
         buffer.push_str(text);
@@ -147,7 +170,7 @@ impl FontCache {
         let infos = output.glyph_infos();
         let positions = output.glyph_positions();
 
-        infos
+        let result: Vec<ShapedGlyph> = infos
             .iter()
             .zip(positions.iter())
             .map(|(info, pos)| ShapedGlyph {
@@ -156,7 +179,14 @@ impl FontCache {
                 y_offset: pos.y_offset as f64 * scale,
                 x_advance: pos.x_advance as f64 * scale,
             })
-            .collect()
+            .collect();
+
+        let mut cache = self.shaping_cache.borrow_mut();
+        if cache.len() >= 512 {
+            cache.clear();
+        }
+        cache.insert(cache_key, result.clone());
+        result
     }
 
     /// Ensure a glyph is rasterized and in the cache. No-op if already cached.
