@@ -2651,9 +2651,19 @@ impl<'a> Painter<'a> {
             // Canvas blend: target += (source - canvas) * alpha / 255
             // Used when the background color is known (opaque canvas), giving
             // better anti-aliasing at shape edges. Matches Eagle Mode's emPainter.
+            // Alpha must combine both the source color's alpha and the painter's
+            // global alpha, matching Eagle Mode where opacity = color_alpha * coverage.
+            let combined_alpha = if self.state.alpha == 255 {
+                color.a()
+            } else {
+                ((color.a() as u16 * self.state.alpha as u16 + 127) / 255) as u8
+            };
+            if combined_alpha == 0 {
+                return;
+            }
             let px = self.target.pixel(x as u32, y as u32);
             let existing = Color::rgba(px[0], px[1], px[2], px[3]);
-            let result = existing.canvas_blend(color, self.state.canvas_color, self.state.alpha);
+            let result = existing.canvas_blend(color, self.state.canvas_color, combined_alpha);
             let out = self.target.pixel_mut(x as u32, y as u32);
             out[0] = result.r();
             out[1] = result.g();

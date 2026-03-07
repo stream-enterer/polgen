@@ -173,6 +173,8 @@ impl ApplicationHandler for App {
             WindowEvent::Focused(focused) => {
                 if let Some(win) = self.windows.get_mut(&window_id) {
                     win.view_mut().set_window_focused(focused);
+                    win.invalidate();
+                    win.request_redraw();
                 }
             }
             ref input_event => {
@@ -235,6 +237,12 @@ impl ApplicationHandler for App {
             // Check for pending dirty rects from invalidate_painting calls
             if win.view().has_dirty_rects() {
                 win.view_mut().take_dirty_rects();
+                needs_repaint = true;
+            }
+
+            // Check for viewport changes (scroll/zoom/visit from VIFs)
+            if win.view().viewport_changed() {
+                win.view_mut().clear_viewport_changed();
                 needs_repaint = true;
             }
 

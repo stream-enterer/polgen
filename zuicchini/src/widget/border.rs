@@ -238,8 +238,8 @@ impl Border {
         if self.has_label() {
             // Label path: aux is placed at the right of the label text area.
             let label_area_w = rnd_w;
-            let lh = self.label_height(label_area_w, rnd_h);
-            let layout = self.label_layout(rnd_x, rnd_y, label_area_w, lh);
+            let lch = self.label_content_height(label_area_w, rnd_h);
+            let layout = self.label_layout(rnd_x, rnd_y, label_area_w, lch);
             let th = layout.total_height;
             if th <= 0.0 {
                 return Some(Rect {
@@ -370,16 +370,30 @@ impl Border {
         }
     }
 
-    /// Compute the label area height from the panel dimensions.
+    /// The label-space factor, which differs by border type.
+    /// Eagle Mode: Group uses 0.05, all others use 0.17.
+    fn label_space_factor(&self) -> f64 {
+        match self.outer {
+            OuterBorderType::Group => 0.05,
+            _ => 0.17,
+        }
+    }
+
+    /// Full height reserved for the label region (including top/bottom padding).
     ///
-    /// Eagle Mode's DoBorder computes this as `label_space = s * 0.17` where
-    /// `s = min(rnd_w, rnd_h) * BorderScaling`, then applies padding `d = label_space * 0.1`.
-    /// The available height for label content is `label_space - 2 * d`.
-    fn label_height(&self, rnd_w: f64, rnd_h: f64) -> f64 {
+    /// Eagle Mode's DoBorder: `labelSpace = s * factor` where
+    /// `s = min(rnd_w, rnd_h) * BorderScaling`. This is the space subtracted
+    /// from the content area — it includes the text zone plus surrounding padding.
+    fn label_space(&self, rnd_w: f64, rnd_h: f64) -> f64 {
         let s = rnd_w.min(rnd_h) * self.border_scaling;
-        let label_space = s * 0.17;
-        let d = label_space * 0.1;
-        label_space - 2.0 * d
+        s * self.label_space_factor()
+    }
+
+    /// Usable height within the label space for actual text/icon content.
+    ///
+    /// Eagle Mode: `d = labelSpace * 0.1; content_h = labelSpace - 2 * d`.
+    fn label_content_height(&self, rnd_w: f64, rnd_h: f64) -> f64 {
+        self.label_space(rnd_w, rnd_h) * 0.8
     }
 
     /// Compute label layout within the given area.
@@ -706,8 +720,7 @@ impl Border {
         let label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
         let label_h = if self.has_label() {
-            let lh = self.label_height(label_area_w, rnd_h);
-            self.label_layout(ox, oy, label_area_w, lh).total_height
+            self.label_space(label_area_w, rnd_h)
         } else {
             0.0
         };
@@ -803,8 +816,7 @@ impl Border {
         let label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
         let label_h = if self.has_label() {
-            let lh = self.label_height(label_area_w, rnd_h);
-            self.label_layout(ox, oy, label_area_w, lh).total_height
+            self.label_space(label_area_w, rnd_h)
         } else {
             0.0
         };
@@ -826,8 +838,7 @@ impl Border {
         let label_area_w = cw;
         let rnd_h = (ch - oh).max(0.0);
         let label_h = if self.has_label() {
-            let lh = self.label_height(label_area_w, rnd_h);
-            self.label_layout(0.0, 0.0, label_area_w, lh).total_height
+            self.label_space(label_area_w, rnd_h)
         } else {
             0.0
         };
@@ -958,8 +969,9 @@ impl Border {
         let (ox, oy, ow, oh) = self.outer_insets(w, h);
         let label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
-        let label_h = self.label_height(label_area_w, rnd_h);
-        let label = self.label_layout(ox, oy, label_area_w, label_h);
+        let ls = self.label_space(label_area_w, rnd_h);
+        let lch = self.label_content_height(label_area_w, rnd_h);
+        let label = self.label_layout(ox, oy, label_area_w, lch);
 
         let cap_align = self.caption_alignment.unwrap_or(self.label_alignment);
         let desc_align = self.description_alignment.unwrap_or(self.label_alignment);
@@ -1024,11 +1036,11 @@ impl Border {
             );
         }
 
-        // Inner border
+        // Inner border — content starts after the full label space (including padding)
         let inner_x = ox;
-        let inner_y = oy + label.total_height;
+        let inner_y = oy + ls;
         let inner_w = (w - ox * 2.0).max(0.0);
-        let inner_h = (h - oy * 2.0 - label.total_height).max(0.0);
+        let inner_h = (h - oy * 2.0 - ls).max(0.0);
         let inner_r = self.inner_radius(inner_w, inner_h);
         let inner_stroke_w = {
             let s = inner_w.min(inner_h) * self.border_scaling;
@@ -1130,7 +1142,7 @@ mod tests {
         let d = 50.0 * 0.023;
         let rnd_w = 100.0 - 2.0 * d;
         let rnd_h = 50.0 - 2.0 * d;
-        let label_h = border.label_height(rnd_w, rnd_h);
+        let label_h = border.label_space(rnd_w, rnd_h);
         assert!((x - d).abs() < 0.01);
         assert!((y - d - label_h).abs() < 0.01);
         assert!((cw - rnd_w).abs() < 0.01);
@@ -1159,7 +1171,7 @@ mod tests {
         let od = 80.0 * 0.052;
         let rnd_w = 100.0 - 2.0 * od;
         let rnd_h = 80.0 - 2.0 * od;
-        let label_h = border.label_height(rnd_w, rnd_h);
+        let label_h = border.label_space(rnd_w, rnd_h);
         let iw: f64 = rnd_w;
         let ih: f64 = rnd_h - label_h;
         let is = iw.min(ih);
@@ -1255,9 +1267,9 @@ mod tests {
         border.set_icon_above_caption(true);
         let r = border.content_rect(200.0, 200.0, &test_look());
         // OuterBorderType::None has zero insets, so rnd = full dims.
-        let lh = border.label_height(200.0, 200.0);
-        let layout = border.label_layout(0.0, 0.0, 200.0, lh);
-        assert!((r.y - layout.total_height).abs() < 0.01);
+        // Content rect offset = label_space (includes padding around text).
+        let ls = border.label_space(200.0, 200.0);
+        assert!((r.y - ls).abs() < 0.01);
     }
 
     #[test]

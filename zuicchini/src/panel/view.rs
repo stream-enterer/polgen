@@ -74,6 +74,9 @@ pub struct View {
     control_panel_invalid: bool,
     /// Whether the current activation is adherent (indirect, via a descendant).
     activation_adherent: bool,
+    /// Set by scroll/zoom/navigate operations that change the viewport and need
+    /// a repaint, but don't go through the notice or dirty_rects systems.
+    viewport_changed: bool,
 }
 
 impl View {
@@ -108,6 +111,7 @@ impl View {
             cursor_invalid: false,
             control_panel_invalid: false,
             activation_adherent: false,
+            viewport_changed: false,
         }
     }
 
@@ -243,6 +247,7 @@ impl View {
             rel_a,
         });
         self.active = Some(panel);
+        self.viewport_changed = true;
     }
 
     pub fn visit_fullsized(&mut self, tree: &PanelTree, panel: PanelId) {
@@ -254,6 +259,7 @@ impl View {
         if self.visit_stack.len() > 1 {
             self.visit_stack.pop();
             self.active = Some(self.current_visit().panel);
+            self.viewport_changed = true;
             true
         } else {
             false
@@ -263,6 +269,7 @@ impl View {
     pub fn go_home(&mut self) {
         self.visit_stack.truncate(1);
         self.active = Some(self.root);
+        self.viewport_changed = true;
     }
 
     // --- Viewport ---
@@ -329,6 +336,7 @@ impl View {
             state.rel_x = ncx + (state.rel_x - ncx) * ratio;
             state.rel_y = ncy + (state.rel_y - ncy) * ratio;
             state.rel_a = new_a;
+            self.viewport_changed = true;
         }
     }
 
@@ -339,6 +347,7 @@ impl View {
         if let Some(state) = self.visit_stack.last_mut() {
             state.rel_x += dx / self.viewport_width.max(1.0);
             state.rel_y += dy / self.viewport_height.max(1.0);
+            self.viewport_changed = true;
         }
     }
 
@@ -393,6 +402,7 @@ impl View {
             state.rel_x = 0.0;
             state.rel_y = 0.0;
             state.rel_a = 1.0;
+            self.viewport_changed = true;
         }
         self.update_viewing(tree);
     }
@@ -1335,6 +1345,16 @@ impl View {
     /// Drain accumulated dirty rectangles.
     pub fn take_dirty_rects(&mut self) -> Vec<Rect> {
         std::mem::take(&mut self.dirty_rects)
+    }
+
+    /// Whether the viewport has changed (scroll/zoom/visit) since last reset.
+    pub fn viewport_changed(&self) -> bool {
+        self.viewport_changed
+    }
+
+    /// Clear the viewport-changed flag after processing.
+    pub fn clear_viewport_changed(&mut self) {
+        self.viewport_changed = false;
     }
 
     // --- Update loop ---

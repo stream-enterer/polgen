@@ -405,7 +405,10 @@ impl PanelTree {
     /// Set whether the panel is visible.
     pub fn set_visible(&mut self, id: PanelId, visible: bool) {
         if let Some(panel) = self.panels.get_mut(id) {
-            panel.visible = visible;
+            if panel.visible != visible {
+                panel.visible = visible;
+                panel.pending_notices.insert(NoticeFlags::VISIBILITY);
+            }
         }
     }
 
