@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bitflags::bitflags;
 use slotmap::{new_key_type, SlotMap};
 
-use super::behavior::{NoticeFlags, PanelBehavior};
+use super::behavior::{NoticeFlags, PanelBehavior, PanelState};
 use super::ctx::PanelCtx;
 use crate::foundation::{Color, Rect};
 
@@ -851,6 +851,21 @@ impl PanelTree {
         }
     }
 
+    /// Build a `PanelState` snapshot for the given panel.
+    pub fn build_panel_state(&self, id: PanelId, window_focused: bool) -> PanelState {
+        let p = &self.panels[id];
+        PanelState {
+            id,
+            is_active: p.is_active,
+            in_active_path: p.in_active_path,
+            window_focused,
+            enabled: p.enabled,
+            viewed: p.viewed,
+            clip_rect: Rect::new(p.clip_x, p.clip_y, p.clip_w, p.clip_h),
+            viewed_rect: Rect::new(p.viewed_x, p.viewed_y, p.viewed_width, p.viewed_height),
+        }
+    }
+
     /// Extract the behavior from a panel (for calling methods that need &mut self on tree).
     pub fn take_behavior(&mut self, id: PanelId) -> Option<Box<dyn PanelBehavior>> {
         self.panels.get_mut(id).and_then(|p| p.behavior.take())
@@ -866,7 +881,7 @@ impl PanelTree {
     /// Deliver pending notices to all panels with behaviors.
     /// Dispatch pending notices to panel behaviors. Returns `true` if any
     /// notices were delivered (meaning visual state may have changed).
-    pub fn deliver_notices(&mut self) -> bool {
+    pub fn deliver_notices(&mut self, window_focused: bool) -> bool {
         let mut delivered = false;
         // Loop until no new notices are generated. layout_children may call
         // set_layout_rect on children, queuing LAYOUT_CHANGED notices that
@@ -886,7 +901,8 @@ impl PanelTree {
                 round_delivered = true;
                 self.panels[id].pending_notices = NoticeFlags::empty();
                 if let Some(mut behavior) = self.take_behavior(id) {
-                    behavior.notice(flags);
+                    let state = self.build_panel_state(id, window_focused);
+                    behavior.notice(flags, &state);
                     if flags.contains(NoticeFlags::LAYOUT_CHANGED) {
                         let mut ctx = PanelCtx::new(self, id);
                         behavior.layout_children(&mut ctx);
@@ -1954,7 +1970,7 @@ mod tests {
         let _b = t.create_child(root, "b");
 
         // Clear pending notices before sort
-        t.deliver_notices();
+        t.deliver_notices(true);
 
         // Build name map
         let names: HashMap<PanelId, String> = t

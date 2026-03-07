@@ -1491,7 +1491,8 @@ impl View {
         painter.set_canvas_color(canvas_color);
 
         if let Some(mut behavior) = tree.take_behavior(id) {
-            behavior.paint(painter, vw, vh);
+            let state = tree.build_panel_state(id, self.window_focused);
+            behavior.paint(painter, vw, vh, &state);
             tree.put_behavior(id, behavior);
         }
 

@@ -1,11 +1,48 @@
 use bitflags::bitflags;
 
-use crate::foundation::Color;
+use crate::foundation::{Color, Rect};
 use crate::input::{Cursor, InputEvent};
 use crate::render::Painter;
 
 use super::ctx::PanelCtx;
 use super::tree::{PanelId, PlaybackState};
+
+/// Read-only snapshot of panel state, passed to behavior callbacks.
+///
+/// Built by the framework before each `paint()`, `notice()`, and `input()`
+/// call. Fields reflect the panel's state at the moment of the call.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub struct PanelState {
+    /// This panel's ID.
+    pub id: PanelId,
+    /// Whether this panel is the active (focused-path leaf) panel.
+    pub is_active: bool,
+    /// Whether this panel is in the active path (ancestor of active, or active itself).
+    pub in_active_path: bool,
+    /// Whether the owning view/window is focused.
+    pub window_focused: bool,
+    /// Whether the panel is enabled (enable_switch AND all ancestors enabled).
+    pub enabled: bool,
+    /// Whether the panel is currently viewed (visible in the viewport).
+    pub viewed: bool,
+    /// The panel's clip rectangle in absolute view coordinates.
+    pub clip_rect: Rect,
+    /// The panel's full viewed rectangle in absolute view coordinates.
+    pub viewed_rect: Rect,
+}
+
+impl PanelState {
+    /// True if active AND window is focused. Matches C++ `emPanel::IsFocused()`.
+    pub fn is_focused(&self) -> bool {
+        self.is_active && self.window_focused
+    }
+
+    /// True if in active path AND window is focused. Matches C++ `emPanel::IsInFocusedPath()`.
+    pub fn in_focused_path(&self) -> bool {
+        self.in_active_path && self.window_focused
+    }
+}
 
 bitflags! {
     /// Flags indicating what kinds of changes a panel needs to be notified about.
@@ -36,10 +73,10 @@ bitflags! {
 /// only the methods they need.
 pub trait PanelBehavior {
     /// Paint the panel's content.
-    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64) {}
+    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64, _state: &PanelState) {}
 
     /// Handle an input event. Returns true if the event was consumed.
-    fn input(&mut self, _event: &InputEvent) -> bool {
+    fn input(&mut self, _event: &InputEvent, _state: &PanelState) -> bool {
         false
     }
 
@@ -57,7 +94,7 @@ pub trait PanelBehavior {
     fn layout_children(&mut self, _ctx: &mut PanelCtx) {}
 
     /// Receive a notice about state changes.
-    fn notice(&mut self, _flags: NoticeFlags) {}
+    fn notice(&mut self, _flags: NoticeFlags, _state: &PanelState) {}
 
     /// Whether the panel wants to auto-expand to fill available space.
     fn auto_expand(&self) -> bool {

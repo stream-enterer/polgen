@@ -19,7 +19,13 @@ struct BorderPanel {
 }
 
 impl PanelBehavior for BorderPanel {
-    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+    fn paint(
+        &mut self,
+        painter: &mut Painter,
+        w: f64,
+        h: f64,
+        _state: &zuicchini::panel::PanelState,
+    ) {
         self.border
             .paint_border(painter, w, h, &self.look, false, true);
     }
@@ -95,7 +101,7 @@ fn main() {
     let t0 = Instant::now();
     let tallness = vh as f64 / vw as f64;
     tree.set_layout_rect(root, 0.0, 0.0, 1.0, tallness);
-    tree.deliver_notices();
+    tree.deliver_notices(true);
     let t_layout = t0.elapsed();
 
     // ── Phase 5: View update (update_viewing) ──
@@ -131,7 +137,7 @@ fn main() {
         let new_h = vh + (i as u32 % 100);
         let new_tallness = new_h as f64 / vw as f64;
         tree.set_layout_rect(root, 0.0, 0.0, 1.0, new_tallness);
-        tree.deliver_notices();
+        tree.deliver_notices(true);
         view.set_viewport(vw as f64, new_h as f64);
         view.update(&mut tree);
 

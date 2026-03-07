@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::foundation::Rect;
-use crate::panel::{NoticeFlags, PanelBehavior, PanelCtx, PanelId};
+use crate::panel::{NoticeFlags, PanelBehavior, PanelCtx, PanelId, PanelState};
 use crate::render::Painter;
 
 use super::{
@@ -325,7 +325,7 @@ impl PanelBehavior for LinearLayout {
         self.do_layout(ctx);
     }
 
-    fn notice(&mut self, _flags: NoticeFlags) {}
+    fn notice(&mut self, _flags: NoticeFlags, _state: &PanelState) {}
 }
 
 /// LinearGroup: a LinearLayout that also paints a border and is focusable.
@@ -348,7 +348,7 @@ impl LinearGroup {
 }
 
 impl PanelBehavior for LinearGroup {
-    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64) {}
+    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64, _state: &PanelState) {}
 
     fn layout_children(&mut self, ctx: &mut PanelCtx) {
         self.layout.do_layout(ctx);

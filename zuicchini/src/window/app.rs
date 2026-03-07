@@ -217,7 +217,8 @@ impl ApplicationHandler for App {
         }
 
         // Deliver notices (includes layout dispatch)
-        let had_notices = self.tree.deliver_notices();
+        let window_focused = self.windows.values().any(|w| w.view().window_focused());
+        let had_notices = self.tree.deliver_notices(window_focused);
 
         // Update views and tick animators
         let dt = 1.0 / 60.0; // Fixed timestep for now

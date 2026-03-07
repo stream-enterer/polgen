@@ -14,7 +14,13 @@ struct BorderPanel {
 }
 
 impl PanelBehavior for BorderPanel {
-    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+    fn paint(
+        &mut self,
+        painter: &mut Painter,
+        w: f64,
+        h: f64,
+        _state: &zuicchini::panel::PanelState,
+    ) {
         self.border
             .paint_border(painter, w, h, &self.look, false, true);
     }

@@ -6,7 +6,7 @@ mod tree;
 mod view;
 
 pub use animator::{KineticViewAnimator, SpeedingViewAnimator, ViewAnimator, VisitingViewAnimator};
-pub use behavior::{NoticeFlags, PanelBehavior};
+pub use behavior::{NoticeFlags, PanelBehavior, PanelState};
 pub use ctx::PanelCtx;
 pub use input_filter::{KeyboardZoomScrollVIF, MouseZoomScrollVIF, ViewInputFilter};
 pub use tree::{

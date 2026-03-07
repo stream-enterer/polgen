@@ -2,6 +2,7 @@ use super::font_cache::{FontCache, GlyphCacheKey};
 use super::interpolation;
 use super::scanline::{self, WindingRule};
 use super::stroke::{Stroke, StrokeEnd, StrokeEndType};
+use super::texture::{ImageExtension, ImageQuality, Texture};
 use crate::foundation::{Color, Fixed12, Image, PixelRect};
 
 /// Base multiplier for decoration size.
@@ -16,6 +17,43 @@ const MAX_MITER: f64 = 5.0;
 const BEZIER_FLATNESS: f64 = 0.5;
 /// Maximum Bezier subdivision depth.
 const BEZIER_MAX_DEPTH: u8 = 10;
+
+/// Pre-transformed texture with coordinates in pixel space.
+/// Used internally by the textured polygon rasterizer.
+enum PixelTexture<'t> {
+    Solid(Color),
+    LinearGradient {
+        color_a: Color,
+        color_b: Color,
+        start: (f64, f64),
+        end: (f64, f64),
+    },
+    RadialGradient {
+        color_inner: Color,
+        color_outer: Color,
+        center: (f64, f64),
+        radius: (f64, f64),
+    },
+    Image {
+        image: &'t Image,
+        extension: ImageExtension,
+        quality: ImageQuality,
+        inv_scale_x: f64,
+        inv_scale_y: f64,
+        offset_x: f64,
+        offset_y: f64,
+    },
+    ImageColored {
+        image: &'t Image,
+        color: Color,
+        extension: ImageExtension,
+        quality: ImageQuality,
+        inv_scale_x: f64,
+        inv_scale_y: f64,
+        offset_x: f64,
+        offset_y: f64,
+    },
+}
 
 /// Text alignment for boxed text rendering.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -416,6 +454,25 @@ impl<'a> Painter<'a> {
     /// Fill a polygon using even-odd winding rule (for polygon rings with holes).
     pub fn paint_polygon_even_odd(&mut self, vertices: &[(f64, f64)], color: Color) {
         self.fill_polygon_aa(vertices, color, WindingRule::EvenOdd);
+    }
+
+    /// Fill a polygon with a texture (gradient, image, or solid color).
+    /// Uses anti-aliased scanline rasterization with NonZero winding rule.
+    pub fn paint_polygon_textured(&mut self, vertices: &[(f64, f64)], texture: &Texture) {
+        if let Texture::SolidColor(color) = texture {
+            self.fill_polygon_aa(vertices, *color, WindingRule::NonZero);
+        } else {
+            self.fill_polygon_aa_textured(vertices, texture, WindingRule::NonZero);
+        }
+    }
+
+    /// Fill a polygon with a texture using even-odd winding rule.
+    pub fn paint_polygon_textured_even_odd(&mut self, vertices: &[(f64, f64)], texture: &Texture) {
+        if let Texture::SolidColor(color) = texture {
+            self.fill_polygon_aa(vertices, *color, WindingRule::EvenOdd);
+        } else {
+            self.fill_polygon_aa_textured(vertices, texture, WindingRule::EvenOdd);
+        }
     }
 
     /// Draw a polygon outline by stroking each edge as a thick line.
@@ -2570,6 +2627,240 @@ impl<'a> Painter<'a> {
             ((color.a() as u16 * coverage as u16 + 127) / 255) as u8,
         );
         self.blend_pixel(x, y, modulated);
+    }
+
+    /// Fill a polygon with a texture using the scanline rasterizer.
+    fn fill_polygon_aa_textured(
+        &mut self,
+        vertices: &[(f64, f64)],
+        texture: &Texture,
+        rule: WindingRule,
+    ) {
+        if vertices.len() < 3 {
+            return;
+        }
+
+        let fixed_verts: Vec<(Fixed12, Fixed12)> = vertices
+            .iter()
+            .map(|&(x, y)| {
+                (
+                    Fixed12::from_f64(x * self.state.scale_x + self.state.offset_x),
+                    Fixed12::from_f64(y * self.state.scale_y + self.state.offset_y),
+                )
+            })
+            .collect();
+
+        let rows = scanline::rasterize(&fixed_verts, self.state.clip, rule);
+
+        // Pre-transform texture coordinates to pixel space.
+        // Extract state values to avoid borrowing self through the loop.
+        let px_texture = Self::build_pixel_texture(texture, &self.state);
+
+        for (y, spans) in &rows {
+            for span in spans {
+                self.blit_span_textured(*y, span, &px_texture);
+            }
+        }
+    }
+
+    /// Convert a Texture's coordinates from local space to pixel space.
+    fn build_pixel_texture<'t>(texture: &'t Texture, state: &PainterState) -> PixelTexture<'t> {
+        match texture {
+            Texture::SolidColor(c) => PixelTexture::Solid(*c),
+            Texture::LinearGradient {
+                color_a,
+                color_b,
+                start,
+                end,
+            } => PixelTexture::LinearGradient {
+                color_a: *color_a,
+                color_b: *color_b,
+                start: (
+                    start.0 * state.scale_x + state.offset_x,
+                    start.1 * state.scale_y + state.offset_y,
+                ),
+                end: (
+                    end.0 * state.scale_x + state.offset_x,
+                    end.1 * state.scale_y + state.offset_y,
+                ),
+            },
+            Texture::RadialGradient {
+                color_inner,
+                color_outer,
+                center,
+                radius,
+            } => {
+                let pcx = center.0 * state.scale_x + state.offset_x;
+                let pcy = center.1 * state.scale_y + state.offset_y;
+                let prx = radius * state.scale_x;
+                let pry = radius * state.scale_y;
+                PixelTexture::RadialGradient {
+                    color_inner: *color_inner,
+                    color_outer: *color_outer,
+                    center: (pcx, pcy),
+                    radius: (prx, pry),
+                }
+            }
+            Texture::Image {
+                image,
+                extension,
+                quality,
+            } => PixelTexture::Image {
+                image,
+                extension: *extension,
+                quality: *quality,
+                inv_scale_x: 1.0 / state.scale_x,
+                inv_scale_y: 1.0 / state.scale_y,
+                offset_x: state.offset_x,
+                offset_y: state.offset_y,
+            },
+            Texture::ImageColored {
+                image,
+                color,
+                extension,
+                quality,
+            } => PixelTexture::ImageColored {
+                image,
+                color: *color,
+                extension: *extension,
+                quality: *quality,
+                inv_scale_x: 1.0 / state.scale_x,
+                inv_scale_y: 1.0 / state.scale_y,
+                offset_x: state.offset_x,
+                offset_y: state.offset_y,
+            },
+        }
+    }
+
+    /// Sample a color from a pixel-space texture at the given pixel coordinates.
+    fn sample_pixel_texture(texture: &PixelTexture, px: f64, py: f64) -> Color {
+        match texture {
+            PixelTexture::Solid(c) => *c,
+            PixelTexture::LinearGradient {
+                color_a,
+                color_b,
+                start,
+                end,
+            } => {
+                let dx = end.0 - start.0;
+                let dy = end.1 - start.1;
+                let len_sq = dx * dx + dy * dy;
+                if len_sq < 1e-12 {
+                    return *color_a;
+                }
+                let t = ((px - start.0) * dx + (py - start.1) * dy) / len_sq;
+                color_a.lerp(*color_b, t.clamp(0.0, 1.0))
+            }
+            PixelTexture::RadialGradient {
+                color_inner,
+                color_outer,
+                center,
+                radius,
+            } => {
+                let dx = px - center.0;
+                let dy = py - center.1;
+                let nx = if radius.0.abs() > 1e-12 {
+                    dx / radius.0
+                } else {
+                    1.0
+                };
+                let ny = if radius.1.abs() > 1e-12 {
+                    dy / radius.1
+                } else {
+                    1.0
+                };
+                let t = (nx * nx + ny * ny).sqrt().min(1.0);
+                color_inner.lerp(*color_outer, t)
+            }
+            PixelTexture::Image {
+                image,
+                extension,
+                quality,
+                inv_scale_x,
+                inv_scale_y,
+                offset_x,
+                offset_y,
+            } => {
+                let lx = (px - offset_x) * inv_scale_x;
+                let ly = (py - offset_y) * inv_scale_y;
+                Self::sample_image_at(image, lx, ly, *extension, *quality)
+            }
+            PixelTexture::ImageColored {
+                image,
+                color,
+                extension,
+                quality,
+                inv_scale_x,
+                inv_scale_y,
+                offset_x,
+                offset_y,
+            } => {
+                let lx = (px - offset_x) * inv_scale_x;
+                let ly = (py - offset_y) * inv_scale_y;
+                let sampled = Self::sample_image_at(image, lx, ly, *extension, *quality);
+                Color::rgba(
+                    ((sampled.r() as u32 * color.r() as u32 + 127) / 255) as u8,
+                    ((sampled.g() as u32 * color.g() as u32 + 127) / 255) as u8,
+                    ((sampled.b() as u32 * color.b() as u32 + 127) / 255) as u8,
+                    ((sampled.a() as u32 * color.a() as u32 + 127) / 255) as u8,
+                )
+            }
+        }
+    }
+
+    /// Sample an image at local coordinates using the given extension and quality.
+    fn sample_image_at(
+        image: &Image,
+        x: f64,
+        y: f64,
+        extension: super::texture::ImageExtension,
+        quality: super::texture::ImageQuality,
+    ) -> Color {
+        match quality {
+            super::texture::ImageQuality::Nearest => {
+                interpolation::sample_nearest(image, x, y, extension)
+            }
+            _ => interpolation::sample_bilinear(image, x, y, extension),
+        }
+    }
+
+    /// Blit a single textured AA span onto the target.
+    fn blit_span_textured(&mut self, y: i32, span: &scanline::Span, texture: &PixelTexture) {
+        let tw = self.target.width() as i32;
+        let th = self.target.height() as i32;
+        if y < 0 || y >= th {
+            return;
+        }
+
+        let x_start = span.x_start.max(0);
+        let x_end = span.x_end.min(tw);
+        if x_start >= x_end {
+            return;
+        }
+
+        let py = y as f64;
+        for x in x_start..x_end {
+            let opacity = if x == span.x_start && x_end - x_start > 1 {
+                span.opacity_beg
+            } else if x == x_end - 1 && x_end - x_start > 1 {
+                span.opacity_end
+            } else if x_end - x_start == 1 {
+                span.opacity_beg
+            } else {
+                span.opacity_mid
+            };
+            if opacity == 0 {
+                continue;
+            }
+
+            let color = Self::sample_pixel_texture(texture, x as f64, py);
+
+            if opacity == 255 {
+                self.blend_pixel(x, y, color);
+            } else {
+                self.blend_pixel_alpha(x, y, color, opacity);
+            }
+        }
     }
 
     /// Generate polygon vertices approximating an ellipse.

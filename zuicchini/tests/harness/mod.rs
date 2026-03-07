@@ -6,7 +6,7 @@ use std::rc::Rc;
 use zuicchini::input::{InputEvent, InputKey, InputState, InputVariant};
 use zuicchini::panel::{
     KeyboardZoomScrollVIF, MouseZoomScrollVIF, NoticeFlags, PanelBehavior, PanelCtx, PanelId,
-    PanelTree, View, ViewInputFilter,
+    PanelState, PanelTree, View, ViewInputFilter,
 };
 use zuicchini::scheduler::EngineScheduler;
 
@@ -54,7 +54,7 @@ impl TestHarness {
     /// Run one frame: scheduler time slice → deliver notices → update viewing.
     pub fn tick(&mut self) {
         self.scheduler.do_time_slice();
-        self.tree.deliver_notices();
+        self.tree.deliver_notices(self.view.window_focused());
         self.view.update_viewing(&mut self.tree);
     }
 
@@ -114,9 +114,11 @@ impl TestHarness {
         let ev = event.clone().with_modifiers(&self.input_state);
 
         // Dispatch to active panel's behavior
+        let wf = self.view.window_focused();
         if let Some(active) = self.view.active() {
             if let Some(mut behavior) = self.tree.take_behavior(active) {
-                behavior.input(&ev);
+                let state = self.tree.build_panel_state(active, wf);
+                behavior.input(&ev, &state);
                 self.tree.put_behavior(active, behavior);
             }
         }
@@ -141,11 +143,11 @@ impl RecordingBehavior {
 }
 
 impl PanelBehavior for RecordingBehavior {
-    fn notice(&mut self, flags: NoticeFlags) {
+    fn notice(&mut self, flags: NoticeFlags, _state: &PanelState) {
         self.log.borrow_mut().push(format!("notice:{flags:?}"));
     }
 
-    fn input(&mut self, event: &InputEvent) -> bool {
+    fn input(&mut self, event: &InputEvent, _state: &PanelState) -> bool {
         self.log
             .borrow_mut()
             .push(format!("input:{:?}:{:?}", event.key, event.variant));
@@ -180,7 +182,7 @@ impl MutatingBehavior {
 }
 
 impl PanelBehavior for MutatingBehavior {
-    fn notice(&mut self, flags: NoticeFlags) {
+    fn notice(&mut self, flags: NoticeFlags, _state: &PanelState) {
         if let Some(ref mut f) = self.on_notice {
             f(flags);
         }

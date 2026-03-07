@@ -1,5 +1,5 @@
 use crate::foundation::Rect;
-use crate::panel::{NoticeFlags, PanelBehavior, PanelCtx};
+use crate::panel::{NoticeFlags, PanelBehavior, PanelCtx, PanelState};
 use crate::render::Painter;
 
 use super::{Alignment, Spacing};
@@ -246,7 +246,7 @@ impl PanelBehavior for RasterLayout {
         self.do_layout(ctx);
     }
 
-    fn notice(&mut self, _flags: NoticeFlags) {}
+    fn notice(&mut self, _flags: NoticeFlags, _state: &PanelState) {}
 }
 
 /// RasterGroup wraps RasterLayout with border painting and focusable support.
@@ -269,7 +269,7 @@ impl Default for RasterGroup {
 }
 
 impl PanelBehavior for RasterGroup {
-    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64) {}
+    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64, _state: &PanelState) {}
 
     fn layout_children(&mut self, ctx: &mut PanelCtx) {
         self.layout.do_layout(ctx);

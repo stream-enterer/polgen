@@ -1,5 +1,7 @@
 use zuicchini::foundation::{Color, Rect};
-use zuicchini::panel::{NoticeFlags, PanelBehavior, PanelCtx, PanelId, PanelTree, View, ViewFlags};
+use zuicchini::panel::{
+    NoticeFlags, PanelBehavior, PanelCtx, PanelId, PanelState, PanelTree, View, ViewFlags,
+};
 
 use zuicchini::render::Painter;
 
@@ -18,11 +20,11 @@ impl TestBehavior {
 }
 
 impl PanelBehavior for TestBehavior {
-    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64) {
+    fn paint(&mut self, _painter: &mut Painter, _w: f64, _h: f64, _state: &PanelState) {
         self.paint_count += 1;
     }
 
-    fn notice(&mut self, flags: NoticeFlags) {
+    fn notice(&mut self, flags: NoticeFlags, _state: &PanelState) {
         self.last_notice = flags;
     }
 
@@ -107,7 +109,7 @@ fn notice_flag_propagation() {
         .contains(NoticeFlags::CHILDREN_CHANGED));
 
     // Deliver notices
-    tree.deliver_notices();
+    tree.deliver_notices(true);
 
     // Verify notices were cleared after delivery
     assert!(tree.pending_notices(root).is_empty());

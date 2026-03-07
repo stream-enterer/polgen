@@ -377,10 +377,12 @@ impl ZuiWindow {
         let ev = event.clone().with_modifiers(state);
 
         // Dispatch to active panel's behavior
+        let wf = self.view.window_focused();
         if let Some(active) = self.view.active() {
             let mut consumed = false;
             if let Some(mut behavior) = tree.take_behavior(active) {
-                consumed = behavior.input(&ev);
+                let state = tree.build_panel_state(active, wf);
+                consumed = behavior.input(&ev, &state);
                 tree.put_behavior(active, behavior);
             }
 
@@ -389,7 +391,8 @@ impl ZuiWindow {
                 let mut cur = tree.parent(active);
                 while let Some(parent_id) = cur {
                     if let Some(mut behavior) = tree.take_behavior(parent_id) {
-                        consumed = behavior.input(&ev);
+                        let state = tree.build_panel_state(parent_id, wf);
+                        consumed = behavior.input(&ev, &state);
                         tree.put_behavior(parent_id, behavior);
                         if consumed {
                             break;
