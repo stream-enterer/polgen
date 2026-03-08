@@ -68,6 +68,39 @@ impl Screen {
         self.monitors.iter().find(|m| m.primary)
     }
 
+    /// Return the DPI (dots per inch) of the primary monitor.
+    ///
+    /// Matches C++ emScreen::GetDPI (pure virtual). Uses the primary monitor's
+    /// scale_factor to compute logical DPI. Returns 96.0 as the base DPI
+    /// multiplied by the scale factor, following the convention that 1.0 scale
+    /// = 96 DPI.
+    pub fn get_dpi(&self) -> f64 {
+        let scale = self.primary().map(|m| m.scale_factor).unwrap_or(1.0);
+        96.0 * scale
+    }
+
+    /// Whether the mouse pointer can be moved programmatically.
+    ///
+    /// Matches C++ emScreen::CanMoveMousePointer. Winit does not support
+    /// programmatic relative mouse movement on all platforms.
+    pub fn can_move_mouse_pointer(&self) -> bool {
+        false
+    }
+
+    /// Move the mouse pointer by (dx, dy) pixels.
+    ///
+    /// Matches C++ emScreen::MoveMousePointer. No-op; winit limitation.
+    pub fn move_mouse_pointer(&self, _dx: f64, _dy: f64) {
+        // Not supported by winit core. See ZuiWindow::move_mouse_pointer.
+    }
+
+    /// Emit an acoustic warning beep.
+    ///
+    /// Matches C++ emScreen::Beep. No-op; winit limitation.
+    pub fn beep(&self) {
+        // Not supported by winit. See ZuiWindow::beep.
+    }
+
     /// Find the monitor with maximum overlap area with the given rect.
     pub fn monitor_index_of_rect(&self, x: i32, y: i32, w: u32, h: u32) -> Option<usize> {
         let rx1 = x as i64;
@@ -95,6 +128,23 @@ impl Screen {
         }
 
         best_idx
+    }
+
+    pub fn leave_fullscreen_modes(
+        &self,
+        windows: &mut std::collections::HashMap<
+            winit::window::WindowId,
+            super::zui_window::ZuiWindow,
+        >,
+        except: Option<winit::window::WindowId>,
+    ) {
+        use super::zui_window::WindowFlags;
+
+        for (id, win) in windows.iter_mut() {
+            if win.flags.contains(WindowFlags::FULLSCREEN) && Some(*id) != except {
+                win.set_window_flags(win.flags & !WindowFlags::FULLSCREEN);
+            }
+        }
     }
 }
 

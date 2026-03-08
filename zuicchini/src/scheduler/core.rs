@@ -182,6 +182,11 @@ impl EngineScheduler {
         }
     }
 
+    /// Get an engine's current priority.
+    pub fn get_engine_priority(&self, id: EngineId) -> Option<Priority> {
+        self.inner.engines.get(id).map(|eng| eng.priority)
+    }
+
     /// Put an engine to sleep (remove from wake queues).
     pub fn sleep(&mut self, id: EngineId) {
         let Some(eng) = self.inner.engines.get_mut(id) else {

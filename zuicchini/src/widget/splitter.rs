@@ -21,6 +21,7 @@ pub struct Splitter {
     /// GetContentRect pattern — widgets query their own dimensions during input).
     last_w: f64,
     last_h: f64,
+    pub on_position: Option<Box<dyn FnMut(f64)>>,
 }
 
 impl Splitter {
@@ -35,6 +36,7 @@ impl Splitter {
             drag_offset: 0.0,
             last_w: 0.0,
             last_h: 0.0,
+            on_position: None,
         }
     }
 
@@ -42,14 +44,32 @@ impl Splitter {
         self.position
     }
 
+    pub fn min_position(&self) -> f64 {
+        self.min_position
+    }
+
+    pub fn max_position(&self) -> f64 {
+        self.max_position
+    }
+
+    pub fn set_orientation(&mut self, orientation: Orientation) {
+        self.orientation = orientation;
+    }
+
     pub fn set_position(&mut self, pos: f64) {
-        self.position = pos.clamp(self.min_position, self.max_position);
+        let clamped = pos.clamp(self.min_position, self.max_position);
+        if (self.position - clamped).abs() > f64::EPSILON {
+            self.position = clamped;
+            if let Some(cb) = &mut self.on_position {
+                cb(self.position);
+            }
+        }
     }
 
     pub fn set_limits(&mut self, min: f64, max: f64) {
         self.min_position = min;
         self.max_position = max;
-        self.position = self.position.clamp(min, max);
+        self.set_position(self.position);
     }
 
     pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {

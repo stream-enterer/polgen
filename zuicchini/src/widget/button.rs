@@ -16,6 +16,7 @@ pub struct Button {
     last_w: f64,
     last_h: f64,
     pub on_click: Option<Box<dyn FnMut()>>,
+    pub on_press_state: Option<Box<dyn FnMut(bool)>>,
 }
 
 impl Button {
@@ -28,6 +29,7 @@ impl Button {
             last_w: 0.0,
             last_h: 0.0,
             on_click: None,
+            on_press_state: None,
         }
     }
 
@@ -75,11 +77,17 @@ impl Button {
             InputKey::MouseLeft => match event.variant {
                 InputVariant::Press => {
                     self.pressed = true;
+                    if let Some(cb) = &mut self.on_press_state {
+                        cb(true);
+                    }
                     true
                 }
                 InputVariant::Release => {
                     if self.pressed {
                         self.pressed = false;
+                        if let Some(cb) = &mut self.on_press_state {
+                            cb(false);
+                        }
                         if let Some(cb) = &mut self.on_click {
                             cb();
                         }
@@ -91,11 +99,17 @@ impl Button {
             InputKey::Enter | InputKey::Space => match event.variant {
                 InputVariant::Press => {
                     self.pressed = true;
+                    if let Some(cb) = &mut self.on_press_state {
+                        cb(true);
+                    }
                     true
                 }
                 InputVariant::Release => {
                     if self.pressed {
                         self.pressed = false;
+                        if let Some(cb) = &mut self.on_press_state {
+                            cb(false);
+                        }
                         if let Some(cb) = &mut self.on_click {
                             cb();
                         }

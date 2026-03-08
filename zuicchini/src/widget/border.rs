@@ -57,6 +57,13 @@ pub struct Border {
     pub icon: Option<Image>,
     pub icon_above_caption: bool,
     pub max_icon_area_tallness: f64,
+    /// When `true` (default), the label is rendered inside the border and
+    /// consumes space from the content area. When `false`, the label area
+    /// is *not* subtracted from the content rect — callers paint the label
+    /// externally via [`paint_label`](Self::paint_label).
+    ///
+    /// C++ equivalent: `emBorder::LabelInBorder`.
+    pub label_in_border: bool,
     /// Name of the auxiliary child panel, if any.
     pub(crate) aux_panel_name: Option<String>,
     /// Height/width ratio of the auxiliary area (default 1.0 when absent).
@@ -77,6 +84,7 @@ impl Border {
             icon: None,
             icon_above_caption: false,
             max_icon_area_tallness: 1.0,
+            label_in_border: true,
             aux_panel_name: None,
             aux_tallness: 1.0,
         }
@@ -95,6 +103,19 @@ impl Border {
     pub fn with_inner(mut self, inner: InnerBorderType) -> Self {
         self.inner = inner;
         self
+    }
+
+    pub fn set_outer_border_type(&mut self, obt: OuterBorderType) {
+        self.outer = obt;
+    }
+
+    pub fn set_inner_border_type(&mut self, ibt: InnerBorderType) {
+        self.inner = ibt;
+    }
+
+    pub fn set_border_type(&mut self, obt: OuterBorderType, ibt: InnerBorderType) {
+        self.outer = obt;
+        self.inner = ibt;
     }
 
     pub fn with_border_scaling(mut self, s: f64) -> Self {
@@ -148,6 +169,24 @@ impl Border {
 
     pub fn set_max_icon_area_tallness(&mut self, t: f64) {
         self.max_icon_area_tallness = t.max(1e-10);
+    }
+
+    /// Builder: set whether the label is rendered inside the border.
+    ///
+    /// When `false`, the label does not consume content area space and must be
+    /// painted externally via [`paint_label`](Self::paint_label).
+    ///
+    /// C++ equivalent: `emBorder::SetLabelInBorder`.
+    pub fn with_label_in_border(mut self, in_border: bool) -> Self {
+        self.label_in_border = in_border;
+        self
+    }
+
+    /// Set whether the label is rendered inside the border.
+    ///
+    /// C++ equivalent: `emBorder::SetLabelInBorder`.
+    pub fn set_label_in_border(&mut self, in_border: bool) {
+        self.label_in_border = in_border;
     }
 
     /// Create or update the auxiliary panel area.
@@ -235,7 +274,7 @@ impl Border {
         let rnd_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
 
-        if self.has_label() {
+        if self.label_in_border && self.has_label() {
             // Label path: aux is placed at the right of the label text area.
             let label_area_w = rnd_w;
             let lch = self.label_content_height(label_area_w, rnd_h);
@@ -291,6 +330,20 @@ impl Border {
 
     fn has_label(&self) -> bool {
         !self.caption.is_empty() || !self.description.is_empty() || self.icon.is_some()
+    }
+
+    /// Horizontal offset for positioning a block of width `block_w` within
+    /// an available width of `avail_w`, according to [`label_alignment`].
+    ///
+    /// C++ equivalent: horizontal shift in `DoLabel` after scaling, using
+    /// `LabelAlignment` to left-/center-/right-align the label block.
+    fn block_offset(&self, avail_w: f64, block_w: f64) -> f64 {
+        let slack = (avail_w - block_w).max(0.0);
+        match self.label_alignment {
+            TextAlignment::Left => 0.0,
+            TextAlignment::Center => slack * 0.5,
+            TextAlignment::Right => slack,
+        }
     }
 
     /// Base scaling unit for outer geometry.
@@ -510,8 +563,20 @@ impl Border {
             let cap_font = (cap_h * 0.8).max(MIN_FONT_SIZE);
             let desc_font = (desc_h * 0.8).max(MIN_FONT_SIZE);
 
+            // Block width is the widest element. Text spans area_w; icon may
+            // be narrower. Compute a block-level horizontal offset using
+            // label_alignment so the icon tracks the block position rather
+            // than always centering.
+            let block_w = area_w.max(icon_w);
+            let block_x = area_x + self.block_offset(area_w, block_w);
+
+            let icon_x = match self.label_alignment {
+                TextAlignment::Left => block_x,
+                TextAlignment::Center => block_x + (block_w - icon_w) / 2.0,
+                TextAlignment::Right => block_x + block_w - icon_w,
+            };
             let icon_rect = Rect {
-                x: area_x + (area_w - icon_w) / 2.0,
+                x: icon_x,
                 y: area_y,
                 w: icon_w,
                 h: icon_h,
@@ -519,9 +584,9 @@ impl Border {
             let mut y = area_y + icon_h + gap;
             let cap_rect = if has_cap {
                 let r = Rect {
-                    x: area_x,
+                    x: block_x,
                     y,
-                    w: area_w,
+                    w: block_w,
                     h: cap_h,
                 };
                 y += cap_h;
@@ -532,9 +597,9 @@ impl Border {
             y += gap2;
             let desc_rect = if has_desc {
                 Some(Rect {
-                    x: area_x,
+                    x: block_x,
                     y,
-                    w: area_w,
+                    w: block_w,
                     h: desc_h,
                 })
             } else {
@@ -557,8 +622,14 @@ impl Border {
             let icon_h = area_h;
             let icon_w = icon_h / icon_tallness;
             let gap = area_h * 0.1 / (1.0 + 0.1);
-            let text_x = area_x + icon_w + gap;
-            let text_w = (area_w - icon_w - gap).max(0.0);
+
+            // Block width = icon + gap + text region. May be narrower than
+            // area_w when the icon is small. Apply block-level alignment.
+            let block_w = icon_w + gap + (area_w - icon_w - gap).max(0.0);
+            let block_x = area_x + self.block_offset(area_w, block_w);
+
+            let text_x = block_x + icon_w + gap;
+            let text_w = (block_w - icon_w - gap).max(0.0);
             let cap_h = if text_units > 0.0 {
                 area_h * cap_units / text_units
             } else {
@@ -578,7 +649,7 @@ impl Border {
             let desc_font = (desc_h * 0.8).max(MIN_FONT_SIZE);
 
             let icon_rect = Rect {
-                x: area_x,
+                x: block_x,
                 y: area_y,
                 w: icon_w,
                 h: icon_h,
@@ -760,7 +831,7 @@ impl Border {
         let (ox, oy, ow, oh) = self.outer_insets(w, h);
         let label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
-        let label_h = if self.has_label() {
+        let label_h = if self.label_in_border && self.has_label() {
             self.label_space(label_area_w, rnd_h)
         } else {
             0.0
@@ -862,7 +933,7 @@ impl Border {
         let (ox, oy, ow, oh) = self.outer_insets(w, h);
         let label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
-        let label_h = if self.has_label() {
+        let label_h = if self.label_in_border && self.has_label() {
             self.label_space(label_area_w, rnd_h)
         } else {
             0.0
@@ -888,7 +959,7 @@ impl Border {
         let (_, _, ow, oh) = self.outer_insets(cw, ch);
         let label_area_w = cw;
         let rnd_h = (ch - oh).max(0.0);
-        let label_h = if self.has_label() {
+        let label_h = if self.label_in_border && self.has_label() {
             self.label_space(label_area_w, rnd_h)
         } else {
             0.0
@@ -900,6 +971,113 @@ impl Border {
     /// Minimum size to fit any content.
     pub fn min_size_for_content(&self, min_cw: f64, min_ch: f64) -> (f64, f64) {
         self.preferred_size_for_content(min_cw, min_ch)
+    }
+
+    /// Paint the label externally at the given position.
+    ///
+    /// Use this when [`label_in_border`](Self::label_in_border) is `false` to
+    /// render the label above or beside the border. The caller provides the
+    /// position and dimensions for the label area.
+    ///
+    /// C++ equivalent: `emBorder::PaintLabel`.
+    pub fn paint_label(&self, painter: &mut Painter, area: Rect, look: &Look, enabled: bool) {
+        let dim_color = |c: Color| -> Color {
+            if enabled {
+                c
+            } else {
+                c.with_alpha((c.a() as u16 * 64 / 255) as u8)
+            }
+        };
+        self.paint_label_impl(painter, area, look, &dim_color);
+    }
+
+    /// Internal helper that paints the label components (icon, caption,
+    /// description) into the given area.
+    fn paint_label_impl(
+        &self,
+        painter: &mut Painter,
+        area: Rect,
+        look: &Look,
+        dim_color: &dyn Fn(Color) -> Color,
+    ) {
+        let label = self.label_layout(area.x, area.y, area.w, area.h);
+
+        let cap_align = self.caption_alignment.unwrap_or(self.label_alignment);
+        let desc_align = self.description_alignment.unwrap_or(self.label_alignment);
+
+        // Icon
+        if let Some(ref icon_rect) = label.icon_rect {
+            if let Some(ref img) = self.icon {
+                if !img.is_empty() {
+                    if img.channel_count() == 1 {
+                        painter.paint_image_colored(
+                            icon_rect.x,
+                            icon_rect.y,
+                            icon_rect.w,
+                            icon_rect.h,
+                            img,
+                            0,
+                            0,
+                            img.width(),
+                            img.height(),
+                            Color::TRANSPARENT,
+                            dim_color(look.fg_color),
+                            Color::TRANSPARENT,
+                        );
+                    } else {
+                        painter.paint_image_scaled(
+                            icon_rect.x,
+                            icon_rect.y,
+                            icon_rect.w,
+                            icon_rect.h,
+                            img,
+                            crate::render::ImageQuality::Bilinear,
+                            crate::render::ImageExtension::Clamp,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Caption
+        if let Some(ref cr) = label.caption_rect {
+            painter.paint_text_boxed(
+                cr.x,
+                cr.y,
+                cr.w,
+                cr.h,
+                &self.caption,
+                label._caption_font_size,
+                dim_color(look.fg_color),
+                Color::TRANSPARENT,
+                cap_align,
+                VAlign::Center,
+                cap_align,
+                0.5,
+                false,
+                0.0,
+            );
+        }
+
+        // Description
+        if let Some(ref dr) = label.description_rect {
+            painter.paint_text_boxed(
+                dr.x,
+                dr.y,
+                dr.w,
+                dr.h,
+                &self.description,
+                label._description_font_size,
+                dim_color(look.fg_color.darken(0.3)),
+                Color::TRANSPARENT,
+                desc_align,
+                VAlign::Center,
+                desc_align,
+                0.5,
+                false,
+                0.0,
+            );
+        }
     }
 
     /// Paint the border chrome.
@@ -1016,88 +1194,23 @@ impl Border {
             }
         }
 
-        // Label area
+        // Label area — only painted when label_in_border is true.
         let (ox, oy, ow, oh) = self.outer_insets(w, h);
         let label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
-        let ls = self.label_space(label_area_w, rnd_h);
-        let lch = self.label_content_height(label_area_w, rnd_h);
-        let label = self.label_layout(ox, oy, label_area_w, lch);
+        let ls = if self.label_in_border {
+            self.label_space(label_area_w, rnd_h)
+        } else {
+            0.0
+        };
 
-        let cap_align = self.caption_alignment.unwrap_or(self.label_alignment);
-        let desc_align = self.description_alignment.unwrap_or(self.label_alignment);
-
-        // Icon
-        if let Some(ref icon_rect) = label.icon_rect {
-            if let Some(ref img) = self.icon {
-                if !img.is_empty() {
-                    if img.channel_count() == 1 {
-                        painter.paint_image_colored(
-                            icon_rect.x,
-                            icon_rect.y,
-                            icon_rect.w,
-                            icon_rect.h,
-                            img,
-                            0,
-                            0,
-                            img.width(),
-                            img.height(),
-                            Color::TRANSPARENT,
-                            dim_color(look.fg_color),
-                            Color::TRANSPARENT,
-                        );
-                    } else {
-                        painter.paint_image_scaled(
-                            icon_rect.x,
-                            icon_rect.y,
-                            icon_rect.w,
-                            icon_rect.h,
-                            img,
-                            crate::render::ImageQuality::Bilinear,
-                            crate::render::ImageExtension::Clamp,
-                        );
-                    }
-                }
-            }
-        }
-
-        // Caption
-        if let Some(ref cr) = label.caption_rect {
-            painter.paint_text_boxed(
-                cr.x,
-                cr.y,
-                cr.w,
-                cr.h,
-                &self.caption,
-                label._caption_font_size,
-                dim_color(look.fg_color),
-                Color::TRANSPARENT,
-                cap_align,
-                VAlign::Center,
-                cap_align,
-                0.5,
-                false,
-                0.0,
-            );
-        }
-
-        // Description
-        if let Some(ref dr) = label.description_rect {
-            painter.paint_text_boxed(
-                dr.x,
-                dr.y,
-                dr.w,
-                dr.h,
-                &self.description,
-                label._description_font_size,
-                dim_color(look.fg_color.darken(0.3)),
-                Color::TRANSPARENT,
-                desc_align,
-                VAlign::Center,
-                desc_align,
-                0.5,
-                false,
-                0.0,
+        if self.label_in_border && self.has_label() {
+            let lch = self.label_content_height(label_area_w, rnd_h);
+            self.paint_label_impl(
+                painter,
+                Rect::new(ox, oy, label_area_w, lch),
+                look,
+                &dim_color,
             );
         }
 

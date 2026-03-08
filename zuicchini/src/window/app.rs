@@ -110,6 +110,10 @@ impl App {
     pub fn gpu(&self) -> &GpuContext {
         self.gpu.as_ref().expect("GPU not initialized yet")
     }
+
+    pub fn screen(&self) -> &Screen {
+        self.screen.as_ref().expect("Screen not initialized yet")
+    }
 }
 
 impl ApplicationHandler for App {

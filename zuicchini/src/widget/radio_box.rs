@@ -29,8 +29,24 @@ impl RadioBox {
         }
     }
 
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    pub fn set_index(&mut self, index: usize) {
+        self.index = index;
+    }
+
     pub fn is_selected(&self) -> bool {
         self.group.borrow().selected() == Some(self.index)
+    }
+
+    pub fn set_checked(&mut self, checked: bool) {
+        if checked {
+            self.group.borrow_mut().select(self.index);
+        } else if self.is_selected() {
+            self.group.borrow_mut().set_check_index(None);
+        }
     }
 
     pub fn paint(&self, painter: &mut Painter, _w: f64, _h: f64) {

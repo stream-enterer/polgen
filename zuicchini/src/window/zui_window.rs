@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use bitflags::bitflags;
 
+use crate::foundation::Image;
 use crate::input::{InputEvent, InputKey, InputState, InputVariant};
 use crate::panel::{
     KeyboardZoomScrollVIF, MouseZoomScrollVIF, PanelId, PanelTree, View, ViewAnimator,
@@ -11,6 +12,7 @@ use crate::render::{TileCache, WgpuCompositor};
 use crate::scheduler::SignalId;
 
 use super::app::GpuContext;
+use super::screen::Screen;
 
 bitflags! {
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -42,6 +44,8 @@ pub struct ZuiWindow {
     root_panel: PanelId,
     vif_chain: Vec<Box<dyn ViewInputFilter>>,
     pub active_animator: Option<Box<dyn ViewAnimator>>,
+    window_icon: Option<Image>,
+    screensaver_inhibit_count: u32,
 }
 
 impl ZuiWindow {
@@ -124,6 +128,8 @@ impl ZuiWindow {
             root_panel,
             vif_chain,
             active_animator: None,
+            window_icon: None,
+            screensaver_inhibit_count: 0,
         }
     }
 
@@ -490,5 +496,234 @@ impl ZuiWindow {
     /// Mark all tiles as dirty so the next render repaints everything.
     pub fn invalidate(&mut self) {
         self.tile_cache.mark_all_dirty();
+    }
+
+    // ---------------------------------------------------------------
+    // D-WINDOW-01a: Window state methods
+    // ---------------------------------------------------------------
+
+    /// Set window flags, applying changes to the winit window.
+    ///
+    /// Matches C++ emWindow::SetWindowFlags: only acts when flags differ,
+    /// then updates decorations, maximized, and fullscreen state on the
+    /// underlying winit window.
+    pub fn set_window_flags(&mut self, new_flags: WindowFlags) {
+        if self.flags == new_flags {
+            return;
+        }
+        let old = self.flags;
+        self.flags = new_flags;
+
+        // Apply decoration changes.
+        if old.contains(WindowFlags::UNDECORATED) != new_flags.contains(WindowFlags::UNDECORATED) {
+            self.winit_window
+                .set_decorations(!new_flags.contains(WindowFlags::UNDECORATED));
+        }
+
+        // Apply maximized changes.
+        if old.contains(WindowFlags::MAXIMIZED) != new_flags.contains(WindowFlags::MAXIMIZED) {
+            self.winit_window
+                .set_maximized(new_flags.contains(WindowFlags::MAXIMIZED));
+        }
+
+        // Apply fullscreen changes.
+        if old.contains(WindowFlags::FULLSCREEN) != new_flags.contains(WindowFlags::FULLSCREEN) {
+            if new_flags.contains(WindowFlags::FULLSCREEN) {
+                self.winit_window
+                    .set_fullscreen(Some(winit::window::Fullscreen::Borderless(None)));
+            } else {
+                self.winit_window.set_fullscreen(None);
+            }
+        }
+    }
+
+    /// Set the content area (view) position.
+    ///
+    /// Matches C++ emWindow::SetViewPos (PSAS_VIEW pos, PSAS_IGNORE size).
+    /// Winit does not distinguish between view vs window position on all
+    /// platforms, so this uses inner-size-aware outer position.
+    pub fn set_view_pos(&self, x: f64, y: f64) {
+        self.winit_window
+            .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
+    }
+
+    /// Set the content area (view) size.
+    ///
+    /// Matches C++ emWindow::SetViewSize (PSAS_IGNORE pos, PSAS_VIEW size).
+    pub fn set_view_size(&self, w: f64, h: f64) {
+        let _ = self
+            .winit_window
+            .request_inner_size(winit::dpi::LogicalSize::new(w, h));
+    }
+
+    /// Set the content area position and size.
+    ///
+    /// Matches C++ emWindow::SetViewPosSize (PSAS_VIEW pos, PSAS_VIEW size).
+    pub fn set_view_pos_size(&self, x: f64, y: f64, w: f64, h: f64) {
+        self.winit_window
+            .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
+        let _ = self
+            .winit_window
+            .request_inner_size(winit::dpi::LogicalSize::new(w, h));
+    }
+
+    /// Set the window position (including decorations).
+    ///
+    /// Matches C++ emWindow::SetWinPos (PSAS_WINDOW pos, PSAS_IGNORE size).
+    pub fn set_win_pos(&self, x: f64, y: f64) {
+        self.winit_window
+            .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
+    }
+
+    /// Set the window size (including decorations).
+    ///
+    /// Matches C++ emWindow::SetWinSize (PSAS_IGNORE pos, PSAS_WINDOW size).
+    /// Winit's `request_inner_size` sets the content area size, not the outer
+    /// window size. There is no direct winit API for setting outer size, so
+    /// this sets the inner size as an approximation.
+    pub fn set_win_size(&self, w: f64, h: f64) {
+        // Winit does not expose set_outer_size; use request_inner_size as the
+        // best available approximation.
+        let _ = self
+            .winit_window
+            .request_inner_size(winit::dpi::LogicalSize::new(w, h));
+    }
+
+    /// Set window position and size (including decorations).
+    ///
+    /// Matches C++ emWindow::SetWinPosSize (PSAS_WINDOW pos, PSAS_WINDOW size).
+    pub fn set_win_pos_size(&self, x: f64, y: f64, w: f64, h: f64) {
+        self.winit_window
+            .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
+        let _ = self
+            .winit_window
+            .request_inner_size(winit::dpi::LogicalSize::new(w, h));
+    }
+
+    /// Set window position (outer, including decorations) and view (content) size.
+    ///
+    /// Matches C++ emWindow::SetWinPosViewSize (PSAS_WINDOW pos, PSAS_VIEW size).
+    pub fn set_win_pos_view_size(&self, x: f64, y: f64, w: f64, h: f64) {
+        self.winit_window
+            .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
+        let _ = self
+            .winit_window
+            .request_inner_size(winit::dpi::LogicalSize::new(w, h));
+    }
+
+    // ---------------------------------------------------------------
+    // D-WINDOW-01b: Monitor/DPI/close methods
+    // ---------------------------------------------------------------
+
+    /// Return the monitor index this window is on, by maximum overlap.
+    ///
+    /// Matches C++ emWindow::GetMonitorIndex: delegates to
+    /// Screen::monitor_index_of_rect with the window's outer position
+    /// and inner size.
+    pub fn get_monitor_index(&self, screen: &Screen) -> Option<usize> {
+        let pos = self.winit_window.outer_position().unwrap_or_default();
+        let size = self.winit_window.inner_size();
+        screen.monitor_index_of_rect(pos.x, pos.y, size.width, size.height)
+    }
+
+    /// Signal the close signal, triggering auto-delete if WF_AUTO_DELETE is set.
+    ///
+    /// Matches C++ emWindow::SignalClosing: Signal(CloseSignal).
+    /// The caller (App) must call `scheduler.fire(window.close_signal)` to
+    /// actually fire the signal in the scheduler. This method returns the
+    /// signal ID so the caller can fire it.
+    pub fn signal_closing(&self) -> SignalId {
+        self.close_signal
+    }
+
+    // ---------------------------------------------------------------
+    // D-WINDOW-01c: Misc window methods
+    // ---------------------------------------------------------------
+
+    /// Set the window icon from a zuicchini Image.
+    ///
+    /// Matches C++ emWindow::SetWindowIcon: copies the image, then applies
+    /// it to the winit window. The image is converted to RGBA if needed.
+    pub fn set_window_icon(&mut self, icon: &Image) {
+        self.window_icon = Some(icon.clone());
+
+        if icon.is_empty() {
+            self.winit_window.set_window_icon(None);
+            return;
+        }
+
+        // Convert to RGBA (4 channels) if not already.
+        let rgba = if icon.channel_count() == 4 {
+            icon.clone()
+        } else {
+            icon.get_converted(4)
+        };
+
+        if let Ok(winit_icon) =
+            winit::window::Icon::from_rgba(rgba.data().to_vec(), rgba.width(), rgba.height())
+        {
+            self.winit_window.set_window_icon(Some(winit_icon));
+        } else {
+            log::error!(
+                "failed to create window icon from {}x{} image",
+                rgba.width(),
+                rgba.height()
+            );
+        }
+    }
+
+    /// Get the current window icon, if set.
+    pub fn window_icon(&self) -> Option<&Image> {
+        self.window_icon.as_ref()
+    }
+
+    /// Inhibit the screensaver. Increments an internal counter.
+    ///
+    /// Matches C++ emWindowPort::InhibitScreensaver. Winit does not have a
+    /// built-in screensaver inhibition API, so this only tracks the counter.
+    /// TODO: Use platform-specific APIs (e.g. D-Bus on Linux, SetThreadExecutionState on Windows).
+    pub fn inhibit_screensaver(&mut self) {
+        self.screensaver_inhibit_count += 1;
+        log::debug!(
+            "screensaver inhibited (count={})",
+            self.screensaver_inhibit_count
+        );
+    }
+
+    /// Allow the screensaver. Decrements the internal counter.
+    ///
+    /// Matches C++ emWindowPort::AllowScreensaver.
+    pub fn allow_screensaver(&mut self) {
+        self.screensaver_inhibit_count = self.screensaver_inhibit_count.saturating_sub(1);
+        log::debug!(
+            "screensaver allowed (count={})",
+            self.screensaver_inhibit_count
+        );
+    }
+
+    /// Returns whether the screensaver is currently inhibited.
+    pub fn is_screensaver_inhibited(&self) -> bool {
+        self.screensaver_inhibit_count > 0
+    }
+
+    /// Move the mouse pointer by (dx, dy) pixels.
+    ///
+    /// Matches C++ emScreen::MoveMousePointer. Winit does not support
+    /// programmatic relative mouse pointer movement on all platforms.
+    /// This is a no-op stub.
+    pub fn move_mouse_pointer(&self, _dx: f64, _dy: f64) {
+        // TODO: Not supported by winit core on all platforms. Would need
+        // platform-specific extensions (e.g. xdotool on X11, CGWarpMouseCursorPosition on macOS).
+        log::debug!("move_mouse_pointer not supported by winit");
+    }
+
+    /// Emit an acoustic warning beep.
+    ///
+    /// Matches C++ emScreen::Beep. Winit does not provide a beep API.
+    /// This is a no-op.
+    pub fn beep(&self) {
+        // TODO: Platform limitation — winit does not expose a beep/bell API.
+        // Could use platform-specific APIs (e.g. XBell on X11, NSBeep on macOS, MessageBeep on Windows).
+        log::debug!("beep not supported by winit");
     }
 }

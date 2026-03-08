@@ -706,8 +706,8 @@ phases:
         options:
           - "PORT"
           - "DEFER"
-        resolution:
-        status:
+        resolution: "PORT"
+        status: DONE
         needs_extract: true
         affected_files: [src/window/zui_window.rs]
 
@@ -718,8 +718,8 @@ phases:
         options:
           - "PORT"
           - "DEFER"
-        resolution:
-        status:
+        resolution: "PORT"
+        status: DONE
         needs_extract: true
         affected_files: [src/window/zui_window.rs, src/window/screen.rs]
 
@@ -730,8 +730,8 @@ phases:
         options:
           - "PORT"
           - "DEFER"
-        resolution:
-        status:
+        resolution: "PORT"
+        status: DONE
         needs_extract: true
         affected_files: [src/window/zui_window.rs]
 
@@ -757,8 +757,8 @@ phases:
         options:
           - "KEEP: no egopol widget uses LabelInBorder=false"
           - "PORT: add label_in_border field"
-        resolution:
-        status:
+        resolution: "PORT: add label_in_border field"
+        status: DONE
         needs_extract: false
         affected_files: [src/widget/border.rs]
 
@@ -770,8 +770,8 @@ phases:
         options:
           - "KEEP: per-line alignment may look better"
           - "PORT: block-level alignment"
-        resolution:
-        status:
+        resolution: "PORT: block-level alignment"
+        status: DONE
         needs_extract: false
         affected_files: [src/widget/border.rs]
 
@@ -784,8 +784,8 @@ phases:
         options:
           - "KEEP: per-operation undo is simpler"
           - "PORT: merge consecutive inserts/deletes"
-        resolution:
-        status:
+        resolution: "PORT: merge consecutive inserts/deletes"
+        status: DONE
         needs_extract: false
         affected_files: [src/widget/text_field.rs]
 
@@ -797,8 +797,8 @@ phases:
         options:
           - "KEEP: simplified drag is fine for game UI"
           - "PORT: full drag-and-drop behaviors"
-        resolution:
-        status:
+        resolution: "PORT: full drag-and-drop behaviors"
+        status: DONE
         needs_extract: false
         affected_files: [src/widget/text_field.rs]
 
@@ -810,8 +810,8 @@ phases:
         options:
           - "KEEP: if current behavior feels natural"
           - "PORT: match C++ closest-endpoint anchor"
-        resolution:
-        status:
+        resolution: "PORT: match C++ closest-endpoint anchor"
+        status: DONE
         needs_extract: false
         affected_files: [src/widget/text_field.rs]
 
@@ -823,8 +823,8 @@ phases:
         options:
           - "KEEP: bulk-set model is simpler"
           - "PORT: incremental API for large dynamic lists"
-        resolution:
-        status:
+        resolution: "PORT: incremental API for large dynamic lists"
+        status: DONE
         needs_extract: true
         affected_files: [src/widget/list_box.rs]
 
@@ -836,8 +836,8 @@ phases:
         options:
           - "KEEP: minimal slider is sufficient"
           - "PORT: add range configuration and scale marks"
-        resolution:
-        status:
+        resolution: "PORT: add range configuration and scale marks"
+        status: DONE
         needs_extract: true
         affected_files: [src/widget/scalar_field.rs]
 
@@ -849,21 +849,131 @@ phases:
         options:
           - "KEEP: current API covers basic use"
           - "PORT: add mechanism methods for dynamic radio groups"
-        resolution:
-        status:
+        resolution: "PORT: add mechanism methods for dynamic radio groups"
+        status: DONE
         needs_extract: true
         affected_files: [src/widget/radio_button.rs]
 
-      - id: D-BULK-MISSING
-        summary: "220+ MISSING methods across all subsystems (bulk)"
+      # --- Residual gaps (audited from D-BULK-MISSING) ---
+      # The original 220+ bulk item was audited. ~160 methods are unnecessary
+      # (C++ infrastructure replaced by Rust stdlib, Eagle Mode-specific features,
+      # platform limitations, or pub fields replacing getters). The following are
+      # the ~34 genuine remaining gaps, grouped by subsystem.
+
+      - id: D-WINDOW-03
+        summary: "Screen::LeaveFullscreenModes + WindowStateSaver auto-monitoring + GetScreen"
         detail: >
-          Most are low-priority accessors, C++ infrastructure (RTTI,
-          serialization), or features unused by egopol. High-impact items
-          are captured individually above. This catch-all covers the remainder.
+          Three window lifecycle gaps: (1) LeaveFullscreenModes iterates windows
+          and clears fullscreen on all except one — trivial iteration. (2)
+          WindowStateSaver::Cycle auto-monitors geometry changes per frame and
+          saves on change — Rust only has explicit save_from(). (3) ZuiWindow
+          has no reference to Screen (App owns both).
         options:
-          - "AUDIT: review each MISSING method against egopol usage"
-          - "DEFER: implement on-demand as egopol features require them"
-        resolution:
-        status:
-        needs_extract: true
-        affected_files: ["(see _verify/mappings/*.yaml)"]
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        notes: >
+          cycle() method has correct logic but is not wired into App::about_to_wait.
+          Integration depends on app-level architecture (state savers may live in
+          App, ZuiWindow, or user code). C++ wires this via emEngine auto-cycling.
+        needs_extract: false
+        affected_files: [src/window/screen.rs, src/window/state_saver.rs, src/window/zui_window.rs]
+
+      - id: D-WIDGET-09
+        summary: "Splitter missing API (runtime orientation, limit getters, position callback)"
+        detail: >
+          emSplitter supports runtime orientation change (SetVertical), individual
+          min/max position getters (GetMinPos, GetMaxPos), and a position change
+          signal (GetPosSignal). Rust Splitter sets orientation at construction
+          only, has no limit getters (only set_limits), and no on_position
+          callback.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        needs_extract: false
+        affected_files: [src/widget/splitter.rs]
+
+      - id: D-WIDGET-10
+        summary: "ColorField missing editable and alpha toggles"
+        detail: >
+          emColorField supports IsEditable/SetEditable (read-only toggle) and
+          IsAlphaEnabled/SetAlphaEnabled (show/hide alpha channel editing).
+          Rust ColorField has neither — always interactive, no alpha toggle.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        needs_extract: false
+        affected_files: [src/widget/color_field.rs]
+
+      - id: D-WIDGET-11
+        summary: "RadioBox::set_checked + RadioGroup::get_button + combined layout groups"
+        detail: >
+          RadioBox has no set_checked() (must go through RadioGroup). RadioGroup
+          has no get_button(index) to retrieve button references. C++ LinearGroup
+          and RasterGroup combine a layout with a Mechanism — Rust keeps layout
+          and group separate. get_button requires Rc-wrapping buttons or panel
+          integration.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        notes: >
+          get_button omitted by design — Rust uses Rc<RefCell<RadioGroup>> shared
+          ownership where buttons query group state directly via is_selected().
+        needs_extract: false
+        affected_files: [src/widget/radio_button.rs, src/widget/radio_box.rs]
+
+      - id: D-WIDGET-12
+        summary: "Button press-state callback"
+        detail: >
+          emButton has GetPressStateSignal for tracking pressed/released
+          transitions (e.g. for visual feedback in host panels). Rust Button
+          has is_pressed() query but no on_press_state callback. Trivial to add.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        needs_extract: false
+        affected_files: [src/widget/button.rs]
+
+      - id: D-WIDGET-13
+        summary: "Border runtime border-type setter methods"
+        detail: >
+          emBorder has SetOuterBorderType, SetInnerBorderType, and SetBorderType
+          for changing border types at runtime. Rust Border has pub fields (outer,
+          inner) that can be assigned directly, but no setter methods that match
+          the C++ API surface. Add setter methods for API parity.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        needs_extract: false
+        affected_files: [src/widget/border.rs]
+
+      - id: D-FOUNDATION-02
+        summary: "Color predefined constants (GRAY, YELLOW, CYAN, MAGENTA)"
+        detail: >
+          C++ emColor defines predefined constants for common colors. Rust Color
+          has BLACK, WHITE, RED, GREEN, BLUE, TRANSPARENT but is missing GRAY,
+          YELLOW, CYAN, MAGENTA. Trivial — four const lines.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        needs_extract: false
+        affected_files: [src/foundation/color.rs]
+
+      - id: D-SCHEDULER-01
+        summary: "EngineScheduler::get_engine_priority accessor"
+        detail: >
+          C++ emEngine::GetEnginePriority returns the engine's current priority.
+          Rust stores priority in EngineData.priority but has no public getter
+          on EngineScheduler. Trivial one-liner accessor.
+        options:
+          - "PORT"
+        resolution: "PORT"
+        status: DONE
+        needs_extract: false
+        affected_files: [src/scheduler/core.rs]

@@ -5,5 +5,5 @@ mod zui_window;
 
 pub use app::{App, GpuContext};
 pub use screen::{MonitorInfo, Screen};
-pub use state_saver::WindowStateSaver;
+pub use state_saver::{WindowGeometry, WindowStateSaver};
 pub use zui_window::{WindowFlags, ZuiWindow};

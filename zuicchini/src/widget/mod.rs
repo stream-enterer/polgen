@@ -23,7 +23,7 @@ pub use label::Label;
 pub use list_box::{ListBox, SelectionMode};
 pub use look::Look;
 pub use radio_box::RadioBox;
-pub use radio_button::{RadioButton, RadioGroup};
+pub use radio_button::{RadioButton, RadioGroup, RadioLinearGroup, RadioRasterGroup};
 pub use scalar_field::ScalarField;
 pub use splitter::Splitter;
 pub use text_field::TextField;

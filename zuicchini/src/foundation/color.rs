@@ -25,6 +25,10 @@ impl Color {
     pub const RED: Color = Color::rgb(255, 0, 0);
     pub const GREEN: Color = Color::rgb(0, 255, 0);
     pub const BLUE: Color = Color::rgb(0, 0, 255);
+    pub const GRAY: Color = Color::rgb(128, 128, 128);
+    pub const YELLOW: Color = Color::rgb(255, 255, 0);
+    pub const CYAN: Color = Color::rgb(0, 255, 255);
+    pub const MAGENTA: Color = Color::rgb(255, 0, 255);
     pub const TRANSPARENT: Color = Color(0);
 
     #[inline]

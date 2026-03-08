@@ -25,6 +25,19 @@ struct UndoEntry {
     cursor: usize,
 }
 
+/// Undo merge type (matching C++ UndoMergeType enum).
+/// Consecutive edits of the same kind are merged into a single undo entry.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum UndoMergeType {
+    NoMerge,
+    Backspace,
+    Delete,
+    AlphaNum,
+    NonAlphaNum,
+    NewLine,
+    Move,
+}
+
 /// Mouse drag mode (matching C++ DM_* enum).
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum DragMode {
@@ -81,6 +94,10 @@ pub struct TextField {
     /// TF-003: Pending view scroll request — cursor rect in panel-pixel coords.
     /// Set by scroll_to_cursor(), consumed by take_pending_scroll_to_visible().
     pending_scroll_to_visible: Option<(f64, f64, f64, f64)>,
+    /// D-WIDGET-03: Tracks the last edit kind for undo merge logic.
+    undo_merge: UndoMergeType,
+    /// D-WIDGET-04: Drag offset for DM_MOVE (char offset from selection start).
+    drag_offset: Option<usize>,
 }
 
 const MAX_UNDO: usize = 100;
@@ -124,6 +141,8 @@ impl TextField {
             on_can_undo_redo: None,
             selection_published: false,
             pending_scroll_to_visible: None,
+            undo_merge: UndoMergeType::NoMerge,
+            drag_offset: None,
         }
     }
 
@@ -283,14 +302,32 @@ impl TextField {
         let old_start = self.selection_start();
         let old_end = self.selection_end();
         if extend {
+            // D-WIDGET-05: Use closest-endpoint anchor logic for selection
+            // modification with Shift. When extending an existing non-empty
+            // selection, C++ picks the endpoint CLOSER to old cursor position
+            // as the one to replace (anchor stays at the other end).
             if self.selection_anchor.is_none() {
                 self.selection_anchor = Some(self.cursor);
+            } else if old_start < old_end {
+                // Non-empty selection: determine which end is closer to the
+                // old cursor position (the "old index" in C++ terms).
+                let d_to_start = (self.cursor as isize - old_start as isize).unsigned_abs();
+                let d_to_end = (self.cursor as isize - old_end as isize).unsigned_abs();
+                if d_to_start < d_to_end {
+                    // Old cursor closer to start: anchor at end.
+                    self.selection_anchor = Some(old_end);
+                } else {
+                    // Old cursor closer to or equidistant from end: anchor at start.
+                    self.selection_anchor = Some(old_start);
+                }
             }
             self.cursor = new_cursor;
         } else {
             self.selection_anchor = None;
             self.cursor = new_cursor;
         }
+        // D-WIDGET-03: Reset undo merge on cursor/selection movement.
+        self.undo_merge = UndoMergeType::NoMerge;
         let new_start = self.selection_start();
         let new_end = self.selection_end();
         if old_start != new_start || old_end != new_end {
@@ -325,6 +362,7 @@ impl TextField {
 
     pub fn clear_undo(&mut self) {
         self.undo_stack.clear();
+        self.undo_merge = UndoMergeType::NoMerge;
     }
 
     pub fn clear_redo(&mut self) {
@@ -332,22 +370,81 @@ impl TextField {
     }
 
     fn save_undo(&mut self) {
+        self.save_undo_with_merge(UndoMergeType::NoMerge);
+    }
+
+    /// D-WIDGET-03: Save undo state with merge support.
+    /// If `merge_type` matches the previous `undo_merge` and is a mergeable
+    /// kind, the top undo entry is kept (merging the old+new edit into one
+    /// undo step). Otherwise a new entry is pushed.
+    /// Returns `true` if the edit was merged with the previous undo entry.
+    fn save_undo_with_merge(&mut self, merge_type: UndoMergeType) -> bool {
         let had_undo = self.can_undo();
         let had_redo = self.can_redo();
-        self.undo_stack.push(UndoEntry {
-            text: self.text.clone(),
-            cursor: self.cursor,
-        });
-        if self.undo_stack.len() > MAX_UNDO {
-            self.undo_stack.remove(0);
+
+        // Check if we can merge with the previous undo entry.
+        // C++ merges consecutive same-type edits: backspace with backspace,
+        // delete with delete, alpha_num with alpha_num or non_alpha_num,
+        // non_alpha_num with non_alpha_num, newline with newline, move with move.
+        let merged = match merge_type {
+            UndoMergeType::Backspace
+                if self.undo_merge == UndoMergeType::Backspace && !self.undo_stack.is_empty() =>
+            {
+                true
+            }
+            UndoMergeType::Delete
+                if self.undo_merge == UndoMergeType::Delete && !self.undo_stack.is_empty() =>
+            {
+                true
+            }
+            UndoMergeType::AlphaNum
+                if (self.undo_merge == UndoMergeType::AlphaNum
+                    || self.undo_merge == UndoMergeType::NonAlphaNum)
+                    && !self.undo_stack.is_empty() =>
+            {
+                true
+            }
+            UndoMergeType::NonAlphaNum
+                if self.undo_merge == UndoMergeType::NonAlphaNum && !self.undo_stack.is_empty() =>
+            {
+                true
+            }
+            UndoMergeType::NewLine
+                if self.undo_merge == UndoMergeType::NewLine && !self.undo_stack.is_empty() =>
+            {
+                true
+            }
+            UndoMergeType::Move
+                if self.undo_merge == UndoMergeType::Move && !self.undo_stack.is_empty() =>
+            {
+                true
+            }
+            _ => false,
+        };
+
+        if !merged {
+            // Push a new undo entry (snapshot of current state BEFORE the edit).
+            self.undo_stack.push(UndoEntry {
+                text: self.text.clone(),
+                cursor: self.cursor,
+            });
+            if self.undo_stack.len() > MAX_UNDO {
+                self.undo_stack.remove(0);
+            }
         }
+        // When merged, we keep the existing top entry unchanged — it already
+        // holds the state from before the first edit in this merge group.
+
+        self.undo_merge = merge_type;
         self.redo_stack.clear();
         if self.can_undo() != had_undo || self.can_redo() != had_redo {
             self.fire_can_undo_redo();
         }
+        merged
     }
 
     pub fn undo(&mut self) -> bool {
+        self.undo_merge = UndoMergeType::NoMerge;
         if let Some(entry) = self.undo_stack.pop() {
             self.redo_stack.push(UndoEntry {
                 text: self.text.clone(),
@@ -365,6 +462,7 @@ impl TextField {
     }
 
     pub fn redo(&mut self) -> bool {
+        self.undo_merge = UndoMergeType::NoMerge;
         if let Some(entry) = self.redo_stack.pop() {
             self.undo_stack.push(UndoEntry {
                 text: self.text.clone(),
@@ -1254,7 +1352,9 @@ impl TextField {
                     return true;
                 }
                 if self.cursor > 0 {
-                    self.save_undo();
+                    let pre_text = self.text.clone();
+                    let pre_cursor = self.cursor;
+                    let merged = self.save_undo_with_merge(UndoMergeType::Backspace);
                     let target = if ctrl && shift {
                         self.row_start(self.cursor)
                     } else if ctrl {
@@ -1264,7 +1364,12 @@ impl TextField {
                     };
                     self.text.drain(target..self.cursor);
                     self.cursor = target;
-                    if self.validate_text() {
+                    let rollback = if merged {
+                        Some((pre_text, pre_cursor))
+                    } else {
+                        None
+                    };
+                    if self.validate_text_with_rollback(rollback) {
                         self.fire_change();
                     }
                 }
@@ -1282,7 +1387,9 @@ impl TextField {
                     return true;
                 }
                 if self.cursor < self.text.len() {
-                    self.save_undo();
+                    let pre_text = self.text.clone();
+                    let pre_cursor = self.cursor;
+                    let merged = self.save_undo_with_merge(UndoMergeType::Delete);
                     let target = if ctrl && shift {
                         self.row_end(self.cursor)
                     } else if ctrl {
@@ -1291,7 +1398,12 @@ impl TextField {
                         self.next_char_boundary(self.cursor)
                     };
                     self.text.drain(self.cursor..target);
-                    if self.validate_text() {
+                    let rollback = if merged {
+                        Some((pre_text, pre_cursor))
+                    } else {
+                        None
+                    };
+                    if self.validate_text_with_rollback(rollback) {
                         self.fire_change();
                     }
                 }
@@ -1301,12 +1413,21 @@ impl TextField {
 
             InputKey::Enter if self.multi_line && self.editable => {
                 self.magic_col = None;
-                if !self.delete_selection() {
-                    self.save_undo();
-                }
+                let pre_text = self.text.clone();
+                let pre_cursor = self.cursor;
+                let merged = if !self.delete_selection() {
+                    self.save_undo_with_merge(UndoMergeType::NewLine)
+                } else {
+                    false
+                };
                 self.text.insert(self.cursor, '\n');
                 self.cursor += 1;
-                if self.validate_text() {
+                let rollback = if merged {
+                    Some((pre_text, pre_cursor))
+                } else {
+                    None
+                };
+                if self.validate_text_with_rollback(rollback) {
                     self.fire_change();
                 }
                 true
@@ -1315,9 +1436,21 @@ impl TextField {
             _ => {
                 if !event.chars.is_empty() && self.editable {
                     self.magic_col = None;
-                    if !self.delete_selection() {
-                        self.save_undo();
-                    }
+                    // D-WIDGET-03: Classify the edit for undo merge.
+                    let first_ch = event.chars.chars().next().unwrap_or('\0');
+                    let merge_type = if first_ch.is_ascii_alphanumeric() || first_ch as u32 >= 128 {
+                        UndoMergeType::AlphaNum
+                    } else {
+                        UndoMergeType::NonAlphaNum
+                    };
+                    // Save pre-edit state for validation rollback in case of merge.
+                    let pre_edit_text = self.text.clone();
+                    let pre_edit_cursor = self.cursor;
+                    let merged = if !self.delete_selection() {
+                        self.save_undo_with_merge(merge_type)
+                    } else {
+                        false
+                    };
                     for ch in event.chars.chars() {
                         if ch.is_control() {
                             if ch == '\n' && self.multi_line {
@@ -1339,7 +1472,12 @@ impl TextField {
                         self.text.insert(self.cursor, ch);
                         self.cursor += ch.len_utf8();
                     }
-                    if self.validate_text() {
+                    let rollback = if merged {
+                        Some((pre_edit_text, pre_edit_cursor))
+                    } else {
+                        None
+                    };
+                    if self.validate_text_with_rollback(rollback) {
                         self.fire_change();
                     }
                     self.scroll_to_cursor();
@@ -1398,7 +1536,13 @@ impl TextField {
                 && pos >= self.selection_start()
                 && pos < self.selection_end()
             {
+                // D-WIDGET-04: Record drag offset from selection start.
+                self.drag_offset = Some(pos.saturating_sub(self.selection_start()));
                 self.drag_mode = DragMode::Move;
+                // C++: Reset UM_MOVE to prevent merging separate moves.
+                if self.undo_merge == UndoMergeType::Move {
+                    self.undo_merge = UndoMergeType::NoMerge;
+                }
             } else {
                 self.cursor = pos;
                 self.selection_anchor = None;
@@ -1518,20 +1662,68 @@ impl TextField {
                 }
                 true
             }
-            DragMode::Insert | DragMode::Move => true,
+            DragMode::Insert => {
+                // D-WIDGET-04: Update cursor position during insert drag.
+                let pos = self.x_to_index_single_line(event.mouse_x);
+                if pos != self.cursor {
+                    self.cursor = pos;
+                    self.selection_anchor = None;
+                }
+                true
+            }
+            DragMode::Move => {
+                // D-WIDGET-04: During move drag, compute target position
+                // applying drag offset so cursor doesn't jump.
+                // The actual move happens on release.
+                true
+            }
         }
     }
 
     fn handle_mouse_release(&mut self, event: &InputEvent) -> bool {
         let was_dragging = self.drag_mode != DragMode::None;
 
+        if self.drag_mode == DragMode::Insert && self.editable {
+            // D-WIDGET-04: On DM_INSERT release, paste from primary clipboard
+            // at the current cursor position.
+            // C++: clears SelectionId before pasting to avoid clearing the
+            // selection being pasted.
+            self.selection_anchor = None;
+            self.selection_published = false;
+            if let Some(cb) = &self.on_clipboard_paste {
+                let text = cb();
+                if !text.is_empty() {
+                    self.save_undo();
+                    for ch in text.chars() {
+                        if ch.is_control() && ch != '\n' {
+                            continue;
+                        }
+                        if ch == '\n' && !self.multi_line {
+                            continue;
+                        }
+                        if self.text.chars().count() >= self.max_length {
+                            break;
+                        }
+                        self.text.insert(self.cursor, ch);
+                        self.cursor += ch.len_utf8();
+                    }
+                    if self.validate_text() {
+                        self.fire_change();
+                    }
+                }
+            }
+        }
+
         if self.drag_mode == DragMode::Move && self.editable {
-            let pos = self.x_to_index_single_line(event.mouse_x);
+            // D-WIDGET-04: Apply drag offset to compute target position.
+            let raw_pos = self.x_to_index_single_line(event.mouse_x);
+            let offset = self.drag_offset.unwrap_or(0);
+            let pos = raw_pos.saturating_sub(offset);
             let sel_start = self.selection_start();
             let sel_end = self.selection_end();
             if pos < sel_start || pos > sel_end {
                 let selected = self.text[sel_start..sel_end].to_string();
-                self.save_undo();
+                self.save_undo_with_merge(UndoMergeType::Move);
                 // Remove selection first
                 self.text.drain(sel_start..sel_end);
                 // Adjust insert position
@@ -1540,6 +1732,8 @@ impl TextField {
                 } else {
                     pos
                 };
+                let insert_pos = insert_pos.min(self.text.len());
+                let insert_pos = self.clamp_to_boundary(insert_pos);
                 self.text.insert_str(insert_pos, &selected);
                 self.cursor = insert_pos + selected.len();
                 self.selection_anchor = Some(insert_pos);
@@ -1549,6 +1743,7 @@ impl TextField {
         }
 
         self.drag_mode = DragMode::None;
+        self.drag_offset = None;
         was_dragging
     }
 
@@ -1616,10 +1811,20 @@ impl TextField {
     }
 
     fn validate_text(&mut self) -> bool {
+        self.validate_text_with_rollback(None)
+    }
+
+    /// Validate current text. If validation fails, rolls back to the provided
+    /// snapshot (if any), or pops the undo stack as a fallback.
+    /// The snapshot parameter is used when undo merge is active, so popping
+    /// the undo stack would revert past the current merge group.
+    fn validate_text_with_rollback(&mut self, rollback: Option<(String, usize)>) -> bool {
         if let Some(cb) = &mut self.on_validate {
             if !cb(&self.text) {
-                // Revert via undo
-                if let Some(entry) = self.undo_stack.pop() {
+                if let Some((old_text, old_cursor)) = rollback {
+                    self.text = old_text;
+                    self.cursor = old_cursor;
+                } else if let Some(entry) = self.undo_stack.pop() {
                     self.text = entry.text;
                     self.cursor = entry.cursor;
                 }
@@ -1901,23 +2106,69 @@ mod tests {
         let look = Look::new();
         let mut tf = TextField::new(look);
 
+        // D-WIDGET-03: Consecutive same-type edits merge into one undo entry.
+        // Typing A, B, C (all AlphaNum) produces a single merged undo entry.
         tf.input(&char_press('A'));
         tf.input(&char_press('B'));
         tf.input(&char_press('C'));
         assert_eq!(tf.text(), "ABC");
 
+        // Single undo reverts the entire merged group.
         tf.undo();
+        assert_eq!(tf.text(), "");
+
+        // Redo restores the full merged group.
+        tf.redo();
+        assert_eq!(tf.text(), "ABC");
+
+        // Typing after redo clears redo stack.
+        tf.input(&char_press('X'));
+        assert_eq!(tf.text(), "ABCX");
+        assert!(!tf.redo());
+    }
+
+    #[test]
+    fn undo_no_merge_across_types() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+
+        // Type alphanumeric then delete — different edit kinds, no merge.
+        tf.input(&char_press('A'));
+        tf.input(&char_press('B'));
         assert_eq!(tf.text(), "AB");
 
-        tf.undo();
+        tf.input(&key_press(InputKey::Backspace));
         assert_eq!(tf.text(), "A");
 
-        tf.redo();
+        // Undo the backspace (separate entry).
+        tf.undo();
         assert_eq!(tf.text(), "AB");
 
-        tf.input(&char_press('X'));
-        assert_eq!(tf.text(), "ABX");
-        assert!(!tf.redo());
+        // Undo the merged insert group.
+        tf.undo();
+        assert_eq!(tf.text(), "");
+    }
+
+    #[test]
+    fn undo_merge_broken_by_cursor_move() {
+        let look = Look::new();
+        let mut tf = TextField::new(look);
+
+        tf.input(&char_press('A'));
+        tf.input(&char_press('B'));
+        // Move cursor (breaks merge chain).
+        tf.input(&key_press(InputKey::ArrowLeft));
+        tf.input(&key_press(InputKey::End));
+        tf.input(&char_press('C'));
+        assert_eq!(tf.text(), "ABC");
+
+        // Undo only reverts the 'C' (separate entry after cursor move).
+        tf.undo();
+        assert_eq!(tf.text(), "AB");
+
+        // Undo reverts the merged 'A'+'B'.
+        tf.undo();
+        assert_eq!(tf.text(), "");
     }
 
     // ── Phase 1 tests ───────────────────────────────────────────────────

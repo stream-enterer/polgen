@@ -5,7 +5,7 @@ use crate::input::{InputEvent, InputKey, InputVariant};
 use crate::panel::PanelCtx;
 use crate::render::Painter;
 
-use super::border::{Border, OuterBorderType};
+use super::border::{Border, InnerBorderType, OuterBorderType};
 use super::look::Look;
 
 /// RGBA color editor widget.
@@ -13,6 +13,8 @@ pub struct ColorField {
     border: Border,
     look: Rc<Look>,
     color: Color,
+    editable: bool,
+    alpha_enabled: bool,
     expanded: bool,
     pub on_color: Option<Box<dyn FnMut(Color)>>,
 }
@@ -25,6 +27,8 @@ impl ColorField {
             border: Border::new(OuterBorderType::Rect),
             look,
             color: Color::BLACK,
+            editable: false,
+            alpha_enabled: false,
             expanded: false,
             on_color: None,
         }
@@ -39,6 +43,39 @@ impl ColorField {
             self.color = color;
             if let Some(cb) = &mut self.on_color {
                 cb(color);
+            }
+        }
+    }
+
+    pub fn is_editable(&self) -> bool {
+        self.editable
+    }
+
+    pub fn set_editable(&mut self, editable: bool) {
+        if self.editable != editable {
+            self.editable = editable;
+            if editable {
+                if self.border.inner == InnerBorderType::OutputField {
+                    self.border.inner = InnerBorderType::InputField;
+                }
+            } else if self.border.inner == InnerBorderType::InputField {
+                self.border.inner = InnerBorderType::OutputField;
+            }
+        }
+    }
+
+    pub fn is_alpha_enabled(&self) -> bool {
+        self.alpha_enabled
+    }
+
+    pub fn set_alpha_enabled(&mut self, alpha_enabled: bool) {
+        if self.alpha_enabled != alpha_enabled {
+            self.alpha_enabled = alpha_enabled;
+            if !alpha_enabled && self.color.a() != 255 {
+                self.color = self.color.with_alpha(255);
+                if let Some(cb) = &mut self.on_color {
+                    cb(self.color);
+                }
             }
         }
     }

@@ -1139,6 +1139,7 @@ impl PanelBehavior for TkTestPanel {
         let cf1 = ctx.create_child_with("cf1", Box::new(ColorFieldPanel { field: cf_ro }));
 
         let mut cf_ed = ColorField::new(look.clone());
+        cf_ed.set_editable(true);
         cf_ed.set_color(Color::rgba(0x22, 0xBB, 0x22, 0xFF));
         let cf2 = ctx.create_child_with("cf2", Box::new(ColorFieldPanel { field: cf_ed }));
 
@@ -1156,7 +1157,7 @@ impl PanelBehavior for TkTestPanel {
 
         let mut lb3 = ListBox::new(look.clone());
         lb3.set_items(items);
-        lb3.set_selection_mode(SelectionMode::None);
+        lb3.set_selection_mode(SelectionMode::ReadOnly);
         let l3 = ctx.create_child_with("l3", Box::new(ListBoxPanel { lb: lb3 }));
 
         // Grid layout all children
