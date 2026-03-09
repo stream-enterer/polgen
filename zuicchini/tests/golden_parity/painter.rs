@@ -79,8 +79,9 @@ fn painter_ellipse_basic() {
         // C++ PaintEllipse(28,28,200,150) → cx=128 cy=103 rx=100 ry=75
         p.paint_ellipse(128.0, 103.0, 100.0, 75.0, Color::GREEN);
     }
-    // ARCH GAP [ellipse-polygon]: Rust approximates ellipse as polygon;
-    // C++ uses native scanline. Raw max_diff=250, 1.01% of pixels differ at ch_tol=1.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs — C++ uses
+    // polynomial (A0/A1/A2), Rust uses Fixed12 edge-crossing.
+    // Raw max_diff=250, 1.01% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 0.5).unwrap();
 }
 
@@ -108,8 +109,8 @@ fn painter_polygon_tri() {
         let mut p = white_painter(&mut img);
         p.paint_polygon(&[(128.0, 20.0), (20.0, 230.0), (236.0, 230.0)], Color::RED);
     }
-    // ARCH GAP [scanline-aa]: polygon AA coverage differs between C++ and Rust
-    // scanline rasterizers. Raw max_diff=73, 0.93% of pixels differ at ch_tol=1.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs — C++ uses
+    // polynomial (A0/A1/A2), Rust uses Fixed12. Raw max_diff=73, 0.93% differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 73, 0.5).unwrap();
 }
 
@@ -137,7 +138,7 @@ fn painter_polygon_star() {
         let mut p = white_painter(&mut img);
         p.paint_polygon(&star_vertices(), Color::MAGENTA);
     }
-    // ARCH GAP [scanline-aa]: polygon AA coverage differs.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs.
     // Raw max_diff=251, 1.44% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 0.5).unwrap();
 }
@@ -169,7 +170,7 @@ fn painter_polygon_complex() {
         let mut p = white_painter(&mut img);
         p.paint_polygon(&convex_polygon_20(), Color::CYAN);
     }
-    // ARCH GAP [scanline-aa]: polygon AA coverage differs.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs.
     // Raw max_diff=240, 1.22% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 0.5).unwrap();
 }
@@ -225,8 +226,8 @@ fn painter_gradient_radial() {
         let mut p = white_painter(&mut img);
         p.paint_radial_gradient(128.0, 128.0, 128.0, 128.0, Color::WHITE, Color::BLACK);
     }
-    // ARCH GAP [ellipse-polygon]: Rust approximates ellipse as polygon;
-    // C++ uses native scanline. Raw max_diff=248, 26.10% of pixels differ at ch_tol=1.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs — gradient
+    // texturing amplifies boundary diffs. Raw max_diff=248, 26.10% differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 1.0).unwrap();
 }
 
@@ -240,8 +241,8 @@ fn painter_line_basic() {
         let mut p = white_painter(&mut img);
         p.paint_line_stroked(10.0, 10.0, 240.0, 200.0, &Stroke::new(Color::BLACK, 3.0));
     }
-    // ARCH GAP [stroke-expansion]: stroke polygon expansion differs between
-    // C++ and Rust. Raw max_diff=152, 1.21% of pixels differ at ch_tol=1.
+    // ARCH GAP [C2:stroke-expansion]: stroke expansion + AA coverage model differ.
+    // Raw max_diff=152, 1.21% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 1.0).unwrap();
 }
 
@@ -306,8 +307,8 @@ fn painter_line_ends_all() {
             p.paint_line_stroked(30.0, y, 226.0, y, &stroke);
         }
     }
-    // ARCH GAP [stroke-ends]: stroke end decorations render structurally
-    // differently. Raw max_diff=255, 19.91% of pixels differ at ch_tol=1.
+    // ARCH GAP [C4:stroke-ends]: decoration geometry + AA coverage model differ.
+    // Raw max_diff=255, 19.91% of pixels differ at ch_tol=1.
     // ABOVE 5% BUDGET — flagged for architectural review, see ARCH_GAPS.md.
     compare_images(img.data(), &expected, ew, eh, 80, 17.0).unwrap();
 }
@@ -330,7 +331,7 @@ fn painter_line_dashed() {
         stroke_dot.dash_pattern = vec![0.001, 9.0];
         p.paint_line_stroked(10.0, 128.0, 240.0, 128.0, &stroke_dot);
     }
-    // ARCH GAP [stroke-expansion]: dash pattern + stroke expansion differs.
+    // ARCH GAP [C2:stroke-expansion]: dash pattern + stroke expansion + AA coverage differ.
     // Raw max_diff=255, 1.90% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 2.0).unwrap();
 }
@@ -345,7 +346,7 @@ fn painter_outline_rect() {
         let mut p = white_painter(&mut img);
         p.paint_rect_outlined(20.0, 20.0, 200.0, 150.0, &Stroke::new(Color::BLACK, 3.0));
     }
-    // ARCH GAP [stroke-expansion]: outline stroke positioning + AA differ.
+    // ARCH GAP [C2:stroke-expansion]: outline stroke + AA coverage differ.
     // Raw max_diff=255, 4.25% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 4.5).unwrap();
 }
@@ -361,8 +362,8 @@ fn painter_outline_ellipse() {
         // C++ PaintEllipseOutline(28,28,200,150, 2.0, stroke) → cx=128 cy=103 rx=100 ry=75
         p.paint_ellipse_outlined(128.0, 103.0, 100.0, 75.0, &Stroke::new(Color::BLACK, 2.0));
     }
-    // ARCH GAP [stroke-expansion]: ellipse outline stroke expansion + polygon
-    // approximation differ. Raw max_diff=255, 3.02% of pixels differ at ch_tol=1.
+    // ARCH GAP [C2:stroke-expansion]: ellipse outline stroke + AA coverage differ.
+    // Raw max_diff=255, 3.02% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 2.5).unwrap();
 }
 
@@ -388,7 +389,7 @@ fn painter_outline_polygon() {
         let mut p = white_painter(&mut img);
         p.paint_polygon_outlined(&pentagon_vertices(), Color::BLACK, 3.0);
     }
-    // ARCH GAP [stroke-expansion]: polygon outline stroke expansion differs.
+    // ARCH GAP [C2:stroke-expansion]: polygon outline stroke + AA coverage differ.
     // Raw max_diff=255, 2.46% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 1.5).unwrap();
 }
@@ -410,7 +411,7 @@ fn painter_outline_round_rect() {
             &Stroke::new(Color::BLACK, 3.0),
         );
     }
-    // ARCH GAP [stroke-expansion]: round-rect outline stroke expansion differs.
+    // ARCH GAP [C2:stroke-expansion]: round-rect outline stroke + AA coverage differ.
     // Raw max_diff=255, 4.21% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 4.5).unwrap();
 }
@@ -430,8 +431,8 @@ fn painter_bezier_filled() {
         let mut p = white_painter(&mut img);
         p.paint_bezier(&bezier_points(), Color::RED);
     }
-    // ARCH GAP [curve-polygon]: C++ has native bezier rasterizer, Rust flattens
-    // to polygon. Raw max_diff=255, 4.41% of pixels differ at ch_tol=1.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs on bezier fill.
+    // Raw max_diff=255, 4.41% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 4.5).unwrap();
 }
 
@@ -450,7 +451,7 @@ fn painter_bezier_stroked() {
         stroke.finish_end = StrokeEnd::new(StrokeEndType::Arrow).with_inner_color(Color::WHITE);
         p.paint_bezier_line(&bezier_points(), &stroke);
     }
-    // ARCH GAP [stroke-expansion]: stroked bezier + arrow decorations differ.
+    // ARCH GAP [C2:stroke-expansion]: stroked bezier + arrow + AA coverage differ.
     // Raw max_diff=255, 3.48% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 3.0).unwrap();
 }
@@ -467,7 +468,7 @@ fn painter_clip_basic() {
         // Paint full-canvas polygon — only center rect should appear
         p.paint_polygon(&[(128.0, 10.0), (10.0, 246.0), (246.0, 246.0)], Color::RED);
     }
-    // ARCH GAP [scanline-aa]: polygon AA at clip boundary differs.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage at clip boundary differs.
     // Raw max_diff=64, 0.23% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 64, 0.5).unwrap();
 }
@@ -530,7 +531,7 @@ fn painter_image_scaled() {
         let mut p = white_painter(&mut img);
         p.paint_image_full(28.0, 28.0, 200.0, 200.0, &src, 255, Color::TRANSPARENT);
     }
-    // ARCH GAP [interpolation]: image scaling filter differs between C++ and Rust.
+    // ARCH GAP [C3:interpolation]: image scaling filter differs between C++ and Rust.
     // Raw max_diff=118, 30.68% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 70, 0.5).unwrap();
 }
@@ -560,7 +561,7 @@ fn painter_multi_compose() {
         );
         p.paint_rect(30.0, 150.0, 200.0, 80.0, Color::rgba(128, 0, 128, 90));
     }
-    // ARCH GAP [compound]: compounds AA differences across 5 overlapping shapes.
+    // ARCH GAP [C5:compound]: compounds AA coverage diffs across 5 overlapping shapes.
     // Raw max_diff=119, 1.57% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 0.5).unwrap();
 }
@@ -583,7 +584,7 @@ fn painter_polyline() {
         let verts = [(20.0, 200.0), (80.0, 40.0), (160.0, 200.0), (240.0, 40.0)];
         p.paint_solid_polyline(&verts, &stroke, false);
     }
-    // ARCH GAP [stroke-expansion]: polyline stroke + join handling differ.
+    // ARCH GAP [C2:stroke-expansion]: polyline stroke + join + AA coverage differ.
     // Raw max_diff=255, 4.24% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 3.5).unwrap();
 }
@@ -600,7 +601,7 @@ fn painter_ellipse_sector() {
         // Start=0° (right), sweep=90° (down to bottom-right quadrant)
         p.paint_ellipse_sector(128.0, 128.0, 100.0, 100.0, 0.0, 90.0, Color::RED);
     }
-    // ARCH GAP [ellipse-polygon]: polygon AA boundary vs C++ scanline.
+    // ARCH GAP [C1:polygon-coverage]: AA coverage model differs on sector fill.
     // Raw max_diff=225, 0.29% of pixels differ at ch_tol=1.
     compare_images(img.data(), &expected, ew, eh, 80, 0.5).unwrap();
 }
