@@ -154,8 +154,25 @@ impl View {
         self.window_focused
     }
 
-    pub fn set_window_focused(&mut self, focused: bool) {
+    pub fn set_window_focused(&mut self, tree: &mut PanelTree, focused: bool) {
+        if self.window_focused == focused {
+            return;
+        }
         self.window_focused = focused;
+        // C++ emView::SetFocused iterates ALL panels and queues:
+        //   NF_VIEW_FOCUS_CHANGED | NF_UPDATE_PRIORITY_CHANGED on every panel
+        //   NF_FOCUS_CHANGED additionally on panels in the active path
+        let ids: Vec<_> = tree.panel_ids();
+        for id in ids {
+            if let Some(panel) = tree.get_mut(id) {
+                let mut flags = super::behavior::NoticeFlags::VIEW_FOCUS_CHANGED
+                    | super::behavior::NoticeFlags::UPDATE_PRIORITY_CHANGED;
+                if panel.in_active_path {
+                    flags |= super::behavior::NoticeFlags::FOCUS_CHANGED;
+                }
+                panel.pending_notices.insert(flags);
+            }
+        }
     }
 
     pub fn is_activation_adherent(&self) -> bool {
@@ -1350,7 +1367,7 @@ impl View {
 
     /// Focus the view and activate a panel.
     pub fn focus_panel(&mut self, tree: &mut PanelTree, panel: PanelId) {
-        self.window_focused = true;
+        self.set_window_focused(tree, true);
         self.set_active_panel(tree, panel, false);
     }
 
@@ -1966,7 +1983,7 @@ mod tests {
     fn test_focus_panel() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = View::new(root, 800.0, 600.0);
-        view.set_window_focused(false);
+        view.set_window_focused(&mut tree, false);
 
         view.focus_panel(&mut tree, child1);
         assert!(view.window_focused());
@@ -1983,7 +2000,7 @@ mod tests {
         assert!(view.is_panel_focused(&tree, child1));
         assert!(!view.is_panel_focused(&tree, root));
 
-        view.set_window_focused(false);
+        view.set_window_focused(&mut tree, false);
         assert!(!view.is_panel_focused(&tree, child1));
     }
 
@@ -1998,16 +2015,16 @@ mod tests {
         assert!(view.is_panel_in_focused_path(&tree, root));
         assert!(!view.is_panel_in_focused_path(&tree, child2));
 
-        view.set_window_focused(false);
+        view.set_window_focused(&mut tree, false);
         assert!(!view.is_panel_in_focused_path(&tree, child1));
     }
 
     #[test]
     fn test_is_view_focused_delegate() {
-        let (_tree, root, _c1, _c2) = setup_tree();
+        let (mut tree, root, _c1, _c2) = setup_tree();
         let mut view = View::new(root, 800.0, 600.0);
         assert!(view.is_view_focused());
-        view.set_window_focused(false);
+        view.set_window_focused(&mut tree, false);
         assert!(!view.is_view_focused());
     }
 

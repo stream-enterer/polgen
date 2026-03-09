@@ -228,6 +228,214 @@ pub fn compare_behavioral(
     Ok(())
 }
 
+// ────────────────────── Notice golden files ──────────────────────
+
+#[derive(Debug, Clone)]
+pub struct GoldenNoticeState {
+    /// Raw C++ NF_* bit flags accumulated for this panel.
+    pub cpp_flags: u32,
+}
+
+/// Load a notice golden file. Returns per-panel accumulated C++ notice flags.
+pub fn load_notice_golden(name: &str) -> Vec<GoldenNoticeState> {
+    let path = golden_dir()
+        .join("notice")
+        .join(format!("{name}.notice.golden"));
+    let data =
+        std::fs::read(&path).unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
+    assert!(
+        data.len() >= 4,
+        "Notice golden too short: {}",
+        path.display()
+    );
+    let num_panels = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
+    let expected_len = 4 + num_panels * 4;
+    assert_eq!(
+        data.len(),
+        expected_len,
+        "Notice golden size mismatch for {name}: got {} expected {expected_len}",
+        data.len()
+    );
+    let mut panels = Vec::with_capacity(num_panels);
+    for i in 0..num_panels {
+        let off = 4 + i * 4;
+        let flags = u32::from_le_bytes(data[off..off + 4].try_into().unwrap());
+        panels.push(GoldenNoticeState { cpp_flags: flags });
+    }
+    panels
+}
+
+/// Translate C++ NF_* bit flags to Rust NoticeFlags.
+///
+/// C++ and Rust use different bit positions:
+///   C++ NF_CHILD_LIST_CHANGED    = 1<<0  → Rust CHILDREN_CHANGED     = 0x08
+///   C++ NF_LAYOUT_CHANGED        = 1<<1  → Rust LAYOUT_CHANGED       = 0x01
+///   C++ NF_VIEWING_CHANGED       = 1<<2  → Rust VISIBILITY           = 0x04
+///   C++ NF_ENABLE_CHANGED        = 1<<3  → Rust ENABLE_CHANGED       = 0x40
+///   C++ NF_ACTIVE_CHANGED        = 1<<4  → Rust ACTIVE_CHANGED       = 0x100
+///   C++ NF_FOCUS_CHANGED         = 1<<5  → Rust FOCUS_CHANGED        = 0x02
+///   C++ NF_VIEW_FOCUS_CHANGED    = 1<<6  → Rust VIEW_FOCUS_CHANGED   = 0x200
+///   C++ NF_UPDATE_PRIORITY_CHANGED = 1<<7 → Rust UPDATE_PRIORITY_CHANGED = 0x400
+///   C++ NF_MEMORY_LIMIT_CHANGED  = 1<<8  → Rust MEMORY_LIMIT_CHANGED = 0x800
+///   C++ NF_SOUGHT_NAME_CHANGED   = 1<<9  → Rust SOUGHT_NAME_CHANGED  = 0x80
+pub fn translate_cpp_notice_flags(cpp: u32) -> u32 {
+    let mut rust: u32 = 0;
+    if cpp & (1 << 0) != 0 {
+        rust |= 0x08;
+    } // CHILDREN_CHANGED
+    if cpp & (1 << 1) != 0 {
+        rust |= 0x01;
+    } // LAYOUT_CHANGED
+    if cpp & (1 << 2) != 0 {
+        rust |= 0x04;
+    } // VISIBILITY
+    if cpp & (1 << 3) != 0 {
+        rust |= 0x40;
+    } // ENABLE_CHANGED
+    if cpp & (1 << 4) != 0 {
+        rust |= 0x100;
+    } // ACTIVE_CHANGED
+    if cpp & (1 << 5) != 0 {
+        rust |= 0x02;
+    } // FOCUS_CHANGED
+    if cpp & (1 << 6) != 0 {
+        rust |= 0x200;
+    } // VIEW_FOCUS_CHANGED
+    if cpp & (1 << 7) != 0 {
+        rust |= 0x400;
+    } // UPDATE_PRIORITY_CHANGED
+    if cpp & (1 << 8) != 0 {
+        rust |= 0x800;
+    } // MEMORY_LIMIT_CHANGED
+    if cpp & (1 << 9) != 0 {
+        rust |= 0x80;
+    } // SOUGHT_NAME_CHANGED
+    rust
+}
+
+/// Mask of flags that are directly set by panel-tree actions (activate, focus,
+/// layout, child add/remove, window focus change). Excludes flags that come
+/// from the C++ view/scheduler update engine (viewing, priority, memory limit)
+/// which Rust doesn't replicate identically.
+pub const NOTICE_ACTION_MASK: u32 = 0x0349;
+// LAYOUT_CHANGED(0x01) | FOCUS_CHANGED(0x02) | CHILDREN_CHANGED(0x08)
+// | ENABLE_CHANGED(0x40) | ACTIVE_CHANGED(0x100) | VIEW_FOCUS_CHANGED(0x200)
+
+/// Full mask including scheduler-driven flags. Use with set_window_focused
+/// tests where Rust explicitly queues UPDATE_PRIORITY_CHANGED.
+pub const NOTICE_FULL_MASK: u32 = 0x0FFF;
+
+/// Compare actual Rust NoticeFlags against C++ golden notice data.
+/// `mask` filters which bits are compared (use NOTICE_ACTION_MASK or NOTICE_FULL_MASK).
+pub fn compare_notices(
+    actual: &[u32],
+    expected: &[GoldenNoticeState],
+    panel_names: &[&str],
+    mask: u32,
+) -> Result<(), CompareError> {
+    if actual.len() != expected.len() {
+        return Err(CompareError {
+            message: format!(
+                "Panel count mismatch: actual={} expected={}",
+                actual.len(),
+                expected.len()
+            ),
+        });
+    }
+    for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
+        let name = panel_names.get(i).copied().unwrap_or("?");
+        let translated = translate_cpp_notice_flags(e.cpp_flags) & mask;
+        let masked_actual = *a & mask;
+        if masked_actual != translated {
+            return Err(CompareError {
+                message: format!(
+                    "Panel {i} ({name}) notice mismatch (mask=0x{mask:04x}):\n  \
+                     actual  =0x{masked_actual:04x} (rust bits, masked)\n  \
+                     expected=0x{translated:04x} (translated from C++ 0x{:04x}, masked)",
+                    e.cpp_flags
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+// ────────────────────── Input golden files ──────────────────────
+
+#[derive(Debug, Clone)]
+pub struct GoldenInputState {
+    pub received_input: bool,
+    pub is_active: bool,
+    pub in_active_path: bool,
+}
+
+/// Load an input golden file. Returns per-panel input/activation state.
+pub fn load_input_golden(name: &str) -> Vec<GoldenInputState> {
+    let path = golden_dir()
+        .join("input")
+        .join(format!("{name}.input.golden"));
+    let data =
+        std::fs::read(&path).unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
+    assert!(
+        data.len() >= 4,
+        "Input golden too short: {}",
+        path.display()
+    );
+    let num_panels = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
+    let expected_len = 4 + num_panels * 3;
+    assert_eq!(
+        data.len(),
+        expected_len,
+        "Input golden size mismatch for {name}: got {} expected {expected_len}",
+        data.len()
+    );
+    let mut panels = Vec::with_capacity(num_panels);
+    for i in 0..num_panels {
+        let off = 4 + i * 3;
+        panels.push(GoldenInputState {
+            received_input: data[off] != 0,
+            is_active: data[off + 1] != 0,
+            in_active_path: data[off + 2] != 0,
+        });
+    }
+    panels
+}
+
+/// Compare input/activation state against golden.
+/// C++ dispatches Input() to all viewed panels; Rust only to the active panel.
+/// `check_received`: if false, only compare is_active and in_active_path.
+pub fn compare_input(
+    actual: &[(bool, bool, bool)],
+    expected: &[GoldenInputState],
+    panel_names: &[&str],
+    check_received: bool,
+) -> Result<(), CompareError> {
+    if actual.len() != expected.len() {
+        return Err(CompareError {
+            message: format!(
+                "Panel count mismatch: actual={} expected={}",
+                actual.len(),
+                expected.len()
+            ),
+        });
+    }
+    for (i, ((a_recv, a_active, a_path), e)) in actual.iter().zip(expected.iter()).enumerate() {
+        let name = panel_names.get(i).copied().unwrap_or("?");
+        let recv_mismatch = check_received && *a_recv != e.received_input;
+        if recv_mismatch || *a_active != e.is_active || *a_path != e.in_active_path {
+            return Err(CompareError {
+                message: format!(
+                    "Panel {i} ({name}) input mismatch:\n  \
+                     actual  =(recv={a_recv}, active={a_active}, path={a_path})\n  \
+                     expected=(recv={}, active={}, path={})",
+                    e.received_input, e.is_active, e.in_active_path
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
 pub fn compare_rects(
     actual: &[(f64, f64, f64, f64)],
     expected: &[GoldenRect],

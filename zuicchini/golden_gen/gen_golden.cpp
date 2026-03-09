@@ -928,6 +928,373 @@ static void gen_focus_remove_focused() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// RecordingPanel — accumulates notice flags and tracks input receipt
+// ═══════════════════════════════════════════════════════════════════
+
+class RecordingPanel : public emPanel {
+public:
+    RecordingPanel(ParentArg parent, const emString& name)
+        : emPanel(parent, name), accumulated_flags(0), input_received(false) {}
+    uint32_t accumulated_flags;
+    bool input_received;
+    void ResetRecording() { accumulated_flags = 0; input_received = false; }
+protected:
+    virtual void Notice(NoticeFlags flags) override {
+        accumulated_flags |= (uint32_t)flags;
+    }
+    virtual void Input(emInputEvent& event, const emInputState& state,
+                       double mx, double my) override {
+        input_received = true;
+        emPanel::Input(event, state, mx, my);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// GoldenViewPort — exposes protected SetViewFocused / InputToView
+// ═══════════════════════════════════════════════════════════════════
+
+class GoldenViewPort : public emViewPort {
+public:
+    GoldenViewPort(emView& view) : emViewPort(view) {
+        SetViewGeometry(0, 0, 800, 600, 1.0);
+    }
+    void DoSetViewFocused(bool focused) { SetViewFocused(focused); }
+    void DoInputToView(emInputEvent& event, const emInputState& state) {
+        InputToView(event, state);
+    }
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// Notice / Input dump helpers
+// ═══════════════════════════════════════════════════════════════════
+
+static void dump_notice(const char* name,
+                        const std::vector<RecordingPanel*>& panels) {
+    FILE* f = open_golden("notice", name, "notice.golden");
+    write_u32(f, (uint32_t)panels.size());
+    for (auto* p : panels) write_u32(f, p->accumulated_flags);
+    fclose(f);
+    printf("  notice/%s (%zu panels)\n", name, panels.size());
+}
+
+static void dump_input(const char* name,
+                       const std::vector<RecordingPanel*>& panels) {
+    FILE* f = open_golden("input", name, "input.golden");
+    write_u32(f, (uint32_t)panels.size());
+    for (auto* p : panels) {
+        write_u8(f, p->input_received ? 1 : 0);
+        write_u8(f, p->IsActive() ? 1 : 0);
+        write_u8(f, p->IsInActivePath() ? 1 : 0);
+    }
+    fclose(f);
+    printf("  input/%s (%zu panels)\n", name, panels.size());
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Notice golden generators
+// ═══════════════════════════════════════════════════════════════════
+
+// Activate child1 → ACTIVE_CHANGED notices.
+static void gen_notice_active_changed() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    // Settle initial notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Action: activate child1
+    child1->Activate();
+
+    // Deliver new notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_active_changed", {root, child1, child2});
+}
+
+// Focus child1 → FOCUS_CHANGED notices (needs view port for SetViewFocused).
+static void gen_notice_focus_changed() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    // Settle initial notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Action: focus child1 (sets view focused + activates)
+    child1->Focus();
+
+    // Deliver new notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_focus_changed", {root, child1, child2});
+}
+
+// Layout child1 → LAYOUT_CHANGED notices.
+static void gen_notice_layout_changed() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    // Settle initial notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Action: change child1's layout rect
+    child1->Layout(0.1, 0.1, 0.3, 0.5);
+
+    // Deliver new notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_layout_changed", {root, child1, child2});
+}
+
+// Create new child after settling → CHILDREN_CHANGED on parent.
+static void gen_notice_children_changed() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+
+    // Settle initial notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+
+    // Action: add new child
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    // Deliver new notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_children_changed", {root, child1, child2});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Window focus notice golden generators
+// ═══════════════════════════════════════════════════════════════════
+
+// Set view focused → VIEW_FOCUS_CHANGED + UPDATE_PRIORITY_CHANGED on all.
+static void gen_notice_window_focus_gained() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+
+    child1->Activate();
+
+    // Settle initial notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+
+    // Action: gain window focus
+    vp.DoSetViewFocused(true);
+
+    // Deliver new notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_window_focus_gained", {root, child1});
+}
+
+// Set focused true then false → VIEW_FOCUS_CHANGED on lost.
+static void gen_notice_window_focus_lost() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+
+    child1->Activate();
+    vp.DoSetViewFocused(true);
+
+    // Settle
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+
+    // Action: lose window focus
+    vp.DoSetViewFocused(false);
+
+    // Deliver new notices
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_window_focus_lost", {root, child1});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Input golden generators
+// ═══════════════════════════════════════════════════════════════════
+
+// Click at (600,300) → should hit child2 (right half of 800px).
+static void gen_input_mouse_hit() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    auto* child1 = new RecordingPanel(*root, "child1");
+    child1->Layout(0, 0, 0.5, 1);
+    auto* child2 = new RecordingPanel(*root, "child2");
+    child2->Layout(0.5, 0, 0.5, 1);
+
+    // Settle layout
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Click at (600, 300) → right half → child2
+    emInputEvent event;
+    emInputState state;
+    state.SetMouse(600, 300);
+    event.Setup(EM_KEY_LEFT_BUTTON, emString(), 1, 0);
+    vp.DoInputToView(event, state);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_input("input_mouse_hit", {root, child1, child2});
+}
+
+// Key event to active panel.
+static void gen_input_key_to_focused() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    auto* child1 = new RecordingPanel(*root, "child1");
+    child1->Layout(0, 0, 0.5, 1);
+    auto* child2 = new RecordingPanel(*root, "child2");
+    child2->Layout(0.5, 0, 0.5, 1);
+
+    child1->Focus();
+
+    // Settle
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Send key press
+    emInputEvent event;
+    emInputState state;
+    event.Setup(EM_KEY_A, emString("a"), 0, 0);
+    vp.DoInputToView(event, state);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_input("input_key_to_focused", {root, child1, child2});
+}
+
+// Wheel/scroll event.
+static void gen_input_scroll_delta() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    auto* child1 = new RecordingPanel(*root, "child1");
+    child1->Layout(0, 0, 0.5, 1);
+
+    child1->Activate();
+
+    // Settle
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+
+    // Send wheel event
+    emInputEvent event;
+    emInputState state;
+    state.SetMouse(200, 300);
+    event.Setup(EM_KEY_WHEEL_UP, emString(), 0, 0);
+    vp.DoInputToView(event, state);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_input("input_scroll_delta", {root, child1});
+}
+
+// Mouse down + move + up sequence.
+static void gen_input_drag_sequence() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    auto* child1 = new RecordingPanel(*root, "child1");
+    child1->Layout(0, 0, 0.5, 1);
+    auto* child2 = new RecordingPanel(*root, "child2");
+    child2->Layout(0.5, 0, 0.5, 1);
+
+    // Settle
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Mouse down on child1
+    {
+        emInputEvent event;
+        emInputState state;
+        state.SetMouse(200, 300);
+        state.Set(EM_KEY_LEFT_BUTTON, true);
+        event.Setup(EM_KEY_LEFT_BUTTON, emString(), 1, 0);
+        vp.DoInputToView(event, state);
+    }
+
+    // Mouse move
+    {
+        emInputEvent event;
+        emInputState state;
+        state.SetMouse(300, 300);
+        state.Set(EM_KEY_LEFT_BUTTON, true);
+        event.Setup(EM_KEY_NONE, emString(), 0, 0);
+        vp.DoInputToView(event, state);
+    }
+
+    // Mouse up
+    {
+        emInputEvent event;
+        emInputState state;
+        state.SetMouse(300, 300);
+        event.Setup(EM_KEY_LEFT_BUTTON, emString(), 0, 0);
+        vp.DoInputToView(event, state);
+    }
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_input("input_drag_sequence", {root, child1, child2});
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Main
 // ═══════════════════════════════════════════════════════════════════
 
@@ -1010,6 +1377,20 @@ int main() {
     gen_focus_unfocusable_skip();
     gen_focus_nested();
     gen_focus_remove_focused();
+
+    printf("Generating notice golden files...\n");
+    gen_notice_active_changed();
+    gen_notice_focus_changed();
+    gen_notice_layout_changed();
+    gen_notice_children_changed();
+    gen_notice_window_focus_gained();
+    gen_notice_window_focus_lost();
+
+    printf("Generating input golden files...\n");
+    gen_input_mouse_hit();
+    gen_input_key_to_focused();
+    gen_input_scroll_delta();
+    gen_input_drag_sequence();
 
     printf("Done!\n");
 

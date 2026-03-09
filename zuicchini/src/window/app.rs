@@ -178,7 +178,7 @@ impl ApplicationHandler for App {
             }
             WindowEvent::Focused(focused) => {
                 if let Some(win) = self.windows.get_mut(&window_id) {
-                    win.view_mut().set_window_focused(focused);
+                    win.view_mut().set_window_focused(&mut self.tree, focused);
                     win.invalidate();
                     win.request_redraw();
                 }

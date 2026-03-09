@@ -1,0 +1,228 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use zuicchini::input::{InputEvent, InputKey, InputVariant};
+use zuicchini::panel::{PanelId, PanelTree};
+
+use super::common::*;
+use super::harness::{InputTrackingBehavior, TestHarness};
+
+/// Skip test if golden data hasn't been generated yet.
+macro_rules! require_golden {
+    () => {
+        if !golden_available() {
+            eprintln!("SKIP: golden/ directory not found — run `make -C golden_gen run` first");
+            return;
+        }
+    };
+}
+
+/// Attach InputTrackingBehavior to a panel and return the shared flag.
+fn attach_input(tree: &mut PanelTree, id: PanelId) -> Rc<RefCell<bool>> {
+    let flag = Rc::new(RefCell::new(false));
+    tree.set_behavior(id, Box::new(InputTrackingBehavior::new(flag.clone())));
+    flag
+}
+
+/// Query (is_active, in_active_path) for a panel.
+fn panel_state(tree: &PanelTree, id: PanelId) -> (bool, bool) {
+    let state = tree.build_panel_state(id, false);
+    (state.is_active, state.in_active_path)
+}
+
+// ─── Test 1: input_mouse_hit ────────────────────────────────────
+
+#[test]
+fn input_mouse_hit() {
+    require_golden!();
+    let expected = load_input_golden("input_mouse_hit");
+
+    let mut h = TestHarness::new();
+    let root = h.root();
+
+    let child1 = h.add_panel(root, "child1");
+    h.tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let child2 = h.add_panel(root, "child2");
+    h.tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let recv_root = attach_input(&mut h.tree, root);
+    let recv_child1 = attach_input(&mut h.tree, child1);
+    let recv_child2 = attach_input(&mut h.tree, child2);
+
+    // Settle
+    h.tick_n(5);
+    *recv_root.borrow_mut() = false;
+    *recv_child1.borrow_mut() = false;
+    *recv_child2.borrow_mut() = false;
+
+    // Click at (600, 300) → right half → child2
+    h.input_state.set_mouse(600.0, 300.0);
+    let event = InputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
+    h.inject_input(&event);
+    h.tick();
+
+    let (a_root, p_root) = panel_state(&h.tree, root);
+    let (a_c1, p_c1) = panel_state(&h.tree, child1);
+    let (a_c2, p_c2) = panel_state(&h.tree, child2);
+    let actual = vec![
+        (*recv_root.borrow(), a_root, p_root),
+        (*recv_child1.borrow(), a_c1, p_c1),
+        (*recv_child2.borrow(), a_c2, p_c2),
+    ];
+    // C++ dispatches Input() to all viewed panels; Rust only to active.
+    // Compare activation state only (check_received=false).
+    compare_input(&actual, &expected, &["root", "child1", "child2"], false).unwrap();
+}
+
+// ─── Test 2: input_key_to_focused ───────────────────────────────
+
+#[test]
+fn input_key_to_focused() {
+    require_golden!();
+    let expected = load_input_golden("input_key_to_focused");
+
+    let mut h = TestHarness::new();
+    let root = h.root();
+
+    let child1 = h.add_panel(root, "child1");
+    h.tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let child2 = h.add_panel(root, "child2");
+    h.tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    // Focus child1
+    h.view.focus_panel(&mut h.tree, child1);
+
+    let recv_root = attach_input(&mut h.tree, root);
+    let recv_child1 = attach_input(&mut h.tree, child1);
+    let recv_child2 = attach_input(&mut h.tree, child2);
+
+    // Settle
+    h.tick_n(5);
+    *recv_root.borrow_mut() = false;
+    *recv_child1.borrow_mut() = false;
+    *recv_child2.borrow_mut() = false;
+
+    // Key press
+    let event = InputEvent::press(InputKey::Key('a')).with_chars("a");
+    h.inject_input(&event);
+    h.tick();
+
+    let (a_root, p_root) = panel_state(&h.tree, root);
+    let (a_c1, p_c1) = panel_state(&h.tree, child1);
+    let (a_c2, p_c2) = panel_state(&h.tree, child2);
+    let actual = vec![
+        (*recv_root.borrow(), a_root, p_root),
+        (*recv_child1.borrow(), a_c1, p_c1),
+        (*recv_child2.borrow(), a_c2, p_c2),
+    ];
+    // C++ dispatches Input() to all viewed panels; Rust only to active.
+    // Compare activation state only (check_received=false).
+    compare_input(&actual, &expected, &["root", "child1", "child2"], false).unwrap();
+}
+
+// ─── Test 3: input_scroll_delta ─────────────────────────────────
+
+#[test]
+fn input_scroll_delta() {
+    require_golden!();
+    let expected = load_input_golden("input_scroll_delta");
+
+    let mut h = TestHarness::new();
+    let root = h.root();
+
+    let child1 = h.add_panel(root, "child1");
+    h.tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+
+    // Activate child1
+    h.view.set_active_panel(&mut h.tree, child1, false);
+
+    let recv_root = attach_input(&mut h.tree, root);
+    let recv_child1 = attach_input(&mut h.tree, child1);
+
+    // Settle
+    h.tick_n(5);
+    *recv_root.borrow_mut() = false;
+    *recv_child1.borrow_mut() = false;
+
+    // Wheel event
+    h.input_state.set_mouse(200.0, 300.0);
+    let event = InputEvent::press(InputKey::WheelUp).with_mouse(200.0, 300.0);
+    h.inject_input(&event);
+    h.tick();
+
+    let (a_root, p_root) = panel_state(&h.tree, root);
+    let (a_c1, p_c1) = panel_state(&h.tree, child1);
+    let actual = vec![
+        (*recv_root.borrow(), a_root, p_root),
+        (*recv_child1.borrow(), a_c1, p_c1),
+    ];
+    compare_input(&actual, &expected, &["root", "child1"], false).unwrap();
+}
+
+// ─── Test 4: input_drag_sequence ────────────────────────────────
+
+#[test]
+fn input_drag_sequence() {
+    require_golden!();
+    let expected = load_input_golden("input_drag_sequence");
+
+    let mut h = TestHarness::new();
+    let root = h.root();
+
+    let child1 = h.add_panel(root, "child1");
+    h.tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let child2 = h.add_panel(root, "child2");
+    h.tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let recv_root = attach_input(&mut h.tree, root);
+    let recv_child1 = attach_input(&mut h.tree, child1);
+    let recv_child2 = attach_input(&mut h.tree, child2);
+
+    // Settle
+    h.tick_n(5);
+    *recv_root.borrow_mut() = false;
+    *recv_child1.borrow_mut() = false;
+    *recv_child2.borrow_mut() = false;
+
+    // Mouse down on child1
+    h.input_state.set_mouse(200.0, 300.0);
+    h.input_state.press(InputKey::MouseLeft);
+    let event = InputEvent::press(InputKey::MouseLeft).with_mouse(200.0, 300.0);
+    h.inject_input(&event);
+
+    // Mouse move
+    h.input_state.set_mouse(300.0, 300.0);
+    let event = InputEvent {
+        key: InputKey::MouseLeft,
+        variant: InputVariant::Move,
+        chars: String::new(),
+        is_repeat: false,
+        mouse_x: 300.0,
+        mouse_y: 300.0,
+        shift: false,
+        ctrl: false,
+        alt: false,
+        meta: false,
+    };
+    h.inject_input(&event);
+
+    // Mouse up
+    h.input_state.set_mouse(300.0, 300.0);
+    h.input_state.release(InputKey::MouseLeft);
+    let event = InputEvent::release(InputKey::MouseLeft).with_mouse(300.0, 300.0);
+    h.inject_input(&event);
+
+    h.tick();
+
+    let (a_root, p_root) = panel_state(&h.tree, root);
+    let (a_c1, p_c1) = panel_state(&h.tree, child1);
+    let (a_c2, p_c2) = panel_state(&h.tree, child2);
+    let actual = vec![
+        (*recv_root.borrow(), a_root, p_root),
+        (*recv_child1.borrow(), a_c1, p_c1),
+        (*recv_child2.borrow(), a_c2, p_c2),
+    ];
+    // C++ dispatches Input() to all viewed panels; Rust only to active.
+    // Compare activation state only (check_received=false).
+    compare_input(&actual, &expected, &["root", "child1", "child2"], false).unwrap();
+}

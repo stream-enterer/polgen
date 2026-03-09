@@ -171,6 +171,46 @@ impl PanelBehavior for RecordingBehavior {
     }
 }
 
+/// A behavior that accumulates notice flags into a shared bitfield.
+pub struct NoticeBehavior {
+    pub accumulated: Rc<RefCell<NoticeFlags>>,
+}
+
+impl NoticeBehavior {
+    pub fn new(accumulated: Rc<RefCell<NoticeFlags>>) -> Self {
+        Self { accumulated }
+    }
+}
+
+impl PanelBehavior for NoticeBehavior {
+    fn notice(&mut self, flags: NoticeFlags, _state: &PanelState) {
+        self.accumulated.borrow_mut().insert(flags);
+    }
+}
+
+/// A behavior that tracks whether input was received.
+pub struct InputTrackingBehavior {
+    pub input_received: Rc<RefCell<bool>>,
+}
+
+impl InputTrackingBehavior {
+    pub fn new(input_received: Rc<RefCell<bool>>) -> Self {
+        Self { input_received }
+    }
+}
+
+impl PanelBehavior for InputTrackingBehavior {
+    fn input(
+        &mut self,
+        _event: &InputEvent,
+        _state: &PanelState,
+        _input_state: &InputState,
+    ) -> bool {
+        *self.input_received.borrow_mut() = true;
+        false // don't consume — let default behavior handle activation
+    }
+}
+
 /// Behavior that calls closures on notice/layout_children for tree mutation tests.
 pub struct MutatingBehavior {
     pub on_layout: Option<Box<dyn FnMut(&mut PanelCtx)>>,

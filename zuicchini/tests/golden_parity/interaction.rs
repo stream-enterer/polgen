@@ -105,7 +105,7 @@ fn interaction_focus_click() {
     let expected = load_behavioral_golden("focus_click");
     let (mut tree, mut view, root, child1, child2) = three_panel_tree();
 
-    view.set_window_focused(true);
+    view.set_window_focused(&mut tree, true);
     view.set_active_panel(&mut tree, child1, true);
 
     let actual = vec![
@@ -155,7 +155,7 @@ fn interaction_focus_tab_forward() {
     let expected = load_behavioral_golden("focus_tab_forward");
     let (mut tree, mut view, root, child1, child2) = three_panel_tree();
 
-    view.set_window_focused(true);
+    view.set_window_focused(&mut tree, true);
     view.set_active_panel(&mut tree, child1, true);
     view.visit_next(&mut tree);
 
@@ -174,7 +174,7 @@ fn interaction_focus_tab_backward() {
     let expected = load_behavioral_golden("focus_tab_backward");
     let (mut tree, mut view, root, child1, child2) = three_panel_tree();
 
-    view.set_window_focused(true);
+    view.set_window_focused(&mut tree, true);
     view.set_active_panel(&mut tree, child2, true);
     view.visit_prev(&mut tree);
 
@@ -206,7 +206,7 @@ fn interaction_focus_unfocusable_skip() {
     view.update_viewing(&mut tree);
 
     tree.set_focusable(child2, false);
-    view.set_window_focused(true);
+    view.set_window_focused(&mut tree, true);
     view.set_active_panel(&mut tree, child1, true);
     view.visit_next(&mut tree);
 
@@ -238,7 +238,7 @@ fn interaction_focus_nested() {
     let mut view = View::new(root, 100.0, 100.0);
     view.update_viewing(&mut tree);
 
-    view.set_window_focused(true);
+    view.set_window_focused(&mut tree, true);
     view.set_active_panel(&mut tree, child1, true);
     view.visit_in(&mut tree);
 
@@ -258,7 +258,7 @@ fn interaction_focus_remove_focused() {
     let expected = load_behavioral_golden("focus_remove_focused");
     let (mut tree, mut view, root, child1, child2) = three_panel_tree();
 
-    view.set_window_focused(true);
+    view.set_window_focused(&mut tree, true);
     view.set_active_panel(&mut tree, child1, true);
     view.remove_panel(&mut tree, child1);
 

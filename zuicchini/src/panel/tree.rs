@@ -353,6 +353,11 @@ impl PanelTree {
         self.root
     }
 
+    /// Collect all panel IDs in the tree.
+    pub(crate) fn panel_ids(&self) -> Vec<PanelId> {
+        self.panels.keys().collect()
+    }
+
     /// Get a panel's data (crate-internal).
     pub(crate) fn get(&self, id: PanelId) -> Option<&PanelData> {
         self.panels.get(id)
