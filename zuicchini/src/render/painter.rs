@@ -505,17 +505,17 @@ impl<'a> Painter<'a> {
 
         let verts = self.ellipse_polygon(cx, cy, rx, ry);
 
-        let fixed_verts: Vec<(Fixed12, Fixed12)> = verts
+        let pixel_verts: Vec<(f64, f64)> = verts
             .iter()
             .map(|&(x, y)| {
                 (
-                    Fixed12::from_f64(x * self.state.scale_x + self.state.offset_x),
-                    Fixed12::from_f64(y * self.state.scale_y + self.state.offset_y),
+                    x * self.state.scale_x + self.state.offset_x,
+                    y * self.state.scale_y + self.state.offset_y,
                 )
             })
             .collect();
 
-        let rows = scanline::rasterize(&fixed_verts, self.state.clip, WindingRule::NonZero);
+        let rows = scanline::rasterize(&pixel_verts, self.state.clip, WindingRule::NonZero);
 
         let pcx = cx * self.state.scale_x + self.state.offset_x;
         let pcy = cy * self.state.scale_y + self.state.offset_y;
@@ -3034,17 +3034,17 @@ impl<'a> Painter<'a> {
             return;
         }
 
-        let fixed_verts: Vec<(Fixed12, Fixed12)> = vertices
+        let pixel_verts: Vec<(f64, f64)> = vertices
             .iter()
             .map(|&(x, y)| {
                 (
-                    Fixed12::from_f64(x * self.state.scale_x + self.state.offset_x),
-                    Fixed12::from_f64(y * self.state.scale_y + self.state.offset_y),
+                    x * self.state.scale_x + self.state.offset_x,
+                    y * self.state.scale_y + self.state.offset_y,
                 )
             })
             .collect();
 
-        let rows = scanline::rasterize(&fixed_verts, self.state.clip, rule);
+        let rows = scanline::rasterize(&pixel_verts, self.state.clip, rule);
 
         for (y, spans) in &rows {
             for span in spans {
@@ -3132,17 +3132,17 @@ impl<'a> Painter<'a> {
             return;
         }
 
-        let fixed_verts: Vec<(Fixed12, Fixed12)> = vertices
+        let pixel_verts: Vec<(f64, f64)> = vertices
             .iter()
             .map(|&(x, y)| {
                 (
-                    Fixed12::from_f64(x * self.state.scale_x + self.state.offset_x),
-                    Fixed12::from_f64(y * self.state.scale_y + self.state.offset_y),
+                    x * self.state.scale_x + self.state.offset_x,
+                    y * self.state.scale_y + self.state.offset_y,
                 )
             })
             .collect();
 
-        let rows = scanline::rasterize(&fixed_verts, self.state.clip, rule);
+        let rows = scanline::rasterize(&pixel_verts, self.state.clip, rule);
 
         // Pre-transform texture coordinates to pixel space.
         // Extract state values to avoid borrowing self through the loop.

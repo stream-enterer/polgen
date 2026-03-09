@@ -7,19 +7,6 @@ pub(crate) enum WindingRule {
     NonZero,
 }
 
-/// Edge in the active edge table.
-#[derive(Clone, Debug)]
-struct Edge {
-    /// X at current scanline (fixed-point, updated per row).
-    x_cur: Fixed12,
-    /// Change in x per scanline row.
-    dx_per_row: Fixed12,
-    /// Bottom scanline (exclusive).
-    y_bot: i32,
-    /// +1 for downward edge, -1 for upward (used by NonZero winding).
-    direction: i8,
-}
-
 /// A horizontal span with per-pixel opacity for AA.
 #[derive(Clone, Debug)]
 pub(crate) struct Span {
@@ -33,8 +20,464 @@ pub(crate) struct Span {
     pub opacity_end: u8,
 }
 
-/// Build edge list from polygon vertices, sorted by y_top.
-fn build_edges(vertices: &[(Fixed12, Fixed12)]) -> Vec<(i32, Edge)> {
+/// Rasterize polygon into per-scanline spans with AA coverage.
+///
+/// Vertices are in pixel-space f64 coordinates. NonZero uses the C++-ported
+/// polynomial coverage algorithm; EvenOdd uses edge-crossing with Fixed12.
+pub(crate) fn rasterize(
+    vertices: &[(f64, f64)],
+    clip: PixelRect,
+    winding_rule: WindingRule,
+) -> Vec<(i32, Vec<Span>)> {
+    match winding_rule {
+        WindingRule::NonZero => rasterize_polynomial(vertices, clip),
+        WindingRule::EvenOdd => rasterize_edge_crossing(vertices, clip),
+    }
+}
+
+// ─── Polynomial coverage rasterizer (NonZero) ───────────────────────
+
+/// Scan entry: quadratic polynomial coefficients at a pixel x position.
+#[derive(Clone, Debug)]
+struct ScanEntry {
+    a0: f64,
+    a1: f64,
+    a2: f64,
+    x: i32,
+}
+
+/// Insert or accumulate a scan entry into the sorted entry list for a scanline.
+fn add_scan_entry(scanlines: &mut [Vec<ScanEntry>], row: i32, x: i32, a0: f64, a1: f64, a2: f64) {
+    if row < 0 || row as usize >= scanlines.len() {
+        return;
+    }
+    let entries = &mut scanlines[row as usize];
+    match entries.binary_search_by_key(&x, |e| e.x) {
+        Ok(idx) => {
+            entries[idx].a0 += a0;
+            entries[idx].a1 += a1;
+            entries[idx].a2 += a2;
+        }
+        Err(idx) => {
+            entries.insert(idx, ScanEntry { a0, a1, a2, x });
+        }
+    }
+}
+
+/// Convert 0-4096 opacity to 0-255, matching C++ `(255*o+2048)>>12`.
+fn cvt(o: i32) -> u8 {
+    ((255 * o + 2048) >> 12).clamp(0, 255) as u8
+}
+
+/// Round absolute value: `(int)(a0 >= 0 ? 0.5 + a0 : 0.5 - a0)`.
+fn round_abs(a: f64) -> i32 {
+    if a >= 0.0 {
+        (0.5 + a) as i32
+    } else {
+        (0.5 - a) as i32
+    }
+}
+
+/// Build a Span from polynomial coverage values (in 0-4096 scale).
+fn make_poly_span(x: i32, w: i32, alpha: i32, alpha2: i32, alpha3: i32) -> Span {
+    if w == 1 {
+        let o = cvt(alpha);
+        Span {
+            x_start: x,
+            x_end: x + 1,
+            opacity_beg: o,
+            opacity_mid: o,
+            opacity_end: o,
+        }
+    } else if w == 2 {
+        Span {
+            x_start: x,
+            x_end: x + 2,
+            opacity_beg: cvt(alpha),
+            opacity_mid: cvt(alpha),
+            opacity_end: cvt(alpha2),
+        }
+    } else {
+        Span {
+            x_start: x,
+            x_end: x + w,
+            opacity_beg: cvt(alpha),
+            opacity_mid: cvt(alpha2),
+            opacity_end: cvt(alpha3),
+        }
+    }
+}
+
+/// Polynomial AA coverage rasterizer, ported from C++ emPainter::PaintPolygon.
+fn rasterize_polynomial(vertices: &[(f64, f64)], clip: PixelRect) -> Vec<(i32, Vec<Span>)> {
+    let n = vertices.len();
+    if n < 3 {
+        return Vec::new();
+    }
+
+    // Compute polygon bounding box (vertices are already in pixel space).
+    let mut min_x = vertices[0].0;
+    let mut max_x = vertices[0].0;
+    let mut min_y = vertices[0].1;
+    let mut max_y = vertices[0].1;
+    for &(x, y) in &vertices[1..] {
+        if x < min_x {
+            min_x = x;
+        } else if x > max_x {
+            max_x = x;
+        }
+        if y < min_y {
+            min_y = y;
+        } else if y > max_y {
+            max_y = y;
+        }
+    }
+
+    // Intersect with clip rect.
+    let clip_x1 = clip.x as f64;
+    let clip_y1 = clip.y as f64;
+    let clip_x2 = (clip.x + clip.w) as f64;
+    let clip_y2 = (clip.y + clip.h) as f64;
+
+    if min_y < clip_y1 {
+        min_y = clip_y1;
+    }
+    if max_y > clip_y2 {
+        max_y = clip_y2;
+    }
+    if min_y >= max_y {
+        return Vec::new();
+    }
+    if min_x < clip_x1 {
+        min_x = clip_x1;
+    }
+    if max_x > clip_x2 - 0.0001 {
+        max_x = clip_x2 - 0.0001;
+    }
+    if min_x >= max_x {
+        return Vec::new();
+    }
+
+    let sly1 = min_y as i32;
+    let sly2 = max_y.ceil() as i32;
+    let num_scanlines = (sly2 - sly1) as usize;
+    if num_scanlines == 0 {
+        return Vec::new();
+    }
+
+    let mut scanlines: Vec<Vec<ScanEntry>> = vec![Vec::new(); num_scanlines];
+
+    // Process edges in reverse order, matching C++ iteration.
+    let mut x0 = vertices[0].0;
+    let mut y0_iter = vertices[0].1;
+
+    for i in (0..n).rev() {
+        let y1_prev = y0_iter;
+        y0_iter = vertices[i].1;
+
+        let (mut x1, mut y1, mut x2, mut y2, va);
+        if y1_prev > y0_iter {
+            y1 = y0_iter;
+            y2 = y1_prev;
+            x2 = x0;
+            x1 = vertices[i].0;
+            x0 = x1;
+            va = 4096.0_f64;
+        } else {
+            y1 = y1_prev;
+            y2 = y0_iter;
+            x1 = x0;
+            x2 = vertices[i].0;
+            x0 = x2;
+            va = -4096.0_f64;
+        }
+
+        if y1 >= max_y || y2 <= min_y {
+            continue;
+        }
+
+        // Y-clip.
+        if y1 < min_y {
+            if y2 - y1 >= 0.0001 {
+                x1 += (min_y - y1) * (x2 - x1) / (y2 - y1);
+            }
+            y1 = min_y;
+        }
+        if y2 > max_y {
+            if y2 - y1 >= 0.0001 {
+                x2 += (max_y - y2) * (x2 - x1) / (y2 - y1);
+            }
+            y2 = max_y;
+        }
+
+        // X-clip: may produce 0-2 extra vertical segments.
+        let mut extra_count = 0usize;
+        let mut ex1 = [0.0_f64; 2];
+        let mut ey1_arr = [0.0_f64; 2];
+        let mut ex2 = [0.0_f64; 2];
+        let mut ey2_arr = [0.0_f64; 2];
+
+        if x1 < x2 {
+            if x1 < min_x {
+                if x2 > min_x && x2 - x1 >= 0.0001 {
+                    ey1_arr[0] = y1;
+                    y1 += (min_x - x1) * (y2 - y1) / (x2 - x1);
+                    ey2_arr[0] = y1;
+                    ex1[0] = min_x;
+                    ex2[0] = min_x;
+                    x1 = min_x;
+                    extra_count = 1;
+                } else {
+                    x1 = min_x;
+                    x2 = min_x;
+                }
+            }
+            if x2 > max_x {
+                if x1 < max_x && x2 - x1 >= 0.0001 {
+                    ey2_arr[extra_count] = y2;
+                    y2 += (max_x - x2) * (y2 - y1) / (x2 - x1);
+                    ey1_arr[extra_count] = y2;
+                    ex1[extra_count] = max_x;
+                    ex2[extra_count] = max_x;
+                    x2 = max_x;
+                    extra_count += 1;
+                } else {
+                    x1 = max_x;
+                    x2 = max_x;
+                }
+            }
+        } else {
+            if x1 > max_x {
+                if x2 < max_x && x2 - x1 <= -0.0001 {
+                    ey1_arr[0] = y1;
+                    y1 += (max_x - x1) * (y2 - y1) / (x2 - x1);
+                    ey2_arr[0] = y1;
+                    ex1[0] = max_x;
+                    ex2[0] = max_x;
+                    x1 = max_x;
+                    extra_count = 1;
+                } else {
+                    x1 = max_x;
+                    x2 = max_x;
+                }
+            }
+            if x2 < min_x {
+                if x1 > min_x && x2 - x1 <= -0.0001 {
+                    ey2_arr[extra_count] = y2;
+                    y2 += (min_x - x2) * (y2 - y1) / (x2 - x1);
+                    ey1_arr[extra_count] = y2;
+                    ex1[extra_count] = min_x;
+                    ex2[extra_count] = min_x;
+                    x2 = min_x;
+                    extra_count += 1;
+                } else {
+                    x1 = min_x;
+                    x2 = min_x;
+                }
+            }
+        }
+
+        // Process main segment, then any extra vertical segments from x-clipping.
+        loop {
+            let dy = y2 - y1;
+            if dy >= 0.0001 {
+                let mut sy = y1 as i32;
+                let sy2 = (y2.ceil() as i32) - 1;
+                let ax = x1.floor();
+                let mut sx = ax as i32;
+                let mut t = ax + 1.0 - x1;
+                let dx = x2 - x1;
+
+                if dx >= 0.0001 || dx <= -0.0001 {
+                    // Non-vertical edge: quadratic polynomial.
+                    let a2 = va * dy / dx;
+                    let mut a0 = t * t * 0.5 * a2;
+                    let mut a1 = (t + 0.5) * a2;
+                    let dx_per_row = dx / dy;
+                    let mut x_cur = x1 + (sy as f64 + 1.0 - y1) * dx_per_row;
+
+                    loop {
+                        if sy >= sy2 {
+                            if sy > sy2 {
+                                break;
+                            }
+                            x_cur = x2;
+                        }
+                        add_scan_entry(&mut scanlines, sy - sly1, sx, a0, a1, a2);
+                        let ax2 = x_cur.floor();
+                        sx = ax2 as i32;
+                        t = ax2 + 1.0 - x_cur;
+                        a0 = t * t * 0.5 * a2;
+                        a1 = (t + 0.5) * a2;
+                        add_scan_entry(&mut scanlines, sy - sly1, sx, -a0, -a1, -a2);
+                        x_cur += dx_per_row;
+                        sy += 1;
+                    }
+                } else {
+                    // Near-vertical edge: linear polynomial.
+                    let mut a1 = va * (sy as f64 + 1.0 - y1);
+                    loop {
+                        if sy >= sy2 {
+                            if sy > sy2 {
+                                break;
+                            }
+                            a1 -= va * (sy2 as f64 + 1.0 - y2);
+                        }
+                        let a0 = t * a1;
+                        add_scan_entry(&mut scanlines, sy - sly1, sx, a0, a1, 0.0);
+                        a1 = va;
+                        sy += 1;
+                    }
+                }
+            }
+
+            if extra_count == 0 {
+                break;
+            }
+            extra_count -= 1;
+            x1 = ex1[extra_count];
+            y1 = ey1_arr[extra_count];
+            x2 = ex2[extra_count];
+            y2 = ey2_arr[extra_count];
+        }
+    }
+
+    // Coverage inner loop: walk scan entries per scanline and emit spans.
+    let mut result: Vec<(i32, Vec<Span>)> = Vec::with_capacity(num_scanlines);
+
+    for (idx, entries) in scanlines.iter().enumerate() {
+        if entries.is_empty() {
+            continue;
+        }
+
+        let sy = sly1 + idx as i32;
+        let spans = compute_spans_polynomial(entries);
+        if !spans.is_empty() {
+            result.push((sy, spans));
+        }
+    }
+
+    result
+}
+
+/// Walk sorted scan entries for one scanline and emit coverage spans.
+/// Ported from C++ emPainter lines 637-716.
+fn compute_spans_polynomial(entries: &[ScanEntry]) -> Vec<Span> {
+    let mut spans = Vec::new();
+    let mut a1 = 0.0_f64;
+    let mut a2 = 0.0_f64;
+    let mut ei = 0;
+    let mut sx = entries[0].x;
+
+    loop {
+        // Forward-difference step + accumulate entries at sx.
+        let mut a0 = a1;
+        a1 += a2;
+        while ei < entries.len() && entries[ei].x == sx {
+            a0 += entries[ei].a0;
+            a1 += entries[ei].a1;
+            a2 += entries[ei].a2;
+            ei += 1;
+        }
+        let sx0 = sx;
+        sx += 1;
+        let alpha = round_abs(a0);
+
+        if alpha == 0 {
+            // Skip optimization: predict polynomial at next entry's position.
+            if ei < entries.len() && entries[ei].x > sx {
+                let t = a1 + a2 * (entries[ei].x - 1 - sx) as f64;
+                let ta = round_abs(t);
+                if ta == 0 {
+                    a1 = t + a2;
+                    sx = entries[ei].x;
+                }
+            }
+            if ei >= entries.len() {
+                break;
+            }
+            continue;
+        }
+
+        if ei >= entries.len() {
+            spans.push(make_poly_span(sx0, 1, alpha, 0, 0));
+            break;
+        }
+
+        // Read second pixel.
+        a0 = a1;
+        a1 += a2;
+        while ei < entries.len() && entries[ei].x == sx {
+            a0 += entries[ei].a0;
+            a1 += entries[ei].a1;
+            a2 += entries[ei].a2;
+            ei += 1;
+        }
+        sx += 1;
+        let alpha2 = round_abs(a0);
+
+        if alpha2 == 0 {
+            spans.push(make_poly_span(sx0, 1, alpha, 0, 0));
+            if ei >= entries.len() {
+                break;
+            }
+            continue;
+        }
+
+        if ei >= entries.len() {
+            spans.push(make_poly_span(sx0, 2, alpha, 0, alpha2));
+            break;
+        }
+
+        // Skip optimization: if alpha2 is constant until next entry, jump ahead.
+        if entries[ei].x > sx {
+            let t = a1 + a2 * (entries[ei].x - 1 - sx) as f64;
+            let ta = round_abs(t);
+            if alpha2 == ta {
+                a1 = t + a2;
+                sx = entries[ei].x;
+            }
+        }
+
+        // Read third pixel.
+        a0 = a1;
+        a1 += a2;
+        while ei < entries.len() && entries[ei].x == sx {
+            a0 += entries[ei].a0;
+            a1 += entries[ei].a1;
+            a2 += entries[ei].a2;
+            ei += 1;
+        }
+        sx += 1;
+        let alpha3 = round_abs(a0);
+
+        if alpha3 == 0 {
+            spans.push(make_poly_span(sx0, sx - 1 - sx0, alpha, alpha2, alpha2));
+        } else {
+            spans.push(make_poly_span(sx0, sx - sx0, alpha, alpha2, alpha3));
+        }
+
+        if ei >= entries.len() {
+            break;
+        }
+    }
+
+    spans
+}
+
+// ─── Edge-crossing rasterizer (EvenOdd) ─────────────────────────────
+
+/// Edge in the active edge table (used by edge-crossing rasterizer).
+#[derive(Clone, Debug)]
+struct Edge {
+    x_cur: Fixed12,
+    dx_per_row: Fixed12,
+    y_bot: i32,
+    direction: i8,
+}
+
+/// Build edge list from f64 vertices, converting to Fixed12 internally.
+fn build_edges(vertices: &[(f64, f64)]) -> Vec<(i32, Edge)> {
     let n = vertices.len();
     if n < 3 {
         return Vec::new();
@@ -43,10 +486,14 @@ fn build_edges(vertices: &[(Fixed12, Fixed12)]) -> Vec<(i32, Edge)> {
     let mut edges: Vec<(i32, Edge)> = Vec::with_capacity(n);
 
     for i in 0..n {
-        let (x0, y0) = vertices[i];
-        let (x1, y1) = vertices[(i + 1) % n];
+        let (x0f, y0f) = vertices[i];
+        let (x1f, y1f) = vertices[(i + 1) % n];
 
-        // Skip horizontal edges.
+        let x0 = Fixed12::from_f64(x0f);
+        let y0 = Fixed12::from_f64(y0f);
+        let x1 = Fixed12::from_f64(x1f);
+        let y1 = Fixed12::from_f64(y1f);
+
         let iy0 = y0.ceil().to_i32();
         let iy1 = y1.ceil().to_i32();
         if iy0 == iy1 {
@@ -61,18 +508,14 @@ fn build_edges(vertices: &[(Fixed12, Fixed12)]) -> Vec<(i32, Edge)> {
 
         let dy_fixed = y1 - y0;
         let dx_fixed = x1 - x0;
-        // dx_per_row = dx / dy (in fixed-point, but we need per-integer-row step).
-        // Using raw values: dx_per_row_raw = dx_raw * 4096 / dy_raw
         let dx_per_row = if dy_fixed.raw() != 0 {
             Fixed12::from_raw(((dx_fixed.raw() as i64 * 4096) / dy_fixed.raw() as i64) as i32)
         } else {
             Fixed12::ZERO
         };
 
-        // Pre-step x to the first scanline.
         let prestep = Fixed12::from_i32(top_iy) - if direction > 0 { y0 } else { y1 };
-        let x_at_top = top_x;
-        let x_start = x_at_top
+        let x_start = top_x
             + Fixed12::from_raw(((dx_per_row.raw() as i64 * prestep.raw() as i64) >> 12) as i32);
 
         edges.push((
@@ -90,12 +533,8 @@ fn build_edges(vertices: &[(Fixed12, Fixed12)]) -> Vec<(i32, Edge)> {
     edges
 }
 
-/// Rasterize polygon edges into per-scanline spans with AA coverage.
-pub(crate) fn rasterize(
-    vertices: &[(Fixed12, Fixed12)],
-    clip: PixelRect,
-    winding_rule: WindingRule,
-) -> Vec<(i32, Vec<Span>)> {
+/// Edge-crossing rasterizer for EvenOdd winding rule.
+fn rasterize_edge_crossing(vertices: &[(f64, f64)], clip: PixelRect) -> Vec<(i32, Vec<Span>)> {
     let edges = build_edges(vertices);
     if edges.is_empty() {
         return Vec::new();
@@ -106,7 +545,6 @@ pub(crate) fn rasterize(
     let clip_x_start = clip.x;
     let clip_x_end = clip.x + clip.w;
 
-    // Find y range.
     let y_min = edges.first().map(|(y, _)| *y).unwrap_or(0);
     let y_max = edges.iter().map(|(_, e)| e.y_bot).max().unwrap_or(0);
     let scan_start = y_min.max(clip_y_start);
@@ -117,18 +555,14 @@ pub(crate) fn rasterize(
     }
 
     let mut result: Vec<(i32, Vec<Span>)> = Vec::with_capacity((scan_end - scan_start) as usize);
-
-    // Active edge table.
     let mut aet: Vec<Edge> = Vec::new();
     let mut edge_idx = 0;
 
     for y in scan_start..scan_end {
-        // Add new edges that start at this scanline.
         while edge_idx < edges.len() && edges[edge_idx].0 <= y {
             let (y_top, edge) = &edges[edge_idx];
             if edge.y_bot > y && *y_top <= y {
                 let mut e = edge.clone();
-                // Advance x to current scanline if edge started before scan_start.
                 let rows_to_skip = y - *y_top;
                 if rows_to_skip > 0 {
                     e.x_cur += Fixed12::from_raw(
@@ -140,24 +574,19 @@ pub(crate) fn rasterize(
             edge_idx += 1;
         }
 
-        // Remove expired edges.
         aet.retain(|e| e.y_bot > y);
 
         if aet.is_empty() {
             continue;
         }
 
-        // Sort by x_cur.
         aet.sort_by_key(|e| e.x_cur.raw());
-
-        // Generate spans from sorted edges.
-        let spans = generate_spans(&aet, winding_rule, clip_x_start, clip_x_end);
+        let spans = generate_spans_edge_crossing(&aet, clip_x_start, clip_x_end);
 
         if !spans.is_empty() {
             result.push((y, spans));
         }
 
-        // Advance x for next scanline.
         for e in &mut aet {
             e.x_cur += e.dx_per_row;
         }
@@ -166,40 +595,28 @@ pub(crate) fn rasterize(
     result
 }
 
-/// Generate spans from sorted active edges for one scanline.
-///
-/// Edges at the same x position are grouped and their winding contributions
-/// accumulated atomically. This ensures bridge edges (same geometric line
-/// traversed in opposite directions) cancel without creating AA seams.
-fn generate_spans(
-    aet: &[Edge],
-    winding_rule: WindingRule,
-    clip_x_start: i32,
-    clip_x_end: i32,
-) -> Vec<Span> {
+/// Generate spans from sorted active edges using even-odd winding.
+fn generate_spans_edge_crossing(aet: &[Edge], clip_x_start: i32, clip_x_end: i32) -> Vec<Span> {
     let mut spans = Vec::new();
     let mut winding = 0i32;
     let mut i = 0;
     let mut x_enter = Fixed12::ZERO;
 
     while i < aet.len() {
-        let inside_before = is_inside(winding, winding_rule);
+        let inside_before = winding & 1 != 0;
         let x_cur = aet[i].x_cur;
 
-        // Accumulate winding for all edges at this x position.
         while i < aet.len() && aet[i].x_cur == x_cur {
             winding += aet[i].direction as i32;
             i += 1;
         }
 
-        let inside_after = is_inside(winding, winding_rule);
+        let inside_after = winding & 1 != 0;
 
         if !inside_before && inside_after {
-            // Entering filled region.
             x_enter = x_cur;
         } else if inside_before && !inside_after {
-            // Exiting filled region.
-            if let Some(span) = make_span(x_enter, x_cur, clip_x_start, clip_x_end) {
+            if let Some(span) = make_edge_span(x_enter, x_cur, clip_x_start, clip_x_end) {
                 spans.push(span);
             }
         }
@@ -208,15 +625,8 @@ fn generate_spans(
     spans
 }
 
-fn is_inside(winding: i32, rule: WindingRule) -> bool {
-    match rule {
-        WindingRule::EvenOdd => winding & 1 != 0,
-        WindingRule::NonZero => winding != 0,
-    }
-}
-
 /// Create a span from fixed-point enter/exit x coordinates with AA coverage.
-fn make_span(
+fn make_edge_span(
     x_enter: Fixed12,
     x_exit: Fixed12,
     clip_x_start: i32,
@@ -225,8 +635,6 @@ fn make_span(
     let x0 = x_enter.to_i32();
     let x1 = x_exit.to_i32();
 
-    // The pixel range to fill (inclusive start, exclusive end in pixel coords).
-    // If exit edge lands exactly on a pixel boundary (frac=0), the last filled pixel is x1-1.
     let px_start = x0.max(clip_x_start);
     let px_end = if x_exit.frac() == 0 { x1 } else { x1 + 1 }.min(clip_x_end);
 
@@ -234,19 +642,15 @@ fn make_span(
         return None;
     }
 
-    // Compute AA coverage from fractional parts.
     let frac_enter = x_enter.frac();
     let frac_exit = x_exit.frac();
 
-    // Opacity for the leftmost pixel: how much of it is covered.
-    // If the edge enters at frac_enter into the pixel, coverage = (4096 - frac_enter) / 4096.
     let opacity_beg = if x0 >= clip_x_start {
         ((4096 - frac_enter) * 255 / 4096) as u8
     } else {
         255
     };
 
-    // Opacity for the rightmost pixel: coverage = frac_exit / 4096.
     let opacity_end = if frac_exit == 0 {
         255
     } else if x1 < clip_x_end {
@@ -255,9 +659,7 @@ fn make_span(
         255
     };
 
-    // Single-pixel span.
     if px_end - px_start == 1 {
-        // Both edges in same pixel: coverage = (x_exit - x_enter) / 4096.
         let coverage = x_exit.raw() - x_enter.raw();
         let opacity = (coverage.max(0) * 255 / 4096) as u8;
         return Some(Span {
@@ -282,13 +684,8 @@ fn make_span(
 mod tests {
     use super::*;
 
-    fn rect_vertices(x: f64, y: f64, w: f64, h: f64) -> Vec<(Fixed12, Fixed12)> {
-        vec![
-            (Fixed12::from_f64(x), Fixed12::from_f64(y)),
-            (Fixed12::from_f64(x + w), Fixed12::from_f64(y)),
-            (Fixed12::from_f64(x + w), Fixed12::from_f64(y + h)),
-            (Fixed12::from_f64(x), Fixed12::from_f64(y + h)),
-        ]
+    fn rect_vertices(x: f64, y: f64, w: f64, h: f64) -> Vec<(f64, f64)> {
+        vec![(x, y), (x + w, y), (x + w, y + h), (x, y + h)]
     }
 
     #[test]
@@ -326,7 +723,6 @@ mod tests {
         assert_eq!(rows.len(), 2);
         for (_, spans) in &rows {
             assert_eq!(spans.len(), 1);
-            // Left edge at 10.5 means partial coverage on pixel 10.
             assert!(spans[0].opacity_beg < 255);
         }
     }
@@ -353,7 +749,7 @@ mod tests {
 
     #[test]
     fn empty_polygon() {
-        let verts: Vec<(Fixed12, Fixed12)> = vec![];
+        let verts: Vec<(f64, f64)> = vec![];
         let clip = PixelRect {
             x: 0,
             y: 0,
@@ -366,11 +762,7 @@ mod tests {
 
     #[test]
     fn triangle() {
-        let verts = vec![
-            (Fixed12::from_f64(50.0), Fixed12::from_f64(10.0)),
-            (Fixed12::from_f64(90.0), Fixed12::from_f64(90.0)),
-            (Fixed12::from_f64(10.0), Fixed12::from_f64(90.0)),
-        ];
+        let verts = vec![(50.0, 10.0), (90.0, 90.0), (10.0, 90.0)];
         let clip = PixelRect {
             x: 0,
             y: 0,
@@ -379,7 +771,6 @@ mod tests {
         };
         let rows = rasterize(&verts, clip, WindingRule::EvenOdd);
         assert!(!rows.is_empty());
-        // The triangle should produce spans that get wider toward the bottom.
         let first_width = {
             let s = &rows[0].1[0];
             s.x_end - s.x_start
@@ -393,23 +784,20 @@ mod tests {
 
     #[test]
     fn nonzero_vs_evenodd_concentric() {
-        // A polygon ring (outer CW, inner CCW) — NonZero fills ring, EvenOdd also fills ring.
-        // Outer square 0,0 -> 20,20 CW.
-        // Inner square 5,5 -> 15,15 CCW.
+        // Outer CW square + inner CCW square = ring.
         let verts = vec![
-            // Outer CW
-            (Fixed12::from_f64(0.0), Fixed12::from_f64(0.0)),
-            (Fixed12::from_f64(20.0), Fixed12::from_f64(0.0)),
-            (Fixed12::from_f64(20.0), Fixed12::from_f64(20.0)),
-            (Fixed12::from_f64(0.0), Fixed12::from_f64(20.0)),
+            (0.0, 0.0),
+            (20.0, 0.0),
+            (20.0, 20.0),
+            (0.0, 20.0),
             // Bridge to inner
-            (Fixed12::from_f64(0.0), Fixed12::from_f64(0.0)),
+            (0.0, 0.0),
             // Inner CCW
-            (Fixed12::from_f64(5.0), Fixed12::from_f64(5.0)),
-            (Fixed12::from_f64(5.0), Fixed12::from_f64(15.0)),
-            (Fixed12::from_f64(15.0), Fixed12::from_f64(15.0)),
-            (Fixed12::from_f64(15.0), Fixed12::from_f64(5.0)),
-            (Fixed12::from_f64(5.0), Fixed12::from_f64(5.0)),
+            (5.0, 5.0),
+            (5.0, 15.0),
+            (15.0, 15.0),
+            (15.0, 5.0),
+            (5.0, 5.0),
         ];
         let clip = PixelRect {
             x: 0,
@@ -418,9 +806,7 @@ mod tests {
             h: 30,
         };
 
-        // With NonZero, the inner CCW cancels the outer CW, creating a hole.
         let rows = rasterize(&verts, clip, WindingRule::NonZero);
-        // Check a middle scanline (y=10) — should have two spans (left and right of hole).
         let mid_row = rows.iter().find(|(y, _)| *y == 10);
         assert!(mid_row.is_some(), "Should have scanline at y=10");
         let spans = &mid_row.unwrap().1;
@@ -433,11 +819,10 @@ mod tests {
 
     #[test]
     fn thin_triangle_narrow_spans() {
-        // A tall, narrow triangle pointing up — spans should be narrow, not inflated.
         let verts = vec![
-            (Fixed12::from_f64(50.0), Fixed12::from_f64(10.0)), // apex
-            (Fixed12::from_f64(52.0), Fixed12::from_f64(90.0)), // bottom-right
-            (Fixed12::from_f64(48.0), Fixed12::from_f64(90.0)), // bottom-left
+            (50.0, 10.0), // apex
+            (52.0, 90.0), // bottom-right
+            (48.0, 90.0), // bottom-left
         ];
         let clip = PixelRect {
             x: 0,
@@ -447,7 +832,6 @@ mod tests {
         };
         let rows = rasterize(&verts, clip, WindingRule::EvenOdd);
         assert!(!rows.is_empty());
-        // Near the apex (first few scanlines), width must be <= 3 pixels.
         for (_, spans) in rows.iter().take(5) {
             assert_eq!(spans.len(), 1, "should have exactly one span per row");
             let width = spans[0].x_end - spans[0].x_start;
@@ -460,15 +844,7 @@ mod tests {
 
     #[test]
     fn bowtie_quad_two_span_groups() {
-        // A bowtie (self-intersecting quad) — at the crossing scanline, even-odd
-        // should produce two separate filled regions.
-        // Vertices form an X shape: top-left, bottom-right, top-right, bottom-left.
-        let verts = vec![
-            (Fixed12::from_f64(10.0), Fixed12::from_f64(10.0)),
-            (Fixed12::from_f64(90.0), Fixed12::from_f64(90.0)),
-            (Fixed12::from_f64(90.0), Fixed12::from_f64(10.0)),
-            (Fixed12::from_f64(10.0), Fixed12::from_f64(90.0)),
-        ];
+        let verts = vec![(10.0, 10.0), (90.0, 90.0), (90.0, 10.0), (10.0, 90.0)];
         let clip = PixelRect {
             x: 0,
             y: 0,
@@ -477,7 +853,6 @@ mod tests {
         };
         let rows = rasterize(&verts, clip, WindingRule::EvenOdd);
         assert!(!rows.is_empty());
-        // Away from the crossing point (~y=50), there should be 2 spans on some rows.
         let has_two_spans = rows
             .iter()
             .any(|(y, spans)| *y > 20 && *y < 45 && spans.len() == 2);
@@ -485,5 +860,55 @@ mod tests {
             has_two_spans,
             "bowtie should produce 2 separate spans on some scanlines"
         );
+    }
+
+    #[test]
+    fn nonzero_filled_rect() {
+        // Verify the polynomial rasterizer fills a simple rectangle correctly.
+        let verts = rect_vertices(10.0, 10.0, 5.0, 3.0);
+        let clip = PixelRect {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+        };
+        let rows = rasterize(&verts, clip, WindingRule::NonZero);
+        assert_eq!(rows.len(), 3, "Should have 3 scanlines for height=3");
+        for (y, spans) in &rows {
+            assert!(*y >= 10 && *y < 13);
+            assert!(!spans.is_empty());
+            // Check that coverage spans the full rect width.
+            let min_x = spans.iter().map(|s| s.x_start).min().unwrap();
+            let max_x = spans.iter().map(|s| s.x_end).max().unwrap();
+            assert_eq!(min_x, 10);
+            assert_eq!(max_x, 15);
+            // Interior should be fully opaque.
+            for span in spans {
+                assert_eq!(span.opacity_mid, 255);
+            }
+        }
+    }
+
+    #[test]
+    fn nonzero_triangle() {
+        let verts = vec![(50.0, 10.0), (90.0, 90.0), (10.0, 90.0)];
+        let clip = PixelRect {
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+        };
+        let rows = rasterize(&verts, clip, WindingRule::NonZero);
+        assert!(!rows.is_empty());
+        // Triangle should get wider toward the bottom.
+        let first_width: i32 = rows[0].1.iter().map(|s| s.x_end - s.x_start).sum();
+        let last_width: i32 = rows
+            .last()
+            .unwrap()
+            .1
+            .iter()
+            .map(|s| s.x_end - s.x_start)
+            .sum();
+        assert!(last_width > first_width);
     }
 }
