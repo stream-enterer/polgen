@@ -1,4 +1,5 @@
 use std::fmt;
+use std::io::Write;
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -107,6 +108,136 @@ pub fn compare_images(
         Err(CompareError { message: msg })
     } else {
         Ok(())
+    }
+}
+
+// ────────────────────── Image dump helpers ────────────────────────
+
+/// Write RGBA data as PPM (P6 binary) file, dropping the alpha channel.
+pub fn dump_ppm(path: &str, data: &[u8], w: u32, h: u32) {
+    let mut f = std::fs::File::create(path).expect("Cannot create PPM file");
+    write!(f, "P6\n{w} {h}\n255\n").unwrap();
+    for i in 0..(w as usize * h as usize) {
+        let off = i * 4;
+        f.write_all(&data[off..off + 3]).unwrap();
+    }
+}
+
+/// Write a diff visualization: green = match, red = mismatch, brightness = diff magnitude.
+pub fn dump_diff_ppm(path: &str, actual: &[u8], expected: &[u8], w: u32, h: u32) {
+    let total = w as usize * h as usize;
+    let mut rgb = vec![0u8; total * 3];
+    for i in 0..total {
+        let off = i * 4;
+        let max_ch_diff = (0..3)
+            .map(|ch| actual[off + ch].abs_diff(expected[off + ch]))
+            .max()
+            .unwrap_or(0);
+        if max_ch_diff > 1 {
+            // Red channel = diff magnitude (amplified for visibility)
+            rgb[i * 3] = (max_ch_diff as u16 * 4).min(255) as u8;
+            rgb[i * 3 + 1] = 0;
+            rgb[i * 3 + 2] = 0;
+        } else {
+            // Green = matching pixel, dim
+            let luma =
+                ((actual[off] as u16 + actual[off + 1] as u16 + actual[off + 2] as u16) / 3) as u8;
+            rgb[i * 3] = luma / 4;
+            rgb[i * 3 + 1] = luma / 2;
+            rgb[i * 3 + 2] = luma / 4;
+        }
+    }
+    let mut f = std::fs::File::create(path).expect("Cannot create diff PPM file");
+    write!(f, "P6\n{w} {h}\n255\n").unwrap();
+    f.write_all(&rgb).unwrap();
+}
+
+/// Returns true if DUMP_GOLDEN=1 env var is set.
+pub fn dump_golden_enabled() -> bool {
+    std::env::var("DUMP_GOLDEN").map_or(false, |v| v == "1")
+}
+
+/// Dump actual, expected, and diff images for a test.
+pub fn dump_test_images(name: &str, actual: &[u8], expected: &[u8], w: u32, h: u32) {
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("golden_debug");
+    std::fs::create_dir_all(&dir).expect("Cannot create golden_debug/");
+    let dir = dir.to_str().unwrap();
+    dump_ppm(&format!("{dir}/actual_{name}.ppm"), actual, w, h);
+    dump_ppm(&format!("{dir}/expected_{name}.ppm"), expected, w, h);
+    dump_diff_ppm(&format!("{dir}/diff_{name}.ppm"), actual, expected, w, h);
+    eprintln!("  Dumped: {dir}/{{actual,expected,diff}}_{name}.ppm");
+}
+
+/// Print detailed pixel comparison for a specific coordinate.
+pub fn _trace_pixel(name: &str, actual: &[u8], expected: &[u8], w: u32, x: u32, y: u32) {
+    let off = ((y * w + x) * 4) as usize;
+    let ar = actual[off];
+    let ag = actual[off + 1];
+    let ab = actual[off + 2];
+    let aa = actual[off + 3];
+    let er = expected[off];
+    let eg = expected[off + 1];
+    let eb = expected[off + 2];
+    let ea = expected[off + 3];
+    eprintln!(
+        "TRACE {name} ({x},{y}):\n  actual   = rgba({ar},{ag},{ab},{aa})\n  expected = rgba({er},{eg},{eb},{ea})\n  diff     = ({},{},{},{})",
+        ar as i16 - er as i16,
+        ag as i16 - eg as i16,
+        ab as i16 - eb as i16,
+        aa as i16 - ea as i16,
+    );
+}
+
+/// Analyze diff distribution: bucket by max channel diff.
+pub fn analyze_diff_distribution(
+    actual: &[u8],
+    expected: &[u8],
+    w: u32,
+    h: u32,
+    channel_tolerance: u8,
+) {
+    let total = (w * h) as usize;
+    let mut buckets = [0usize; 8]; // 2-3, 4-7, 8-15, 16-31, 32-63, 64-127, 128-191, 192-255
+    let mut total_fail = 0usize;
+    for i in 0..total {
+        let off = i * 4;
+        let max_d = (0..3)
+            .map(|ch| actual[off + ch].abs_diff(expected[off + ch]))
+            .max()
+            .unwrap_or(0);
+        if max_d > channel_tolerance {
+            total_fail += 1;
+            let bucket = if max_d <= 3 {
+                0
+            } else if max_d <= 7 {
+                1
+            } else if max_d <= 15 {
+                2
+            } else if max_d <= 31 {
+                3
+            } else if max_d <= 63 {
+                4
+            } else if max_d <= 127 {
+                5
+            } else if max_d <= 191 {
+                6
+            } else {
+                7
+            };
+            buckets[bucket] += 1;
+        }
+    }
+    eprintln!("DIFF DISTRIBUTION ({total_fail} failing pixels):");
+    let labels = [
+        "2-3", "4-7", "8-15", "16-31", "32-63", "64-127", "128-191", "192-255",
+    ];
+    for (label, &count) in labels.iter().zip(buckets.iter()) {
+        if count > 0 {
+            eprintln!(
+                "  diff {label}: {count} pixels ({:.2}%)",
+                count as f64 / total as f64 * 100.0
+            );
+        }
     }
 }
 

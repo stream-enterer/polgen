@@ -536,18 +536,22 @@ impl ListBox {
         painter.push_state();
         painter.clip_rect(cx, cy, cw, ch);
 
-        // C++ DefaultItemPanel::Paint: each item has its own coordinate system.
-        // Item coords: x=0, y=0, w=item_w, h=item_h.
-        // Margins: dx=min(w,h)*0.15, dy=min(w,h)*0.03.
-        // Selected: round-rect highlight with r=min(w,h)*0.15, inset by min(w,h)*0.015.
+        // C++ emListBox lays out items as child panels that fill the content
+        // area.  Compute row height dynamically so items scale with the widget.
+        let row_h = if self.items.is_empty() {
+            ROW_HEIGHT
+        } else {
+            ch / self.items.len() as f64
+        };
+
         for (i, item) in self.items.iter().enumerate() {
-            let iy = cy + i as f64 * ROW_HEIGHT - self.scroll_y;
-            if iy + ROW_HEIGHT < cy || iy > cy + ch {
+            let iy = cy + i as f64 * row_h - self.scroll_y;
+            if iy + row_h < cy || iy > cy + ch {
                 continue;
             }
 
             let item_w = cw;
-            let item_h = ROW_HEIGHT;
+            let item_h = row_h;
             let s = item_w.min(item_h);
 
             if item.selected {

@@ -143,7 +143,9 @@ impl RadioButton {
     ) -> Self {
         group.borrow_mut().count += 1;
         Self {
-            border: Border::new(OuterBorderType::InstrumentMoreRound).with_caption(caption),
+            border: Border::new(OuterBorderType::InstrumentMoreRound)
+                .with_caption(caption)
+                .with_label_in_border(false),
             look,
             group,
             index,
