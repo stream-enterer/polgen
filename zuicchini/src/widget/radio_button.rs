@@ -298,12 +298,58 @@ impl RadioButton {
         Cursor::Hand
     }
 
+    /// Whether this radio button provides how-to help text.
+    /// Matches C++ `emRadioButton::HasHowTo` (inherited, always true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this radio button.
+    ///
+    /// Chains the border's base how-to with check-button + radio-button
+    /// specific sections. Matches C++ `emRadioButton::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_CHECK_BUTTON);
+        if self.is_selected() {
+            text.push_str(HOWTO_CHECKED);
+        } else {
+            text.push_str(HOWTO_NOT_CHECKED);
+        }
+        text.push_str(HOWTO_RADIO_BUTTON);
+        text
+    }
+
     pub fn preferred_size(&self) -> (f64, f64) {
         let th = 13.0;
         let tw = Painter::measure_text_width(&self.border.caption, th);
         self.border.preferred_size_for_content(tw + 8.0, th + 4.0)
     }
 }
+
+/// C++ `emCheckButton::HowToCheckButton` (shared with check button).
+const HOWTO_CHECK_BUTTON: &str = "\n\n\
+    CHECK BUTTON\n\n\
+    This button can have checked or unchecked state. Usually this is a yes-or-no\n\
+    answer to a question. Whenever the button is triggered, the check state toggles.\n";
+
+/// C++ `emCheckButton::HowToChecked`.
+const HOWTO_CHECKED: &str = "\n\n\
+    CHECKED\n\n\
+    Currently this check button is checked.\n";
+
+/// C++ `emCheckButton::HowToNotChecked`.
+const HOWTO_NOT_CHECKED: &str = "\n\n\
+    UNCHECKED\n\n\
+    Currently this check button is not checked.\n";
+
+/// C++ `emRadioButton::HowToRadioButton`.
+const HOWTO_RADIO_BUTTON: &str = "\n\n\
+    RADIO BUTTON\n\n\
+    This is a radio button. It is a check button with changed behavior: In a set of\n\
+    radio buttons, only one button can have checked state. When triggering a radio\n\
+    button, that button is checked and all the other radio buttons of the set are\n\
+    unchecked. There is no way to uncheck a radio button directly.\n";
 
 pub struct RadioLinearGroup {
     pub layout: LinearLayout,

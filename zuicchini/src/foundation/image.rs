@@ -604,6 +604,114 @@ impl Image {
         }
     }
 
+    /// Get an affine-transformed copy of this image.
+    ///
+    /// `matrix` maps source coordinates to target coordinates:
+    /// ```text
+    /// target_x = matrix[0]*src_x + matrix[1]*src_y + matrix[2]
+    /// target_y = matrix[3]*src_x + matrix[4]*src_y + matrix[5]
+    /// ```
+    ///
+    /// Any translation in the matrix is ignored — the output is sized to
+    /// contain the transformed image without offset.
+    ///
+    /// * `interpolate` – `true` for bilinear sampling, `false` for nearest.
+    /// * `bg_color` – fills areas outside the source bounds.
+    /// * `channel_count` – output channel count, or `None` to keep the same.
+    ///
+    /// Requires 4-channel images (both source and result).
+    ///
+    /// Port of C++ `emImage::GetTransformed`.
+    pub fn get_transformed(
+        &self,
+        matrix: &[f64; 6],
+        interpolate: bool,
+        bg_color: Color,
+        channel_count: Option<u8>,
+    ) -> Image {
+        let out_cc = channel_count.unwrap_or(self.channel_count);
+        if self.is_empty() {
+            return Image::new(0, 0, out_cc);
+        }
+
+        // Compute the bounding box of the four transformed corners
+        // (ignoring translation — we only use the linear part).
+        let a = matrix[0];
+        let b = matrix[1];
+        let d = matrix[3];
+        let e = matrix[4];
+
+        let sw = self.width as f64;
+        let sh = self.height as f64;
+
+        let corners = [(0.0, 0.0), (sw, 0.0), (0.0, sh), (sw, sh)];
+
+        let mut min_x = f64::MAX;
+        let mut min_y = f64::MAX;
+        let mut max_x = f64::MIN;
+        let mut max_y = f64::MIN;
+
+        for &(cx, cy) in &corners {
+            let tx = a * cx + b * cy;
+            let ty = d * cx + e * cy;
+            if tx < min_x {
+                min_x = tx;
+            }
+            if ty < min_y {
+                min_y = ty;
+            }
+            if tx > max_x {
+                max_x = tx;
+            }
+            if ty > max_y {
+                max_y = ty;
+            }
+        }
+
+        let out_w = (max_x - min_x).ceil() as u32;
+        let out_h = (max_y - min_y).ceil() as u32;
+
+        if out_w == 0 || out_h == 0 {
+            return Image::new(0, 0, out_cc);
+        }
+
+        // Build the matrix with translation set so output starts at (0,0)
+        let adjusted = [a, b, -min_x, d, e, -min_y];
+
+        // Work in 4-channel space for copy_transformed
+        let src4 = if self.channel_count == 4 {
+            // Avoid clone by using a reference path below
+            None
+        } else {
+            Some(self.get_converted(4))
+        };
+        let src_ref = src4.as_ref().unwrap_or(self);
+
+        let mut result = Image::new(out_w, out_h, 4);
+        result.copy_transformed(
+            (0, 0, out_w as i32, out_h as i32),
+            &adjusted,
+            src_ref,
+            interpolate,
+            bg_color,
+        );
+
+        if out_cc != 4 {
+            result.get_converted(out_cc)
+        } else {
+            result
+        }
+    }
+
+    /// Whether a `Painter` can paint into an image with this channel count.
+    ///
+    /// Currently only 4-channel (RGBA) images are paintable.
+    ///
+    /// Port of C++ `emImage::IsChannelCountPaintable`.
+    pub fn is_channel_count_paintable(channel_count: u8) -> bool {
+        channel_count == 4
+    }
+
     /// Collect all unique colors, sorted by packed u32 value. 4-channel only.
     pub fn determine_all_colors_sorted(&self) -> Vec<Color> {
         assert_eq!(

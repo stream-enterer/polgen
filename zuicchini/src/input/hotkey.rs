@@ -103,6 +103,9 @@ fn parse_key_name(name: &str) -> Option<InputKey> {
         "f10" => Some(InputKey::F10),
         "f11" => Some(InputKey::F11),
         "f12" => Some(InputKey::F12),
+        "print" | "printscreen" => Some(InputKey::Print),
+        "pause" | "break" => Some(InputKey::Pause),
+        "menu" | "contextmenu" => Some(InputKey::Menu),
         s if s.len() == 1 => Some(InputKey::Key(s.chars().next().unwrap())),
         _ => None,
     }

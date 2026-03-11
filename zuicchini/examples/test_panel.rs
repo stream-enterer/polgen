@@ -697,7 +697,7 @@ impl PanelBehavior for TestPanel {
     ) -> bool {
         let log = format!(
             "key={:?} chars=\"{}\" repeat={} variant={:?} mouse={:.1},{:.1}",
-            event.key, event.chars, event.is_repeat, event.variant, event.mouse_x, event.mouse_y,
+            event.key, event.chars, event.repeat, event.variant, event.mouse_x, event.mouse_y,
         );
         if self.input_log.len() >= MAX_LOG_ENTRIES {
             self.input_log.remove(0);

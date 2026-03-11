@@ -14,6 +14,14 @@ pub struct Button {
     look: Rc<Look>,
     pressed: bool,
     hovered: bool,
+    /// When true, clicking this button does not send an End-of-Interaction
+    /// signal. Matches C++ `emButton::NoEOI`.
+    no_eoi: bool,
+    /// Visual appearance flags matching C++ `emButton` bit-fields.
+    /// These control which visual style is used when painting.
+    shown_checked: bool,
+    shown_boxed: bool,
+    shown_radioed: bool,
     /// Cached dimensions for hover hit testing.
     last_w: f64,
     last_h: f64,
@@ -30,6 +38,10 @@ impl Button {
             look,
             pressed: false,
             hovered: false,
+            no_eoi: false,
+            shown_checked: false,
+            shown_boxed: false,
+            shown_radioed: false,
             last_w: 0.0,
             last_h: 0.0,
             on_click: None,
@@ -41,12 +53,105 @@ impl Button {
         self.border.caption = text.to_string();
     }
 
+    /// Whether clicking this button is not an "End Of Interaction".
+    /// If false (the default), an EOI signal would be sent on every click.
+    /// Matches C++ `emButton::IsNoEOI`.
+    pub fn is_no_eoi(&self) -> bool {
+        self.no_eoi
+    }
+
+    /// Set whether clicking this button triggers an End-of-Interaction.
+    /// Matches C++ `emButton::SetNoEOI`.
+    pub fn set_no_eoi(&mut self, no_eoi: bool) {
+        self.no_eoi = no_eoi;
+    }
+
+    /// Whether the button is visually shown as checked.
+    /// Matches C++ `emButton::IsShownChecked`.
+    pub fn is_shown_checked(&self) -> bool {
+        self.shown_checked
+    }
+
+    /// Set whether the button is visually shown as checked.
+    /// Matches C++ `emButton::SetShownChecked`.
+    pub fn set_shown_checked(&mut self, checked: bool) {
+        self.shown_checked = checked;
+    }
+
+    /// Whether the button is visually shown with a checkbox-style box.
+    /// Matches C++ `emButton::IsShownBoxed`.
+    pub fn is_shown_boxed(&self) -> bool {
+        self.shown_boxed
+    }
+
+    /// Set whether the button is visually shown with a checkbox-style box.
+    /// Matches C++ `emButton::SetShownBoxed`.
+    pub fn set_shown_boxed(&mut self, boxed: bool) {
+        self.shown_boxed = boxed;
+    }
+
+    /// Whether the button is visually shown as a radio button.
+    /// Matches C++ `emButton::IsShownRadioed`.
+    pub fn is_shown_radioed(&self) -> bool {
+        self.shown_radioed
+    }
+
+    /// Set whether the button is visually shown as a radio button.
+    /// Matches C++ `emButton::SetShownRadioed`.
+    pub fn set_shown_radioed(&mut self, radioed: bool) {
+        self.shown_radioed = radioed;
+    }
+
     pub fn is_pressed(&self) -> bool {
         self.pressed
     }
 
     pub fn is_hovered(&self) -> bool {
         self.hovered
+    }
+
+    /// Round-rect hit test for the button face area.
+    ///
+    /// Returns true if (`mx`, `my`) is inside the button's rounded-rect face.
+    /// Matches C++ `emButton::CheckMouse` for the non-boxed path: tests
+    /// against the face inset (fx, fy, fw, fh) with corner radius `fr`.
+    pub fn check_mouse(&self, mx: f64, my: f64) -> bool {
+        let w = self.last_w;
+        let h = self.last_h;
+        if w <= 0.0 || h <= 0.0 {
+            return false;
+        }
+        let (cr, r) = self.border.content_round_rect(w, h, &self.look);
+        let r = r.max(cr.w.min(cr.h) * self.border.border_scaling * 0.223);
+        let d = (14.0 / 264.0) * r;
+        let fx = cr.x + d;
+        let fy = cr.y + d;
+        let fw = cr.w - 2.0 * d;
+        let fh = cr.h - 2.0 * d;
+        let fr = (r - d).max(0.0);
+        // C++ round-rect hit test: distance to inset rect expanded by radius
+        let dx = ((fx - mx).max(mx - fx - fw) + fr).max(0.0);
+        let dy = ((fy - my).max(my - fy - fh) + fr).max(0.0);
+        dx * dx + dy * dy <= fr * fr
+    }
+
+    /// Whether this button provides how-to help text.
+    /// Matches C++ `emButton::HasHowTo` (always returns true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this button.
+    ///
+    /// Chains the border's base how-to (preface + disabled/focus) with the
+    /// button-specific sections. Matches C++ `emButton::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_BUTTON);
+        if !self.no_eoi {
+            text.push_str(HOWTO_EOI_BUTTON);
+        }
+        text
     }
 
     pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
@@ -226,6 +331,25 @@ impl Button {
     }
 }
 
+/// C++ `emButton::HowToButton`.
+const HOWTO_BUTTON: &str = "\n\n\
+    BUTTON\n\n\
+    This is a button. Buttons can be triggered to perform an application defined\n\
+    function.\n\n\
+    In order to trigger a button, move the mouse pointer over the button and click\n\
+    the left mouse button. The function is triggered when releasing the mouse\n\
+    button, but only if the mouse pointer is still over the button.\n\n\
+    Alternatively, a button can be triggered by giving it the focus and pressing the\n\
+    Enter key.\n";
+
+/// C++ `emButton::HowToEOIButton`.
+const HOWTO_EOI_BUTTON: &str = "\n\n\
+    EOI BUTTON\n\n\
+    This is an End Of Interaction button. The exact behavior is application defined,\n\
+    but it usually means that if the button is in a view that has popped up, the\n\
+    view is popped down automatically when the button is triggered. If you want to\n\
+    bypass that, hold the Shift key while triggering the button.\n";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -296,5 +420,93 @@ mod tests {
         let look = Look::new();
         let mut btn = Button::new("Go", look);
         btn.click(); // should not panic
+    }
+
+    #[test]
+    fn no_eoi_default_false() {
+        let look = Look::new();
+        let btn = Button::new("Test", look);
+        assert!(!btn.is_no_eoi());
+    }
+
+    #[test]
+    fn set_no_eoi() {
+        let look = Look::new();
+        let mut btn = Button::new("Test", look);
+        btn.set_no_eoi(true);
+        assert!(btn.is_no_eoi());
+        btn.set_no_eoi(false);
+        assert!(!btn.is_no_eoi());
+    }
+
+    #[test]
+    fn has_howto_always_true() {
+        let look = Look::new();
+        let btn = Button::new("OK", look);
+        assert!(btn.has_how_to());
+    }
+
+    #[test]
+    fn howto_includes_eoi_by_default() {
+        let look = Look::new();
+        let btn = Button::new("OK", look);
+        let text = btn.get_how_to(true, true);
+        assert!(text.contains("BUTTON"));
+        assert!(text.contains("EOI BUTTON"));
+        // Should also include border preface and focus sections
+        assert!(text.contains("How to use this panel"));
+        assert!(text.contains("FOCUS"));
+    }
+
+    #[test]
+    fn howto_excludes_eoi_when_no_eoi() {
+        let look = Look::new();
+        let mut btn = Button::new("OK", look);
+        btn.set_no_eoi(true);
+        let text = btn.get_how_to(true, true);
+        assert!(text.contains("BUTTON"));
+        assert!(!text.contains("EOI BUTTON"));
+    }
+
+    #[test]
+    fn howto_includes_disabled_when_not_enabled() {
+        let look = Look::new();
+        let btn = Button::new("OK", look);
+        let text = btn.get_how_to(false, false);
+        assert!(text.contains("DISABLED"));
+        assert!(!text.contains("FOCUS"));
+    }
+
+    #[test]
+    fn check_mouse_zero_size_returns_false() {
+        let look = Look::new();
+        let btn = Button::new("X", look);
+        assert!(!btn.check_mouse(0.0, 0.0));
+    }
+
+    #[test]
+    fn check_mouse_center_returns_true() {
+        use crate::foundation::Image;
+        let look = Look::new();
+        let mut btn = Button::new("X", look);
+        // Simulate paint to cache dimensions
+        let mut img = Image::new(200, 100, 4);
+        let mut painter = Painter::new(&mut img);
+        btn.paint(&mut painter, 200.0, 100.0);
+        // Center of the button should hit
+        assert!(btn.check_mouse(100.0, 50.0));
+    }
+
+    #[test]
+    fn check_mouse_outside_returns_false() {
+        use crate::foundation::Image;
+        let look = Look::new();
+        let mut btn = Button::new("X", look);
+        let mut img = Image::new(200, 100, 4);
+        let mut painter = Painter::new(&mut img);
+        btn.paint(&mut painter, 200.0, 100.0);
+        // Well outside the button bounds
+        assert!(!btn.check_mouse(-50.0, -50.0));
+        assert!(!btn.check_mouse(300.0, 200.0));
     }
 }

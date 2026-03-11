@@ -1,4 +1,4 @@
-use zuicchini::input::{InputEvent, InputKey, InputState, InputVariant};
+use zuicchini::input::{InputEvent, InputKey, InputState};
 use zuicchini::panel::{
     KeyboardZoomScrollVIF, MouseZoomScrollVIF, PanelTree, View, ViewFlags, ViewInputFilter,
 };
@@ -178,18 +178,7 @@ fn filter_middle_pan() {
         if (1..=10).contains(&i) {
             let mx = 400.0 + i as f64 * 10.0;
             let my = 300.0 + i as f64 * 10.0;
-            let event = InputEvent {
-                key: InputKey::MouseMiddle,
-                variant: InputVariant::Move,
-                chars: String::new(),
-                is_repeat: false,
-                mouse_x: mx,
-                mouse_y: my,
-                shift: false,
-                ctrl: false,
-                alt: false,
-                meta: false,
-            };
+            let event = InputEvent::mouse_move(InputKey::MouseMiddle, mx, my);
             let mut state = InputState::new();
             state.set_mouse(mx, my);
             state.press(InputKey::MouseMiddle);
@@ -225,18 +214,7 @@ fn filter_middle_fling() {
         if (1..=10).contains(&i) {
             let mx = 400.0 + i as f64 * 10.0;
             let my = 300.0 + i as f64 * 10.0;
-            let event = InputEvent {
-                key: InputKey::MouseMiddle,
-                variant: InputVariant::Move,
-                chars: String::new(),
-                is_repeat: false,
-                mouse_x: mx,
-                mouse_y: my,
-                shift: false,
-                ctrl: false,
-                alt: false,
-                meta: false,
-            };
+            let event = InputEvent::mouse_move(InputKey::MouseMiddle, mx, my);
             let mut state = InputState::new();
             state.set_mouse(mx, my);
             state.press(InputKey::MouseMiddle);

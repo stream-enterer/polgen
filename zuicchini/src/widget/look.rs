@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::foundation::Color;
 
 /// Theme configuration matching emLook's 10-color system.
+#[derive(Debug, PartialEq, Eq)]
 pub struct Look {
     pub bg_color: Color,
     pub fg_color: Color,
@@ -75,6 +76,21 @@ mod tests {
         assert_eq!(look.bg_color, Color::rgba(0x51, 0x5E, 0x84, 0xFF));
         assert_eq!(look.fg_color, Color::rgba(0xEF, 0xF0, 0xF4, 0xFF));
         assert_eq!(look.input_hl_color, Color::rgba(0x00, 0x38, 0xC0, 0xFF));
+    }
+
+    #[test]
+    fn partial_eq_same_defaults() {
+        let a = Look::default();
+        let b = Look::default();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn partial_eq_different_color() {
+        let a = Look::default();
+        let mut b = Look::default();
+        b.bg_color = Color::rgba(0xFF, 0x00, 0x00, 0xFF);
+        assert_ne!(a, b);
     }
 
     #[test]

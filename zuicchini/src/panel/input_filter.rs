@@ -158,7 +158,8 @@ impl MouseZoomScrollVIF {
             return None;
         }
 
-        if event.key == InputKey::Alt && event.variant == InputVariant::Press && !event.is_repeat {
+        if event.key == InputKey::Alt && event.variant == InputVariant::Press && !event.is_repeat()
+        {
             // Compute repeat from timing
             let d = clock_ms.saturating_sub(self.emu_mid_button_time);
             if d < 330 {
@@ -170,7 +171,7 @@ impl MouseZoomScrollVIF {
 
             // Synthesize a middle button press event
             let mut synthetic = InputEvent::press(InputKey::MouseMiddle);
-            synthetic.is_repeat = self.emu_mid_button_repeat > 0;
+            synthetic.repeat = self.emu_mid_button_repeat as i32;
             synthetic.mouse_x = event.mouse_x;
             synthetic.mouse_y = event.mouse_y;
             return Some(synthetic);
@@ -1428,19 +1429,19 @@ mod tests {
         let synth = result.unwrap();
         assert_eq!(synth.key, InputKey::MouseMiddle);
         assert_eq!(synth.variant, InputVariant::Press);
-        assert!(!synth.is_repeat);
+        assert_eq!(synth.repeat, 0);
 
         // Double-click within 330ms
         let event2 = InputEvent::press(InputKey::Alt);
         let result2 = vif.emulate_middle_button_event(&event2, &state, 1200);
         assert!(result2.is_some());
-        assert!(result2.unwrap().is_repeat);
+        assert!(result2.unwrap().repeat > 0);
 
         // After timeout, repeat resets
         let event3 = InputEvent::press(InputKey::Alt);
         let result3 = vif.emulate_middle_button_event(&event3, &state, 2000);
         assert!(result3.is_some());
-        assert!(!result3.unwrap().is_repeat);
+        assert_eq!(result3.unwrap().repeat, 0);
     }
 
     #[test]
@@ -1794,13 +1795,15 @@ mod tests {
                 key: InputKey::MouseMiddle,
                 variant: InputVariant::Move,
                 chars: String::new(),
-                is_repeat: false,
+                repeat: 0,
+                source_variant: 0,
                 mouse_x: state.mouse_x,
                 mouse_y: state.mouse_y,
                 shift: false,
                 ctrl: false,
                 alt: false,
                 meta: false,
+                eaten: false,
             };
             vif.filter(&move_event, &state, &mut view);
             // Tick spring physics between move events
@@ -1850,13 +1853,15 @@ mod tests {
                 key: InputKey::MouseMiddle,
                 variant: InputVariant::Move,
                 chars: String::new(),
-                is_repeat: false,
+                repeat: 0,
+                source_variant: 0,
                 mouse_x: state.mouse_x,
                 mouse_y: state.mouse_y,
                 shift: false,
                 ctrl: false,
                 alt: false,
                 meta: false,
+                eaten: false,
             };
             vif.filter(&move_event, &state, &mut view);
             vif.animate_grip(&mut view, &mut tree, 1.0 / 60.0);
@@ -1893,13 +1898,15 @@ mod tests {
                 key: InputKey::MouseMiddle,
                 variant: InputVariant::Move,
                 chars: String::new(),
-                is_repeat: false,
+                repeat: 0,
+                source_variant: 0,
                 mouse_x: state.mouse_x,
                 mouse_y: state.mouse_y,
                 shift: false,
                 ctrl: false,
                 alt: false,
                 meta: false,
+                eaten: false,
             };
             vif.filter(&move_event, &state, &mut view);
             vif.animate_grip(&mut view, &mut tree, 1.0 / 60.0);

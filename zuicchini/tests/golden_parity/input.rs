@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use zuicchini::input::{InputEvent, InputKey, InputVariant};
+use zuicchini::input::{InputEvent, InputKey};
 use zuicchini::panel::{PanelId, PanelTree};
 
 use super::common::*;
@@ -290,18 +290,7 @@ fn input_drag_sequence() {
 
     // Mouse move
     h.input_state.set_mouse(300.0, 300.0);
-    let event = InputEvent {
-        key: InputKey::MouseLeft,
-        variant: InputVariant::Move,
-        chars: String::new(),
-        is_repeat: false,
-        mouse_x: 300.0,
-        mouse_y: 300.0,
-        shift: false,
-        ctrl: false,
-        alt: false,
-        meta: false,
-    };
+    let event = InputEvent::mouse_move(InputKey::MouseLeft, 300.0, 300.0);
     h.inject_input(&event);
 
     // Mouse up

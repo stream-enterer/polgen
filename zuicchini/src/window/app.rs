@@ -241,9 +241,19 @@ impl ApplicationHandler for App {
             // Update view (recompute viewing coords, auto-select active)
             win.view_mut().update(tree);
 
-            // Check for pending dirty rects from invalidate_painting calls
+            // Check for pending dirty rects from invalidate_painting calls.
+            // Coalesce overlapping rects so future partial-repaint can skip
+            // already-covered regions.
             if win.view().has_dirty_rects() {
-                win.view_mut().take_dirty_rects();
+                let dirty = win.view_mut().take_dirty_clip_rects();
+                log::trace!(
+                    "dirty clip rects: {} regions, bounds {:?}",
+                    dirty.count(),
+                    dirty.get_min_max()
+                );
+                for _r in dirty.iter() {
+                    // TODO: partial-repaint per dirty region
+                }
                 needs_repaint = true;
             }
 

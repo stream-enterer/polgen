@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 use super::tree::{PanelId, PanelTree};
-use crate::foundation::{Color, Rect};
+use crate::foundation::{ClipRects, Color, Rect};
 use crate::render::{Painter, Stroke};
 
 bitflags! {
@@ -84,6 +84,9 @@ pub struct View {
     /// instead of doing an instant jump. The window loop feeds this to the
     /// VisitingViewAnimator. None means no pending animated visit.
     pending_animated_visit: Option<VisitState>,
+    /// PORT-0129: Countdown for delayed End-Of-Interaction signal.
+    /// When `Some(n)`, tick_eoi() decrements each frame and fires when 0.
+    eoi_countdown: Option<i32>,
 }
 
 impl View {
@@ -121,6 +124,7 @@ impl View {
             viewport_changed: false,
             needs_animator_abort: false,
             pending_animated_visit: None,
+            eoi_countdown: None,
         }
     }
 
@@ -1574,6 +1578,19 @@ impl View {
         std::mem::take(&mut self.dirty_rects)
     }
 
+    /// Drain accumulated dirty rectangles as a coalesced [`ClipRects`] set.
+    ///
+    /// Overlapping dirty rects are merged so the compositor doesn't repaint
+    /// the same pixel region twice.
+    pub(crate) fn take_dirty_clip_rects(&mut self) -> ClipRects {
+        let rects = std::mem::take(&mut self.dirty_rects);
+        let mut cr = ClipRects::new();
+        for r in &rects {
+            cr.unite_rect(r.x, r.y, r.x + r.w, r.y + r.h);
+        }
+        cr
+    }
+
     /// Whether the viewport has changed (scroll/zoom/visit) since last reset.
     pub fn viewport_changed(&self) -> bool {
         self.viewport_changed
@@ -1606,6 +1623,79 @@ impl View {
     /// Whether there is a pending animated visit goal.
     pub fn has_pending_animated_visit(&self) -> bool {
         self.pending_animated_visit.is_some()
+    }
+
+    // --- Background color (PORT-0116) ---
+
+    /// Get the background color of this view. Used for areas not covered by
+    /// panels or where panels are transparent. Matches C++ `emView::GetBackgroundColor`.
+    pub fn background_color(&self) -> Color {
+        self.background_color
+    }
+
+    /// Set the background color of this view. If changed, the view is
+    /// invalidated for repainting. Matches C++ `emView::SetBackgroundColor`.
+    pub fn set_background_color(&mut self, color: Color) {
+        if self.background_color != color {
+            self.background_color = color;
+            self.viewport_changed = true;
+        }
+    }
+
+    // --- Panel lookup by identity (PORT-0127) ---
+
+    /// Search for a panel by its colon-delimited identity string.
+    /// Returns `None` if not found. Matches C++ `emView::GetPanelByIdentity`.
+    pub fn get_panel_by_identity(&self, tree: &PanelTree, identity: &str) -> Option<PanelId> {
+        use super::tree::decode_identity;
+
+        let names = decode_identity(identity);
+        if names.is_empty() {
+            return None;
+        }
+
+        let root = self.root;
+        let root_name = tree.name(root)?;
+        if root_name != names[0] {
+            return None;
+        }
+
+        let mut current = root;
+        for name in &names[1..] {
+            match tree.find_child_by_name(current, name) {
+                Some(child) => current = child,
+                None => return None,
+            }
+        }
+        Some(current)
+    }
+
+    // --- EOI signal (PORT-0129) ---
+
+    /// Request a delayed End-Of-Interaction signal. The window loop should
+    /// check `eoi_delayed()` and count down before signaling EOI.
+    /// Matches C++ `emView::SignalEOIDelayed`.
+    pub fn signal_eoi_delayed(&mut self) {
+        self.eoi_countdown = Some(3);
+    }
+
+    /// Whether an EOI countdown is active.
+    pub fn eoi_delayed(&self) -> bool {
+        self.eoi_countdown.is_some()
+    }
+
+    /// Tick the EOI countdown. Returns `true` when the countdown has reached
+    /// zero and the EOI should be signaled (caller should then act, e.g.
+    /// zoom out for popup views).
+    pub fn tick_eoi(&mut self) -> bool {
+        if let Some(ref mut count) = self.eoi_countdown {
+            if *count <= 0 {
+                self.eoi_countdown = None;
+                return true;
+            }
+            *count -= 1;
+        }
+        false
     }
 
     /// TF-003: Scroll the viewport to make a panel-pixel rect visible.

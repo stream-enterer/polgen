@@ -163,6 +163,25 @@ impl ColorField {
         }
     }
 
+    /// Whether this color field provides how-to help text.
+    /// Matches C++ `emColorField::HasHowTo` (always true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this color field.
+    ///
+    /// Chains the border's base how-to with color-field-specific sections.
+    /// Matches C++ `emColorField::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_COLOR_FIELD);
+        if !self.editable {
+            text.push_str(HOWTO_READ_ONLY);
+        }
+        text
+    }
+
     pub fn preferred_size(&self) -> (f64, f64) {
         if self.expanded {
             self.border
@@ -173,6 +192,17 @@ impl ColorField {
         }
     }
 }
+
+/// C++ `emColorField::HowToColorField`.
+const HOWTO_COLOR_FIELD: &str = "\n\n\
+    COLOR FIELD\n\n\
+    This panel is for viewing and editing a color. For editing, refer to the inner\n\
+    fields.\n";
+
+/// C++ `emColorField::HowToReadOnly`.
+const HOWTO_READ_ONLY: &str = "\n\n\
+    READ-ONLY\n\n\
+    This color field is read-only. You cannot edit the color.\n";
 
 #[cfg(test)]
 mod tests {

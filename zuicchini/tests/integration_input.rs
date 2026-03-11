@@ -52,9 +52,9 @@ fn vif_consumes_prevents_behavior() {
 
     // Alt+ArrowUp should be consumed by KeyboardZoomScrollVIF (zoom/scroll)
     h.input_state.press(InputKey::Alt);
-    let event = InputEvent::press(InputKey::ArrowUp).with_mouse(400.0, 300.0);
-    // Stamp alt modifier on event
-    let event = InputEvent { alt: true, ..event };
+    let event = InputEvent::press(InputKey::ArrowUp)
+        .with_mouse(400.0, 300.0)
+        .with_alt();
 
     log.borrow_mut().clear();
     h.inject_input(&event);

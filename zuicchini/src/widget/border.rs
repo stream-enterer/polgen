@@ -707,6 +707,70 @@ impl Border {
         }
     }
 
+    // ---- HowTo text (C++ emBorder::HowToPreface / HowToDisabled / HowToFocus) ----
+
+    /// Preface text for the how-to section. C++ `emBorder::HowToPreface`.
+    pub(crate) const HOWTO_PREFACE: &'static str = "\
+How to use this panel\n\
+#####################\n\
+\n\
+Here is some text describing the usage of this panel. The text consists of\n\
+multiple sections which may come from different parts of the program based on\n\
+each other. If something is contradictory, the later section should count.\n";
+
+    /// Disabled-state how-to section. C++ `emBorder::HowToDisabled`.
+    pub(crate) const HOWTO_DISABLED: &'static str = "\
+\n\
+\n\
+DISABLED\n\
+\n\
+This panel is currently disabled, because the panel is probably irrelevant for\n\
+the current state of the program or data. Any try to modify data or to trigger a\n\
+function may silently be ignored.\n";
+
+    /// Focus how-to section. C++ `emBorder::HowToFocus`.
+    pub(crate) const HOWTO_FOCUS: &'static str = "\
+\n\
+\n\
+FOCUS\n\
+\n\
+This panel is focusable. Only one panel can be focused at a time. The focus is\n\
+indicated by small arrows pointing to the focused panel. If a panel is focused,\n\
+it gets the keyboard input. If the focused panel does not know what to do with a\n\
+certain input key, it may even forward the input to its ancestor panels.\n\
+\n\
+How to move or set the focus:\n\
+\n\
+* Just zoom and scroll around - the focus is moved automatically by that.\n\
+\n\
+* Click with the left or right mouse button on a panel to give it the focus.\n\
+\n\
+* Press Tab or Shift+Tab to move the focus to the next or previous sister\n\
+  panel.\n\
+\n\
+* Press the cursor keys to move the focus to a sister panel in the desired\n\
+  direction.\n\
+\n\
+* Press Page-Up or -Down to move the focus to a child or parent panel.\n";
+
+    /// Build the how-to text for this border.
+    ///
+    /// Returns the preface, optionally appending the disabled and/or focus
+    /// sections based on the panel state flags passed in. Callers (widget
+    /// behaviors) supply the state because `Border` itself is not a panel.
+    ///
+    /// C++ equivalent: `emBorder::GetHowTo`.
+    pub(crate) fn get_howto(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = String::from(Self::HOWTO_PREFACE);
+        if !enabled {
+            text.push_str(Self::HOWTO_DISABLED);
+        }
+        if focusable {
+            text.push_str(Self::HOWTO_FOCUS);
+        }
+        text
+    }
+
     /// Returns `true` if this border type fully fills its rect so nothing behind
     /// it is visible. Only the border types that paint a solid background over the
     /// entire panel area qualify, and only when the background color is opaque.

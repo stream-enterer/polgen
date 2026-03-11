@@ -1805,6 +1805,30 @@ impl TextField {
         was_dragging
     }
 
+    /// Whether this text field provides how-to help text.
+    /// Matches C++ `emTextField::HasHowTo` (always true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this text field.
+    ///
+    /// Chains the border's base how-to with text-field-specific sections.
+    /// Matches C++ `emTextField::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_TEXT_FIELD);
+        if self.multi_line {
+            text.push_str(HOWTO_MULTI_LINE_ON);
+        } else {
+            text.push_str(HOWTO_MULTI_LINE_OFF);
+        }
+        if !self.editable {
+            text.push_str(HOWTO_READ_ONLY);
+        }
+        text
+    }
+
     pub fn get_cursor(&self) -> Cursor {
         Cursor::Text
     }
@@ -2041,6 +2065,31 @@ impl TextField {
         }
     }
 }
+
+/// C++ `emTextField::HowToTextField`.
+const HOWTO_TEXT_FIELD: &str = "\n\n\
+    TEXT FIELD\n\n\
+    This is a text field. In such a field, a text can be viewed and edited.\n\n\
+    Quick hint about an incompatibility against other user interfaces: For inserting\n\
+    selected text, press Ctrl + left mouse button instead of the middle mouse\n\
+    button.\n";
+
+/// C++ `emTextField::HowToMultiLineOff`.
+const HOWTO_MULTI_LINE_OFF: &str = "\n\n\
+    MULTI-LINE: DISABLED\n\n\
+    This text field has the multi-line mode disabled. You can view or edit only\n\
+    a single line.\n";
+
+/// C++ `emTextField::HowToMultiLineOn`.
+const HOWTO_MULTI_LINE_ON: &str = "\n\n\
+    MULTI-LINE: ENABLED\n\n\
+    This text field has the multi-line mode enabled. You may view or edit multiple\n\
+    lines.\n";
+
+/// C++ `emTextField::HowToReadOnly`.
+const HOWTO_READ_ONLY: &str = "\n\n\
+    READ-ONLY\n\n\
+    This text field is read-only. You cannot edit the text.\n";
 
 #[cfg(test)]
 mod tests {

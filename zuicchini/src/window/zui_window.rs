@@ -274,6 +274,10 @@ impl ZuiWindow {
                         NamedKey::Control => Some(InputKey::Ctrl),
                         NamedKey::Alt => Some(InputKey::Alt),
                         NamedKey::Super => Some(InputKey::Meta),
+                        NamedKey::AltGraph => Some(InputKey::AltGr),
+                        NamedKey::PrintScreen => Some(InputKey::Print),
+                        NamedKey::Pause => Some(InputKey::Pause),
+                        NamedKey::ContextMenu => Some(InputKey::Menu),
                         NamedKey::Space => Some(InputKey::Space),
                         NamedKey::F1 => Some(InputKey::F1),
                         NamedKey::F2 => Some(InputKey::F2),
@@ -301,13 +305,15 @@ impl ZuiWindow {
                     key,
                     variant,
                     chars: String::new(),
-                    is_repeat: event.repeat,
+                    repeat: if event.repeat { 1 } else { 0 },
+                    source_variant: 0,
                     mouse_x: 0.0,
                     mouse_y: 0.0,
                     shift: false,
                     ctrl: false,
                     alt: false,
                     meta: false,
+                    eaten: false,
                 };
                 if let Some(ref text) = event.text {
                     input_event.chars = text.to_string();
@@ -331,26 +337,30 @@ impl ZuiWindow {
                     key,
                     variant,
                     chars: String::new(),
-                    is_repeat: false,
+                    repeat: 0,
+                    source_variant: 0,
                     mouse_x: 0.0,
                     mouse_y: 0.0,
                     shift: false,
                     ctrl: false,
                     alt: false,
                     meta: false,
+                    eaten: false,
                 })
             }
             WindowEvent::CursorMoved { position, .. } => Some(InputEvent {
                 key: InputKey::MouseLeft, // Dummy key for position-only events
                 variant: InputVariant::Move,
                 chars: String::new(),
-                is_repeat: false,
+                repeat: 0,
+                source_variant: 0,
                 mouse_x: position.x,
                 mouse_y: position.y,
                 shift: false,
                 ctrl: false,
                 alt: false,
                 meta: false,
+                eaten: false,
             }),
             WindowEvent::MouseWheel { delta, .. } => {
                 let (dx, dy) = match delta {
@@ -367,13 +377,15 @@ impl ZuiWindow {
                         },
                         variant: InputVariant::Press,
                         chars: String::new(),
-                        is_repeat: false,
+                        repeat: 0,
+                        source_variant: 0,
                         mouse_x: dx,
                         mouse_y: dy,
                         shift: false,
                         ctrl: false,
                         alt: false,
                         meta: false,
+                        eaten: false,
                     })
                 } else if dx.abs() > 0.0 {
                     Some(InputEvent {
@@ -384,13 +396,15 @@ impl ZuiWindow {
                         },
                         variant: InputVariant::Press,
                         chars: String::new(),
-                        is_repeat: false,
+                        repeat: 0,
+                        source_variant: 0,
                         mouse_x: dx,
                         mouse_y: dy,
                         shift: false,
                         ctrl: false,
                         alt: false,
                         meta: false,
+                        eaten: false,
                     })
                 } else {
                     None

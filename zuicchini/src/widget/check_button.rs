@@ -67,6 +67,27 @@ impl CheckButton {
         self.border.preferred_size_for_content(tw + 8.0, th + 4.0)
     }
 
+    /// Whether this check button provides how-to help text.
+    /// Matches C++ `emCheckButton::HasHowTo` (inherited from emButton, always true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this check button.
+    ///
+    /// Chains the border's base how-to with button + check-button specific
+    /// sections. Matches C++ `emCheckButton::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_CHECK_BUTTON);
+        if self.checked {
+            text.push_str(HOWTO_CHECKED);
+        } else {
+            text.push_str(HOWTO_NOT_CHECKED);
+        }
+        text
+    }
+
     fn toggle(&mut self) {
         self.checked = !self.checked;
         if let Some(cb) = &mut self.on_check {
@@ -74,6 +95,22 @@ impl CheckButton {
         }
     }
 }
+
+/// C++ `emCheckButton::HowToCheckButton`.
+const HOWTO_CHECK_BUTTON: &str = "\n\n\
+    CHECK BUTTON\n\n\
+    This button can have checked or unchecked state. Usually this is a yes-or-no\n\
+    answer to a question. Whenever the button is triggered, the check state toggles.\n";
+
+/// C++ `emCheckButton::HowToChecked`.
+const HOWTO_CHECKED: &str = "\n\n\
+    CHECKED\n\n\
+    Currently this check button is checked.\n";
+
+/// C++ `emCheckButton::HowToNotChecked`.
+const HOWTO_NOT_CHECKED: &str = "\n\n\
+    UNCHECKED\n\n\
+    Currently this check button is not checked.\n";
 
 #[cfg(test)]
 mod tests {

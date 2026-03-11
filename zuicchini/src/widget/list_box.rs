@@ -503,6 +503,35 @@ impl ListBox {
         &self.selected_indices
     }
 
+    /// Set the selected items by index.
+    ///
+    /// Replaces the current selection with exactly the given indices.
+    /// Out-of-range indices are silently ignored. The resulting selection
+    /// is always sorted. Matches C++ `emListBox::SetSelectedIndices`.
+    pub fn set_selected_indices(&mut self, indices: &[usize]) {
+        // Clear current selection state on items.
+        for &idx in &self.selected_indices {
+            if idx < self.items.len() {
+                self.items[idx].selected = false;
+            }
+        }
+        // Build new sorted selection.
+        let mut new_sel: Vec<usize> = indices
+            .iter()
+            .copied()
+            .filter(|&i| i < self.items.len())
+            .collect();
+        new_sel.sort_unstable();
+        new_sel.dedup();
+        for &idx in &new_sel {
+            self.items[idx].selected = true;
+        }
+        if self.selected_indices != new_sel {
+            self.selected_indices = new_sel;
+            self.fire_selection();
+        }
+    }
+
     // ── Trigger ─────────────────────────────────────────────────────
 
     /// Trigger an item (fires the on_trigger callback). No-op if out of range.
@@ -634,7 +663,7 @@ impl ListBox {
                 let clicked_idx = (rel_y / ROW_HEIGHT) as usize;
                 if clicked_idx < self.items.len() && !event.alt && !event.meta {
                     self.focus_index = clicked_idx;
-                    let trigger = event.is_repeat; // double-click
+                    let trigger = event.is_repeat(); // double-click
                     self.select_by_input(clicked_idx, event.shift, event.ctrl, trigger);
                 }
                 true
@@ -697,6 +726,28 @@ impl ListBox {
             .fold(0.0f64, f64::max);
         let h = self.items.len() as f64 * ROW_HEIGHT;
         self.border.preferred_size_for_content(max_w + 4.0, h)
+    }
+
+    /// Whether this list box provides how-to help text.
+    /// Matches C++ `emListBox::HasHowTo` (always true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this list box.
+    ///
+    /// Chains the border's base how-to with list-box-specific sections.
+    /// Matches C++ `emListBox::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_LIST_BOX);
+        match self.selection_mode {
+            SelectionMode::ReadOnly => text.push_str(HOWTO_READ_ONLY_SELECTION),
+            SelectionMode::Single => text.push_str(HOWTO_SINGLE_SELECTION),
+            SelectionMode::Multi => text.push_str(HOWTO_MULTI_SELECTION),
+            SelectionMode::Toggle => text.push_str(HOWTO_TOGGLE_SELECTION),
+        }
+        text
     }
 
     // ── Private helpers ─────────────────────────────────────────────
@@ -939,6 +990,62 @@ impl ListBox {
         }
     }
 }
+
+/// C++ `emListBox::HowToListBox`.
+const HOWTO_LIST_BOX: &str = "\n\n\
+    LIST BOX\n\n\
+    This is a list box. It may show any number of items from which one or more may\n\
+    be selected (by program or by user). Selected items are shown highlighted.\n";
+
+/// C++ `emListBox::HowToReadOnlySelection`.
+const HOWTO_READ_ONLY_SELECTION: &str = "\n\n\
+    READ-ONLY\n\n\
+    This list box is read-only. You cannot modify the selection.\n\n\
+    Keyboard control:\n\n\
+      Any normal key               - To find and focus an item, you can simply\n\
+                                     enter the first characters of its caption.\n";
+
+/// C++ `emListBox::HowToSingleSelection`.
+const HOWTO_SINGLE_SELECTION: &str = "\n\n\
+    SINGLE-SELECTION\n\n\
+    This is a single-selection list box. You can select only one item.\n\n\
+    Mouse control:\n\n\
+      Left-Button-Click            - Select the clicked item.\n\n\
+      Left-Button-Double-Click     - Trigger the clicked item (application-defined\n\
+                                     function).\n\n\
+    Keyboard control:\n\n\
+      Space                        - Select the focused item.\n\n\
+      Enter                        - Trigger the focused item (application-defined\n\
+                                     function).\n\n\
+      Any normal key               - To find and focus an item, you can simply\n\
+                                     enter the first characters of its caption.\n";
+
+/// C++ `emListBox::HowToMultiSelection`.
+const HOWTO_MULTI_SELECTION: &str = "\n\n\
+    MULTI-SELECTION\n\n\
+    This list box supports multi-selection. You can select one or more items.\n\n\
+    Mouse control:\n\n\
+      Left-Button-Click            - Select the clicked item.\n\n\
+      Shift+Left-Button-Click      - Select the range of items from the previously\n\
+                                     clicked item to this clicked item.\n\n\
+      Ctrl+Left-Button-Click       - Invert the selection of the clicked item.\n\n\
+      Shift+Ctrl+Left-Button-Click - Invert the selection of a range of items or\n\
+                                     select an additional range.\n\n\
+      Left-Button-Double-Click     - Trigger the clicked item (application-defined\n\
+                                     function).\n";
+
+/// C++ `emListBox::HowToToggleSelection`.
+const HOWTO_TOGGLE_SELECTION: &str = "\n\n\
+    TOGGLE-SELECTION\n\n\
+    This is a toggle-selection list box. You can select or deselect\n\
+    individual items independently from other items.\n\n\
+    Mouse control:\n\n\
+      Left-Button-Click            - Invert the selection of the clicked item.\n\n\
+      Shift+Left-Button-Click      - Invert the selection of the range of items from\n\
+                                     the previously clicked item to this clicked\n\
+                                     item.\n\n\
+      Left-Button-Double-Click     - Trigger the clicked item (application-defined\n\
+                                     function).\n";
 
 #[cfg(test)]
 mod tests {

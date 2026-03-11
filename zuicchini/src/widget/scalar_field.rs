@@ -433,6 +433,106 @@ impl ScalarField {
         }
     }
 
+    /// Whether this scalar field provides how-to help text.
+    /// Matches C++ `emScalarField::HasHowTo` (always true).
+    pub fn has_how_to(&self) -> bool {
+        true
+    }
+
+    /// Help text describing how to use this scalar field.
+    ///
+    /// Chains the border's base how-to with scalar-field-specific sections.
+    /// Matches C++ `emScalarField::GetHowTo`.
+    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.get_howto(enabled, focusable);
+        text.push_str(HOWTO_SCALAR_FIELD);
+        if !self.editable {
+            text.push_str(HOWTO_READ_ONLY);
+        }
+        text
+    }
+
+    /// Check whether (`mx`, `my`) is within the scale area and compute
+    /// the corresponding value.
+    ///
+    /// Returns `Some(value)` if the point is inside the scale area, `None`
+    /// otherwise. Matches C++ `emScalarField::CheckMouse`.
+    pub fn check_mouse(&self, mx: f64, my: f64) -> Option<f64> {
+        let w = self.last_w;
+        if w <= 0.0 {
+            return None;
+        }
+        // Replicate the layout math from paint to find (ax, aw).
+        let (content, radius) = self.border.content_round_rect(w, 0.0, &self.look);
+        let Rect { x, y, w: cw, h: ch } = content;
+        let r = radius;
+        let v_range = self.max - self.min;
+
+        let rx = x + r * 0.5;
+        let ry = y + r * 0.5;
+        let rw = cw - r;
+        let rh = ch - r;
+
+        let s = rh.min(rw);
+        let d_base = s * 0.04;
+        let mut ax = rx + d_base;
+        let ay = ry + d_base;
+        let mut aw = rw - 2.0 * d_base;
+        let ah = rh - 2.0 * d_base;
+
+        let mut e = s * 0.3 * 0.5;
+
+        let ivals = &self.scale_mark_intervals;
+        let ival_cnt = ivals.len();
+        let ival_sum: u64 = ivals.iter().sum();
+
+        let mtw0 = 1.0_f64;
+        let mth0 = self.text_box_tallness;
+        let norm = 1.0 / (mth0 + mtw0.min(mth0) * 0.5);
+        let mtw = mtw0 * norm;
+        let mw = mtw * 1.5;
+
+        let mut d = e - d_base;
+        if d < 0.0 {
+            d = 0.0;
+        }
+        if ival_cnt > 0 && v_range > 0.0 {
+            let th_mark = ah;
+            let f_mark = th_mark * ivals[0] as f64 / ival_sum as f64;
+            let tw_mark = f_mark * mw * v_range / ivals[0] as f64;
+            let mut f2 = f_mark * mtw;
+            if tw_mark + f2 > aw {
+                f2 *= aw / (tw_mark + f2);
+            }
+            f2 *= 0.5;
+            if d < f2 {
+                d = f2;
+            }
+            let f_max = aw * 0.2;
+            if d > f_max {
+                d = f_max;
+            }
+        }
+        ax += d;
+        aw -= 2.0 * d;
+
+        // Check bounds: the active area is the arrow zone.
+        if e > ay + ah - ry {
+            e = ay + ah - ry;
+        }
+        if mx < ax - e || mx > ax + aw + e || my < ry || my > ay + ah {
+            return None;
+        }
+
+        // Convert x position to value.
+        if v_range <= 0.0 || aw <= 0.0 {
+            return Some(self.min);
+        }
+        let frac = ((mx - ax) / aw).clamp(0.0, 1.0);
+        let val = self.min + frac * v_range;
+        Some(val.clamp(self.min, self.max))
+    }
+
     pub fn preferred_size(&self) -> (f64, f64) {
         let cw = 100.0;
         let ch = 13.0 + 4.0;
@@ -497,6 +597,20 @@ impl ScalarField {
         }
     }
 }
+
+/// C++ `emScalarField::HowToScalarField`.
+const HOWTO_SCALAR_FIELD: &str = "\n\n\
+    SCALAR FIELD\n\n\
+    This is a scalar field. In such a field, a scalar value can be viewed and\n\
+    edited. Usually it is a number, but it can even be a choice of a series of\n\
+    possibilities.\n\n\
+    To move the needle to a desired value, click or drag with the left mouse button.\n\
+    Alternatively, you can move the needle by pressing the + and - keys.\n";
+
+/// C++ `emScalarField::HowToReadOnly`.
+const HOWTO_READ_ONLY: &str = "\n\n\
+    READ-ONLY\n\n\
+    This scalar field is read-only. You cannot move the needle.\n";
 
 #[cfg(test)]
 mod tests {
