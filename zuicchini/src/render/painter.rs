@@ -715,34 +715,72 @@ impl<'a> Painter<'a> {
         } else {
             super::texture::ImageExtension::Clamp
         };
-        let ctx = interpolation::ScaleContext {
-            src_w,
-            src_h,
-            dest_w: pw as f64,
-            dest_h: ph as f64,
-        };
 
         // 24-bit fixed-point scaling transform matching C++ emPainter_ScTl.
         let sxfm = self.scale_transform_24(image.width(), image.height(), x, y, w, h);
 
-        for row in start_y..end_y {
-            for col in start_x..end_x {
-                let src_color = if upscaling {
-                    // Bicubic with -0x180_0000 (-1.5) offset for 4-tap kernel centering.
-                    let tx = (col - px) as i64 * sxfm.tdx + sxfm.base_x - 0x180_0000;
-                    let ty = (row - py) as i64 * sxfm.tdy + sxfm.base_y - 0x180_0000;
-                    interpolation::sample_bicubic_premul_fp(image, tx, ty, ext)
-                } else if downscaling {
-                    let sx = (col - px) as f64 * src_w / pw as f64;
-                    let sy = (row - py) as f64 * src_h / ph as f64;
-                    interpolation::sample_area(image, sx, sy, &ctx, ext)
-                } else {
-                    // Nearest: no method offset.
-                    let tx = (col - px) as i64 * sxfm.tdx + sxfm.base_x;
-                    let ty = (row - py) as i64 * sxfm.tdy + sxfm.base_y;
-                    interpolation::sample_nearest(image, (tx >> 24) as f64, (ty >> 24) as f64, ext)
-                };
-                self.blend_pixel(col, row, src_color);
+        if downscaling {
+            // 24fp area sampling matching C++ ScanlineTool InterpolateImageAreaSampled.
+            let iw = image.width();
+            let ih = image.height();
+            let tdx_init = ((iw as i64) << 24) as f64 / pw as f64;
+            let tdy_init = ((ih as i64) << 24) as f64 / ph as f64;
+            let tdx_i = tdx_init as i64;
+            let tdy_i = tdy_init as i64;
+            let stride_x = if tdx_i > 0xFFFF00 {
+                ((tdx_i / 3 + 0xFFFFFF) >> 24) as u32
+            } else {
+                1
+            }
+            .max(1);
+            let stride_y = if tdy_i > 0xFFFF00 {
+                ((tdy_i / 3 + 0xFFFFFF) >> 24) as u32
+            } else {
+                1
+            }
+            .max(1);
+            let red_w = iw.div_ceil(stride_x);
+            let red_h = ih.div_ceil(stride_y);
+            let off_x = (iw as i32 - (red_w as i32 - 1) * stride_x as i32 - 1) / 2;
+            let off_y = (ih as i32 - (red_h as i32 - 1) * stride_y as i32 - 1) / 2;
+            let mut xfm = self.area_sample_transform_24(red_w, red_h, x, y, w, h);
+            xfm.stride_x = stride_x;
+            xfm.stride_y = stride_y;
+            xfm.off_x = off_x;
+            xfm.off_y = off_y;
+            let sec = interpolation::SectionBounds {
+                ox: 0,
+                oy: 0,
+                w: iw as i32,
+                h: ih as i32,
+            };
+            for row in start_y..end_y {
+                for col in start_x..end_x {
+                    let src_color = interpolation::sample_area_fp(image, col, row, &xfm, &sec, ext);
+                    self.blend_pixel(col, row, src_color);
+                }
+            }
+        } else {
+            for row in start_y..end_y {
+                for col in start_x..end_x {
+                    let src_color = if upscaling {
+                        // Bicubic with -0x180_0000 (-1.5) offset for 4-tap kernel centering.
+                        let tx = (col - px) as i64 * sxfm.tdx + sxfm.base_x - 0x180_0000;
+                        let ty = (row - py) as i64 * sxfm.tdy + sxfm.base_y - 0x180_0000;
+                        interpolation::sample_bicubic_premul_fp(image, tx, ty, ext)
+                    } else {
+                        // Nearest: no method offset.
+                        let tx = (col - px) as i64 * sxfm.tdx + sxfm.base_x;
+                        let ty = (row - py) as i64 * sxfm.tdy + sxfm.base_y;
+                        interpolation::sample_nearest(
+                            image,
+                            (tx >> 24) as f64,
+                            (ty >> 24) as f64,
+                            ext,
+                        )
+                    };
+                    self.blend_pixel(col, row, src_color);
+                }
             }
         }
 
@@ -806,122 +844,101 @@ impl<'a> Painter<'a> {
 
         let ch = image.channel_count();
 
-        // C++ emPainter uses area sampling for downscaling (DQ_3X3 default):
-        // pre-reduces source by stride n = ceil(ratio/3), then area-samples
-        // with fractional-weight boundaries on the reduced grid. For upscaling
-        // or 1:1, uses nearest-neighbor with pixel-center offset.
+        // C++ emPainter uses area sampling for downscaling (DQ_3X3 default),
+        // nearest-neighbor for upscaling/1:1 with pixel-center offset.
         let src_w_f = src_w as f64;
         let src_h_f = src_h as f64;
         let ratio_x = src_w_f / dw;
         let ratio_y = src_h_f / dh;
         let downscaling = ratio_x > 1.0 || ratio_y > 1.0;
 
-        // C++ pre-reduction stride: n = ceil(ratio / 3) for DQ_3X3
-        let stride_x = if downscaling {
-            ((ratio_x / 3.0).ceil() as u32).max(1)
+        // Odd channel count -> EXTEND_EDGE, even -> EXTEND_ZERO.
+        let ext = if ch.is_multiple_of(2) {
+            super::texture::ImageExtension::Zero
         } else {
-            1
-        };
-        let stride_y = if downscaling {
-            ((ratio_y / 3.0).ceil() as u32).max(1)
-        } else {
-            1
+            super::texture::ImageExtension::Clamp
         };
 
-        // Reduced source dimensions (matching C++ pre-reduction)
-        let red_w = src_w.div_ceil(stride_x);
-        let red_h = src_h.div_ceil(stride_y);
-        // C++ centers the reduced grid: offset = (total - (reduced-1)*stride - 1) / 2
-        let off_x = (src_w as i32 - (red_w as i32 - 1) * stride_x as i32 - 1) / 2;
-        let off_y = (src_h as i32 - (red_h as i32 - 1) * stride_y as i32 - 1) / 2;
-        // Reduced-to-dest scale
-        let red_ratio_x = red_w as f64 / dw;
-        let red_ratio_y = red_h as f64 / dh;
+        // Helper: lum -> color mapping (shared between downscaling and non-downscaling paths).
+        let lum_to_color = |lum: u8| -> Color {
+            if color1.is_transparent() {
+                let a = (lum as u32 * color2.a() as u32 + 127) / 255;
+                Color::rgba(color2.r(), color2.g(), color2.b(), a as u8)
+            } else if color2.is_transparent() {
+                let inv = 255 - lum;
+                let a = (inv as u32 * color1.a() as u32 + 127) / 255;
+                Color::rgba(color1.r(), color1.g(), color1.b(), a as u8)
+            } else {
+                let t = lum as f64 / 255.0;
+                color1.lerp(color2, t)
+            }
+        };
 
-        for row in start_y..end_y {
-            for col in start_x..end_x {
-                let lum = if downscaling {
-                    // Weighted area sampling on the pre-reduced grid.
-                    // Source interval in reduced coordinates for this dest pixel:
-                    let rx0 = (col as f64 - dx) * red_ratio_x;
-                    let rx1 = rx0 + red_ratio_x;
-                    let ry0 = (row as f64 - dy) * red_ratio_y;
-                    let ry1 = ry0 + red_ratio_y;
+        if downscaling {
+            // 24fp area sampling matching C++ ScanlineTool InterpolateImageAreaSampled.
+            // Area-sample raw channels first, then compute luminance (matching C++ pipeline order).
+            let tdx_init = ((src_w as i64) << 24) as f64 / dw;
+            let tdy_init = ((src_h as i64) << 24) as f64 / dh;
+            let tdx_i = tdx_init as i64;
+            let tdy_i = tdy_init as i64;
+            let stride_x = if tdx_i > 0xFFFF00 {
+                ((tdx_i / 3 + 0xFFFFFF) >> 24) as u32
+            } else {
+                1
+            }
+            .max(1);
+            let stride_y = if tdy_i > 0xFFFF00 {
+                ((tdy_i / 3 + 0xFFFFFF) >> 24) as u32
+            } else {
+                1
+            }
+            .max(1);
+            let red_w = src_w.div_ceil(stride_x);
+            let red_h = src_h.div_ceil(stride_y);
+            let off_x = (src_w as i32 - (red_w as i32 - 1) * stride_x as i32 - 1) / 2;
+            let off_y = (src_h as i32 - (red_h as i32 - 1) * stride_y as i32 - 1) / 2;
+            let mut xfm = self.area_sample_transform_24(red_w, red_h, x, y, w, h);
+            xfm.stride_x = stride_x;
+            xfm.stride_y = stride_y;
+            xfm.off_x = off_x;
+            xfm.off_y = off_y;
+            let sec = interpolation::SectionBounds {
+                ox: src_x as i32,
+                oy: src_y as i32,
+                w: src_w as i32,
+                h: src_h as i32,
+            };
 
-                    let ix0 = (rx0.floor() as i32).max(0) as u32;
-                    let ix1 = (rx1.ceil() as u32).min(red_w);
-                    let iy0 = (ry0.floor() as i32).max(0) as u32;
-                    let iy1 = (ry1.ceil() as u32).min(red_h);
-
-                    let mut wsum = 0.0f64;
-                    let mut vsum = 0.0f64;
-                    for iy in iy0..iy1 {
-                        // Y weight: fraction of this reduced pixel covered
-                        let y_lo = (iy as f64).max(ry0);
-                        let y_hi = ((iy + 1) as f64).min(ry1);
-                        let wy = y_hi - y_lo;
-
-                        let real_y = (off_y + iy as i32 * stride_y as i32) as u32;
-                        if real_y >= src_h {
-                            continue;
-                        }
-
-                        for ix in ix0..ix1 {
-                            let x_lo = (ix as f64).max(rx0);
-                            let x_hi = ((ix + 1) as f64).min(rx1);
-                            let wx = x_hi - x_lo;
-
-                            let real_x = (off_x + ix as i32 * stride_x as i32) as u32;
-                            if real_x >= src_w {
-                                continue;
-                            }
-
-                            let p = image.pixel(src_x + real_x, src_y + real_y);
-                            let v = if ch == 1 {
-                                p[0] as f64
-                            } else {
-                                ((p[0] as u32 * 77 + p[1] as u32 * 150 + p[2] as u32 * 29) >> 8)
-                                    as f64
-                            };
-                            let w = wx * wy;
-                            vsum += v * w;
-                            wsum += w;
-                        }
-                    }
-                    if wsum > 0.0 {
-                        (vsum / wsum + 0.5) as u8
+            for row in start_y..end_y {
+                for col in start_x..end_x {
+                    let color = interpolation::sample_area_fp(image, col, row, &xfm, &sec, ext);
+                    // C++ area-samples channels, then maps to lum in PaintScanlineInt.
+                    // For 1-ch: color = (g,g,g,255), lum = g = color.r()
+                    // For 3-ch: color = (r,g,b,255), lum = (77*r + 150*g + 29*b) >> 8
+                    let lum = if ch == 1 {
+                        color.r()
                     } else {
-                        0
-                    }
-                } else {
-                    // Upscaling/1:1: nearest-neighbor with pixel-center offset.
+                        ((color.r() as u32 * 77 + color.g() as u32 * 150 + color.b() as u32 * 29)
+                            >> 8) as u8
+                    };
+                    self.blend_pixel(col, row, lum_to_color(lum));
+                }
+            }
+        } else {
+            for row in start_y..end_y {
+                for col in start_x..end_x {
                     let fx = (col as f64 - dx + 0.5) * ratio_x;
                     let fy = (row as f64 - dy + 0.5) * ratio_y;
                     let ix = (fx as u32).min(src_w - 1);
                     let iy = (fy as u32).min(src_h - 1);
                     let p = image.pixel(src_x + ix, src_y + iy);
-                    if ch == 1 {
+                    let lum = if ch == 1 {
                         p[0]
                     } else {
                         ((p[0] as u32 * 77 + p[1] as u32 * 150 + p[2] as u32 * 29) >> 8) as u8
-                    }
-                };
-                // C++ emPainter IMAGE_COLORED blending:
-                // When color1 is transparent (PSF_INT_G2): grayscale is the
-                // opacity of color2 — always paint color2's hue.
-                // When both have alpha (PSF_INT_G1G2): full interpolation.
-                let blended = if color1.is_transparent() {
-                    let a = (lum as u32 * color2.a() as u32 + 127) / 255;
-                    Color::rgba(color2.r(), color2.g(), color2.b(), a as u8)
-                } else if color2.is_transparent() {
-                    let inv = 255 - lum;
-                    let a = (inv as u32 * color1.a() as u32 + 127) / 255;
-                    Color::rgba(color1.r(), color1.g(), color1.b(), a as u8)
-                } else {
-                    let t = lum as f64 / 255.0;
-                    color1.lerp(color2, t)
-                };
-                self.blend_pixel(col, row, blended);
+                    };
+                    self.blend_pixel(col, row, lum_to_color(lum));
+                }
             }
         }
 
@@ -1890,107 +1907,63 @@ impl<'a> Painter<'a> {
         let downscaling = ratio_x > 1.0 || ratio_y > 1.0;
 
         if downscaling {
-            // C++ pre-reduction: stride = ceil(ratio/3) for DQ_3X3
+            // 24-bit fixed-point area sampling matching C++ emPainter_ScTl + InterpolateImageAreaSampled.
             let sw_u = sw as u32;
             let sh_u = sh as u32;
-            let stride_x = ((ratio_x / 3.0).ceil() as u32).max(1);
-            let stride_y = ((ratio_y / 3.0).ceil() as u32).max(1);
+
+            // Compute initial TDX/TDY in 24fp (C++ emPainter_ScTl.cpp line 296).
+            let tdx_init = ((sw_u as i64) << 24) as f64 / dw_px;
+            let tdy_init = ((sh_u as i64) << 24) as f64 / dh_px;
+            let tdx_i = tdx_init as i64;
+            let tdy_i = tdy_init as i64;
+
+            // Pre-reduction stride from TDX (C++ line 314): (TDX/3 + 0xFFFFFF) >> 24.
+            // NOT float ceil(ratio/3.0) — must use 24fp integer division.
+            let stride_x = if tdx_i > 0xFFFF00 {
+                ((tdx_i / 3 + 0xFFFFFF) >> 24) as u32
+            } else {
+                1
+            }
+            .max(1);
+            let stride_y = if tdy_i > 0xFFFF00 {
+                ((tdy_i / 3 + 0xFFFFFF) >> 24) as u32
+            } else {
+                1
+            }
+            .max(1);
+
+            // Reduced dimensions (C++ lines 316-322).
             let red_w = sw_u.div_ceil(stride_x);
             let red_h = sh_u.div_ceil(stride_y);
-            // C++ centers the reduced grid
+
+            // Centering offset (C++ lines 319-320).
             let off_x = (sw_u as i32 - (red_w as i32 - 1) * stride_x as i32 - 1) / 2;
             let off_y = (sh_u as i32 - (red_h as i32 - 1) * stride_y as i32 - 1) / 2;
-            let red_ratio_x = red_w as f64 / dw_px;
-            let red_ratio_y = red_h as f64 / dh_px;
-            let sx_u = sx as u32;
-            let sy_u = sy as u32;
+
+            // Transform from REDUCED dimensions (C++ lines 323,335,338-341).
+            let mut xfm = self.area_sample_transform_24(red_w, red_h, dx, dy, dw, dh);
+            xfm.stride_x = stride_x;
+            xfm.stride_y = stride_y;
+            xfm.off_x = off_x;
+            xfm.off_y = off_y;
+            let sec = interpolation::SectionBounds {
+                ox: sx as i32,
+                oy: sy as i32,
+                w: sw as i32,
+                h: sh as i32,
+            };
 
             for row in start_y..end_y {
                 for col in start_x..end_x {
-                    let rx0 = (col as f64 - dx_px) * red_ratio_x;
-                    let rx1 = rx0 + red_ratio_x;
-                    let ry0 = (row as f64 - dy_px) * red_ratio_y;
-                    let ry1 = ry0 + red_ratio_y;
-
-                    let ix0 = (rx0.floor() as i32).max(0) as u32;
-                    let ix1 = (rx1.ceil() as u32).min(red_w);
-                    let iy0 = (ry0.floor() as i32).max(0) as u32;
-                    let iy1 = (ry1.ceil() as u32).min(red_h);
-
-                    let mut accum = [0.0f64; 4];
-                    let mut wsum = 0.0f64;
-                    for iy in iy0..iy1 {
-                        let y_lo = (iy as f64).max(ry0);
-                        let y_hi = ((iy + 1) as f64).min(ry1);
-                        let wy = y_hi - y_lo;
-
-                        let real_y = off_y + iy as i32 * stride_y as i32;
-                        if real_y < 0 || real_y as u32 >= sh_u {
-                            continue;
-                        }
-
-                        for ix in ix0..ix1 {
-                            let x_lo = (ix as f64).max(rx0);
-                            let x_hi = ((ix + 1) as f64).min(rx1);
-                            let wx = x_hi - x_lo;
-
-                            let real_x = off_x + ix as i32 * stride_x as i32;
-                            if real_x < 0 || real_x as u32 >= sw_u {
-                                continue;
-                            }
-
-                            let p = image.pixel(sx_u + real_x as u32, sy_u + real_y as u32);
-                            let ch = image.channel_count();
-                            let w = wx * wy;
-                            match ch {
-                                1 => {
-                                    let v = p[0] as f64;
-                                    accum[0] += v * w;
-                                    accum[1] += v * w;
-                                    accum[2] += v * w;
-                                    accum[3] += 255.0 * w;
-                                }
-                                3 => {
-                                    accum[0] += p[0] as f64 * w;
-                                    accum[1] += p[1] as f64 * w;
-                                    accum[2] += p[2] as f64 * w;
-                                    accum[3] += 255.0 * w;
-                                }
-                                _ => {
-                                    // Premultiplied-alpha area sampling:
-                                    // accumulate r*a*w and a*w, matching C++.
-                                    let a = p[3] as f64;
-                                    accum[0] += p[0] as f64 * a * w;
-                                    accum[1] += p[1] as f64 * a * w;
-                                    accum[2] += p[2] as f64 * a * w;
-                                    accum[3] += a * w;
-                                }
-                            }
-                            wsum += w;
-                        }
-                    }
-
-                    if wsum > 0.0 {
-                        let color = if image.channel_count() >= 4 && accum[3] > 0.0 {
-                            // Unpremultiply: straight_r = sum(r*a*w) / sum(a*w),
-                            // alpha = sum(a*w) / sum(w).
-                            let alpha = (accum[3] / wsum + 0.5).min(255.0);
-                            Color::rgba(
-                                (accum[0] / accum[3] + 0.5).min(255.0) as u8,
-                                (accum[1] / accum[3] + 0.5).min(255.0) as u8,
-                                (accum[2] / accum[3] + 0.5).min(255.0) as u8,
-                                alpha as u8,
-                            )
-                        } else {
-                            Color::rgba(
-                                (accum[0] / wsum + 0.5) as u8,
-                                (accum[1] / wsum + 0.5) as u8,
-                                (accum[2] / wsum + 0.5) as u8,
-                                (accum[3] / wsum + 0.5) as u8,
-                            )
-                        };
-                        self.blend_pixel(col, row, color);
-                    }
+                    let color = interpolation::sample_area_fp(
+                        image,
+                        col,
+                        row,
+                        &xfm,
+                        &sec,
+                        super::texture::ImageExtension::Clamp, // 9-slice uses EXTEND_EDGE
+                    );
+                    self.blend_pixel(col, row, color);
                 }
             }
         } else {
@@ -4352,6 +4325,56 @@ impl<'a> Painter<'a> {
             tdy,
             base_x: px as i64 * tdx - tx_origin,
             base_y: py as i64 * tdy - ty_origin,
+        }
+    }
+
+    /// Build a 24-bit fixed-point area sampling transform for downscaling.
+    /// Matches C++ emPainter_ScTl Init (lines 323, 335, 338-341).
+    ///
+    /// Key difference from `scale_transform_24`: NO -0.5 pixel-center offset.
+    fn area_sample_transform_24(
+        &self,
+        src_w: u32,
+        src_h: u32,
+        dest_x: f64,
+        dest_y: f64,
+        dest_w: f64,
+        dest_h: f64,
+    ) -> interpolation::AreaSampleTransform {
+        let tw = dest_w * self.state.scale_x;
+        let th = dest_h * self.state.scale_y;
+        let tdx_f64 = ((src_w as i64) << 24) as f64 / tw;
+        let tdy_f64 = ((src_h as i64) << 24) as f64 / th;
+        let tdx = tdx_f64 as i64;
+        let tdy = tdy_f64 as i64;
+        let tx_sub = dest_x * self.state.scale_x + self.state.offset_x;
+        let ty_sub = dest_y * self.state.scale_y + self.state.offset_y;
+        // NO -0.5 offset (contrast with scale_transform_24).
+        let tx = (tx_sub * tdx_f64) as i64;
+        let ty = (ty_sub * tdy_f64) as i64;
+        let odx = if tdx <= 0x200 {
+            0x7FFF_FFFF
+        } else {
+            (((1i64 << 40) - 1) / tdx + 1) as u32
+        };
+        let ody = if tdy <= 0x200 {
+            0x7FFF_FFFF
+        } else {
+            (((1i64 << 40) - 1) / tdy + 1) as u32
+        };
+        interpolation::AreaSampleTransform {
+            tdx,
+            tdy,
+            tx,
+            ty,
+            odx,
+            ody,
+            img_w: src_w as i32,
+            img_h: src_h as i32,
+            stride_x: 1,
+            stride_y: 1,
+            off_x: 0,
+            off_y: 0,
         }
     }
 

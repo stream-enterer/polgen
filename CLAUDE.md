@@ -41,3 +41,7 @@ Do not skip with `--no-verify`. If a commit fails, fix the cause and retry.
 - Truncate color math to `u8` mid-calculation
 - `assert!` for recoverable errors
 - `--no-verify` on commits
+
+## Plan Tool Rules
+
+- **When writing plans**: Plans must be phased, gated, and hardened against LLM failure modes and anti-patterns.

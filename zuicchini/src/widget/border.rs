@@ -395,7 +395,7 @@ impl Border {
             OuterBorderType::RoundRect => s * 0.22 * CORNER_INSET_FACTOR + s * 0.02,
             OuterBorderType::Group => s * 0.0104,
             OuterBorderType::Instrument => s * 0.052,
-            OuterBorderType::InstrumentMoreRound => s * 0.223 * CORNER_INSET_FACTOR + s * 0.02,
+            OuterBorderType::InstrumentMoreRound => s * 0.052,
             OuterBorderType::PopupRoot => s * 0.006,
         };
         if d == 0.0 {
@@ -877,7 +877,7 @@ How to move or set the focus:\n\
                 )
             }
             OuterBorderType::InstrumentMoreRound => {
-                let d = s * 0.02;
+                let d = s * 0.052;
                 let rnd_r = s * 0.223;
                 let r = rnd_r * 336.0 / 293.4;
                 let e = r - rnd_r;

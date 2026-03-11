@@ -269,15 +269,17 @@ fn widget_label() {
 // ─── Test 6: widget_button_normal ───────────────────────────────
 
 #[test]
-#[ignore = "overlay 9-slice face texture rendering diffs (~56%)"]
 fn widget_button_normal() {
     require_golden!();
     let look = Look::new();
-    render_and_compare(
+    // Residual diffs from text rendering and 9-slice boundary rounding (~0.9%)
+    render_and_compare_tol(
         "widget_button_normal",
         Box::new(ButtonBehavior {
             button: Button::new("Click Me", look),
         }),
+        3,
+        1.5,
     );
 }
 
@@ -436,16 +438,18 @@ fn widget_colorfield() {
 // ─── Test 13: widget_radiobutton ───────────────────────────────
 
 #[test]
-#[ignore = "overlay 9-slice face texture rendering diffs (~53%)"]
 fn widget_radiobutton() {
     require_golden!();
     let look = Look::new();
     let group = RadioGroup::new();
     let mut rb = RadioButton::new("Radio Option", look, group, 0);
     rb.set_checked(true);
-    render_and_compare(
+    // Residual diffs from text rendering and 9-slice boundary rounding (~0.8%)
+    render_and_compare_tol(
         "widget_radiobutton",
         Box::new(RadioButtonBehavior { radio_button: rb }),
+        3,
+        1.5,
     );
 }
 

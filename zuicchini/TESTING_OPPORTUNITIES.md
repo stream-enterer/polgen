@@ -4,10 +4,10 @@ Tiered by suitability for headless golden testing against C++ emCore.
 
 ## Tier 1 — High Value, Low Difficulty
 
-### Layout rect goldens
+### Layout rect goldens — DONE
 - **C++ files:** `emLinearLayout.cpp`, `emRasterLayout.cpp`, `emPackLayout.cpp`
 - **Type:** Numeric comparison (layout_rect values)
-- **Why:** Pure geometry, deterministic, no pixel tolerance issues. Three complex layout engines with no golden verification beyond harness API tests.
+- **Tests:** 31 tests in `layout.rs` (all pass, eps=1e-6). Covers equal/weighted/tallness/spacing/alignment/adaptive/min-max configs for all three layout engines.
 - **Approach:** Create panel trees with known constraints, trigger layout, compare child rect positions/sizes between C++ and Rust.
 
 ### TestPanel full render — DONE
@@ -57,8 +57,8 @@ Tiered by suitability for headless golden testing against C++ emCore.
 ### Border 9-slice composition
 - **C++ files:** `emBorder.cpp` (800+ lines)
 - **Type:** Pixel comparison
-- **Why:** 4 Phase 6 golden tests fail here (button ~60%, radiobutton ~57%, colorfield ~33%, listbox ~31%). Root cause: C++ fixed-point vs Rust float interpolation precision in 9-slice image scaling.
-- **Blocker:** Requires resolving fixed-point/float rounding strategy before tests can pass. High value once unblocked since borders appear in every widget.
+- **Why:** 2 Phase 6 golden tests remain ignored (colorfield ~33%, listbox ~31%) due to missing child panel composition. Button and radiobutton were fixed (DIV-018/DIV-019: border geometry + 24fp area sampling).
+- **Blocker:** colorfield/listbox require child panel expansion support (not a rendering issue).
 
 ## Tier 4 — Moderate Value
 

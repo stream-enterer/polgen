@@ -318,32 +318,32 @@
 
 - id: DIV-018
   area: widget/button
-  kind: expected-divergence
+  kind: resolved
   tests: [widget_button_normal]
-  status: ignored
+  status: passing
   evidence:
-    widget_button_normal: { approx_diff: "~56% (was ~60%)" }
-  source: [src/widget/button.rs]
-  related: [DIV-025]
+    widget_button_normal: { approx_diff: "~0.9% (ch_tol=3, max_pct=1.5%)" }
+  source: [src/widget/border.rs]
+  related: [DIV-025, DIV-019]
   notes: >
-    Button renders an overlay face texture via PaintBorderImage that covers nearly
-    the entire widget area. Unlike border-only widgets where 9-slice covers just
-    the frame, the button face is a full-coverage scaled image. Reduced from ~60%
-    to ~56% by DIV-025 fix (pixel rect + ratio + coordinate + section clamping).
+    Root cause was InstrumentMoreRound outer_insets using RoundRect-like formula
+    (s*0.223*CORNER_INSET_FACTOR + s*0.02 = s*0.085) instead of C++ value (s*0.052).
+    This made border ~64% thicker, shifting all 9-slice sections. Fixed outer_insets
+    and substance_round_rect to use s*0.052. Combined with 24fp area sampling port,
+    reduced from ~60% to ~0.9%. Residual: text rendering + bilinear edge effects.
 
 - id: DIV-019
   area: widget/radiobutton
-  kind: expected-divergence
+  kind: resolved
   tests: [widget_radiobutton]
-  status: ignored
+  status: passing
   evidence:
-    widget_radiobutton: { approx_diff: "~53% (was ~57%)" }
-  source: [src/widget/radio_button.rs]
-  related: [DIV-025]
+    widget_radiobutton: { approx_diff: "~0.8% (ch_tol=3, max_pct=1.5%)" }
+  source: [src/widget/border.rs]
+  related: [DIV-025, DIV-018]
   notes: >
-    Same mechanism as DIV-018 (button): radiobutton renders an overlay face texture
-    via PaintBorderImage covering nearly the entire widget area. Reduced from ~57%
-    to ~53% by DIV-025 fix.
+    Same root cause as DIV-018: InstrumentMoreRound outer_insets geometry bug.
+    Fixed by same border.rs change. Reduced from ~57% to ~0.8%.
 
 - id: DIV-020
   area: widget/colorfield-rendering

@@ -77,6 +77,46 @@ pub(crate) fn sample_bilinear(image: &Image, x: f64, y: f64, ext: ImageExtension
     Color::rgba(result[0], result[1], result[2], result[3])
 }
 
+/// Pre-computed Y-axis weights for area sampling column accumulation.
+struct YWeights {
+    oy1: u32,
+    oy1n: u32,
+    ody: u32,
+    row0: i32,
+}
+
+/// 24-bit fixed-point area sampling transform for downscaling.
+/// Matches C++ emPainter_ScTl Init (lines 296-343) for the area-sampled path.
+///
+/// Key difference from `ScaleTransform24`: NO -0.5 pixel-center offset.
+/// TX = tx_sub * tdx_f64 (not (tx_sub - 0.5) * tdx_f64).
+pub(crate) struct AreaSampleTransform {
+    /// Source-per-dest horizontal step (24fp), post-reduction.
+    pub tdx: i64,
+    /// Source-per-dest vertical step (24fp), post-reduction.
+    pub tdy: i64,
+    /// X origin offset in 24fp.
+    pub tx: i64,
+    /// Y origin offset in 24fp.
+    pub ty: i64,
+    /// Rational inverse of TDX: ((1<<40)-1)/TDX+1.
+    pub odx: u32,
+    /// Rational inverse of TDY: ((1<<40)-1)/TDY+1.
+    pub ody: u32,
+    /// Reduced source width.
+    pub img_w: i32,
+    /// Reduced source height.
+    pub img_h: i32,
+    /// Pre-reduction stride X.
+    pub stride_x: u32,
+    /// Pre-reduction stride Y.
+    pub stride_y: u32,
+    /// Centering offset X.
+    pub off_x: i32,
+    /// Centering offset Y.
+    pub off_y: i32,
+}
+
 /// 24-bit fixed-point scaling transform matching C++ emPainter_ScTl.
 ///
 /// Setup uses f64 for TDX/TDY/TX/TY derivation (matching C++ which computes
@@ -136,6 +176,353 @@ fn sample_pixel_section(
         4 => [p[0], p[1], p[2], p[3]],
         _ => [0, 0, 0, 0],
     }
+}
+
+/// Compute the rational inverse for area sampling weight normalization.
+/// Matches C++ `(((emInt64)1<<40)-1)/span+1`.
+fn rational_inv(span: i64) -> u32 {
+    if span <= 0x200 {
+        0x7FFF_FFFF
+    } else {
+        (((1i64 << 40) - 1) / span + 1) as u32
+    }
+}
+
+/// Read a pixel from the image at reduced-grid coordinates with section offset.
+/// Coordinates are clamped to section bounds (pixel-level EXTEND_EDGE).
+fn read_area_pixel<'a>(
+    image: &'a Image,
+    sec: &SectionBounds,
+    col: i32,
+    row: i32,
+    xfm: &AreaSampleTransform,
+) -> &'a [u8] {
+    let rx = (xfm.off_x + col * xfm.stride_x as i32).clamp(0, sec.w - 1);
+    let ry = (xfm.off_y + row * xfm.stride_y as i32).clamp(0, sec.h - 1);
+    image.pixel((sec.ox + rx) as u32, (sec.oy + ry) as u32)
+}
+
+/// Area sampling with 24-bit fixed-point integer arithmetic.
+/// Matches C++ `InterpolateImageAreaSampled` (non-tiled) exactly.
+///
+/// Handles CHANNELS=1, 3, and 4 with correct per-channel FINPREMUL:
+/// - CHANNELS=4: RGB division `(x + 0x7F7F) / 0xFF00`, alpha shift `(x + 0x7F) >> 8`
+/// - CHANNELS=1/3: shift `(x + 0x7F) >> 8` for all channels
+///
+/// Returns straight-alpha Color (premul->straight conversion done internally for 4-ch).
+pub(crate) fn sample_area_fp(
+    image: &Image,
+    dest_x: i32,
+    dest_y: i32,
+    xfm: &AreaSampleTransform,
+    sec: &SectionBounds,
+    ext: ImageExtension,
+) -> Color {
+    let ch = image.channel_count();
+
+    // --- Y setup (C++ emPainter_ScTlIntImg.cpp lines 686-725) ---
+    let mut ty1 = dest_y as i64 * xfm.tdy - xfm.ty;
+    let mut ty2 = ty1 + xfm.tdy;
+    let ty_end = (xfm.img_h as i64) << 24;
+    let mut ody = xfm.ody;
+
+    // EXACT if/else if structure from C++ — NOT sequential max/min.
+    if ty1 < 0 {
+        if ty2 <= 0 {
+            if ext == ImageExtension::Zero {
+                return Color::TRANSPARENT;
+            }
+            ty2 = 1 << 24; // EXTEND_EDGE: clamp to first row
+        } else if ty2 > ty_end {
+            ty2 = ty_end;
+        }
+        ty1 = 0;
+        ody = rational_inv(ty2);
+    } else if ty2 > ty_end {
+        if ty1 >= ty_end {
+            if ext == ImageExtension::Zero {
+                return Color::TRANSPARENT;
+            }
+            ty1 = ty_end - (1 << 24); // EXTEND_EDGE: clamp to last row
+        }
+        ody = rational_inv(ty_end - ty1);
+    }
+
+    let oy1 = {
+        let w = ((0x100_0000i64 - (ty1 & 0xFF_FFFF)) as u64 * ody as u64 + 0xFF_FFFF) >> 24;
+        if w >= 0x10000 || ody == 0x7FFF_FFFF {
+            0x10000u32
+        } else {
+            w as u32
+        }
+    };
+    let yw = YWeights {
+        oy1,
+        oy1n: 0x10000u32 - oy1,
+        ody,
+        row0: (ty1 >> 24) as i32,
+    };
+
+    // --- X setup (C++ lines 727-776) ---
+    let mut tx1 = dest_x as i64 * xfm.tdx - xfm.tx;
+    let mut tx2 = tx1 + xfm.tdx;
+    let tx_end = (xfm.img_w as i64) << 24;
+    let mut odx = xfm.odx;
+
+    if tx1 < 0 {
+        tx1 = 0;
+        if tx2 <= 0 {
+            if ext == ImageExtension::Zero {
+                return Color::TRANSPARENT;
+            }
+            tx2 = 1 << 24; // EXTEND_EDGE
+        } else if tx2 > tx_end {
+            tx2 = tx_end;
+        }
+        odx = rational_inv(tx2);
+    } else if tx2 > tx_end {
+        if tx1 >= tx_end {
+            if ext == ImageExtension::Zero {
+                return Color::TRANSPARENT;
+            }
+            tx1 = tx_end - (1 << 24); // EXTEND_EDGE
+        }
+        odx = rational_inv(tx_end - tx1);
+    }
+
+    // First column weight (C++ line 777-778).
+    let ox = {
+        let w = ((0x100_0000i64 - (tx1 & 0xFF_FFFF)) as u64 * odx as u64 + 0xFF_FFFF) >> 24;
+        if odx == 0x7FFF_FFFF {
+            0x7FFF_FFFFu32
+        } else {
+            w as u32
+        }
+    };
+    let col0 = (tx1 >> 24) as i32;
+    // Safety bound: max column from coordinate range.
+    let col_bound = ((tx2 - 1).max(tx1) >> 24) as i32 + 1;
+
+    // --- Column + row accumulation (C++ lines 790-825) ---
+    let mut cyx_r: u64 = 0x7F_FFFF;
+    let mut cyx_g: u64 = 0x7F_FFFF;
+    let mut cyx_b: u64 = 0x7F_FFFF;
+    let mut cyx_a: u64 = 0x7F_FFFF;
+
+    let mut remaining = 0x10000u32;
+    let mut col = col0;
+    let mut col_weight = ox;
+
+    while remaining > 0 && col <= col_bound {
+        let w = if col_weight >= remaining {
+            remaining
+        } else {
+            col_weight
+        };
+
+        // Y-accumulate for this column, then FINPREMUL.
+        let (cy_r, cy_g, cy_b, cy_a) = y_accumulate(image, sec, ch, col, &yw, xfm);
+
+        cyx_r += cy_r * w as u64;
+        cyx_g += cy_g * w as u64;
+        cyx_b += cy_b * w as u64;
+        cyx_a += cy_a * w as u64;
+
+        remaining -= w;
+        col += 1;
+        col_weight = odx;
+    }
+
+    // Output: WRITE_NO_ROUND_SHR_COLOR(cyx, 24)
+    let out_r = (cyx_r >> 24) as u8;
+    let out_g = (cyx_g >> 24) as u8;
+    let out_b = (cyx_b >> 24) as u8;
+
+    match ch {
+        4 => {
+            let out_a = (cyx_a >> 24) as u8;
+            // Premul -> straight alpha conversion.
+            if out_a == 0 {
+                Color::TRANSPARENT
+            } else if out_a == 255 {
+                Color::rgba(out_r, out_g, out_b, 255)
+            } else {
+                let a16 = out_a as u16;
+                let sr = ((out_r as u16 * 255 + a16 / 2) / a16).min(255) as u8;
+                let sg = ((out_g as u16 * 255 + a16 / 2) / a16).min(255) as u8;
+                let sb = ((out_b as u16 * 255 + a16 / 2) / a16).min(255) as u8;
+                Color::rgba(sr, sg, sb, out_a)
+            }
+        }
+        3 => Color::rgba(out_r, out_g, out_b, 255),
+        _ => Color::rgba(out_r, out_r, out_r, 255), // 1-ch gray
+    }
+}
+
+/// Y-accumulate a single column for area sampling, then apply FINPREMUL.
+/// Returns (cy_r, cy_g, cy_b, cy_a) after FINPREMUL_SHR_COLOR(cy, 8).
+fn y_accumulate(
+    image: &Image,
+    sec: &SectionBounds,
+    ch: u8,
+    col: i32,
+    yw: &YWeights,
+    xfm: &AreaSampleTransform,
+) -> (u64, u64, u64, u64) {
+    let p = read_area_pixel(image, sec, col, yw.row0, xfm);
+
+    match ch {
+        4 => y_accumulate_4ch(image, sec, col, yw, xfm, p),
+        3 => y_accumulate_3ch(image, sec, col, yw, xfm, p),
+        _ => y_accumulate_1ch(image, sec, col, yw, xfm, p),
+    }
+}
+
+/// CHANNELS=4: premultiplied alpha accumulation.
+/// READ_PREMUL_MUL_COLOR: cy_a = p[3]*oy1; cy_r = p[0]*cy_a
+/// FINPREMUL_SHR_COLOR(cy,8): RGB = (x + 0x7F7F) / 0xFF00; A = (x + 0x7F) >> 8
+fn y_accumulate_4ch(
+    image: &Image,
+    sec: &SectionBounds,
+    col: i32,
+    yw: &YWeights,
+    xfm: &AreaSampleTransform,
+    p: &[u8],
+) -> (u64, u64, u64, u64) {
+    // READ_PREMUL_MUL_COLOR(cy, p, oy1) for CHANNELS=4
+    let mut ca = p[3] as u64 * yw.oy1 as u64;
+    let mut cr = p[0] as u64 * ca;
+    let mut cg = p[1] as u64 * ca;
+    let mut cb = p[2] as u64 * ca;
+
+    let mut oys = yw.oy1n as u64;
+    if oys > 0 {
+        let mut r = yw.row0 + 1;
+        if oys > yw.ody as u64 {
+            // Interior rows: DEFINE_AND_READ_PREMUL_COLOR + ADD_READ_PREMUL_COLOR
+            let pi = read_area_pixel(image, sec, col, r, xfm);
+            let mut ta = pi[3] as u64;
+            let mut tr = pi[0] as u64 * ta;
+            let mut tg = pi[1] as u64 * ta;
+            let mut tb = pi[2] as u64 * ta;
+            r += 1;
+            oys -= yw.ody as u64;
+            while oys > yw.ody as u64 {
+                let pi = read_area_pixel(image, sec, col, r, xfm);
+                let a = pi[3] as u64;
+                ta += a;
+                tr += pi[0] as u64 * a;
+                tg += pi[1] as u64 * a;
+                tb += pi[2] as u64 * a;
+                r += 1;
+                oys -= yw.ody as u64;
+            }
+            // ADD_MUL_COLOR(cy, ctmp, ody)
+            ca += ta * yw.ody as u64;
+            cr += tr * yw.ody as u64;
+            cg += tg * yw.ody as u64;
+            cb += tb * yw.ody as u64;
+        }
+        // Last row: ADD_READ_PREMUL_MUL_COLOR(cy, p, oys)
+        let pl = read_area_pixel(image, sec, col, r, xfm);
+        let al = pl[3] as u64 * oys;
+        ca += al;
+        cr += pl[0] as u64 * al;
+        cg += pl[1] as u64 * al;
+        cb += pl[2] as u64 * al;
+    }
+
+    // FINPREMUL_SHR_COLOR(cy, 8) for CHANNELS=4
+    // RGB: integer division (x + 0x7F7F) / 0xFF00  (NOT shift!)
+    // Alpha: shift (x + 0x7F) >> 8
+    let fr = (cr + 0x7F7F) / 0xFF00;
+    let fg = (cg + 0x7F7F) / 0xFF00;
+    let fb = (cb + 0x7F7F) / 0xFF00;
+    let fa = (ca + 0x7F) >> 8;
+    (fr, fg, fb, fa)
+}
+
+/// CHANNELS=3: no premultiplication.
+/// READ_PREMUL_MUL_COLOR: cy_r = p[0]*oy1 (direct multiply, no alpha)
+/// FINPREMUL_SHR_COLOR(cy,8): all channels use shift (x + 0x7F) >> 8
+fn y_accumulate_3ch(
+    image: &Image,
+    sec: &SectionBounds,
+    col: i32,
+    yw: &YWeights,
+    xfm: &AreaSampleTransform,
+    p: &[u8],
+) -> (u64, u64, u64, u64) {
+    let mut cr = p[0] as u64 * yw.oy1 as u64;
+    let mut cg = p[1] as u64 * yw.oy1 as u64;
+    let mut cb = p[2] as u64 * yw.oy1 as u64;
+
+    let mut oys = yw.oy1n as u64;
+    if oys > 0 {
+        let mut r = yw.row0 + 1;
+        if oys > yw.ody as u64 {
+            let pi = read_area_pixel(image, sec, col, r, xfm);
+            let mut tr = pi[0] as u64;
+            let mut tg = pi[1] as u64;
+            let mut tb = pi[2] as u64;
+            r += 1;
+            oys -= yw.ody as u64;
+            while oys > yw.ody as u64 {
+                let pi = read_area_pixel(image, sec, col, r, xfm);
+                tr += pi[0] as u64;
+                tg += pi[1] as u64;
+                tb += pi[2] as u64;
+                r += 1;
+                oys -= yw.ody as u64;
+            }
+            cr += tr * yw.ody as u64;
+            cg += tg * yw.ody as u64;
+            cb += tb * yw.ody as u64;
+        }
+        let pl = read_area_pixel(image, sec, col, r, xfm);
+        cr += pl[0] as u64 * oys;
+        cg += pl[1] as u64 * oys;
+        cb += pl[2] as u64 * oys;
+    }
+
+    // FINPREMUL_SHR_COLOR(cy, 8) for CHANNELS=3: shift only
+    ((cr + 0x7F) >> 8, (cg + 0x7F) >> 8, (cb + 0x7F) >> 8, 0)
+}
+
+/// CHANNELS=1: single gray channel, no premultiplication.
+/// FINPREMUL_SHR_COLOR(cy,8): shift (x + 0x7F) >> 8
+fn y_accumulate_1ch(
+    image: &Image,
+    sec: &SectionBounds,
+    col: i32,
+    yw: &YWeights,
+    xfm: &AreaSampleTransform,
+    p: &[u8],
+) -> (u64, u64, u64, u64) {
+    let mut cg = p[0] as u64 * yw.oy1 as u64;
+
+    let mut oys = yw.oy1n as u64;
+    if oys > 0 {
+        let mut r = yw.row0 + 1;
+        if oys > yw.ody as u64 {
+            let pi = read_area_pixel(image, sec, col, r, xfm);
+            let mut tg = pi[0] as u64;
+            r += 1;
+            oys -= yw.ody as u64;
+            while oys > yw.ody as u64 {
+                let pi = read_area_pixel(image, sec, col, r, xfm);
+                tg += pi[0] as u64;
+                r += 1;
+                oys -= yw.ody as u64;
+            }
+            cg += tg * yw.ody as u64;
+        }
+        let pl = read_area_pixel(image, sec, col, r, xfm);
+        cg += pl[0] as u64 * oys;
+    }
+
+    let fg = (cg + 0x7F) >> 8;
+    (fg, fg, fg, 0)
 }
 
 /// Bilinear interpolation with premultiplied alpha, 24-bit fixed-point coordinates.
@@ -674,5 +1061,213 @@ mod tests {
         };
         let c = sample_area(&img, 1.0, 1.0, &ctx, ImageExtension::Clamp);
         assert!((c.r() as i32 - 80).abs() <= 2);
+    }
+
+    // ── 24fp area sampling unit tests ──────────────────────────────
+
+    /// Helper: construct an AreaSampleTransform for testing.
+    /// Assumes identity painter state (scale=1, offset=0, dest origin at 0).
+    fn make_area_xfm(src_w: u32, src_h: u32, dest_w: f64, dest_h: f64) -> AreaSampleTransform {
+        let tdx_f64 = ((src_w as i64) << 24) as f64 / dest_w;
+        let tdy_f64 = ((src_h as i64) << 24) as f64 / dest_h;
+        let tdx = tdx_f64 as i64;
+        let tdy = tdy_f64 as i64;
+        AreaSampleTransform {
+            tdx,
+            tdy,
+            tx: 0,
+            ty: 0,
+            odx: rational_inv(tdx),
+            ody: rational_inv(tdy),
+            img_w: src_w as i32,
+            img_h: src_h as i32,
+            stride_x: 1,
+            stride_y: 1,
+            off_x: 0,
+            off_y: 0,
+        }
+    }
+
+    fn full_sec(w: u32, h: u32) -> SectionBounds {
+        SectionBounds {
+            ox: 0,
+            oy: 0,
+            w: w as i32,
+            h: h as i32,
+        }
+    }
+
+    #[test]
+    fn area_sample_fp_solid_4ch() {
+        // 4x4 RGBA, all pixels solid red — uniform input must give uniform output.
+        let mut img = Image::new(4, 4, 4);
+        for y in 0..4u32 {
+            for x in 0..4u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = 255;
+                p[3] = 255;
+            }
+        }
+        let xfm = make_area_xfm(4, 4, 2.0, 2.0);
+        let sec = full_sec(4, 4);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
+        assert_eq!(c, Color::rgba(255, 0, 0, 255));
+    }
+
+    #[test]
+    fn area_sample_fp_gradient_4ch() {
+        // 4x2 RGBA: left half (128,0,0,255), right half (0,128,0,255).
+        // 4:1 X downscale, 2:1 Y → 1 dest pixel covers entire image.
+        let mut img = Image::new(4, 2, 4);
+        for y in 0..2u32 {
+            for x in 0..4u32 {
+                let p = img.pixel_mut(x, y);
+                if x < 2 {
+                    p[0] = 128;
+                } else {
+                    p[1] = 128;
+                }
+                p[3] = 255;
+            }
+        }
+        let xfm = make_area_xfm(4, 2, 1.0, 1.0);
+        let sec = full_sec(4, 2);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
+        // Equal-weight average: (64, 64, 0, 255) ± 1 for integer rounding.
+        assert!((c.r() as i32 - 64).abs() <= 1, "r={} expected ~64", c.r());
+        assert!((c.g() as i32 - 64).abs() <= 1, "g={} expected ~64", c.g());
+        assert_eq!(c.b(), 0);
+        assert_eq!(c.a(), 255);
+    }
+
+    #[test]
+    fn area_sample_fp_alpha_4ch() {
+        // 2x2 RGBA: (0,0)=(255,0,0,128), rest=(0,0,0,0).
+        // Covers premul accumulation with mixed alpha.
+        let mut img = Image::new(2, 2, 4);
+        let p = img.pixel_mut(0, 0);
+        p[0] = 255;
+        p[3] = 128;
+        // 2:1 downscale → 1 dest pixel covers all 4 source pixels.
+        let xfm = make_area_xfm(2, 2, 1.0, 1.0);
+        let sec = full_sec(2, 2);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
+        // 1 of 4 pixels has alpha=128 → low alpha, non-zero red.
+        assert!(c.a() > 0, "alpha should be non-zero, got {}", c.a());
+        assert!(c.r() > 0, "red should be non-zero, got {}", c.r());
+        assert_eq!(c.g(), 0);
+        assert_eq!(c.b(), 0);
+    }
+
+    #[test]
+    fn area_sample_fp_extend_edge() {
+        // 2x2 solid image, dest pixel maps fully outside bounds.
+        // EXTEND_EDGE must clamp to edge pixel.
+        let mut img = Image::new(2, 2, 4);
+        for y in 0..2u32 {
+            for x in 0..2u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = 200;
+                p[1] = 100;
+                p[2] = 50;
+                p[3] = 255;
+            }
+        }
+        let tdx = 1i64 << 24;
+        let tdy = 1i64 << 24;
+        let xfm = AreaSampleTransform {
+            tdx,
+            tdy,
+            tx: 5 << 24, // dest pixel 0 maps to source -5, fully outside
+            ty: 5 << 24,
+            odx: rational_inv(tdx),
+            ody: rational_inv(tdy),
+            img_w: 2,
+            img_h: 2,
+            stride_x: 1,
+            stride_y: 1,
+            off_x: 0,
+            off_y: 0,
+        };
+        let sec = full_sec(2, 2);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
+        assert_eq!(c, Color::rgba(200, 100, 50, 255));
+    }
+
+    #[test]
+    fn area_sample_fp_extend_zero() {
+        // Same setup as extend_edge but with EXTEND_ZERO → transparent.
+        let mut img = Image::new(2, 2, 4);
+        for y in 0..2u32 {
+            for x in 0..2u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = 200;
+                p[1] = 100;
+                p[2] = 50;
+                p[3] = 255;
+            }
+        }
+        let tdx = 1i64 << 24;
+        let tdy = 1i64 << 24;
+        let xfm = AreaSampleTransform {
+            tdx,
+            tdy,
+            tx: 5 << 24,
+            ty: 5 << 24,
+            odx: rational_inv(tdx),
+            ody: rational_inv(tdy),
+            img_w: 2,
+            img_h: 2,
+            stride_x: 1,
+            stride_y: 1,
+            off_x: 0,
+            off_y: 0,
+        };
+        let sec = full_sec(2, 2);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Zero);
+        assert_eq!(c, Color::TRANSPARENT);
+    }
+
+    #[test]
+    fn area_sample_fp_1ch() {
+        // 4x4 grayscale with gradient values.
+        let mut img = Image::new(4, 4, 1);
+        for y in 0..4u32 {
+            for x in 0..4u32 {
+                img.pixel_mut(x, y)[0] = (x * 60 + y * 20) as u8;
+            }
+        }
+        // 2:1 downscale: dest pixel (0,0) covers source (0,0)=0, (1,0)=60, (0,1)=20, (1,1)=80.
+        let xfm = make_area_xfm(4, 4, 2.0, 2.0);
+        let sec = full_sec(4, 4);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
+        // Average = (0+60+20+80)/4 = 40 ± 1.
+        assert!(
+            (c.r() as i32 - 40).abs() <= 1,
+            "gray={} expected ~40",
+            c.r()
+        );
+        // 1-ch: all channels equal, alpha=255.
+        assert_eq!(c.r(), c.g());
+        assert_eq!(c.r(), c.b());
+        assert_eq!(c.a(), 255);
+    }
+
+    #[test]
+    fn area_sample_fp_3ch() {
+        // 4x4 RGB, uniform (100,150,200) → exact roundtrip.
+        let mut img = Image::new(4, 4, 3);
+        for y in 0..4u32 {
+            for x in 0..4u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = 100;
+                p[1] = 150;
+                p[2] = 200;
+            }
+        }
+        let xfm = make_area_xfm(4, 4, 2.0, 2.0);
+        let sec = full_sec(4, 4);
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
+        assert_eq!(c, Color::rgba(100, 150, 200, 255));
     }
 }
