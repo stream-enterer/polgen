@@ -1292,11 +1292,12 @@ impl View {
             let (dx, dy) = (scx - acx, scy - acy);
 
             // Rotate based on direction so "forward" is always +x
+            // C++: 0=Right identity, 1=Down (dy,-dx), 2=Left (-dx,-dy), 3=Up (-dy,dx)
             let (rx, ry) = match direction {
                 Direction::Right => (dx, dy),
-                Direction::Down => (-dy, dx),
+                Direction::Down => (dy, -dx),
                 Direction::Left => (-dx, -dy),
-                Direction::Up => (dy, -dx),
+                Direction::Up => (-dy, dx),
             };
 
             if rx <= 1e-12 {

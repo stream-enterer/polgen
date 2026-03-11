@@ -367,6 +367,247 @@ fn notice_window_resize() {
     .unwrap();
 }
 
+// ─── Phase 2: notice_recursive_enable ────────────────────────────
+// Disable child1 (which has a grandchild) → ENABLE_CHANGED on child1 + gc.
+
+#[test]
+fn notice_recursive_enable() {
+    require_golden!();
+    let expected = load_notice_golden("notice_recursive_enable");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("root");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+    let child1 = tree.create_child(root, "child1");
+    tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let gc = tree.create_child(child1, "gc");
+    tree.set_layout_rect(gc, 0.0, 0.0, 1.0, 1.0);
+    let child2 = tree.create_child(root, "child2");
+    tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.set_window_focused(&mut tree, false);
+
+    let acc_root = attach_notice(&mut tree, root);
+    let acc_child1 = attach_notice(&mut tree, child1);
+    let acc_gc = attach_notice(&mut tree, gc);
+    let acc_child2 = attach_notice(&mut tree, child2);
+
+    settle(&mut tree, &mut view);
+    reset(&acc_root);
+    reset(&acc_child1);
+    reset(&acc_gc);
+    reset(&acc_child2);
+
+    tree.set_enable_switch(child1, false);
+
+    settle(&mut tree, &mut view);
+
+    let actual = vec![
+        acc_root.borrow().bits(),
+        acc_child1.borrow().bits(),
+        acc_gc.borrow().bits(),
+        acc_child2.borrow().bits(),
+    ];
+    compare_notices(
+        &actual,
+        &expected,
+        &["root", "child1", "gc", "child2"],
+        NOTICE_FULL_MASK,
+    )
+    .unwrap();
+}
+
+// ─── Phase 2: notice_re_enable ───────────────────────────────────
+// Disable then re-enable child1 → ENABLE_CHANGED fires again.
+
+#[test]
+fn notice_re_enable() {
+    require_golden!();
+    let expected = load_notice_golden("notice_re_enable");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("root");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+    let child1 = tree.create_child(root, "child1");
+    tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let gc = tree.create_child(child1, "gc");
+    tree.set_layout_rect(gc, 0.0, 0.0, 1.0, 1.0);
+    let child2 = tree.create_child(root, "child2");
+    tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.set_window_focused(&mut tree, false);
+
+    let acc_root = attach_notice(&mut tree, root);
+    let acc_child1 = attach_notice(&mut tree, child1);
+    let acc_gc = attach_notice(&mut tree, gc);
+    let acc_child2 = attach_notice(&mut tree, child2);
+
+    settle(&mut tree, &mut view);
+    reset(&acc_root);
+    reset(&acc_child1);
+    reset(&acc_gc);
+    reset(&acc_child2);
+
+    // Disable first
+    tree.set_enable_switch(child1, false);
+
+    settle(&mut tree, &mut view);
+    reset(&acc_root);
+    reset(&acc_child1);
+    reset(&acc_gc);
+    reset(&acc_child2);
+
+    // Re-enable
+    tree.set_enable_switch(child1, true);
+
+    settle(&mut tree, &mut view);
+
+    let actual = vec![
+        acc_root.borrow().bits(),
+        acc_child1.borrow().bits(),
+        acc_gc.borrow().bits(),
+        acc_child2.borrow().bits(),
+    ];
+    compare_notices(
+        &actual,
+        &expected,
+        &["root", "child1", "gc", "child2"],
+        NOTICE_FULL_MASK,
+    )
+    .unwrap();
+}
+
+// ─── Phase 3: notice_remove_child ────────────────────────────────
+// Remove child2 → CHILDREN_CHANGED on root.
+
+#[test]
+fn notice_remove_child() {
+    require_golden!();
+    let expected = load_notice_golden("notice_remove_child");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("root");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+    let child1 = tree.create_child(root, "child1");
+    tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let child2 = tree.create_child(root, "child2");
+    tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.set_window_focused(&mut tree, false);
+
+    let acc_root = attach_notice(&mut tree, root);
+    let acc_child1 = attach_notice(&mut tree, child1);
+
+    settle(&mut tree, &mut view);
+    reset(&acc_root);
+    reset(&acc_child1);
+
+    // Remove child2 (using tree.remove, not view.remove_panel)
+    tree.remove(child2);
+
+    settle(&mut tree, &mut view);
+
+    let actual = vec![acc_root.borrow().bits(), acc_child1.borrow().bits()];
+    compare_notices(&actual, &expected, &["root", "child1"], NOTICE_FULL_MASK).unwrap();
+}
+
+// ─── Phase 6: notice_focus_and_layout ────────────────────────────
+// Focus + layout change in same settle → both flags appear.
+
+#[test]
+fn notice_focus_and_layout() {
+    require_golden!();
+    let expected = load_notice_golden("notice_focus_and_layout");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("root");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+    let child1 = tree.create_child(root, "child1");
+    tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let child2 = tree.create_child(root, "child2");
+    tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.set_window_focused(&mut tree, false);
+
+    let acc_root = attach_notice(&mut tree, root);
+    let acc_child1 = attach_notice(&mut tree, child1);
+    let acc_child2 = attach_notice(&mut tree, child2);
+
+    settle(&mut tree, &mut view);
+    reset(&acc_root);
+    reset(&acc_child1);
+    reset(&acc_child2);
+
+    // Two actions before settle: focus + layout change
+    view.focus_panel(&mut tree, child1);
+    tree.set_layout_rect(child1, 0.1, 0.1, 0.3, 0.5);
+
+    settle(&mut tree, &mut view);
+
+    let actual = vec![
+        acc_root.borrow().bits(),
+        acc_child1.borrow().bits(),
+        acc_child2.borrow().bits(),
+    ];
+    compare_notices(
+        &actual,
+        &expected,
+        &["root", "child1", "child2"],
+        NOTICE_FULL_MASK,
+    )
+    .unwrap();
+}
+
+// ─── Phase 6: notice_add_and_activate ────────────────────────────
+// Add new child and activate it before settling.
+
+#[test]
+fn notice_add_and_activate() {
+    require_golden!();
+    let expected = load_notice_golden("notice_add_and_activate");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("root");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+    let child1 = tree.create_child(root, "child1");
+    tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.set_window_focused(&mut tree, false);
+
+    let acc_root = attach_notice(&mut tree, root);
+    let acc_child1 = attach_notice(&mut tree, child1);
+
+    settle(&mut tree, &mut view);
+    reset(&acc_root);
+    reset(&acc_child1);
+
+    // Add new child and activate it before settling
+    let child2 = tree.create_child(root, "child2");
+    tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+    let acc_child2 = attach_notice(&mut tree, child2);
+    view.set_active_panel(&mut tree, child2, false);
+
+    settle(&mut tree, &mut view);
+
+    let actual = vec![
+        acc_root.borrow().bits(),
+        acc_child1.borrow().bits(),
+        acc_child2.borrow().bits(),
+    ];
+    compare_notices(
+        &actual,
+        &expected,
+        &["root", "child1", "child2"],
+        NOTICE_FULL_MASK,
+    )
+    .unwrap();
+}
+
 // ─── Test 8: notice_enable_changed ──────────────────────────────
 // C++ view unfocused → child1->SetEnableSwitch(false) → NF_ENABLE_CHANGED.
 

@@ -416,12 +416,11 @@ impl ZuiWindow {
                 InputKey::MouseLeft | InputKey::MouseRight | InputKey::MouseMiddle
             )
         {
-            if let Some(hit) = self
+            let panel = self
                 .view
                 .get_focusable_panel_at(tree, event.mouse_x, event.mouse_y)
-            {
-                self.view.set_active_panel(tree, hit, false);
-            }
+                .unwrap_or_else(|| self.view.root());
+            self.view.set_active_panel(tree, panel, false);
         }
 
         // Stamp modifier keys from InputState onto the event

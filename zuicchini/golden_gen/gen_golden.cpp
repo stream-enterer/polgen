@@ -1039,6 +1039,156 @@ static void gen_focus_tab_wrap() {
     dump_behavioral("focus_tab_wrap", {root, child1, child2});
 }
 
+// VisitFirst: from child2, jump to first focusable sibling (child1).
+static void gen_focus_visit_first() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* child2 = new emPanel(*root, "child2");
+    emPanel* child3 = new emPanel(*root, "child3");
+
+    child2->Focus();
+    emPanel* first = child2->GetParent()->GetFocusableFirstChild();
+    if (first) first->Focus();
+
+    dump_behavioral("focus_visit_first", {root, child1, child2, child3});
+}
+
+// VisitLast: from child1, jump to last focusable sibling (child3).
+static void gen_focus_visit_last() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* child2 = new emPanel(*root, "child2");
+    emPanel* child3 = new emPanel(*root, "child3");
+
+    child1->Focus();
+    emPanel* last = child1->GetParent()->GetFocusableLastChild();
+    if (last) last->Focus();
+
+    dump_behavioral("focus_visit_last", {root, child1, child2, child3});
+}
+
+// Focus a disabled panel — disabled panels are still focusable in C++.
+static void gen_focus_disabled_panel() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* child2 = new emPanel(*root, "child2");
+
+    child1->SetEnableSwitch(false);
+    child1->Focus();
+
+    dump_behavioral("focus_disabled_panel", {root, child1, child2});
+}
+
+// Remove non-active middle child → remaining panels unaffected.
+static void gen_activate_remove_middle() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* child2 = new emPanel(*root, "child2");
+    emPanel* child3 = new emPanel(*root, "child3");
+
+    child1->Focus();
+    delete child2;
+
+    dump_behavioral("activate_remove_middle", {root, child1, child3});
+}
+
+// Focus gc (grandchild), then remove child1 (its parent in active path).
+static void gen_activate_remove_in_path() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* gc = new emPanel(*child1, "gc");
+    emPanel* child2 = new emPanel(*root, "child2");
+
+    gc->Focus();
+    delete child1;  // Removes child1 + gc (entire subtree)
+
+    dump_behavioral("activate_remove_in_path", {root, child2});
+}
+
+// Tab deep: root → child1 → gc1, gc2; root → child2.
+// Focus gc1, GetFocusableNext → gc2.
+static void gen_focus_tab_deep() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* gc1 = new emPanel(*child1, "gc1");
+    emPanel* gc2 = new emPanel(*child1, "gc2");
+    emPanel* child2 = new emPanel(*root, "child2");
+
+    gc1->Focus();
+    emPanel* next = gc1->GetFocusableNext();
+    if (next) next->Focus();
+
+    dump_behavioral("focus_tab_deep", {root, child1, gc1, gc2, child2});
+}
+
+// Tab ascend: root → child1 → gc1, gc2.
+// Focus gc2 (last), GetFocusableNext → wrap to gc1.
+static void gen_focus_tab_ascend() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* gc1 = new emPanel(*child1, "gc1");
+    emPanel* gc2 = new emPanel(*child1, "gc2");
+
+    gc2->Focus();
+    emPanel* next = gc2->GetFocusableNext();
+    if (next) {
+        next->Focus();
+    } else {
+        emPanel* p = gc2->GetFocusableParent();
+        if (p) {
+            emPanel* fc = p->GetFocusableFirstChild();
+            if (fc) fc->Focus();
+        }
+    }
+
+    dump_behavioral("focus_tab_ascend", {root, child1, gc1, gc2});
+}
+
+// VisitOut from child to root: child1 focused, visit out → root.
+static void gen_focus_visit_out_to_root() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    emPanel* root = new emPanel(view, "root");
+    emPanel* child1 = new emPanel(*root, "child1");
+    emPanel* child2 = new emPanel(*root, "child2");
+
+    child1->Focus();
+    emPanel* parent = child1->GetFocusableParent();
+    if (parent) parent->Focus();
+
+    dump_behavioral("focus_visit_out_to_root", {root, child1, child2});
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // RecordingPanel — accumulates notice flags and tracks input receipt
 // ═══════════════════════════════════════════════════════════════════
@@ -1125,6 +1275,116 @@ static void dump_input(const char* name,
     }
     fclose(f);
     printf("  input/%s (%zu panels)\n", name, panels.size());
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Spatial behavioral golden generators (need GoldenViewPort)
+// ═══════════════════════════════════════════════════════════════════
+
+// VisitLeft: 3 children side by side, activate child3, visit left → child2.
+// Use Activate()+SetViewFocused instead of Focus() to avoid VisitFull animation.
+static void gen_focus_visit_left() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    emPanel* root = new emPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    emPanel* child1 = new emPanel(*root, "child1");
+    child1->Layout(0, 0, 0.33, 1);
+    emPanel* child2 = new emPanel(*root, "child2");
+    child2->Layout(0.33, 0, 0.33, 1);
+    emPanel* child3 = new emPanel(*root, "child3");
+    child3->Layout(0.66, 0, 0.34, 1);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    vp.DoSetViewFocused(true);
+    child3->Activate();
+    view.VisitLeft();
+    // Settle to let VisitingViewAnimator process the navigation
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    dump_behavioral("focus_visit_left", {root, child1, child2, child3});
+}
+
+// VisitRight: 3 children side by side, activate child1, visit right → child2.
+static void gen_focus_visit_right() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    emPanel* root = new emPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    emPanel* child1 = new emPanel(*root, "child1");
+    child1->Layout(0, 0, 0.33, 1);
+    emPanel* child2 = new emPanel(*root, "child2");
+    child2->Layout(0.33, 0, 0.33, 1);
+    emPanel* child3 = new emPanel(*root, "child3");
+    child3->Layout(0.66, 0, 0.34, 1);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    vp.DoSetViewFocused(true);
+    child1->Activate();
+    view.VisitRight();
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    dump_behavioral("focus_visit_right", {root, child1, child2, child3});
+}
+
+// VisitDown: 3 children stacked vertically, activate child1, visit down → child2.
+static void gen_focus_visit_down() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    emPanel* root = new emPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    emPanel* child1 = new emPanel(*root, "child1");
+    child1->Layout(0, 0, 1, 0.33);
+    emPanel* child2 = new emPanel(*root, "child2");
+    child2->Layout(0, 0.33, 1, 0.33);
+    emPanel* child3 = new emPanel(*root, "child3");
+    child3->Layout(0, 0.66, 1, 0.34);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    vp.DoSetViewFocused(true);
+    child1->Activate();
+    view.VisitDown();
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    dump_behavioral("focus_visit_down", {root, child1, child2, child3});
+}
+
+// VisitUp: 3 children stacked vertically, activate child3, visit up → child2.
+static void gen_focus_visit_up() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    emPanel* root = new emPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    emPanel* child1 = new emPanel(*root, "child1");
+    child1->Layout(0, 0, 1, 0.33);
+    emPanel* child2 = new emPanel(*root, "child2");
+    child2->Layout(0, 0.33, 1, 0.33);
+    emPanel* child3 = new emPanel(*root, "child3");
+    child3->Layout(0, 0.66, 1, 0.34);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    vp.DoSetViewFocused(true);
+    child3->Activate();
+    view.VisitUp();
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+
+    dump_behavioral("focus_visit_up", {root, child1, child2, child3});
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1330,6 +1590,131 @@ static void gen_notice_enable_changed() {
     dump_notice("notice_enable_changed", {root, child1, child2});
 }
 
+// Disable parent → children also get NF_ENABLE_CHANGED.
+static void gen_notice_recursive_enable() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* gc = new RecordingPanel(*child1, "gc");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    gc->ResetRecording();
+    child2->ResetRecording();
+
+    // Action: disable child1 → gc should also get ENABLE_CHANGED
+    child1->SetEnableSwitch(false);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_recursive_enable", {root, child1, gc, child2});
+}
+
+// Re-enable after disabling → ENABLE_CHANGED again.
+static void gen_notice_re_enable() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* gc = new RecordingPanel(*child1, "gc");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    gc->ResetRecording();
+    child2->ResetRecording();
+
+    // Disable child1 first
+    child1->SetEnableSwitch(false);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    gc->ResetRecording();
+    child2->ResetRecording();
+
+    // Action: re-enable child1
+    child1->SetEnableSwitch(true);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_re_enable", {root, child1, gc, child2});
+}
+
+// Remove child2 → CHILDREN_CHANGED on parent (root).
+static void gen_notice_remove_child() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Action: remove child2
+    delete child2;
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    // Only root and child1 remain
+    dump_notice("notice_remove_child", {root, child1});
+}
+
+// Focus + layout change in same settle → both flags appear.
+static void gen_notice_focus_and_layout() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+    auto* child2 = new RecordingPanel(*root, "child2");
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    child2->ResetRecording();
+
+    // Two actions before settle: focus + layout change
+    child1->Focus();
+    child1->Layout(0.1, 0.1, 0.3, 0.5);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_focus_and_layout", {root, child1, child2});
+}
+
+// Add new child and activate it before settling.
+static void gen_notice_add_and_activate() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+
+    auto* root = new RecordingPanel(view, "root");
+    auto* child1 = new RecordingPanel(*root, "child1");
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+
+    // Add new child and activate it before settling
+    auto* child2 = new RecordingPanel(*root, "child2");
+    child2->Activate();
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_notice("notice_add_and_activate", {root, child1, child2});
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Input golden generators
 // ═══════════════════════════════════════════════════════════════════
@@ -1478,6 +1863,66 @@ static void gen_input_drag_sequence() {
 
     { TerminateEngine ctrl(sched, 30); sched.Run(); }
     dump_input("input_drag_sequence", {root, child1, child2});
+}
+
+// Click below the panel area → no panel receives input.
+static void gen_input_mouse_miss() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    root->Layout(0, 0, 1, 0.5);  // Only covers top half
+    auto* child1 = new RecordingPanel(*root, "child1");
+    child1->Layout(0, 0, 1, 1);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+
+    // Click below the panel area
+    emInputEvent event;
+    emInputState state;
+    state.SetMouse(400, 500);  // Below root (root ends at ~300 in 600px viewport)
+    event.Setup(EM_KEY_LEFT_BUTTON, emString(), 1, 0);
+    vp.DoInputToView(event, state);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_input("input_mouse_miss", {root, child1});
+}
+
+// Click on a grandchild panel → deepest panel receives input.
+static void gen_input_nested_hit() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, 0);
+    GoldenViewPort vp(view);
+
+    auto* root = new RecordingPanel(view, "root");
+    root->Layout(0, 0, 1, 0.75);
+    auto* child1 = new RecordingPanel(*root, "child1");
+    child1->Layout(0, 0, 0.5, 1);
+    auto* gc = new RecordingPanel(*child1, "gc");
+    gc->Layout(0, 0, 1, 1);
+    auto* child2 = new RecordingPanel(*root, "child2");
+    child2->Layout(0.5, 0, 0.5, 1);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    root->ResetRecording();
+    child1->ResetRecording();
+    gc->ResetRecording();
+    child2->ResetRecording();
+
+    // Click at (100, 300) → inside gc (which fills child1's left half)
+    emInputEvent event;
+    emInputState state;
+    state.SetMouse(100, 300);
+    event.Setup(EM_KEY_LEFT_BUTTON, emString(), 1, 0);
+    vp.DoInputToView(event, state);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    dump_input("input_nested_hit", {root, child1, gc, child2});
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -3154,6 +3599,18 @@ int main() {
     gen_focus_remove_focused();
     gen_focus_visit_out();
     gen_focus_tab_wrap();
+    gen_focus_visit_first();
+    gen_focus_visit_last();
+    gen_focus_visit_left();
+    gen_focus_visit_right();
+    gen_focus_visit_down();
+    gen_focus_visit_up();
+    gen_focus_disabled_panel();
+    gen_activate_remove_middle();
+    gen_activate_remove_in_path();
+    gen_focus_tab_deep();
+    gen_focus_tab_ascend();
+    gen_focus_visit_out_to_root();
 
     printf("Generating notice golden files...\n");
     gen_notice_active_changed();
@@ -3164,12 +3621,19 @@ int main() {
     gen_notice_window_focus_lost();
     gen_notice_window_resize();
     gen_notice_enable_changed();
+    gen_notice_recursive_enable();
+    gen_notice_re_enable();
+    gen_notice_remove_child();
+    gen_notice_focus_and_layout();
+    gen_notice_add_and_activate();
 
     printf("Generating input golden files...\n");
     gen_input_mouse_hit();
     gen_input_key_to_focused();
     gen_input_scroll_delta();
     gen_input_drag_sequence();
+    gen_input_mouse_miss();
+    gen_input_nested_hit();
 
     printf("Generating compositor golden files...\n");
     gen_composite_single_panel();

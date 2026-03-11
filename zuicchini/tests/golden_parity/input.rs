@@ -161,6 +161,102 @@ fn input_scroll_delta() {
     compare_input(&actual, &expected, &["root", "child1"], true).unwrap();
 }
 
+// ─── Phase 5: input_mouse_miss ──────────────────────────────────
+
+#[test]
+fn input_mouse_miss() {
+    require_golden!();
+    let expected = load_input_golden("input_mouse_miss");
+
+    let mut h = TestHarness::new();
+    let root = h.root();
+
+    h.tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.5); // Only covers top half
+    let child1 = h.add_panel(root, "child1");
+    h.tree.set_layout_rect(child1, 0.0, 0.0, 1.0, 1.0);
+
+    let recv_root = attach_input(&mut h.tree, root);
+    let recv_child1 = attach_input(&mut h.tree, child1);
+
+    // Settle
+    h.tick_n(5);
+    *recv_root.borrow_mut() = false;
+    *recv_child1.borrow_mut() = false;
+
+    // Click outside panel clip area.
+    // C++ root Layout(0,0,1,0.5) → root is 800×400 centered → miss below y=500.
+    // Rust update_viewing maps root differently (clip starts at ~y=55), so click
+    // above the clip top to achieve the same empty-space miss scenario.
+    h.input_state.set_mouse(400.0, 20.0);
+    let event = InputEvent::press(InputKey::MouseLeft).with_mouse(400.0, 20.0);
+    h.inject_input(&event);
+    h.tick();
+
+    let (a_root, p_root) = panel_state(&h.tree, root);
+    let (a_c1, p_c1) = panel_state(&h.tree, child1);
+
+    let actual = vec![
+        (*recv_root.borrow(), a_root, p_root),
+        (*recv_child1.borrow(), a_c1, p_c1),
+    ];
+    compare_input(&actual, &expected, &["root", "child1"], true).unwrap();
+}
+
+// ─── Phase 5: input_nested_hit ──────────────────────────────────
+
+#[test]
+fn input_nested_hit() {
+    require_golden!();
+    let expected = load_input_golden("input_nested_hit");
+
+    let mut h = TestHarness::new();
+    let root = h.root();
+
+    h.tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    let child1 = h.add_panel(root, "child1");
+    h.tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+    let gc = h.add_panel(child1, "gc");
+    h.tree.set_layout_rect(gc, 0.0, 0.0, 1.0, 1.0);
+    let child2 = h.add_panel(root, "child2");
+    h.tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+
+    let recv_root = attach_input(&mut h.tree, root);
+    let recv_child1 = attach_input(&mut h.tree, child1);
+    let recv_gc = attach_input(&mut h.tree, gc);
+    let recv_child2 = attach_input(&mut h.tree, child2);
+
+    // Settle
+    h.tick_n(5);
+    *recv_root.borrow_mut() = false;
+    *recv_child1.borrow_mut() = false;
+    *recv_gc.borrow_mut() = false;
+    *recv_child2.borrow_mut() = false;
+
+    // Click at (100, 300) → inside gc
+    h.input_state.set_mouse(100.0, 300.0);
+    let event = InputEvent::press(InputKey::MouseLeft).with_mouse(100.0, 300.0);
+    h.inject_input(&event);
+    h.tick();
+
+    let (a_root, p_root) = panel_state(&h.tree, root);
+    let (a_c1, p_c1) = panel_state(&h.tree, child1);
+    let (a_gc, p_gc) = panel_state(&h.tree, gc);
+    let (a_c2, p_c2) = panel_state(&h.tree, child2);
+    let actual = vec![
+        (*recv_root.borrow(), a_root, p_root),
+        (*recv_child1.borrow(), a_c1, p_c1),
+        (*recv_gc.borrow(), a_gc, p_gc),
+        (*recv_child2.borrow(), a_c2, p_c2),
+    ];
+    compare_input(
+        &actual,
+        &expected,
+        &["root", "child1", "gc", "child2"],
+        true,
+    )
+    .unwrap();
+}
+
 // ─── Test 4: input_drag_sequence ────────────────────────────────
 
 #[test]
