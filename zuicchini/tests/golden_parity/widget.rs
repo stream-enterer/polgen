@@ -289,14 +289,14 @@ fn widget_button_normal() {
 fn widget_checkbox_unchecked() {
     require_golden!();
     let look = Look::new();
-    // Residual from checkbox image 9-slice section boundary rounding (~5.2%)
+    // Residual from checkbox image 9-slice section boundary rounding (~4.8%)
     render_and_compare_tol(
         "widget_checkbox_unchecked",
         Box::new(CheckBoxBehavior {
             check_box: CheckBox::new("Check Option", look),
         }),
         1,
-        6.0,
+        5.5,
     );
 }
 
@@ -308,12 +308,12 @@ fn widget_checkbox_checked() {
     let look = Look::new();
     let mut cb = CheckBox::new("Check Option", look);
     cb.set_checked(true);
-    // Residual from checkbox image + text rendering diffs (~5.5%)
+    // Residual from checkbox image + text rendering diffs (~5.1%)
     render_and_compare_tol(
         "widget_checkbox_checked",
         Box::new(CheckBoxBehavior { check_box: cb }),
         1,
-        6.0,
+        5.5,
     );
 }
 
@@ -326,12 +326,12 @@ fn widget_textfield_empty() {
     let mut tf = TextField::new(look);
     tf.set_caption("Name");
     tf.set_editable(true);
-    // Residual from 9-slice border interpolation diffs (~24%)
+    // Residual from 9-slice border interpolation + text rendering diffs (~15.7%)
     render_and_compare_tol(
         "widget_textfield_empty",
         Box::new(TextFieldBehavior { text_field: tf }),
         3,
-        24.5,
+        16.0,
     );
 }
 
@@ -345,12 +345,12 @@ fn widget_textfield_content() {
     tf.set_caption("Name");
     tf.set_editable(true);
     tf.set_text("Hello");
-    // Residual from 9-slice border interpolation + text rendering diffs (~27%)
+    // Residual from 9-slice border interpolation + text rendering diffs (~18.9%)
     render_and_compare_tol(
         "widget_textfield_content",
         Box::new(TextFieldBehavior { text_field: tf }),
         3,
-        27.0,
+        19.5,
     );
 }
 
@@ -364,12 +364,12 @@ fn widget_scalarfield() {
     sf.set_caption("Value");
     sf.set_editable(true);
     sf.set_value(50.0);
-    // Residual from 9-slice border interpolation diffs (~26%)
+    // Residual from 9-slice border interpolation diffs (~17.7%)
     render_and_compare_tol(
         "widget_scalarfield",
         Box::new(ScalarFieldBehavior { scalar_field: sf }),
         3,
-        26.5,
+        18.5,
     );
 }
 
@@ -422,16 +422,18 @@ impl PanelBehavior for SplitterBehavior {
 // ─── Test 12: widget_colorfield ────────────────────────────────
 
 #[test]
-#[ignore = "missing child ScalarField/TextField panel composition (~33%)"]
 fn widget_colorfield() {
     require_golden!();
     let look = Look::new();
     let mut cf = ColorField::new(look);
     cf.set_caption("Color");
     cf.set_color(zuicchini::foundation::Color::rgba(255, 0, 0, 255));
-    render_and_compare(
+    // Residual from IBT_INPUT 9-slice border + color content diffs (~25%)
+    render_and_compare_tol(
         "widget_colorfield",
         Box::new(ColorFieldBehavior { color_field: cf }),
+        3,
+        25.5,
     );
 }
 
@@ -467,12 +469,12 @@ fn widget_listbox() {
     lb.add_item("item3".to_string(), "Delta".to_string());
     lb.add_item("item4".to_string(), "Epsilon".to_string());
     lb.set_selected_index(2);
-    // Residual from 9-slice boundary + EXTEND_ZERO premul amplification (~26%)
+    // Residual from 9-slice boundary + EXTEND_ZERO premul amplification (~23.2%)
     render_and_compare_tol(
         "widget_listbox",
         Box::new(ListBoxBehavior { list_box: lb }),
         3,
-        27.0,
+        24.0,
     );
 }
 

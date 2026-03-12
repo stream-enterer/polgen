@@ -134,17 +134,21 @@
   evidence:
     widget_button_normal: { ch_tol: 3, max_pct: 1.5, approx_diff: "~0.9% (was ~60%)" }
     widget_radiobutton: { ch_tol: 3, max_pct: 1.5, approx_diff: "~0.8% (was ~57%)" }
-    widget_listbox: { ch_tol: 3, max_pct: 27.0, approx_diff: "~26% (was ~31%)" }
-  source: [src/render/painter.rs (paint_9slice_section), src/render/interpolation.rs (sample_area_fp, sample_bilinear_premul_fp)]
+    widget_listbox: { ch_tol: 3, max_pct: 24.0, approx_diff: "~23.2% (was ~26%)" }
+  source: [src/render/painter.rs (paint_9slice_section, paint_image_colored, paint_image_full, SubPixelEdges), src/render/interpolation.rs (sample_area_fp, sample_bilinear_premul_fp)]
   related: [DIV-018, DIV-019]
   notes: >
-    Three-phase fix: (1) 4 bugs in paint_9slice_section boundary computation
+    Four-phase fix: (1) 4 bugs in paint_9slice_section boundary computation
     (pixel width, float ratio, sub-pixel mapping, section-scoped clamping),
     (2) 24fp area sampling port (AreaSampleTransform + sample_area_fp matching
     C++ InterpolateImageAreaSampled with per-channel FINPREMUL), (3) border
-    geometry fix (InstrumentMoreRound outer_insets s*0.052 vs s*0.085).
-    Residual ~0.8-0.9%: text rendering (font shaping) + bilinear edge effects
-    at 9-slice section boundaries.
+    geometry fix (InstrumentMoreRound outer_insets s*0.052 vs s*0.085),
+    (4) sub-pixel edge blending via SubPixelEdges struct — applies 12-bit
+    fractional coverage to all image rendering functions (paint_9slice_section,
+    paint_image_colored, paint_image_full) and refactors paint_rect to reuse
+    the same coverage model. Reduced IBT_INPUT widgets by 8-9pp (textfield
+    24%->15.7%, scalarfield 26%->17.7%, textfield_content 27%->18.9%).
+    Residual: text rendering (font shaping) + EXTEND_ZERO premul amplification.
 
 - id: DIV-006
   area: painter/stroke-ends
@@ -260,8 +264,8 @@
   tests: [widget_checkbox_unchecked, widget_checkbox_checked]
   status: passing
   evidence:
-    widget_checkbox_unchecked: { ch_tol: 1, max_pct: 6.0, approx_diff: "~5.2%" }
-    widget_checkbox_checked: { ch_tol: 1, max_pct: 6.0, approx_diff: "~5.5%" }
+    widget_checkbox_unchecked: { ch_tol: 1, max_pct: 5.5, approx_diff: "~4.8% (was ~5.2%)" }
+    widget_checkbox_checked: { ch_tol: 1, max_pct: 5.5, approx_diff: "~5.1% (was ~5.5%)" }
   source: [src/widget/check_box.rs]
   related: [DIV-025]
   notes: >
@@ -276,15 +280,14 @@
   tests: [widget_textfield_empty, widget_textfield_content]
   status: passing
   evidence:
-    widget_textfield_empty: { ch_tol: 3, max_pct: 24.5, approx_diff: "~24%" }
-    widget_textfield_content: { ch_tol: 3, max_pct: 27.0, approx_diff: "~27%" }
+    widget_textfield_empty: { ch_tol: 3, max_pct: 16.0, approx_diff: "~15.7% (was ~24%)" }
+    widget_textfield_content: { ch_tol: 3, max_pct: 19.5, approx_diff: "~18.9% (was ~27%)" }
   source: [src/widget/text_field.rs]
   related: [DIV-025]
   notes: >
-    24-27% diff vs ~1.5-7.7% for border-only widgets (DIV-013) because textfield
-    uses IBT_INPUT border type, which has thicker 9-slice frame regions that cover
-    a larger fraction of the widget area. More scaled-image pixels means more
-    pixels affected by section boundary rounding differences (DIV-025).
+    Reduced from 24-27% to 15.7-18.9% by sub-pixel edge blending (DIV-025 phase 4).
+    Residual from IBT_INPUT border type with thick 9-slice frame regions, text
+    rendering (font shaping), and EXTEND_ZERO premul amplification at image edges.
 
 - id: DIV-016
   area: widget/scalarfield
@@ -292,13 +295,13 @@
   tests: [widget_scalarfield]
   status: passing
   evidence:
-    widget_scalarfield: { ch_tol: 3, max_pct: 26.5, approx_diff: "~26%" }
+    widget_scalarfield: { ch_tol: 3, max_pct: 18.5, approx_diff: "~17.7% (was ~26%)" }
   source: [src/widget/scalar_field.rs]
   related: [DIV-025]
   notes: >
+    Reduced from ~26% to ~17.7% by sub-pixel edge blending (DIV-025 phase 4).
     Same mechanism as DIV-015 (textfield): IBT_INPUT border type with thick 9-slice
-    frame regions (DIV-025). ScalarField adds arrow button images which are also
-    scaled via PaintBorderImage, contributing additional section boundary diff.
+    frame regions. Residual from text rendering and EXTEND_ZERO premul amplification.
 
 - id: DIV-017
   area: widget/splitter-rendering
@@ -349,18 +352,15 @@
   area: widget/colorfield-rendering
   kind: expected-divergence
   tests: [widget_colorfield]
-  status: ignored
+  status: passing
   evidence:
-    widget_colorfield: { approx_diff: "~33%" }
+    widget_colorfield: { ch_tol: 3, max_pct: 25.5, approx_diff: "~25% (was ~28%)" }
   source: [src/widget/color_field.rs]
-  related: [DIV-025, GAP-001]
+  related: [DIV-025]
   notes: >
-    Two independent sources: (1) 9-slice section boundary rounding diffs
-    (DIV-025), contributing roughly the same ~24% as other IBT_INPUT widgets
-    (DIV-015/016), and (2) GAP-001 missing child panels, which means the right
-    half of the expanded view is blank in Rust but populated with ScalarFields
-    in C++. The GAP-001 contribution accounts for the additional ~9% above the
-    border-only baseline.
+    Reduced from ~28% to ~25% by sub-pixel edge blending (DIV-025 phase 4).
+    IBT_INPUT 9-slice border rendering, same class as textfield and scalarfield.
+    Higher than those due to color content area contributing additional diff.
 
 - id: DIV-021
   area: widget/listbox-rendering
@@ -368,15 +368,15 @@
   tests: [widget_listbox]
   status: passing
   evidence:
-    widget_listbox: { ch_tol: 3, max_pct: 27.0, approx_diff: "~26% (was ~31%)" }
+    widget_listbox: { ch_tol: 3, max_pct: 24.0, approx_diff: "~23.2% (was ~26%)" }
   source: [src/widget/list_box.rs]
   related: [DIV-025, GAP-002]
   notes: >
+    Reduced from ~26% to ~23.2% by sub-pixel edge blending (DIV-025 phase 4).
     Two independent sources: (1) 9-slice section boundary rounding diffs
-    (DIV-025, partially fixed), and (2) GAP-002's architectural difference
-    where C++ renders items as child panels in a multi-column RasterGroup grid
-    while Rust paints items inline as single-column rows. Reduced from ~31%
-    to ~26% by DIV-025 fix. Un-ignored with ch_tol=3, max_pct=27.0.
+    (DIV-025), and (2) GAP-002's architectural difference where C++ renders
+    items as child panels in a multi-column RasterGroup grid while Rust paints
+    items inline as single-column rows.
 
 # ═══════════════════════════════════════════════════════════════════
 # INTEGRATION — Compound divergences
@@ -537,8 +537,8 @@
 # kind: out-of-scope because it was split from GAP-003 by root cause.
 #
 # Test coverage (187 total):
-#   Passing tests:       185
-#   Ignored tests:         2
+#   Passing tests:       186
+#   Ignored tests:         1
 #   No-test gaps:          2 (GAP-004, GAP-005)
 #
 # Cross-reference:

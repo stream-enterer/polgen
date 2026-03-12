@@ -95,6 +95,76 @@ struct PainterState {
     alpha: u8,
 }
 
+/// Sub-pixel rectangle edges for 12-bit fractional coverage.
+/// Matches C++ emPainter PaintRect sub-pixel model (emPainter.cpp:334-397).
+struct SubPixelEdges {
+    ix1: i32,
+    iy1: i32,
+    ix2: i32,
+    iy2: i32,
+    frac_left: i32,
+    frac_right: i32,
+    frac_top: i32,
+    frac_bottom: i32,
+    raw_w: i32,
+    raw_h: i32,
+}
+
+impl SubPixelEdges {
+    /// Compute sub-pixel edges from pixel-space float coordinates.
+    fn new(dx_px: f64, dy_px: f64, dw_px: f64, dh_px: f64) -> Self {
+        let fx1 = Fixed12::from_f64(dx_px);
+        let fy1 = Fixed12::from_f64(dy_px);
+        let fx2 = Fixed12::from_f64(dx_px + dw_px);
+        let fy2 = Fixed12::from_f64(dy_px + dh_px);
+        Self {
+            ix1: fx1.to_i32(),
+            iy1: fy1.to_i32(),
+            ix2: fx2.ceil().to_i32(),
+            iy2: fy2.ceil().to_i32(),
+            frac_left: 0x1000 - fx1.frac(),
+            frac_right: fx2.frac(),
+            frac_top: 0x1000 - fy1.frac(),
+            frac_bottom: fy2.frac(),
+            raw_w: (fx2 - fx1).raw(),
+            raw_h: (fy2 - fy1).raw(),
+        }
+    }
+
+    /// Per-pixel combined coverage (0..=0x1000).
+    /// Mirrors paint_rect() lines 339-364 logic exactly.
+    #[inline]
+    fn coverage(&self, px: i32, py: i32) -> i32 {
+        let alpha_y = if py == self.iy1 && py == self.iy2 - 1 {
+            (self.frac_top + self.frac_bottom).min(0x1000) - 0x1000 + self.raw_h.min(0x1000)
+        } else if py == self.iy1 {
+            self.frac_top
+        } else if py == self.iy2 - 1 && self.frac_bottom != 0 {
+            self.frac_bottom
+        } else {
+            0x1000
+        };
+        if alpha_y <= 0 {
+            return 0;
+        }
+
+        let alpha_x = if px == self.ix1 && px == self.ix2 - 1 {
+            (self.frac_left + self.frac_right).min(0x1000) - 0x1000 + self.raw_w.min(0x1000)
+        } else if px == self.ix1 {
+            self.frac_left
+        } else if px == self.ix2 - 1 && self.frac_right != 0 {
+            self.frac_right
+        } else {
+            0x1000
+        };
+        if alpha_x <= 0 {
+            return 0;
+        }
+
+        ((alpha_x as i64 * alpha_y as i64) >> 12) as i32
+    }
+}
+
 /// CPU software rasterizer that paints into an Image buffer.
 pub struct Painter<'a> {
     target: &'a mut Image,
@@ -303,20 +373,11 @@ impl<'a> Painter<'a> {
         if w <= 0.0 || h <= 0.0 || color.a() == 0 {
             return;
         }
-        let fx1 = Fixed12::from_f64(x * self.state.scale_x + self.state.offset_x);
-        let fy1 = Fixed12::from_f64(y * self.state.scale_y + self.state.offset_y);
-        let fx2 = Fixed12::from_f64((x + w) * self.state.scale_x + self.state.offset_x);
-        let fy2 = Fixed12::from_f64((y + h) * self.state.scale_y + self.state.offset_y);
-
-        let ix1 = fx1.to_i32();
-        let iy1 = fy1.to_i32();
-        let ix2 = fx2.ceil().to_i32();
-        let iy2 = fy2.ceil().to_i32();
-
-        let frac_left = 0x1000 - fx1.frac();
-        let frac_right = fx2.frac();
-        let frac_top = 0x1000 - fy1.frac();
-        let frac_bottom = fy2.frac();
+        let dx_px = x * self.state.scale_x + self.state.offset_x;
+        let dy_px = y * self.state.scale_y + self.state.offset_y;
+        let dw_px = w * self.state.scale_x;
+        let dh_px = h * self.state.scale_y;
+        let sp = SubPixelEdges::new(dx_px, dy_px, dw_px, dh_px);
 
         let clip = self.state.clip;
         let tw = self.target.width() as i32;
@@ -326,48 +387,18 @@ impl<'a> Painter<'a> {
         let cx2 = (clip.x + clip.w).min(tw);
         let cy2 = (clip.y + clip.h).min(th);
 
-        let start_x = ix1.max(cx1);
-        let start_y = iy1.max(cy1);
-        let end_x = ix2.min(cx2);
-        let end_y = iy2.min(cy2);
+        let start_x = sp.ix1.max(cx1);
+        let start_y = sp.iy1.max(cy1);
+        let end_x = sp.ix2.min(cx2);
+        let end_y = sp.iy2.min(cy2);
 
         if start_x >= end_x || start_y >= end_y {
             return;
         }
 
         for py in start_y..end_y {
-            let alpha_y = if py == iy1 && py == iy2 - 1 {
-                (frac_top + frac_bottom).min(0x1000) - 0x1000 + (fy2 - fy1).raw().min(0x1000)
-            } else if py == iy1 {
-                frac_top
-            } else if py == iy2 - 1 && frac_bottom != 0 {
-                frac_bottom
-            } else {
-                0x1000
-            };
-            if alpha_y <= 0 {
-                continue;
-            }
             for px in start_x..end_x {
-                let alpha_x = if px == ix1 && px == ix2 - 1 {
-                    (frac_left + frac_right).min(0x1000) - 0x1000 + (fx2 - fx1).raw().min(0x1000)
-                } else if px == ix1 {
-                    frac_left
-                } else if px == ix2 - 1 && frac_right != 0 {
-                    frac_right
-                } else {
-                    0x1000
-                };
-                if alpha_x <= 0 {
-                    continue;
-                }
-                let alpha = ((alpha_x as i64 * alpha_y as i64) >> 12) as i32;
-                if alpha >= 0x1000 {
-                    self.blend_pixel(px, py, color);
-                } else {
-                    let a = ((alpha * 255 + 0x800) >> 12).clamp(0, 255) as u8;
-                    self.blend_pixel_alpha(px, py, color, a);
-                }
+                self.blend_with_coverage(px, py, color, sp.coverage(px, py));
             }
         }
     }
@@ -667,10 +698,15 @@ impl<'a> Painter<'a> {
             return;
         }
 
-        let px = self.to_pixel_x(x);
-        let py = self.to_pixel_y(y);
-        let pw = (w * self.state.scale_x) as i32;
-        let ph = (h * self.state.scale_y) as i32;
+        let dx_px = x * self.state.scale_x + self.state.offset_x;
+        let dy_px = y * self.state.scale_y + self.state.offset_y;
+        let dw_px = w * self.state.scale_x;
+        let dh_px = h * self.state.scale_y;
+        let sp = SubPixelEdges::new(dx_px, dy_px, dw_px, dh_px);
+        let px = sp.ix1;
+        let py = sp.iy1;
+        let pw = sp.ix2 - sp.ix1;
+        let ph = sp.iy2 - sp.iy1;
         if pw <= 0 || ph <= 0 {
             return;
         }
@@ -686,10 +722,10 @@ impl<'a> Painter<'a> {
         } = self.state.clip;
         let start_x = px.max(clip_x).max(0);
         let start_y = py.max(clip_y).max(0);
-        let end_x = (px + pw)
+        let end_x = (sp.ix2)
             .min(clip_x + clip_w)
             .min(self.target.width() as i32);
-        let end_y = (py + ph)
+        let end_y = (sp.iy2)
             .min(clip_y + clip_h)
             .min(self.target.height() as i32);
 
@@ -757,7 +793,7 @@ impl<'a> Painter<'a> {
             for row in start_y..end_y {
                 for col in start_x..end_x {
                     let src_color = interpolation::sample_area_fp(image, col, row, &xfm, &sec, ext);
-                    self.blend_pixel(col, row, src_color);
+                    self.blend_with_coverage(col, row, src_color, sp.coverage(col, row));
                 }
             }
         } else {
@@ -779,7 +815,7 @@ impl<'a> Painter<'a> {
                             ext,
                         )
                     };
-                    self.blend_pixel(col, row, src_color);
+                    self.blend_with_coverage(col, row, src_color, sp.coverage(col, row));
                 }
             }
         }
@@ -815,12 +851,11 @@ impl<'a> Painter<'a> {
         let dw = w * self.state.scale_x;
         let dh = h * self.state.scale_y;
 
-        let px = dx as i32;
-        let py = dy as i32;
-        // C++ computes end as floor(dx+dw), NOT floor(dx)+floor(dw).
-        // floor(a+b) >= floor(a)+floor(b), so the old code could be 1px short.
-        let px2 = (dx + dw) as i32;
-        let py2 = (dy + dh) as i32;
+        let sp = SubPixelEdges::new(dx, dy, dw, dh);
+        let px = sp.ix1;
+        let py = sp.iy1;
+        let px2 = sp.ix2;
+        let py2 = sp.iy2;
         let pw = px2 - px;
         let ph = py2 - py;
 
@@ -921,7 +956,7 @@ impl<'a> Painter<'a> {
                         ((color.r() as u32 * 77 + color.g() as u32 * 150 + color.b() as u32 * 29)
                             >> 8) as u8
                     };
-                    self.blend_pixel(col, row, lum_to_color(lum));
+                    self.blend_with_coverage(col, row, lum_to_color(lum), sp.coverage(col, row));
                 }
             }
         } else {
@@ -937,7 +972,7 @@ impl<'a> Painter<'a> {
                     } else {
                         ((p[0] as u32 * 77 + p[1] as u32 * 150 + p[2] as u32 * 29) >> 8) as u8
                     };
-                    self.blend_pixel(col, row, lum_to_color(lum));
+                    self.blend_with_coverage(col, row, lum_to_color(lum), sp.coverage(col, row));
                 }
             }
         }
@@ -1879,10 +1914,11 @@ impl<'a> Painter<'a> {
         let dy_px = dy * self.state.scale_y + self.state.offset_y;
         let dw_px = dw * self.state.scale_x;
         let dh_px = dh * self.state.scale_y;
-        let px = dx_px as i32;
-        let py = dy_px as i32;
-        let px2 = (dx_px + dw_px) as i32;
-        let py2 = (dy_px + dh_px) as i32;
+        let sp = SubPixelEdges::new(dx_px, dy_px, dw_px, dh_px);
+        let px = sp.ix1;
+        let py = sp.iy1;
+        let px2 = sp.ix2;
+        let py2 = sp.iy2;
         let pw = px2 - px;
         let ph = py2 - py;
         if pw <= 0 || ph <= 0 {
@@ -1963,7 +1999,7 @@ impl<'a> Painter<'a> {
                         &sec,
                         super::texture::ImageExtension::Clamp, // 9-slice uses EXTEND_EDGE
                     );
-                    self.blend_pixel(col, row, color);
+                    self.blend_with_coverage(col, row, color, sp.coverage(col, row));
                 }
             }
         } else {
@@ -1982,7 +2018,7 @@ impl<'a> Painter<'a> {
                     let ty = (row - py) as i64 * sxfm.tdy + sxfm.base_y - 0x80_0000;
                     let color =
                         interpolation::sample_bilinear_premul_fp(image, tx, ty, &sec, extension);
-                    self.blend_pixel(col, row, color);
+                    self.blend_with_coverage(col, row, color, sp.coverage(col, row));
                 }
             }
         }
@@ -4012,6 +4048,17 @@ impl<'a> Painter<'a> {
             ((color.a() as u16 * coverage as u16 + 128) >> 8) as u8,
         );
         self.blend_pixel(x, y, modulated);
+    }
+
+    /// Blend a sampled color with sub-pixel edge coverage (0..=0x1000).
+    #[inline]
+    fn blend_with_coverage(&mut self, x: i32, y: i32, color: Color, cov: i32) {
+        if cov >= 0x1000 {
+            self.blend_pixel(x, y, color);
+        } else if cov > 0 {
+            let a = ((cov * 255 + 0x800) >> 12).clamp(0, 255) as u8;
+            self.blend_pixel_alpha(x, y, color, a);
+        }
     }
 
     /// Fill a polygon with a texture using the scanline rasterizer.
