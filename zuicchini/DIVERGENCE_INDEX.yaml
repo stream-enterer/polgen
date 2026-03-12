@@ -32,69 +32,59 @@
   tests: [ellipse_basic, gradient_radial, ellipse_sector]
   status: passing
   evidence:
-    ellipse_basic: { ch_tol: 80, max_pct: 0.5, max_diff: 250, pct_differ_at_1: 1.01 }
-    gradient_radial: { ch_tol: 80, max_pct: 1.0, max_diff: 248, pct_differ_at_1: 26.10 }
-    ellipse_sector: { ch_tol: 80, max_pct: 0.5, max_diff: 225, pct_differ_at_1: 0.29 }
-  source: [src/render/painter.rs (ellipse_polygon, adaptive_circle_segments), src/render/scanline.rs (rasterize)]
+    ellipse_basic: { ch_tol: 1, max_pct: 0.5, note: "passes ch_tol=0 after blend/coverage fix" }
+    gradient_radial: { ch_tol: 50, max_pct: 1.0, max_diff: 248, pct_differ_at_1: 26.10 }
+    ellipse_sector: { ch_tol: 1, max_pct: 0.5, note: "pending ch_tol=0 verification" }
+  source: [src/render/painter.rs (ellipse_polygon, adaptive_circle_segments, paint_radial_gradient)]
   analysis: tests/golden_parity/PARITY_STATUS.md section C1
   notes: >
-    C++ solves ellipse equation per scanline row; Rust approximates as N-segment polygon.
-    The gradient_radial test has a much higher diff (26%) than the other ellipse tests
-    (~0.3-1%) because it compounds two mechanisms: (1) polygon boundary approximation
-    at the ellipse edge, and (2) C++ uses an integer sqrt lookup table for radial gradient
-    interpolation while Rust uses f64 sqrt, causing per-pixel diffs across the entire
-    filled area. The sqrt difference dominates the pixel count; the boundary difference
-    dominates the max_diff.
+    Partially resolved: ellipse_basic now passes at ch_tol=0 (the old max_diff=250
+    was entirely from the blend/coverage formula, not polygon approximation).
+    ellipse_sector at ch_tol=1, pending verification. gradient_radial still has
+    max_diff=248 (26% of pixels) because C++ uses an integer sqrt lookup table for
+    radial gradient distance while Rust uses f64 sqrt, producing per-pixel diffs
+    across the entire filled area. The sqrt table difference is the sole remaining
+    divergence in this entry.
 
 - id: DIV-002
   area: painter/scanline-aa
-  kind: expected-divergence
+  kind: bug-fixed
   tests: [polygon_tri, polygon_star, polygon_complex, clip_basic]
   status: passing
-  evidence:
-    polygon_tri: { ch_tol: 73, max_pct: 0.5, max_diff: 73, pct_differ_at_1: 0.93 }
-    polygon_star: { ch_tol: 80, max_pct: 0.5, max_diff: 251, pct_differ_at_1: 1.44 }
-    polygon_complex: { ch_tol: 80, max_pct: 0.5, max_diff: 240, pct_differ_at_1: 1.22 }
-    clip_basic: { ch_tol: 64, max_pct: 0.5, max_diff: 64, pct_differ_at_1: 0.23 }
-  source: [src/foundation/fixed.rs (FRAC_BITS), src/render/scanline.rs (make_span)]
-  analysis: tests/golden_parity/PARITY_STATUS.md section C2
-  notes: Fixed-point coverage bit width differs. Diffs confined to 1-2px edge band.
+  source: [src/render/scanline.rs (Span, make_poly_span, make_edge_span), src/render/painter.rs (blit_span, blend_with_coverage)]
+  notes: >
+    Fixed: Span opacities changed from u8 (0-255) to i32 (0-4096) 12-bit scale,
+    eliminating the two-step 12→8→8 conversion. Final alpha combines color alpha
+    and 12-bit coverage in one step: (color_a * opacity + 0x800) >> 12, matching
+    C++ PaintScanlineCol. All 4 tests now pass at ch_tol=1 (verified ch_tol=0
+    for polygon_star, polygon_complex). Removed cvt() helper.
 
 - id: DIV-003
   area: painter/stroke-expansion
-  kind: expected-divergence
+  kind: bug-fixed
   tests: [line_basic, line_dashed, outline_rect, outline_ellipse, outline_polygon, outline_round_rect, bezier_stroked, polyline]
   status: passing
-  evidence:
-    line_basic: { ch_tol: 80, max_pct: 1.0, max_diff: 152, pct_differ_at_1: 1.21 }
-    line_dashed: { ch_tol: 80, max_pct: 2.0, max_diff: 255, pct_differ_at_1: 1.90 }
-    outline_rect: { ch_tol: 80, max_pct: 4.5, max_diff: 255, pct_differ_at_1: 4.25 }
-    outline_ellipse: { ch_tol: 80, max_pct: 2.5, max_diff: 255, pct_differ_at_1: 3.02 }
-    outline_polygon: { ch_tol: 80, max_pct: 1.5, max_diff: 255, pct_differ_at_1: 2.46 }
-    outline_round_rect: { ch_tol: 80, max_pct: 4.5, max_diff: 255, pct_differ_at_1: 4.21 }
-    bezier_stroked: { ch_tol: 80, max_pct: 3.0, max_diff: 255, pct_differ_at_1: 3.48 }
-    polyline: { ch_tol: 80, max_pct: 3.5, max_diff: 255, pct_differ_at_1: 4.24 }
-  source: [src/render/painter.rs (paint_solid_polyline)]
-  analysis: tests/golden_parity/PARITY_STATUS.md section C3
+  source: [src/render/painter.rs (blit_span, blend_pixel, blend_with_coverage), src/render/scanline.rs]
   notes: >
-    Stroke outline polygon construction differs (offset-curve, corner, cap geometry).
-    max_diff=255 in most tests means some edge pixels are fully present in one output
-    and absent in the other — this is a structural boundary position difference, not
-    rounding. The stroke polygon vertices land at different sub-pixel positions.
+    Fixed: The original max_diff=255 diffs were NOT structural boundary differences
+    as previously analyzed. They were caused by the blend formula (div-256 truncation
+    vs C++ round-div-255) and the two-step coverage conversion (12→8→8 re-modulation).
+    Fixing the blend formula to (x * 257 + 0x8073) >> 16 and switching to 12-bit
+    Span opacities with single-step alpha resolved all 8 tests. Now pass at ch_tol=1
+    (verified ch_tol=0 for line_basic, polyline, outline_ellipse, outline_polygon,
+    bezier_stroked).
 
 - id: DIV-004
   area: painter/curve-polygon
-  kind: expected-divergence
+  kind: bug-fixed
   tests: [bezier_filled]
   status: passing
-  evidence:
-    bezier_filled: { ch_tol: 80, max_pct: 4.5, max_diff: 255, pct_differ_at_1: 4.41 }
-  source: [src/render/painter.rs (tessellate_cubic)]
-  analysis: tests/golden_parity/PARITY_STATUS.md section C4
+  source: [src/render/painter.rs (blend_pixel, blend_with_coverage), src/render/scanline.rs]
   notes: >
-    C++ evaluates bezier directly during scanline fill; Rust uses recursive subdivision
-    to polygon. max_diff=255 means structural boundary position difference (curve
-    flattening places vertices at different positions than direct evaluation).
+    Fixed: Like DIV-003, the original max_diff=255 was NOT from tessellation
+    differences. It was caused by the blend formula and coverage conversion
+    errors that made every AA boundary pixel wrong. With the round-div-255
+    blend and 12-bit coverage, bezier_filled passes at ch_tol=0.
 
 - id: DIV-005
   area: painter/image-scaling
@@ -110,21 +100,35 @@
     Residual image_scaled divergence reclassified as DIV-024 (boundary premul).
 
 - id: DIV-024
-  area: painter/image-boundary-premul
+  area: painter/image-bicubic
   kind: expected-divergence
   tests: [image_scaled]
   status: passing
   evidence:
-    image_scaled: { ch_tol: 19, max_pct: 0.5, max_diff: 19, pct_differ_at_1: 4.79 }
-  source: [src/render/interpolation.rs (sample_bicubic_premul_fp)]
+    image_scaled: { ch_tol: 19, max_pct: 0.5, max_diff: 19, pct_differ_at_1: 11.49 }
+  source: [src/render/interpolation.rs (sample_bicubic_premul_fp, bicubic_factors_hi), src/render/painter.rs (blend_pixel_premul, blend_premul_with_coverage, scale_transform_24)]
   analysis: tests/golden_parity/PARITY_STATUS.md section C5
   notes: >
-    Bicubic kernel taps outside the image return alpha=0 with EXTEND_ZERO
-    (used for RGBA images in paint_image_full). The premul accumulation then
-    unpremultiply step amplifies small alpha-weighted color differences at
-    image edges, producing max_diff=19. Interior pixels match at tolerance 1.
-    Only affects paint_image_full; 9-slice (paint_border_image) uses
-    ImageExtension::Clamp, which is not affected.
+    Investigation status — three structural fixes applied, none resolved the divergence:
+    (1) Separable column-first Y-interpolation with FINPREMUL_SIGNED_COLOR intermediate
+    quantization ((pm_rgb + 0x7f) / 0xff) matching C++ InterpolateImageBicubic. ✓ Applied.
+    (2) Premultiplied blend path (blend_pixel_premul, blend_premul_with_coverage) that
+    avoids unpremultiply/repremultiply round-trip quantization error, matching C++
+    PaintScanlineInt non-CVC CHANNELS==4 formula. ✓ Applied, zero effect on output.
+    (3) WRITE_SHR_CLIP_SIGNED_COLOR with rounding constant (1<<19)-1 = 524287 and
+    clamp(rgb, 0, alpha). ✓ Applied.
+    Ruled out: (a) premul blend round-trip error (premul path produces identical pixels),
+    (b) non-separable vs separable interpolation structure, (c) FINPREMUL rounding,
+    (d) WRITE_SHR_CLIP rounding constant.
+    Remaining suspects: (1) Bicubic weight table — Rust computes at runtime via f64 Catmull-Rom
+    formula while C++ uses a hardcoded 257-entry table; formulas are algebraically equivalent
+    but floating-point rounding at half-integer boundaries could produce ±1 weight diffs.
+    (2) Coordinate transform origin — Rust scale_transform_24 computes base_x/base_y via
+    ((tx_sub - 0.5) * tdx_f64) while C++ uses ((tx - 0.5) * tdx); tx_sub includes
+    sub-pixel offset that tx may not, potentially shifting all sample positions.
+    (3) Some other upstream difference in paint_image_full's dest rect → source coord mapping.
+    Max_diff=19 with 11.49% affected pixels is too large for pure rounding; this suggests
+    a systematic coordinate offset shifting all interpolation sample positions.
 
 - id: DIV-025
   area: painter/9slice-section-boundary
@@ -152,19 +156,16 @@
 
 - id: DIV-006
   area: painter/stroke-ends
-  kind: expected-divergence
+  kind: bug-fixed
   tests: [line_ends_all]
   status: passing
-  evidence:
-    line_ends_all: { ch_tol: 80, max_pct: 17.0, max_diff: 255, pct_differ_at_1: 19.91 }
-  source: [src/render/painter.rs (paint_stroke_end), src/render/stroke.rs (StrokeEndType)]
-  analysis: tests/golden_parity/PARITY_STATUS.md section C6
+  source: [src/render/painter.rs (blend_pixel, blend_with_coverage), src/render/scanline.rs]
   related: [DIV-003]
   notes: >
-    17 stroke end decoration types with independent geometry. Highest diff of any
-    passing test. End decorations are polygons built by the stroke system (shares
-    code path with DIV-003 stroke-expansion); contour variants also use
-    inset_polygon() which may introduce additional boundary differences.
+    Fixed: Same root cause as DIV-003. The 19.91% diff at ch_tol=80 was entirely
+    from the blend formula and coverage conversion errors, not stroke end geometry
+    differences. All 17 stroke end decoration types now produce pixel-identical
+    output. Passes at ch_tol=0.
 
 - id: DIV-007
   area: painter/compound
@@ -172,14 +173,17 @@
   tests: [multi_compose]
   status: passing
   evidence:
-    multi_compose: { ch_tol: 80, max_pct: 0.5, max_diff: 119, pct_differ_at_1: 1.57 }
+    multi_compose: { ch_tol: 1, max_pct: 0.5, max_diff: 1, pct_differ_at_1: 0.01 }
   source: []
   analysis: tests/golden_parity/PARITY_STATUS.md section C7
-  related: [DIV-001, DIV-002, DIV-003, DIV-004]
+  related: [DIV-001]
   notes: >
-    multi_compose test renders multiple shapes (rect, ellipse, polygon, text) on one
-    canvas. Each shape picks up its respective upstream gap. The compound diff is the
-    union of per-shape diffs — auto-improves when any upstream gap closes.
+    Improved from ch_tol=80 to ch_tol=1 after DIV-002/003/004/006 fixes. Residual
+    is 9 pixels at polygon AA boundaries where multiple non-opaque shapes overlap.
+    This is a fundamental polygon approximation difference (C++ vs Rust N-segment
+    ellipse) producing ±1 at boundary pixels where coverage stacking interacts
+    with the polygon boundary position. Cannot be resolved without matching C++
+    ellipse-equation-per-scanline approach (DIV-001).
 
 # ═══════════════════════════════════════════════════════════════════
 # PAINTER — Rounding differences (Category B from PARITY_STATUS)
@@ -575,8 +579,8 @@
 # ═══════════════════════════════════════════════════════════════════
 #
 # Total entries:       35
-#   expected-divergence: 19 (DIV-001..004, DIV-006..009, DIV-013..017, DIV-020..024)
-#   bug-fixed/resolved:  13  (DIV-005, DIV-010, DIV-011, DIV-012, DIV-018, DIV-019, DIV-025, GAP-001, GAP-002, GAP-003a, GAP-003b, GAP-004, GAP-005)
+#   expected-divergence: 11 (DIV-001, DIV-007, DIV-013..017, DIV-020, DIV-021, DIV-023, DIV-024)
+#   bug-fixed/resolved:  20  (DIV-002..006, DIV-008..012, DIV-018, DIV-019, DIV-022, DIV-025, GAP-001..005)
 #   missing-impl:         0
 #   out-of-scope:         4  (OOS-001, OOS-002, OOS-003, GAP-003c)
 #
