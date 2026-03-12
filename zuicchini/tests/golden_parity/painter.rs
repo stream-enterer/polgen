@@ -219,7 +219,9 @@ fn painter_gradient_radial() {
     }
     // Residual: C++ uses integer sqrt lookup table for gradient; Rust uses f64 sqrt.
     // max_diff=50 at polygon boundary AA, 25.08% of pixels differ at ch_tol=1.
-    compare_images(img.data(), &expected, ew, eh, 50, 1.0).unwrap();
+    // Gradient interior: pixel-perfect (integer sqrt table matching C++).
+    // Residual: ellipse polygon boundary AA (~0.05% pixels, structural).
+    compare_images(img.data(), &expected, ew, eh, 1, 0.5).unwrap();
 }
 
 // ─── Test 13: line_basic ────────────────────────────────────────

@@ -33,18 +33,16 @@
   status: passing
   evidence:
     ellipse_basic: { ch_tol: 1, max_pct: 0.5, note: "passes ch_tol=0 after blend/coverage fix" }
-    gradient_radial: { ch_tol: 50, max_pct: 1.0, max_diff: 248, pct_differ_at_1: 26.10 }
+    gradient_radial: { ch_tol: 1, max_pct: 0.5, max_diff: 50, pct_differ_at_1: "0.05%" }
     ellipse_sector: { ch_tol: 1, max_pct: 0.5, note: "pending ch_tol=0 verification" }
-  source: [src/render/painter.rs (ellipse_polygon, adaptive_circle_segments, paint_radial_gradient)]
+  source: [src/render/painter.rs (ellipse_polygon, adaptive_circle_segments, paint_radial_gradient, grad_sqrt_table)]
   analysis: tests/golden_parity/PARITY_STATUS.md section C1
   notes: >
-    Partially resolved: ellipse_basic now passes at ch_tol=0 (the old max_diff=250
-    was entirely from the blend/coverage formula, not polygon approximation).
-    ellipse_sector at ch_tol=1, pending verification. gradient_radial still has
-    max_diff=248 (26% of pixels) because C++ uses an integer sqrt lookup table for
-    radial gradient distance while Rust uses f64 sqrt, producing per-pixel diffs
-    across the entire filled area. The sqrt table difference is the sole remaining
-    divergence in this entry.
+    gradient_radial FIXED: ported C++ integer sqrt lookup table (64771 entries,
+    emPainter_ScTlIntGra.cpp) with fixed-point TX/TY/TDX/TDY matching C++ exactly.
+    Old: max_diff=248, 26.10% of pixels. New: 0.05% of pixels differ at ch_tol=1,
+    all at ellipse polygon boundary AA (structural, same as ellipse_basic).
+    ellipse_basic passes at ch_tol=0. ellipse_sector at ch_tol=1.
 
 - id: DIV-002
   area: painter/scanline-aa

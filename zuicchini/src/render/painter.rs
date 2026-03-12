@@ -1,3 +1,5 @@
+use std::sync::OnceLock;
+
 use super::bitmap_font;
 use super::em_font;
 use super::interpolation;
@@ -16,6 +18,24 @@ const CIRCLE_QUALITY: f64 = 4.5;
 const MAX_MITER: f64 = 5.0;
 /// Minimum relative segment length for short-segment filtering.
 const MIN_REL_SEG_LEN: f64 = 0.001;
+
+/// Size of the C++ radial gradient sqrt lookup table.
+/// Table maps squared-distance index to sqrt (0–255).
+const GRAD_SQRT_TABLE_SIZE: usize = 64771;
+
+/// Return the C++ emCore radial gradient sqrt lookup table.
+/// Entry `i` = `round(sqrt(i))` clamped to 255, matching the
+/// run-length-encoded table in `emPainter_ScTlIntGra.cpp`.
+fn grad_sqrt_table() -> &'static [u8; GRAD_SQRT_TABLE_SIZE] {
+    static TABLE: OnceLock<Box<[u8; GRAD_SQRT_TABLE_SIZE]>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut t = Box::new([0u8; GRAD_SQRT_TABLE_SIZE]);
+        for i in 0..GRAD_SQRT_TABLE_SIZE {
+            t[i] = ((i as f64).sqrt() + 0.5).floor().min(255.0) as u8;
+        }
+        t
+    })
+}
 /// Default bitmask for `paint_border_image`: all sub-rects except center.
 /// Octal 0757 = binary 0b111_101_111.
 ///
@@ -38,8 +58,14 @@ enum PixelTexture<'t> {
     RadialGradient {
         color_inner: Color,
         color_outer: Color,
-        center: (f64, f64),
-        radius: (f64, f64),
+        /// Fixed-point base: `(center_px - 0.5) * tdx`, cast to i64.
+        fp_tx: i64,
+        /// Fixed-point base: `(center_py - 0.5) * tdy`, cast to i64.
+        fp_ty: i64,
+        /// Fixed-point X step: `(255 << 23) / prx`, cast to i64.
+        fp_tdx: i64,
+        /// Fixed-point Y step: `(255 << 23) / pry`, cast to i64.
+        fp_tdy: i64,
     },
     Image {
         image: &'t Image,
@@ -552,14 +578,27 @@ impl<'a> Painter<'a> {
 
         let pcx = cx * self.state.scale_x + self.state.offset_x;
         let pcy = cy * self.state.scale_y + self.state.offset_y;
-        let prx = rx * self.state.scale_x;
-        let pry = ry * self.state.scale_y;
+        let prx = (rx * self.state.scale_x).max(1e-3);
+        let pry = (ry * self.state.scale_y).max(1e-3);
+
+        // C++ emPainter_ScTl.cpp: nx = (255<<23)/rx, TX = (center-0.5)*nx
+        let nx = (255_i64 << 23) as f64 / prx;
+        let ny = (255_i64 << 23) as f64 / pry;
+        let fp_tdx = nx as i64;
+        let fp_tdy = ny as i64;
+        let fp_tx = ((pcx - 0.5) * nx) as i64;
+        let fp_ty = ((pcy - 0.5) * ny) as i64;
+
+        // Ensure sqrt table is initialized.
+        let _ = grad_sqrt_table();
 
         let px_texture = PixelTexture::RadialGradient {
             color_inner,
             color_outer,
-            center: (pcx, pcy),
-            radius: (prx, pry),
+            fp_tx,
+            fp_ty,
+            fp_tdx,
+            fp_tdy,
         };
 
         for (y, spans) in &rows {
@@ -4176,13 +4215,18 @@ impl<'a> Painter<'a> {
             } => {
                 let pcx = center.0 * state.scale_x + state.offset_x;
                 let pcy = center.1 * state.scale_y + state.offset_y;
-                let prx = radius * state.scale_x;
-                let pry = radius * state.scale_y;
+                let prx = (radius * state.scale_x).max(1e-3);
+                let pry = (radius * state.scale_y).max(1e-3);
+                let nx = (255_i64 << 23) as f64 / prx;
+                let ny = (255_i64 << 23) as f64 / pry;
+                let _ = grad_sqrt_table();
                 PixelTexture::RadialGradient {
                     color_inner: *color_inner,
                     color_outer: *color_outer,
-                    center: (pcx, pcy),
-                    radius: (prx, pry),
+                    fp_tx: ((pcx - 0.5) * nx) as i64,
+                    fp_ty: ((pcy - 0.5) * ny) as i64,
+                    fp_tdx: nx as i64,
+                    fp_tdy: ny as i64,
                 }
             }
             Texture::Image {
@@ -4238,23 +4282,33 @@ impl<'a> Painter<'a> {
             PixelTexture::RadialGradient {
                 color_inner,
                 color_outer,
-                center,
-                radius,
+                fp_tx,
+                fp_ty,
+                fp_tdx,
+                fp_tdy,
             } => {
-                let dx = px - center.0;
-                let dy = py - center.1;
-                let nx = if radius.0.abs() > 1e-12 {
-                    dx / radius.0
+                // C++ integer sqrt table lookup matching emPainter_ScTlIntGra.cpp.
+                // px/py are pixel-center coords (col+0.5, row+0.5).
+                let col = (px - 0.5) as i64;
+                let row = (py - 0.5) as i64;
+                let tx = col * fp_tdx - fp_tx;
+                let ty = row * fp_tdy - fp_ty;
+                // C++ bounds check: (emUInt64)tx+(0xFF<<23) < (0x1FE<<23)
+                // Equivalent: -0xFF_0000_00 <= tx < 0xFF_0000_00 (and same for ty).
+                const LIMIT: i64 = 0xFF << 23; // 255 * 2^23
+                if tx.unsigned_abs() >= LIMIT as u64 || ty.unsigned_abs() >= LIMIT as u64 {
+                    return color_outer.lerp(*color_inner, 0.0);
+                }
+                let tyty = ty * ty + ((1i64 << 45) - 1);
+                let t_idx = ((tx * tx + tyty) >> 46) as usize;
+                let table = grad_sqrt_table();
+                let factor = if t_idx < GRAD_SQRT_TABLE_SIZE {
+                    table[t_idx]
                 } else {
-                    1.0
+                    255
                 };
-                let ny = if radius.1.abs() > 1e-12 {
-                    dy / radius.1
-                } else {
-                    1.0
-                };
-                let t = (nx * nx + ny * ny).sqrt().min(1.0);
-                color_inner.lerp(*color_outer, t)
+                // factor is 0–255: 0=center (inner), 255=edge (outer).
+                color_inner.lerp(*color_outer, factor as f64 / 255.0)
             }
             PixelTexture::Image {
                 image,
