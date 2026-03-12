@@ -191,8 +191,7 @@ fn painter_gradient_h() {
         let mut p = white_painter(&mut img);
         p.paint_linear_gradient(0.0, 0.0, 256.0, 256.0, Color::RED, Color::BLUE, true);
     }
-    // Residual: pixel sample at integer coords vs C++ pixel center; max_diff=1.
-    compare_images(img.data(), &expected, ew, eh, 1, 1.0).unwrap();
+    compare_images(img.data(), &expected, ew, eh, 0, 1.0).unwrap();
 }
 
 // ─── Test 11: gradient_v ────────────────────────────────────────
@@ -205,8 +204,7 @@ fn painter_gradient_v() {
         let mut p = white_painter(&mut img);
         p.paint_linear_gradient(0.0, 0.0, 256.0, 256.0, Color::GREEN, Color::YELLOW, false);
     }
-    // Residual: pixel sample at integer coords vs C++ pixel center; max_diff=1.
-    compare_images(img.data(), &expected, ew, eh, 1, 1.0).unwrap();
+    compare_images(img.data(), &expected, ew, eh, 0, 1.0).unwrap();
 }
 
 // ─── Test 12: gradient_radial ───────────────────────────────────

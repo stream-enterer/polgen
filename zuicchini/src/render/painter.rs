@@ -511,7 +511,7 @@ impl<'a> Painter<'a> {
                     end,
                     color_a,
                     color_b,
-                    (col as f64, row as f64),
+                    (col as f64 + 0.5, row as f64 + 0.5),
                 );
                 self.blend_pixel(col, row, color);
             }
@@ -4270,7 +4270,7 @@ impl<'a> Painter<'a> {
             return;
         }
 
-        let py = y as f64;
+        let py = y as f64 + 0.5;
         for x in x_start..x_end {
             let opacity = if x == span.x_start && x_end - x_start > 1 {
                 span.opacity_beg
@@ -4285,7 +4285,7 @@ impl<'a> Painter<'a> {
                 continue;
             }
 
-            let color = Self::sample_pixel_texture(texture, x as f64, py);
+            let color = Self::sample_pixel_texture(texture, x as f64 + 0.5, py);
 
             if opacity == 255 {
                 self.blend_pixel(x, y, color);
