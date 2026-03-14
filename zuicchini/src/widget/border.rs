@@ -980,8 +980,24 @@ How to move or set the focus:\n\
     /// (via `DoBorder(BORDER_FUNC_CONTENT_ROUND_RECT)`).
     pub fn content_round_rect(&self, w: f64, h: f64, _look: &Look) -> (Rect, f64) {
         let (ox, oy, ow, oh) = self.outer_insets(w, h);
-        let label_area_w = (w - ow).max(0.0);
+        let mut rnd_x = ox;
+        let mut label_area_w = (w - ow).max(0.0);
         let rnd_h = (h - oh).max(0.0);
+
+        // minSpace: C++ computes s = min(rndW, rndH)*BorderScaling BEFORE label
+        // subtraction and HowTo (line 901), so ms uses the pre-label dimensions.
+        let s = label_area_w.min(rnd_h) * self.border_scaling;
+        let ms = s * self.min_space_factor();
+
+        // HowTo space: C++ shifts content rightward when howToSpace > minSpace.
+        if self.has_how_to {
+            let hts = s * self.how_to_space_factor();
+            if hts > ms {
+                rnd_x += hts - ms;
+                label_area_w -= hts - ms;
+            }
+        }
+
         let label_h = if self.label_in_border && self.has_label() {
             self.label_space(label_area_w, rnd_h)
         } else {
@@ -991,10 +1007,7 @@ How to move or set the focus:\n\
         // Round rect after outer insets + label.
         // `rnd_h` (from above) = h - oh, the pre-label outer height.
         let rnd_h_after_label = (rnd_h - label_h).max(0.0);
-        // minSpace: C++ computes s = min(rndW, rndH)*BorderScaling BEFORE label
-        // subtraction (line 901), so ms uses the pre-label dimensions.
-        let ms = label_area_w.min(rnd_h) * self.border_scaling * self.min_space_factor();
-        let rnd_x = ox + ms;
+        let rnd_x = rnd_x + ms;
         let rnd_w = (label_area_w - 2.0 * ms).max(0.0);
         // C++ lines 983-987 (has-label) vs 1047-1050 (no-label):
         //   has-label: rndY+=labelSpace (no ms on top), rndH-=labelSpace+ms (1 ms, bottom only)
@@ -1034,10 +1047,36 @@ How to move or set the focus:\n\
                 );
             }
             InnerBorderType::CustomRect => {
-                let r = inner_s * 0.0125;
-                if rnd_r < r {
-                    rnd_r = r;
+                // C++ lines 1137-1164: two-step inset.
+                // Step 1: inset by 25% of outer corner radius.
+                let d = rnd_r * 0.25;
+                let mut cx = rnd_x + d;
+                let mut cy = rnd_y + d;
+                let mut cw = (rnd_w - 2.0 * d).max(0.0);
+                let mut ch = (rnd_h_inner - 2.0 * d).max(0.0);
+                let mut cr = rnd_r - d;
+                // Step 2: bump radius, then inset by full radius.
+                // C++ uses emMin(1.0, h) where 1.0 = normalized width.
+                // In pixel space: w.min(h) with original panel dimensions.
+                let r = w.min(h) * self.border_scaling * 0.0125;
+                if cr < r {
+                    cr = r;
                 }
+                let d2 = cr;
+                cx += d2;
+                cy += d2;
+                cw = (cw - 2.0 * d2).max(0.0);
+                ch = (ch - 2.0 * d2).max(0.0);
+                // C++ sets rndR=0 after second inset.
+                return (
+                    Rect {
+                        x: cx,
+                        y: cy,
+                        w: cw,
+                        h: ch,
+                    },
+                    0.0,
+                );
             }
         }
 
@@ -1277,7 +1316,7 @@ How to move or set the focus:\n\
                 rnd_w -= 2.0 * d;
                 rnd_h -= 2.0 * d;
                 rnd_r -= d;
-                let r = (1.0_f64).min(h) * self.border_scaling * 0.0125;
+                let r = w.min(h) * self.border_scaling * 0.0125;
                 if rnd_r < r {
                     rnd_r = r;
                 }
@@ -1754,13 +1793,13 @@ How to move or set the focus:\n\
         }
 
         let label_area_w = rnd_w;
-        let ls = if self.label_in_border {
+        let ls = if self.label_in_border && self.has_label() {
             self.label_space(label_area_w, rnd_h)
         } else {
             0.0
         };
 
-        if self.label_in_border && self.has_label() {
+        if ls > 0.0 {
             let lch = self.label_content_height(label_area_w, rnd_h);
             // C++ emBorder.cpp lines 939-951:
             //   d = labelSpace*0.1; ty = rndY+d; th = labelSpace-2*d;
@@ -1792,13 +1831,16 @@ How to move or set the focus:\n\
             );
         }
 
-        // Inner border — apply minSpace (C++ DoBorder lines 983-987).
-        // C++: rndX += minSpace, rndW -= 2*minSpace, rndY += labelSpace,
-        //      rndH -= labelSpace + minSpace, rndR -= minSpace.
+        // Inner border — apply minSpace and label.
+        // C++ has-label: rndX+=ms, rndW-=2*ms, rndY+=labelSpace, rndH-=labelSpace+ms
+        // C++ no-label:  rndX+=ms, rndW-=2*ms, rndY+=ms, rndH-=2*ms
         let inner_x = rnd_x + ms;
-        let inner_y = oy + ls;
         let inner_w = (rnd_w - 2.0 * ms).max(0.0);
-        let inner_h = (h - oy * 2.0 - ls - ms).max(0.0);
+        let (inner_y, inner_h) = if ls > 0.0 {
+            (oy + ls, (h - oy * 2.0 - ls - ms).max(0.0))
+        } else {
+            (oy + ms, (h - oy * 2.0 - 2.0 * ms).max(0.0))
+        };
         // C++ rndR = outer_radius - minSpace, then clamped up per inner type.
         let mut inner_r = (self.outer_radius(w, h) - ms).max(0.0);
         let type_r = self.inner_radius(inner_w, inner_h);
@@ -1874,17 +1916,34 @@ How to move or set the focus:\n\
                 // Overlay painted by paint_inner_overlay() after content.
             }
             InnerBorderType::CustomRect => {
+                // C++ lines 1137-1153: first inset by 25% of corner radius,
+                // then bump radius, then paint border image.
+                // The generic inner_r bump at lines 1830-1833 uses the wrong
+                // formula for CustomRect; recompute from the raw radius.
+                let raw_r = (self.outer_radius(w, h) - ms).max(0.0);
+                let d = raw_r * 0.25;
+                let cr_x = inner_x + d;
+                let cr_y = inner_y + d;
+                let cr_w = (inner_w - 2.0 * d).max(0.0);
+                let cr_h = (inner_h - 2.0 * d).max(0.0);
+                let mut cr_r = raw_r - d;
+                // C++ uses emMin(1.0, h) where 1.0 = normalized width.
+                // In pixel space: w.min(h) with original panel dimensions.
+                let r = w.min(h) * self.border_scaling * 0.0125;
+                if cr_r < r {
+                    cr_r = r;
+                }
                 let canvas = painter.canvas_color();
                 super::toolkit_images::with_toolkit_images(|img| {
                     painter.paint_border_image(
-                        inner_x,
-                        inner_y,
-                        inner_w,
-                        inner_h,
-                        inner_r,
-                        inner_r,
-                        inner_r,
-                        inner_r,
+                        cr_x,
+                        cr_y,
+                        cr_w,
+                        cr_h,
+                        cr_r,
+                        cr_r,
+                        cr_r,
+                        cr_r,
                         &img.custom_rect_border,
                         200,
                         200,
@@ -1936,9 +1995,12 @@ How to move or set the focus:\n\
         };
 
         let inner_x = rnd_x2 + ms;
-        let inner_y = oy + ls;
         let inner_w = (rnd_w2 - 2.0 * ms).max(0.0);
-        let inner_h = (h - oy * 2.0 - ls - ms).max(0.0);
+        let (inner_y, inner_h) = if ls > 0.0 {
+            (oy + ls, (h - oy * 2.0 - ls - ms).max(0.0))
+        } else {
+            (oy + ms, (h - oy * 2.0 - 2.0 * ms).max(0.0))
+        };
         let mut inner_r = (self.outer_radius(w, h) - ms).max(0.0);
         let type_r = self.inner_radius(inner_w, inner_h);
         if inner_r < type_r {
