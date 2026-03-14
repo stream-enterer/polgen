@@ -3019,38 +3019,73 @@ impl<'a> Painter<'a> {
         let rounded = stroke.join == super::stroke::LineJoin::Round
             || stroke.cap == super::stroke::LineCap::Round;
 
-        // Shorten the polyline at start/end to account for arrow length.
+        // C++ PaintPolylineWithArrowsAlterBuf: iterate segments from each end,
+        // test each segment against the decoration shape boundary via CutLineAtArrow.
+        // When t < 1.0, interpolate the cut point on that segment and break.
+        // When t >= 1.0, the entire segment is inside the decoration — skip it.
         let mut work_verts = vertices.to_vec();
+        let mut p1: usize = 0;
+        let mut p2: usize = n - 1;
 
         if has_start_arrow {
-            let (new_x, new_y) = Self::cut_line_at_end(
-                work_verts[0].0,
-                work_verts[0].1,
-                start_dx,
-                start_dy,
-                stroke.width,
-                &stroke.start_end,
-                rounded,
-            );
-            work_verts[0] = (new_x, new_y);
+            let x1 = work_verts[0].0;
+            let y1 = work_verts[0].1;
+            while p1 < p2 {
+                let ex1 = work_verts[p1].0 - x1;
+                let ey1 = work_verts[p1].1 - y1;
+                let ex2 = work_verts[p1 + 1].0 - x1;
+                let ey2 = work_verts[p1 + 1].1 - y1;
+                // Transform to decoration-local coords: rotate by (nx1, ny1)
+                let t = Self::cut_line_at_arrow(
+                    ex1 * start_dx + ey1 * start_dy,
+                    ey1 * start_dx - ex1 * start_dy,
+                    ex2 * start_dx + ey2 * start_dy,
+                    ey2 * start_dx - ex2 * start_dy,
+                    stroke.width,
+                    stroke,
+                    &stroke.start_end,
+                );
+                if t < 1.0 {
+                    work_verts[p1].0 = (1.0 - t) * work_verts[p1].0 + t * work_verts[p1 + 1].0;
+                    work_verts[p1].1 = (1.0 - t) * work_verts[p1].1 + t * work_verts[p1 + 1].1;
+                    break;
+                }
+                p1 += 1;
+            }
         }
 
         if has_end_arrow {
-            let last = n - 1;
-            let (new_x, new_y) = Self::cut_line_at_end(
-                work_verts[last].0,
-                work_verts[last].1,
-                -end_dx,
-                -end_dy,
-                stroke.width,
-                &stroke.finish_end,
-                rounded,
-            );
-            work_verts[last] = (new_x, new_y);
+            let x2 = work_verts[p2].0;
+            let y2 = work_verts[p2].1;
+            while p2 > p1 {
+                let ex1 = work_verts[p2].0 - x2;
+                let ey1 = work_verts[p2].1 - y2;
+                let ex2 = work_verts[p2 - 1].0 - x2;
+                let ey2 = work_verts[p2 - 1].1 - y2;
+                // Direction for end is negated (nx2, ny2 point into the line)
+                let t = Self::cut_line_at_arrow(
+                    ex1 * (-end_dx) + ey1 * (-end_dy),
+                    ey1 * (-end_dx) - ex1 * (-end_dy),
+                    ex2 * (-end_dx) + ey2 * (-end_dy),
+                    ey2 * (-end_dx) - ex2 * (-end_dy),
+                    stroke.width,
+                    stroke,
+                    &stroke.finish_end,
+                );
+                if t < 1.0 {
+                    work_verts[p2].0 = (1.0 - t) * work_verts[p2].0 + t * work_verts[p2 - 1].0;
+                    work_verts[p2].1 = (1.0 - t) * work_verts[p2].1 + t * work_verts[p2 - 1].1;
+                    break;
+                }
+                p2 -= 1;
+            }
         }
 
-        // Paint the polyline body.
-        self.paint_polyline_without_arrows(&work_verts, stroke, closed);
+        // Paint the polyline body (only the non-skipped segment range).
+        let body = &work_verts[p1..=p2];
+        if body.len() >= 2 {
+            self.paint_polyline_without_arrows(body, stroke, closed);
+        }
 
         // Direction vectors point INTO the line (toward the interior).
         // Perpendicular = (dy, -dx) of the into-line direction, matching C++ convention.
@@ -3553,131 +3588,364 @@ impl<'a> Painter<'a> {
 
     /// Simplified line shortening for arrow decorations.
     /// `(dx, dy)` points INTO the line body. Returns the new endpoint moved inward.
-    fn cut_line_at_end(
-        x: f64,
-        y: f64,
-        dx: f64,
-        dy: f64,
+    /// Exact port of C++ `emPainter::CutLineAtArrow`.
+    ///
+    /// Takes a line segment (x1,y1)→(x2,y2) in decoration-local coordinates
+    /// (x = along main direction, y = perpendicular). Returns parametric t
+    /// (0.0–1.0) for where the segment exits the decoration shape. t >= 1.0
+    /// means the entire segment is inside the decoration.
+    #[allow(clippy::excessive_precision, clippy::needless_return)]
+    fn cut_line_at_arrow(
+        x1: f64,
+        y1: f64,
+        x2: f64,
+        y2: f64,
         thickness: f64,
+        stroke: &Stroke,
         end: &StrokeEnd,
-        rounded: bool,
-    ) -> (f64, f64) {
-        let r = (thickness * ARROW_BASE_SIZE * 0.5 * end.width_factor).abs();
-        let l = (thickness * ARROW_BASE_SIZE * end.length_factor).abs();
-        let s = thickness * 0.5;
+    ) -> f64 {
+        let mut r = (thickness * ARROW_BASE_SIZE * 0.5 * end.width_factor).abs();
+        if r <= 1e-140 {
+            return 0.0;
+        }
+        let mut l = thickness * ARROW_BASE_SIZE * end.length_factor;
+        if l <= 1e-140 {
+            return 0.0;
+        }
+        let rounded = stroke.join == super::stroke::LineJoin::Round
+            || stroke.cap == super::stroke::LineCap::Round;
 
-        let cut = match end.end_type {
-            StrokeEndType::Butt | StrokeEndType::Cap => 0.0,
+        let s;
+        match end.end_type {
+            StrokeEndType::Butt | StrokeEndType::Cap => return 0.0,
             StrokeEndType::Arrow => {
-                // C++ adjusts for stroke width around the arrow shape.
+                let d = thickness * 0.5;
                 let b = l / r;
-                let s_adj = (1.0 + b * b).sqrt() * s;
-                let b_notch = b * ARROW_NOTCH;
-                let u = (1.0 + b_notch * b_notch).sqrt() * s;
-                let l2 = l - (s_adj + u) / (1.0 - ARROW_NOTCH);
-                l2.max(0.0)
+                s = (1.0 + b * b).sqrt() * d;
+                let b2 = b * ARROW_NOTCH;
+                let u = (1.0 + b2 * b2).sqrt() * d;
+                let l2 = l - (s + u) / (1.0 - ARROW_NOTCH);
+                r *= l2 / l;
+                l = l2;
+                return Self::cut_arrow(x1 - s, y1, x2 - s, y2, r, l);
             }
             StrokeEndType::ContourArrow => {
-                let cs = if rounded {
-                    s
+                s = if rounded {
+                    thickness * 0.5
                 } else {
+                    let d = thickness * 0.5;
                     let sin_a = r / (l * l + r * r).sqrt();
                     if MAX_MITER * sin_a < 1.0 {
-                        s * sin_a
+                        d * sin_a
                     } else {
-                        s / sin_a
+                        d / sin_a
                     }
                 };
-                cs + l
+                return Self::cut_arrow(x1 - s, y1, x2 - s, y2, r, l);
             }
             StrokeEndType::LineArrow => {
-                let cs = if rounded {
-                    s
+                s = if rounded {
+                    thickness * 0.5
                 } else {
+                    let d = thickness * 0.5;
                     let sin_a = r / (l * l + r * r).sqrt();
                     if MAX_MITER * sin_a < 1.0 {
-                        s * sin_a
+                        d * sin_a
                     } else {
-                        s / sin_a
+                        d / sin_a
                     }
                 };
-                // C++ reduces to s*1.5 for the cut shape.
-                cs * 1.5
+                let l2 = s * 1.5;
+                r *= l2 / l;
+                l = l2;
+                return Self::cut_triangle(x1 - 0.0, y1, x2 - 0.0, y2, r, l);
             }
             StrokeEndType::Triangle => {
+                let d = thickness * 0.5;
                 let b = l / r;
-                let s_adj = (1.0 + b * b).sqrt() * s;
-                (l - s_adj - s).max(0.0)
+                s = (1.0 + b * b).sqrt() * d;
+                let l2 = l - s - d;
+                r *= l2 / l;
+                l = l2;
+                return Self::cut_triangle(x1 - s, y1, x2 - s, y2, r, l);
             }
             StrokeEndType::ContourTriangle => {
-                let cs = if rounded {
-                    s
+                s = if rounded {
+                    thickness * 0.5
                 } else {
+                    let d = thickness * 0.5;
                     let sin_a = r / (l * l + r * r).sqrt();
                     if MAX_MITER * sin_a < 1.0 {
-                        s * sin_a
+                        d * sin_a
                     } else {
-                        s / sin_a
+                        d / sin_a
                     }
                 };
-                cs + l
+                return Self::cut_triangle(x1 - s, y1, x2 - s, y2, r, l);
             }
             StrokeEndType::Square => {
-                // C++ adjusts: r_adj = max(0, r-s), l_adj = max(0, l-thickness)
-                let l_adj = (l - thickness).max(0.0);
-                s + l_adj
+                s = thickness * 0.5;
+                r = (r - s).max(0.0);
+                l = (l - thickness).max(0.0);
+                return Self::cut_square(x1 - s, y1, x2 - s, y2, r, l);
             }
-            StrokeEndType::ContourSquare => s + l,
+            StrokeEndType::ContourSquare => {
+                s = thickness * 0.5;
+                return Self::cut_square(x1 - s, y1, x2 - s, y2, r, l);
+            }
             StrokeEndType::HalfSquare => {
-                let l_adj = (l * 0.5 - s).max(thickness * 0.0001);
-                s + l_adj
+                s = thickness * 0.5;
+                l = (l * 0.5 - s).max(thickness * 0.0001);
+                return Self::cut_square(x1 - s, y1, x2 - s, y2, r, l);
             }
             StrokeEndType::Circle => {
-                // C++ adjusts: r_adj = max(0, r-s), l_adj = max(0, l-thickness)
-                let l_adj = (l - thickness).max(0.0);
-                s + l_adj * 0.5
+                s = thickness * 0.5;
+                r = (r - s).max(0.0);
+                l = (l - thickness).max(0.0);
+                return Self::cut_circle(x1, y1, x2, y2, r, l, s, false);
             }
-            StrokeEndType::ContourCircle => s + l * 0.5,
+            StrokeEndType::ContourCircle => {
+                s = thickness * 0.5;
+                return Self::cut_circle(x1, y1, x2, y2, r, l, s, false);
+            }
             StrokeEndType::HalfCircle => {
-                let s_hc = if rounded { s } else { 0.0 };
-                (s_hc + l * 0.5).max(0.0)
+                s = if rounded { thickness * 0.5 } else { 0.0 } - l * 0.5;
+                return Self::cut_circle(x1, y1, x2, y2, r, l, s, true);
             }
             StrokeEndType::Diamond => {
-                let s_adj = (r * r + l * l * 0.25).sqrt() / r * s;
-                (l - s_adj * 2.0).max(0.0)
+                s = (r * r + l * l * 0.25).sqrt() / r * thickness * 0.5;
+                let l2 = l - s - s;
+                r *= l2 / l;
+                l = l2;
+                return Self::cut_diamond(x1 - s, y1, x2 - s, y2, r, l, false);
             }
             StrokeEndType::ContourDiamond => {
-                let cs = if rounded {
-                    s
+                s = if rounded {
+                    thickness * 0.5
                 } else {
+                    let d = thickness * 0.5;
                     let sin_a = r / (l * l * 0.25 + r * r).sqrt();
                     if MAX_MITER * sin_a < 1.0 {
-                        s * sin_a
+                        d * sin_a
                     } else {
-                        s / sin_a
+                        d / sin_a
                     }
                 };
-                cs + l
+                return Self::cut_diamond(x1 - s, y1, x2 - s, y2, r, l, false);
             }
             StrokeEndType::HalfDiamond => {
-                let mut cs = s;
-                if !rounded {
+                let d = thickness * 0.5;
+                s = if rounded {
+                    d
+                } else {
                     let sin_a = r / (l * l * 0.25 + r * r).sqrt();
-                    cs *= sin_a + (1.0 - sin_a).sqrt();
-                }
-                (cs + l * 0.5).max(0.0)
+                    d * (sin_a + (1.0 - sin_a).sqrt())
+                } - l * 0.5;
+                return Self::cut_diamond(x1 - s, y1, x2 - s, y2, r, l, true);
             }
             StrokeEndType::Stroke => {
-                let sl = thickness * (end.length_factor.abs() - 1.0);
-                if sl > 0.0 {
-                    sl * 0.5
-                } else {
-                    0.0
+                l = thickness * (end.length_factor.abs() - 1.0);
+                if l < 0.0 {
+                    l = 0.0;
                 }
+                s = -l * 0.5;
+                return Self::cut_square(x1 - s, y1, x2 - s, y2, r, l);
             }
-        };
+        }
+    }
 
-        (x + dx * cut, y + dy * cut)
+    // --- CutLineAtArrow shape intersection helpers (C++ L_ARROW, L_TRIANGLE, etc.) ---
+
+    fn cut_arrow(x1: f64, y1: f64, x2: f64, y2: f64, r: f64, l: f64) -> f64 {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let dr = r / l;
+        let l2 = (1.0 - ARROW_NOTCH) * l;
+        let d2 = r / (l - l2);
+        let mut t = 1.0;
+        if dy - d2 * dx < -1e-140 {
+            if y1 <= d2 * (x1 - l2) {
+                t = 0.0;
+            } else if y2 < (x2 - l2) * d2 {
+                t = (d2 * (x1 - l2) - y1) / (dy - d2 * dx);
+            }
+        }
+        let mut u = 1.0;
+        if dy + d2 * dx > 1e-140 {
+            if y1 >= -d2 * (x1 - l2) {
+                u = 0.0;
+            } else if y2 > -(x2 - l2) * d2 {
+                u = (-d2 * (x1 - l2) - y1) / (dy + d2 * dx);
+            }
+        }
+        if t < u {
+            t = u;
+        }
+        if dy - dr * dx > 1e-140 {
+            if y1 >= dr * x1 {
+                return 0.0;
+            }
+            if y2 > x2 * dr {
+                t = t.min((dr * x1 - y1) / (dy - dr * dx));
+            }
+        }
+        if dy + dr * dx < -1e-140 {
+            if y1 <= -dr * x1 {
+                return 0.0;
+            }
+            if y2 < -x2 * dr {
+                t = t.min((-dr * x1 - y1) / (dy + dr * dx));
+            }
+        }
+        t
+    }
+
+    fn cut_triangle(x1: f64, y1: f64, x2: f64, y2: f64, r: f64, l: f64) -> f64 {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let dr = r / l;
+        let mut t = 1.0;
+        if dx > 1e-140 {
+            if x1 >= l {
+                return 0.0;
+            }
+            if x2 > l {
+                t = (l - x1) / dx;
+            }
+        }
+        if dy - dr * dx > 1e-140 {
+            if y1 >= dr * x1 {
+                return 0.0;
+            }
+            if y2 > x2 * dr {
+                t = t.min((dr * x1 - y1) / (dy - dr * dx));
+            }
+        }
+        if dy + dr * dx < -1e-140 {
+            if y1 <= -dr * x1 {
+                return 0.0;
+            }
+            if y2 < -x2 * dr {
+                t = t.min((-dr * x1 - y1) / (dy + dr * dx));
+            }
+        }
+        t
+    }
+
+    fn cut_square(x1: f64, y1: f64, x2: f64, y2: f64, r: f64, l: f64) -> f64 {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let mut t = 1.0;
+        if dx > 1e-140 {
+            if x1 >= l {
+                return 0.0;
+            }
+            if x2 > l {
+                t = (l - x1) / dx;
+            }
+        } else if dx < -1e-140 {
+            if x1 <= 0.0 {
+                return 0.0;
+            }
+            if x2 < 0.0 {
+                t = -x1 / dx;
+            }
+        }
+        if dy > 1e-140 {
+            if y1 >= r {
+                return 0.0;
+            }
+            if y2 > r {
+                t = t.min((r - y1) / dy);
+            }
+        } else if dy < -1e-140 {
+            if y1 <= -r {
+                return 0.0;
+            }
+            if y2 < -r {
+                t = t.min((-r - y1) / dy);
+            }
+        }
+        t
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn cut_circle(x1: f64, y1: f64, x2: f64, y2: f64, r: f64, l: f64, s: f64, semi: bool) -> f64 {
+        let x1 = (x1 - s) * 2.0 / l - 1.0;
+        let x2 = (x2 - s) * 2.0 / l - 1.0;
+        let y1 = y1 / r;
+        let y2 = y2 / r;
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let d = dx * dx + dy * dy;
+        if d <= 1e-140 {
+            return 1.0;
+        }
+        let d1 = x1 * x1 + y1 * y1;
+        let d2 = x2 * x2 + y2 * y2;
+        let u = (x1 * dx + y1 * dy) / d;
+        let disc = (1.0 - d1) / d + u * u;
+        if disc < 0.0 {
+            return if d1 < d2 { 0.0 } else { 1.0 };
+        }
+        let mut t = (disc.sqrt() - u).clamp(0.0, 1.0);
+        if semi && dx < -1e-140 {
+            if x1 <= 0.0 {
+                return 0.0;
+            }
+            if x2 < 0.0 {
+                t = t.min(-x1 / dx);
+            }
+        }
+        t
+    }
+
+    fn cut_diamond(x1: f64, y1: f64, x2: f64, y2: f64, r: f64, l: f64, semi: bool) -> f64 {
+        let dx = x2 - x1;
+        let dy = y2 - y1;
+        let dr = 2.0 * r / l;
+        let mut t = 1.0;
+        if dy - dr * dx > 1e-140 {
+            if y1 >= dr * x1 {
+                return 0.0;
+            }
+            if y2 > x2 * dr {
+                t = (dr * x1 - y1) / (dy - dr * dx);
+            }
+        }
+        if dy + dr * dx < -1e-140 {
+            if y1 <= -dr * x1 {
+                return 0.0;
+            }
+            if y2 < -x2 * dr {
+                t = t.min((-dr * x1 - y1) / (dy + dr * dx));
+            }
+        }
+        if dy - dr * dx < -1e-140 {
+            if y1 <= dr * (x1 - l) {
+                return 0.0;
+            }
+            if y2 < (x2 - l) * dr {
+                t = t.min((dr * (x1 - l) - y1) / (dy - dr * dx));
+            }
+        }
+        if dy + dr * dx > 1e-140 {
+            if y1 >= -dr * (x1 - l) {
+                return 0.0;
+            }
+            if y2 > -(x2 - l) * dr {
+                t = t.min((-dr * (x1 - l) - y1) / (dy + dr * dx));
+            }
+        }
+        if semi && dx < -1e-140 {
+            if x1 <= l * 0.5 {
+                return 0.0;
+            }
+            if x2 < l * 0.5 {
+                t = t.min((l * 0.5 - x1) / dx);
+            }
+        }
+        t
     }
 
     /// Paint a stroke end decoration at an endpoint.
