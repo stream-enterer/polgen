@@ -1056,7 +1056,14 @@ impl TextField {
 
         // Selection highlight
         if let Some((sx, sw)) = sel_rect {
-            painter.paint_rect(sx, effective_ty, sw, effective_ch, self.look.input_hl_color);
+            painter.paint_rect(
+                sx,
+                effective_ty,
+                sw,
+                effective_ch,
+                self.look.input_hl_color,
+                Color::TRANSPARENT,
+            );
         }
 
         // Text — C++: PaintText(tx + col*cw, ty + row*ch, text, ch, ws, ...)
@@ -1094,6 +1101,7 @@ impl TextField {
                 ch_w,
                 effective_ch * 0.96,
                 fg.with_alpha(80),
+                Color::TRANSPARENT,
             );
         } else {
             let cursor_w = effective_ch * 0.03;
@@ -1103,6 +1111,7 @@ impl TextField {
                 cursor_w.max(1.0),
                 effective_ch * 0.96,
                 fg,
+                Color::TRANSPARENT,
             );
         }
     }
@@ -1167,6 +1176,7 @@ impl TextField {
                     ex - sx,
                     LINE_HEIGHT,
                     self.look.input_hl_color,
+                    Color::TRANSPARENT,
                 );
             }
 
@@ -1203,9 +1213,17 @@ impl TextField {
                 ch_w,
                 LINE_HEIGHT,
                 fg.with_alpha(80),
+                Color::TRANSPARENT,
             );
         } else {
-            painter.paint_rect(cursor_x, cursor_screen_y, 1.0, LINE_HEIGHT, fg);
+            painter.paint_rect(
+                cursor_x,
+                cursor_screen_y,
+                1.0,
+                LINE_HEIGHT,
+                fg,
+                Color::TRANSPARENT,
+            );
         }
     }
 

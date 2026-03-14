@@ -428,10 +428,20 @@ impl<'a> Painter<'a> {
 
     /// Fill a rectangle with a solid color using sub-pixel anti-aliasing.
     /// Uses 12-bit fixed-point for fractional edge coverage matching C++ emPainter.
-    pub fn paint_rect(&mut self, x: f64, y: f64, w: f64, h: f64, color: Color) {
+    pub fn paint_rect(
+        &mut self,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        color: Color,
+        canvas_color: Color,
+    ) {
         if w <= 0.0 || h <= 0.0 || color.a() == 0 {
             return;
         }
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         let dx_px = x * self.state.scale_x + self.state.offset_x;
         let dy_px = y * self.state.scale_y + self.state.offset_y;
         let dw_px = w * self.state.scale_x;
@@ -459,15 +469,27 @@ impl<'a> Painter<'a> {
                 self.blend_with_coverage(px, py, color, sp.coverage(px, py));
             }
         }
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill an ellipse with a solid color using AA polygon approximation.
-    pub fn paint_ellipse(&mut self, cx: f64, cy: f64, rx: f64, ry: f64, color: Color) {
+    pub fn paint_ellipse(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        rx: f64,
+        ry: f64,
+        color: Color,
+        canvas_color: Color,
+    ) {
         if rx <= 0.0 || ry <= 0.0 {
             return;
         }
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         let verts = self.ellipse_polygon(cx, cy, rx, ry);
         self.fill_polygon_aa(&verts, color, WindingRule::NonZero);
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill an ellipse sector (pie slice) defined by center, radii, and angle range.
@@ -484,6 +506,7 @@ impl<'a> Painter<'a> {
         start_angle: f64,
         sweep_angle: f64,
         color: Color,
+        canvas_color: Color,
     ) {
         if rx <= 0.0 || ry <= 0.0 {
             return;
@@ -501,6 +524,7 @@ impl<'a> Painter<'a> {
                 start_angle + sweep_angle,
                 -sweep_angle,
                 color,
+                canvas_color,
             );
         }
         // Convert degrees to radians.
@@ -508,7 +532,7 @@ impl<'a> Painter<'a> {
         let sweep_rad = sweep_angle * std::f64::consts::PI / 180.0;
         // Full circle or more — delegate to paint_ellipse.
         if sweep_rad >= 2.0 * std::f64::consts::PI {
-            return self.paint_ellipse(cx, cy, rx, ry, color);
+            return self.paint_ellipse(cx, cy, rx, ry, color, canvas_color);
         }
         // Match C++ PaintEllipseSector: keep f as float through arc scaling,
         // use round-to-nearest, minimum 3 arc segments, center vertex last.
@@ -531,7 +555,7 @@ impl<'a> Painter<'a> {
             verts.push((cx + rx * angle.cos(), cy + ry * angle.sin()));
         }
         verts.push((cx, cy));
-        self.paint_polygon(&verts, color);
+        self.paint_polygon(&verts, color, canvas_color);
     }
 
     /// Fill a rectangle with a linear gradient between two colors.
@@ -545,7 +569,10 @@ impl<'a> Painter<'a> {
         color_a: Color,
         color_b: Color,
         horizontal: bool,
+        canvas_color: Color,
     ) {
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         let px = self.to_pixel_x(x);
         let py = self.to_pixel_y(y);
         let pw = (w * self.state.scale_x) as i32;
@@ -578,6 +605,7 @@ impl<'a> Painter<'a> {
                 self.blend_pixel(col, row, color);
             }
         }
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill an elliptical region with a radial gradient.
@@ -593,11 +621,14 @@ impl<'a> Painter<'a> {
         ry: f64,
         color_inner: Color,
         color_outer: Color,
+        canvas_color: Color,
     ) {
         if rx <= 0.0 || ry <= 0.0 {
             return;
         }
 
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         let verts = self.ellipse_polygon(cx, cy, rx, ry);
 
         let pixel_verts: Vec<(f64, f64)> = verts
@@ -646,45 +677,84 @@ impl<'a> Painter<'a> {
                 self.blit_span_textured(*y, span, &px_texture);
             }
         }
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Draw a line between two points.
-    pub fn paint_line(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, color: Color) {
+    pub fn paint_line(
+        &mut self,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        color: Color,
+        canvas_color: Color,
+    ) {
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         let px0 = self.to_pixel_x(x0);
         let py0 = self.to_pixel_y(y0);
         let px1 = self.to_pixel_x(x1);
         let py1 = self.to_pixel_y(y1);
         self.draw_line_pixels(px0, py0, px1, py1, color);
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill a polygon defined by a list of (x, y) vertices.
     /// Uses anti-aliased scanline rasterization with NonZero winding rule.
-    pub fn paint_polygon(&mut self, vertices: &[(f64, f64)], color: Color) {
+    pub fn paint_polygon(&mut self, vertices: &[(f64, f64)], color: Color, canvas_color: Color) {
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         self.fill_polygon_aa(vertices, color, WindingRule::NonZero);
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill a polygon using even-odd winding rule (for polygon rings with holes).
-    pub fn paint_polygon_even_odd(&mut self, vertices: &[(f64, f64)], color: Color) {
+    pub fn paint_polygon_even_odd(
+        &mut self,
+        vertices: &[(f64, f64)],
+        color: Color,
+        canvas_color: Color,
+    ) {
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         self.fill_polygon_aa(vertices, color, WindingRule::EvenOdd);
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill a polygon with a texture (gradient, image, or solid color).
     /// Uses anti-aliased scanline rasterization with NonZero winding rule.
-    pub fn paint_polygon_textured(&mut self, vertices: &[(f64, f64)], texture: &Texture) {
+    pub fn paint_polygon_textured(
+        &mut self,
+        vertices: &[(f64, f64)],
+        texture: &Texture,
+        canvas_color: Color,
+    ) {
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         if let Texture::SolidColor(color) = texture {
             self.fill_polygon_aa(vertices, *color, WindingRule::NonZero);
         } else {
             self.fill_polygon_aa_textured(vertices, texture, WindingRule::NonZero);
         }
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Fill a polygon with a texture using even-odd winding rule.
-    pub fn paint_polygon_textured_even_odd(&mut self, vertices: &[(f64, f64)], texture: &Texture) {
+    pub fn paint_polygon_textured_even_odd(
+        &mut self,
+        vertices: &[(f64, f64)],
+        texture: &Texture,
+        canvas_color: Color,
+    ) {
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         if let Texture::SolidColor(color) = texture {
             self.fill_polygon_aa(vertices, *color, WindingRule::EvenOdd);
         } else {
             self.fill_polygon_aa_textured(vertices, texture, WindingRule::EvenOdd);
         }
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Draw a polygon outline by stroking as a closed polyline with proper joins.
@@ -693,57 +763,53 @@ impl<'a> Painter<'a> {
         vertices: &[(f64, f64)],
         stroke_color: Color,
         thickness: f64,
+        canvas_color: Color,
     ) {
         if vertices.len() < 2 {
             return;
         }
         let stroke = Stroke::new(stroke_color, thickness);
-        self.paint_polyline_without_arrows(vertices, &stroke, true);
+        self.paint_polyline_without_arrows(vertices, &stroke, true, canvas_color);
     }
 
     /// Draw a polyline (open path) outline by stroking each segment.
-    pub fn paint_polyline(&mut self, vertices: &[(f64, f64)], stroke_color: Color, thickness: f64) {
+    pub fn paint_polyline(
+        &mut self,
+        vertices: &[(f64, f64)],
+        stroke_color: Color,
+        thickness: f64,
+        canvas_color: Color,
+    ) {
         if vertices.len() < 2 {
             return;
         }
+        let half_w = thickness / 2.0;
         for i in 0..vertices.len() - 1 {
             let (x0, y0) = vertices[i];
             let (x1, y1) = vertices[i + 1];
-            self.paint_thick_line(x0, y0, x1, y1, thickness, stroke_color);
+            let dx = x1 - x0;
+            let dy = y1 - y0;
+            let len = (dx * dx + dy * dy).sqrt();
+            if len < 0.001 {
+                continue;
+            }
+            let nx = -dy / len * half_w;
+            let ny = dx / len * half_w;
+            self.paint_polygon(
+                &[
+                    (x0 + nx, y0 + ny),
+                    (x1 + nx, y1 + ny),
+                    (x1 - nx, y1 - ny),
+                    (x0 - nx, y0 - ny),
+                ],
+                stroke_color,
+                canvas_color,
+            );
         }
-    }
-
-    /// Draw a thick line as a filled polygon.
-    fn paint_thick_line(
-        &mut self,
-        x0: f64,
-        y0: f64,
-        x1: f64,
-        y1: f64,
-        thickness: f64,
-        color: Color,
-    ) {
-        let dx = x1 - x0;
-        let dy = y1 - y0;
-        let len = (dx * dx + dy * dy).sqrt();
-        if len < 0.001 {
-            return;
-        }
-        let half_w = thickness / 2.0;
-        let nx = -dy / len * half_w;
-        let ny = dx / len * half_w;
-        self.paint_polygon(
-            &[
-                (x0 + nx, y0 + ny),
-                (x1 + nx, y1 + ny),
-                (x1 - nx, y1 - ny),
-                (x0 - nx, y0 - ny),
-            ],
-            color,
-        );
     }
 
     /// Fill a rounded rectangle using AA polygon approximation.
+    /// Reads canvas_color from painter state (set by caller).
     pub fn paint_round_rect(&mut self, x: f64, y: f64, w: f64, h: f64, radius: f64, color: Color) {
         if w <= 0.0 || h <= 0.0 {
             return;
@@ -1131,7 +1197,15 @@ impl<'a> Painter<'a> {
         // Tiny text fallback: colored rectangles instead of glyphs.
         let pixel_height = char_height * self.state.scale_y;
         if pixel_height < 1.7 {
-            self.paint_text_tiny(x, y, text, char_width, char_height, color, canvas_color);
+            self.paint_text_tiny(
+                x,
+                y,
+                text,
+                char_width,
+                char_height,
+                color,
+                self.state.canvas_color,
+            );
             return;
         }
 
@@ -1201,7 +1275,7 @@ impl<'a> Painter<'a> {
         char_width: f64,
         char_height: f64,
         color: Color,
-        _canvas_color: Color,
+        canvas_color: Color,
     ) {
         let reduced_alpha = (color.a() as u32).div_ceil(3) as u8;
         let rc = color.with_alpha(reduced_alpha);
@@ -1212,7 +1286,7 @@ impl<'a> Painter<'a> {
             if ch == ' ' {
                 // Flush non-space run.
                 if let Some(start) = run_start.take() {
-                    self.paint_rect(start, y, cx - start, char_height, rc);
+                    self.paint_rect(start, y, cx - start, char_height, rc, canvas_color);
                 }
             } else if run_start.is_none() {
                 run_start = Some(cx);
@@ -1221,7 +1295,7 @@ impl<'a> Painter<'a> {
         }
         // Flush final run.
         if let Some(start) = run_start {
-            self.paint_rect(start, y, cx - start, char_height, rc);
+            self.paint_rect(start, y, cx - start, char_height, rc, canvas_color);
         }
     }
 
@@ -1333,7 +1407,7 @@ impl<'a> Painter<'a> {
         } else {
             // C++ non-formatted: PaintText(x, y, text, ch, ws, color, canvasColor)
             // No per-line text alignment in non-formatted mode.
-            self.paint_text(bx, by, text, ch, ws, color, canvas_color);
+            self.paint_text(bx, by, text, ch, ws, color, self.state.canvas_color);
         }
     }
 
@@ -1465,10 +1539,12 @@ impl<'a> Painter<'a> {
     /// `points` length must be a multiple of 3. Uses stride-3 convention:
     /// segment i uses points[i*3], points[i*3+1], points[i*3+2], points[((i+1)*3) % n].
     /// The path is implicitly closed.
-    pub fn paint_bezier(&mut self, points: &[(f64, f64)], color: Color) {
+    pub fn paint_bezier(&mut self, points: &[(f64, f64)], color: Color, canvas_color: Color) {
         if points.len() < 3 {
             return;
         }
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         // C++ convention: n -= n%3; truncate to multiple of 3.
         let n = points.len() - points.len() % 3;
         let seg_count = n / 3;
@@ -1485,11 +1561,17 @@ impl<'a> Painter<'a> {
         if verts.len() >= 3 {
             self.fill_polygon_aa(&verts, color, WindingRule::NonZero);
         }
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Stroke a closed Bezier path outline (tessellated to polyline, then stroked).
     /// Corresponds to C++ `PaintBezierOutline`: tessellates + strokes as closed path.
-    pub fn paint_bezier_outline(&mut self, points: &[(f64, f64)], stroke: &Stroke) {
+    pub fn paint_bezier_outline(
+        &mut self,
+        points: &[(f64, f64)],
+        stroke: &Stroke,
+        canvas_color: Color,
+    ) {
         if points.len() < 3 {
             return;
         }
@@ -1505,14 +1587,19 @@ impl<'a> Painter<'a> {
             tessellate_cubic_cpp(&mut verts, p0, p1, p2, p3, s, stroke.width);
         }
         if verts.len() >= 2 {
-            self.paint_polyline_without_arrows(&verts, stroke, true);
+            self.paint_polyline_without_arrows(&verts, stroke, true, canvas_color);
         }
     }
 
     /// Stroke a cubic Bezier curve (tessellated to polyline).
     /// For open paths, `points` length must be 3k+1. For closed paths, 3k.
     /// Uses stride-3 convention.
-    pub fn paint_bezier_line(&mut self, points: &[(f64, f64)], stroke: &Stroke) {
+    pub fn paint_bezier_line(
+        &mut self,
+        points: &[(f64, f64)],
+        stroke: &Stroke,
+        canvas_color: Color,
+    ) {
         let n = points.len();
         if n < 4 {
             return;
@@ -1540,7 +1627,7 @@ impl<'a> Painter<'a> {
             verts.push(points[n - 1]);
         }
         if verts.len() >= 2 {
-            self.paint_polyline_with_arrows(&verts, stroke, closed);
+            self.paint_polyline_with_arrows(&verts, stroke, closed, canvas_color);
         }
     }
 
@@ -2157,6 +2244,7 @@ impl<'a> Painter<'a> {
         start_angle: f64,
         range_angle: f64,
         stroke: &Stroke,
+        canvas_color: Color,
     ) {
         if rx <= 0.0 || ry <= 0.0 || stroke.width <= 0.0 {
             return;
@@ -2166,7 +2254,7 @@ impl<'a> Painter<'a> {
         }
         let abs_range = range_angle.abs();
         if abs_range >= 2.0 * std::f64::consts::PI {
-            self.paint_ellipse_outlined(cx, cy, rx, ry, stroke);
+            self.paint_ellipse_outlined(cx, cy, rx, ry, stroke, canvas_color);
             return;
         }
         let segments = adaptive_circle_segments(rx, ry, self.state.scale_x, self.state.scale_y);
@@ -2178,7 +2266,7 @@ impl<'a> Painter<'a> {
             let angle = start_angle + t * range_angle;
             verts.push((cx + rx * angle.cos(), cy + ry * angle.sin()));
         }
-        self.paint_solid_polyline(&verts, stroke, false);
+        self.paint_solid_polyline(&verts, stroke, false, canvas_color);
     }
 
     /// Draw an ellipse sector outline. Routes through polyline if dashed.
@@ -2193,6 +2281,7 @@ impl<'a> Painter<'a> {
         start_angle: f64,
         sweep_angle: f64,
         stroke: &Stroke,
+        canvas_color: Color,
     ) {
         if rx <= 0.0 || ry <= 0.0 || stroke.width <= 0.0 {
             return;
@@ -2215,9 +2304,9 @@ impl<'a> Painter<'a> {
             verts.push((cx + rx * angle.cos(), cy + ry * angle.sin()));
         }
         if stroke.is_dashed() {
-            self.paint_polyline_without_arrows(&verts, stroke, true);
+            self.paint_polyline_without_arrows(&verts, stroke, true, canvas_color);
         } else {
-            self.paint_polygon_outlined(&verts, stroke.color, stroke.width);
+            self.paint_polygon_outlined(&verts, stroke.color, stroke.width, canvas_color);
         }
     }
 
@@ -2226,7 +2315,15 @@ impl<'a> Painter<'a> {
     /// Matches C++ `PaintRectOutline`: for solid non-rounded strokes, builds a
     /// 10-vertex polygon (outer rect + bridge + reversed inner rect). For
     /// dashed/rounded strokes, routes through `PaintPolylineWithoutArrows`.
-    pub fn paint_rect_outlined(&mut self, x: f64, y: f64, w: f64, h: f64, stroke: &Stroke) {
+    pub fn paint_rect_outlined(
+        &mut self,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        stroke: &Stroke,
+        canvas_color: Color,
+    ) {
         let sw = stroke.width;
         let w = w.max(0.0);
         let h = h.max(0.0);
@@ -2243,7 +2340,7 @@ impl<'a> Painter<'a> {
                 return;
             }
             let verts = [(x, y), (x + w, y), (x + w, y + h), (x, y + h)];
-            self.paint_polyline_without_arrows(&verts, stroke, true);
+            self.paint_polyline_without_arrows(&verts, stroke, true, canvas_color);
             return;
         }
 
@@ -2263,6 +2360,7 @@ impl<'a> Painter<'a> {
             self.paint_polygon(
                 &[(ox1, oy1), (ox2, oy1), (ox2, oy2), (ox1, oy2)],
                 stroke.color,
+                self.state.canvas_color,
             );
             return;
         }
@@ -2288,6 +2386,7 @@ impl<'a> Painter<'a> {
     /// Matches C++ `PaintRoundRectOutline`: for solid strokes, builds outer +
     /// inner round-rect polygons with a bridge for NonZero winding hole.
     /// For dashed, routes through polyline.
+    /// Reads canvas_color from painter state (set by caller).
     pub fn paint_round_rect_outlined(
         &mut self,
         x: f64,
@@ -2305,7 +2404,7 @@ impl<'a> Painter<'a> {
 
         if stroke.is_dashed() {
             let verts = self.round_rect_polygon(x, y, w, h, radius);
-            self.paint_polyline_without_arrows(&verts, stroke, true);
+            self.paint_polyline_without_arrows(&verts, stroke, true, self.state.canvas_color);
             return;
         }
 
@@ -2344,7 +2443,15 @@ impl<'a> Painter<'a> {
     /// Matches C++ `PaintEllipseOutline`: for solid strokes, builds
     /// outer + inner ellipse polygons with adaptive segment counts and a
     /// bridge for NonZero winding hole. For dashed, routes through polyline.
-    pub fn paint_ellipse_outlined(&mut self, cx: f64, cy: f64, rx: f64, ry: f64, stroke: &Stroke) {
+    pub fn paint_ellipse_outlined(
+        &mut self,
+        cx: f64,
+        cy: f64,
+        rx: f64,
+        ry: f64,
+        stroke: &Stroke,
+        canvas_color: Color,
+    ) {
         if rx <= 0.0 || ry <= 0.0 || stroke.width <= 0.0 {
             return;
         }
@@ -2357,7 +2464,7 @@ impl<'a> Painter<'a> {
         if stroke.is_dashed() {
             // Dashed: use centerline radii for the polyline.
             let verts = self.ellipse_polygon(cx, cy, rx, ry);
-            self.paint_polyline_without_arrows(&verts, stroke, true);
+            self.paint_polyline_without_arrows(&verts, stroke, true, canvas_color);
             return;
         }
 
@@ -2365,7 +2472,7 @@ impl<'a> Painter<'a> {
         let irx = orx - sw;
         let iry = ory - sw;
         if irx <= 0.0 || iry <= 0.0 {
-            self.paint_ellipse(cx, cy, orx, ory, stroke.color);
+            self.paint_ellipse(cx, cy, orx, ory, stroke.color, canvas_color);
             return;
         }
 
@@ -2574,11 +2681,12 @@ impl<'a> Painter<'a> {
         vertices: &[(f64, f64)],
         stroke: &Stroke,
         closed: bool,
+        canvas_color: Color,
     ) {
         use super::stroke::DashType;
 
         if vertices.len() < 2 || stroke.width <= 0.0 {
-            self.paint_solid_polyline(vertices, stroke, closed);
+            self.paint_solid_polyline(vertices, stroke, closed, canvas_color);
             return;
         }
 
@@ -2590,13 +2698,13 @@ impl<'a> Painter<'a> {
 
         // Legacy pattern-based dashes.
         if stroke.dash_pattern.is_empty() {
-            self.paint_solid_polyline(vertices, stroke, closed);
+            self.paint_solid_polyline(vertices, stroke, closed, canvas_color);
             return;
         }
         let pattern = &stroke.dash_pattern;
         let total_pattern_len: f64 = pattern.iter().sum();
         if total_pattern_len <= 0.0 {
-            self.paint_solid_polyline(vertices, stroke, closed);
+            self.paint_solid_polyline(vertices, stroke, closed, canvas_color);
             return;
         }
 
@@ -2658,7 +2766,12 @@ impl<'a> Painter<'a> {
 
                 if remaining_in_pat <= 1e-10 {
                     if is_dash && current_segment.len() >= 2 {
-                        self.paint_solid_polyline(&current_segment, &dash_stroke, false);
+                        self.paint_solid_polyline(
+                            &current_segment,
+                            &dash_stroke,
+                            false,
+                            canvas_color,
+                        );
                         current_segment.clear();
                     } else {
                         current_segment.clear();
@@ -2671,7 +2784,7 @@ impl<'a> Painter<'a> {
         }
 
         if is_dash && current_segment.len() >= 2 {
-            self.paint_solid_polyline(&current_segment, &dash_stroke, false);
+            self.paint_solid_polyline(&current_segment, &dash_stroke, false, canvas_color);
         }
     }
 
@@ -2688,7 +2801,7 @@ impl<'a> Painter<'a> {
 
         let n = vertices.len();
         if n < 2 {
-            self.paint_solid_polyline(vertices, stroke, closed);
+            self.paint_solid_polyline(vertices, stroke, closed, self.state.canvas_color);
             return;
         }
 
@@ -2749,7 +2862,7 @@ impl<'a> Painter<'a> {
         if is_endless {
             let max_stroke_count = MAX_DASHES.min(total_len / min_phase_len) as i32;
             if max_stroke_count < 1 {
-                self.paint_solid_polyline(vertices, stroke, closed);
+                self.paint_solid_polyline(vertices, stroke, closed, self.state.canvas_color);
                 return;
             }
             stroke_count = (MAX_DASHES.min(total_len / pref_phase_len + 0.5) as i32)
@@ -2771,7 +2884,7 @@ impl<'a> Painter<'a> {
             }
             let max_stroke_count = (MAX_DASHES.min(t / min_phase_len)) as i32;
             if max_stroke_count < 2 {
-                self.paint_solid_polyline(vertices, stroke, closed);
+                self.paint_solid_polyline(vertices, stroke, closed, self.state.canvas_color);
                 return;
             }
             t = total_len + pref_gap_len;
@@ -2830,7 +2943,7 @@ impl<'a> Painter<'a> {
             solid_stroke.dash_pattern.clear();
             let a = (stroke.color.a() as f64 * t_solid + 0.5) as u8;
             solid_stroke.color = solid_stroke.color.with_alpha(a);
-            self.paint_solid_polyline(vertices, &solid_stroke, closed);
+            self.paint_solid_polyline(vertices, &solid_stroke, closed, self.state.canvas_color);
             return;
         }
 
@@ -2970,7 +3083,7 @@ impl<'a> Painter<'a> {
                 } else {
                     butt_end
                 };
-                self.paint_solid_polyline(&xy_out, &solid_stroke, false);
+                self.paint_solid_polyline(&xy_out, &solid_stroke, false, self.state.canvas_color);
             }
 
             if stroke_number >= stroke_count {
@@ -2990,11 +3103,12 @@ impl<'a> Painter<'a> {
         vertices: &[(f64, f64)],
         stroke: &Stroke,
         closed: bool,
+        canvas_color: Color,
     ) {
         if stroke.is_dashed() {
-            self.paint_dashed_polyline(vertices, stroke, closed);
+            self.paint_dashed_polyline(vertices, stroke, closed, canvas_color);
         } else {
-            self.paint_solid_polyline(vertices, stroke, closed);
+            self.paint_solid_polyline(vertices, stroke, closed, canvas_color);
         }
     }
 
@@ -3006,6 +3120,7 @@ impl<'a> Painter<'a> {
         vertices: &[(f64, f64)],
         stroke: &Stroke,
         closed: bool,
+        canvas_color: Color,
     ) {
         if vertices.len() < 2 {
             return;
@@ -3014,7 +3129,7 @@ impl<'a> Painter<'a> {
         let has_end_arrow = !closed && stroke.finish_end.is_decorated();
 
         if !has_start_arrow && !has_end_arrow {
-            self.paint_polyline_without_arrows(vertices, stroke, closed);
+            self.paint_polyline_without_arrows(vertices, stroke, closed, canvas_color);
             return;
         }
 
@@ -3126,7 +3241,7 @@ impl<'a> Painter<'a> {
         // Paint the polyline body (only the non-skipped segment range).
         let body = &work_verts[p1..=p2];
         if body.len() >= 2 {
-            self.paint_polyline_without_arrows(body, stroke, closed);
+            self.paint_polyline_without_arrows(body, stroke, closed, canvas_color);
         }
 
         // Direction vectors point INTO the line (toward the interior).
@@ -3174,11 +3289,19 @@ impl<'a> Painter<'a> {
     /// array with per-edge direction, per-vertex miter vectors, and edge-length
     /// tracking, then walks forward (right side) and backward (left side) to
     /// produce a single filled polygon.
-    pub fn paint_solid_polyline(&mut self, vertices: &[(f64, f64)], stroke: &Stroke, closed: bool) {
+    pub fn paint_solid_polyline(
+        &mut self,
+        vertices: &[(f64, f64)],
+        stroke: &Stroke,
+        closed: bool,
+        canvas_color: Color,
+    ) {
         if vertices.is_empty() || stroke.width <= 0.0 {
             return;
         }
 
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         // --- C++ Vertex flags ---
         const VTX_IS_START: u32 = 1 << 0;
         const VTX_IS_END: u32 = 1 << 1;
@@ -3581,24 +3704,33 @@ impl<'a> Painter<'a> {
             .collect();
 
         self.fill_polygon_aa(&poly, stroke.color, WindingRule::NonZero);
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Draw a stroked line with optional end decorations.
-    pub fn paint_line_stroked(&mut self, x0: f64, y0: f64, x1: f64, y1: f64, stroke: &Stroke) {
+    pub fn paint_line_stroked(
+        &mut self,
+        x0: f64,
+        y0: f64,
+        x1: f64,
+        y1: f64,
+        stroke: &Stroke,
+        canvas_color: Color,
+    ) {
         // For width=1 with no decorations and no rounding, simple line.
         if stroke.width <= 1.0
             && !stroke.start_end.is_decorated()
             && !stroke.finish_end.is_decorated()
             && stroke.join != super::stroke::LineJoin::Round
         {
-            self.paint_line(x0, y0, x1, y1, stroke.color);
+            self.paint_line(x0, y0, x1, y1, stroke.color, canvas_color);
             return;
         }
 
         // Route through the polyline system which handles caps, joins,
         // decorations, and dashes correctly — matching C++ PaintLine.
         let verts = [(x0, y0), (x1, y1)];
-        self.paint_polyline_with_arrows(&verts, stroke, false);
+        self.paint_polyline_with_arrows(&verts, stroke, false, canvas_color);
     }
 
     /// Calculate the maximum radius that a line point (including any arrow
@@ -4075,6 +4207,7 @@ impl<'a> Painter<'a> {
                         (x + l * dx - r * nx, y + l * dy - r * ny),
                     ],
                     stroke_color,
+                    self.state.canvas_color,
                 );
             }
 
@@ -4089,8 +4222,13 @@ impl<'a> Painter<'a> {
                     ),
                     (x + (s + l) * dx - r * nx, y + (s + l) * dy - r * ny),
                 ];
-                self.paint_polygon(&verts, stroke_end.inner_color);
-                self.paint_polyline_without_arrows(&verts, &arrow_stroke, true);
+                self.paint_polygon(&verts, stroke_end.inner_color, self.state.canvas_color);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &arrow_stroke,
+                    true,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::LineArrow => {
@@ -4103,7 +4241,12 @@ impl<'a> Painter<'a> {
                 let mut line_stroke = arrow_stroke.clone();
                 line_stroke.start_end = StrokeEnd::new(StrokeEndType::Cap);
                 line_stroke.finish_end = StrokeEnd::new(StrokeEndType::Cap);
-                self.paint_polyline_without_arrows(&verts, &line_stroke, false);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &line_stroke,
+                    false,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::Triangle => {
@@ -4114,6 +4257,7 @@ impl<'a> Painter<'a> {
                         (x + l * dx - r * nx, y + l * dy - r * ny),
                     ],
                     stroke_color,
+                    self.state.canvas_color,
                 );
             }
 
@@ -4124,8 +4268,13 @@ impl<'a> Painter<'a> {
                     (x + (s + l) * dx + r * nx, y + (s + l) * dy + r * ny),
                     (x + (s + l) * dx - r * nx, y + (s + l) * dy - r * ny),
                 ];
-                self.paint_polygon(&verts, stroke_end.inner_color);
-                self.paint_polyline_without_arrows(&verts, &arrow_stroke, true);
+                self.paint_polygon(&verts, stroke_end.inner_color, self.state.canvas_color);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &arrow_stroke,
+                    true,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::Square => {
@@ -4137,6 +4286,7 @@ impl<'a> Painter<'a> {
                         (x - r * nx, y - r * ny),
                     ],
                     stroke_color,
+                    self.state.canvas_color,
                 );
             }
 
@@ -4148,8 +4298,13 @@ impl<'a> Painter<'a> {
                     (x + (s + l) * dx - r * nx, y + (s + l) * dy - r * ny),
                     (x + s * dx - r * nx, y + s * dy - r * ny),
                 ];
-                self.paint_polygon(&verts, stroke_end.inner_color);
-                self.paint_polyline_without_arrows(&verts, &arrow_stroke, true);
+                self.paint_polygon(&verts, stroke_end.inner_color, self.state.canvas_color);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &arrow_stroke,
+                    true,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::HalfSquare => {
@@ -4164,7 +4319,12 @@ impl<'a> Painter<'a> {
                 let mut hs_stroke = arrow_stroke.clone();
                 hs_stroke.start_end = StrokeEnd::new(StrokeEndType::Cap);
                 hs_stroke.finish_end = StrokeEnd::new(StrokeEndType::Cap);
-                self.paint_polyline_without_arrows(&verts, &hs_stroke, false);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &hs_stroke,
+                    false,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::Circle => {
@@ -4195,7 +4355,7 @@ impl<'a> Painter<'a> {
                     ),
                     (x - bc * r * nx, y - bc * r * ny),
                 ];
-                self.paint_bezier(&bezier_pts, stroke_color);
+                self.paint_bezier(&bezier_pts, stroke_color, self.state.canvas_color);
             }
 
             StrokeEndType::ContourCircle => {
@@ -4238,8 +4398,8 @@ impl<'a> Painter<'a> {
                     ),
                     (x + s * dx - bc * r * nx, y + s * dy - bc * r * ny),
                 ];
-                self.paint_bezier(&bezier_pts, stroke_end.inner_color);
-                self.paint_bezier_outline(&bezier_pts, &arrow_stroke);
+                self.paint_bezier(&bezier_pts, stroke_end.inner_color, self.state.canvas_color);
+                self.paint_bezier_outline(&bezier_pts, &arrow_stroke, self.state.canvas_color);
             }
 
             StrokeEndType::HalfCircle => {
@@ -4271,7 +4431,7 @@ impl<'a> Painter<'a> {
                     hc_stroke.start_end = StrokeEnd::new(StrokeEndType::Cap);
                     hc_stroke.finish_end = StrokeEnd::new(StrokeEndType::Cap);
                 }
-                self.paint_bezier_line(&bezier_pts, &hc_stroke);
+                self.paint_bezier_line(&bezier_pts, &hc_stroke, self.state.canvas_color);
             }
 
             StrokeEndType::Diamond => {
@@ -4283,6 +4443,7 @@ impl<'a> Painter<'a> {
                         (x + 0.5 * l * dx - r * nx, y + 0.5 * l * dy - r * ny),
                     ],
                     stroke_color,
+                    self.state.canvas_color,
                 );
             }
 
@@ -4311,8 +4472,13 @@ impl<'a> Painter<'a> {
                         y + (s + 0.5 * l) * dy - r * ny,
                     ),
                 ];
-                self.paint_polygon(&verts, stroke_end.inner_color);
-                self.paint_polyline_without_arrows(&verts, &arrow_stroke, true);
+                self.paint_polygon(&verts, stroke_end.inner_color, self.state.canvas_color);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &arrow_stroke,
+                    true,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::HalfDiamond => {
@@ -4332,7 +4498,12 @@ impl<'a> Painter<'a> {
                 let mut hd_stroke = arrow_stroke.clone();
                 hd_stroke.start_end = StrokeEnd::new(StrokeEndType::Cap);
                 hd_stroke.finish_end = StrokeEnd::new(StrokeEndType::Cap);
-                self.paint_polyline_without_arrows(&verts, &hd_stroke, false);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &hd_stroke,
+                    false,
+                    self.state.canvas_color,
+                );
             }
 
             StrokeEndType::Stroke => {
@@ -4342,7 +4513,12 @@ impl<'a> Painter<'a> {
                 st_stroke.width = stroke_thickness;
                 st_stroke.start_end = StrokeEnd::new(StrokeEndType::Cap);
                 st_stroke.finish_end = StrokeEnd::new(StrokeEndType::Cap);
-                self.paint_polyline_without_arrows(&verts, &st_stroke, false);
+                self.paint_polyline_without_arrows(
+                    &verts,
+                    &st_stroke,
+                    false,
+                    self.state.canvas_color,
+                );
             }
         }
     }
@@ -5203,8 +5379,16 @@ mod tests {
     fn edge_correction_no_crash() {
         let mut img = Image::new(32, 32, 4);
         let mut p = make_painter(&mut img);
-        p.paint_polygon(&[(0.0, 0.0), (16.0, 0.0), (16.0, 16.0)], Color::RED);
-        p.paint_polygon(&[(0.0, 0.0), (16.0, 16.0), (0.0, 16.0)], Color::BLUE);
+        p.paint_polygon(
+            &[(0.0, 0.0), (16.0, 0.0), (16.0, 16.0)],
+            Color::RED,
+            Color::TRANSPARENT,
+        );
+        p.paint_polygon(
+            &[(0.0, 0.0), (16.0, 16.0), (0.0, 16.0)],
+            Color::BLUE,
+            Color::TRANSPARENT,
+        );
         p.paint_edge_correction(0.0, 0.0, 16.0, 16.0, Color::RED, Color::BLUE);
     }
 
@@ -5236,7 +5420,7 @@ mod tests {
             (14.0, 10.0),
             (32.0, 10.0),
         ];
-        p.paint_bezier_outline(&points, &stroke);
+        p.paint_bezier_outline(&points, &stroke, Color::TRANSPARENT);
         let px = img.pixel(32, 10);
         assert!(px[0] > 0 || px[1] > 0 || px[2] > 0);
     }
@@ -5282,7 +5466,7 @@ mod tests {
         let mut p = make_painter(&mut img);
         let stroke = Stroke::new(Color::WHITE, 2.0);
         let verts = [(5.0, 5.0), (25.0, 5.0), (25.0, 25.0)];
-        p.paint_polyline_without_arrows(&verts, &stroke, false);
+        p.paint_polyline_without_arrows(&verts, &stroke, false, Color::TRANSPARENT);
         let px = img.pixel(15, 5);
         assert!(px[0] > 0, "solid polyline should paint pixels");
     }
@@ -5320,7 +5504,15 @@ mod tests {
     fn paint_radial_gradient_fills() {
         let mut img = Image::new(32, 32, 4);
         let mut p = make_painter(&mut img);
-        p.paint_radial_gradient(16.0, 16.0, 12.0, 12.0, Color::WHITE, Color::BLACK);
+        p.paint_radial_gradient(
+            16.0,
+            16.0,
+            12.0,
+            12.0,
+            Color::WHITE,
+            Color::BLACK,
+            Color::TRANSPARENT,
+        );
         let center = img.pixel(16, 16);
         assert!(center[0] > 200, "center should be near white");
     }

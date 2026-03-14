@@ -55,15 +55,29 @@ impl RadioBox {
         let r = CIRCLE_SIZE / 2.0;
 
         // Outer circle
-        painter.paint_ellipse(cx, cy, r, r, self.look.input_bg_color);
+        painter.paint_ellipse(cx, cy, r, r, self.look.input_bg_color, Color::TRANSPARENT);
 
         // Border ring — approximate with a slightly larger ellipse underneath
-        painter.paint_ellipse(cx, cy, r, r, self.look.border_tint());
-        painter.paint_ellipse(cx, cy, r - 1.0, r - 1.0, self.look.input_bg_color);
+        painter.paint_ellipse(cx, cy, r, r, self.look.border_tint(), Color::TRANSPARENT);
+        painter.paint_ellipse(
+            cx,
+            cy,
+            r - 1.0,
+            r - 1.0,
+            self.look.input_bg_color,
+            Color::TRANSPARENT,
+        );
 
         // Filled dot when selected
         if self.is_selected() {
-            painter.paint_ellipse(cx, cy, r - 2.5, r - 2.5, self.look.input_hl_color);
+            painter.paint_ellipse(
+                cx,
+                cy,
+                r - 2.5,
+                r - 2.5,
+                self.look.input_hl_color,
+                Color::TRANSPARENT,
+            );
         }
 
         // Label

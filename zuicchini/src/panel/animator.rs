@@ -1,5 +1,6 @@
 use super::tree::PanelTree;
 use super::view::View;
+use crate::foundation::Color;
 
 /// Trait for view animation strategies.
 pub trait ViewAnimator {
@@ -734,6 +735,7 @@ impl VisitingViewAnimator {
                 bar_w * progress,
                 bar_h,
                 crate::foundation::Color::rgba(136, 255, 136, 80),
+                Color::TRANSPARENT,
             );
         }
         if progress < 1.0 {
@@ -743,6 +745,7 @@ impl VisitingViewAnimator {
                 bar_w * (1.0 - progress),
                 bar_h,
                 crate::foundation::Color::rgba(136, 136, 136, 80),
+                Color::TRANSPARENT,
             );
         }
 

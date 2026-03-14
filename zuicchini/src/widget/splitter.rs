@@ -5,6 +5,7 @@ use crate::render::{Painter, BORDER_EDGES_ONLY};
 
 use super::look::Look;
 use super::toolkit_images::with_toolkit_images;
+use crate::foundation::Color;
 use std::rc::Rc;
 
 /// C++ emSplitter grip fraction: 0.015 * borderScaling (=1.0 for default look).
@@ -83,7 +84,7 @@ impl Splitter {
         let canvas = painter.canvas_color();
 
         let (gx, gy, gw, gh) = self.calc_grip_rect(w, h, resolved);
-        painter.paint_rect(gx, gy, gw, gh, color);
+        painter.paint_rect(gx, gy, gw, gh, color, Color::TRANSPARENT);
 
         // C++ emSplitter: PaintBorderImage overlay on grip.
         let d = gw.min(gh) * 0.5;

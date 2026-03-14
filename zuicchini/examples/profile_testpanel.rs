@@ -53,8 +53,15 @@ impl PanelBehavior for TestPanel {
         let bg = Color::rgba(0x00, 0x1C, 0x38, 0xFF);
 
         // Background + border
-        painter.paint_rect(0.0, 0.0, 1.0, h, bg);
-        painter.paint_rect_outlined(0.01, 0.01, 1.0 - 0.02, h - 0.02, &Stroke::new(fg, 0.02));
+        painter.paint_rect(0.0, 0.0, 1.0, h, bg, Color::TRANSPARENT);
+        painter.paint_rect_outlined(
+            0.01,
+            0.01,
+            1.0 - 0.02,
+            h - 0.02,
+            &Stroke::new(fg, 0.02),
+            Color::TRANSPARENT,
+        );
 
         // TODO(font): paint text here
 
@@ -65,10 +72,21 @@ impl PanelBehavior for TestPanel {
         // --- All the paint_primitives from the real TestPanel ---
 
         // TODO(font): paint text here
-        painter.paint_rect(0.25, 0.8, 0.05, 0.05, Color::rgba(255, 0, 0, 32));
+        painter.paint_rect(
+            0.25,
+            0.8,
+            0.05,
+            0.05,
+            Color::rgba(255, 0, 0, 32),
+            Color::TRANSPARENT,
+        );
 
         // Polygons
-        painter.paint_polygon(&[(0.7, 0.6), (0.6, 0.7), (0.8, 0.8)], fg);
+        painter.paint_polygon(
+            &[(0.7, 0.6), (0.6, 0.7), (0.8, 0.8)],
+            fg,
+            Color::TRANSPARENT,
+        );
         painter.paint_polygon_even_odd(
             &[
                 (0.90, 0.90),
@@ -83,6 +101,7 @@ impl PanelBehavior for TestPanel {
                 (0.91, 0.91),
             ],
             Color::rgba(255, 255, 255, 128),
+            Color::TRANSPARENT,
         );
         painter.paint_polygon(
             &[
@@ -98,6 +117,7 @@ impl PanelBehavior for TestPanel {
                 (0.81, 0.91),
             ],
             Color::WHITE,
+            Color::TRANSPARENT,
         );
 
         // Circle (64-sided polygon)
@@ -107,7 +127,7 @@ impl PanelBehavior for TestPanel {
                 (a.sin() * 0.05 + 0.65, a.cos() * 0.05 + 0.85)
             })
             .collect();
-        painter.paint_polygon(&circle, Color::rgba(255, 255, 0, 255));
+        painter.paint_polygon(&circle, Color::rgba(255, 255, 0, 255), Color::TRANSPARENT);
 
         // Clipped circle
         let clipped: Vec<_> = (0..64)
@@ -118,7 +138,7 @@ impl PanelBehavior for TestPanel {
             .collect();
         painter.push_state();
         painter.clip_rect(0.51, 0.81, 0.08, 0.08);
-        painter.paint_polygon(&clipped, Color::rgba(0, 255, 0, 255));
+        painter.paint_polygon(&clipped, Color::rgba(0, 255, 0, 255), Color::TRANSPARENT);
         painter.pop_state();
 
         // Ellipse
@@ -128,53 +148,130 @@ impl PanelBehavior for TestPanel {
                 (a.sin() * 0.06 + 0.6, a.cos() * 0.04 + 0.86)
             })
             .collect();
-        painter.paint_polygon(&ellipse, Color::rgba(255, 0, 0, 92));
+        painter.paint_polygon(&ellipse, Color::rgba(255, 0, 0, 92), Color::TRANSPARENT);
 
         // Adjacent triangles
         painter.paint_polygon(
             &[(0.6, 0.9), (0.5, 0.92), (0.65, 0.95)],
             Color::rgba(187, 255, 255, 255),
+            Color::TRANSPARENT,
         );
-        painter.paint_polygon(&[(0.6, 0.96), (0.5, 0.92), (0.65, 0.95)], Color::RED);
+        painter.paint_polygon(
+            &[(0.6, 0.96), (0.5, 0.92), (0.65, 0.95)],
+            Color::RED,
+            Color::TRANSPARENT,
+        );
         painter.paint_polygon(
             &[(0.45, 0.9), (0.35, 0.92), (0.5, 0.95)],
             Color::rgba(187, 255, 255, 255),
+            Color::TRANSPARENT,
         );
-        painter.paint_polygon(&[(0.45, 0.96), (0.35, 0.92), (0.5, 0.95)], Color::RED);
+        painter.paint_polygon(
+            &[(0.45, 0.96), (0.35, 0.92), (0.5, 0.95)],
+            Color::RED,
+            Color::TRANSPARENT,
+        );
 
         // Thin polygons
         painter.paint_polygon(
             &[(0.6, 0.6), (0.602, 0.6), (0.502, 0.7)],
             Color::rgba(187, 136, 255, 192),
+            Color::TRANSPARENT,
         );
         painter.paint_polygon(
             &[(0.7, 0.55), (0.702, 0.55), (0.802, 0.9), (0.8, 0.9)],
             Color::rgba(136, 187, 255, 192),
+            Color::TRANSPARENT,
         );
         painter.paint_polygon(
             &[(0.8, 0.55), (0.9, 0.55), (0.8, 0.8), (0.9, 0.8)],
             Color::rgba(136, 187, 255, 192),
+            Color::TRANSPARENT,
         );
 
         // Ellipses
-        painter.paint_ellipse(0.055, 0.805, 0.005, 0.005, Color::WHITE);
-        painter.paint_ellipse(0.07, 0.805, 0.01, 0.005, Color::WHITE);
-        painter.paint_ellipse(0.0925, 0.805, 0.0025, 0.005, Color::WHITE);
+        painter.paint_ellipse(0.055, 0.805, 0.005, 0.005, Color::WHITE, Color::TRANSPARENT);
+        painter.paint_ellipse(0.07, 0.805, 0.01, 0.005, Color::WHITE, Color::TRANSPARENT);
+        painter.paint_ellipse(
+            0.0925,
+            0.805,
+            0.0025,
+            0.005,
+            Color::WHITE,
+            Color::TRANSPARENT,
+        );
 
         // Ellipse sectors (degrees: start_angle, sweep_angle)
         let deg = PI / 180.0;
-        painter.paint_ellipse_sector(0.105, 0.805, 0.005, 0.005, 45.0, 305.0, Color::WHITE);
-        painter.paint_ellipse_sector(0.12, 0.805, 0.01, 0.005, -350.0, 395.0, Color::WHITE);
-        painter.paint_ellipse_sector(0.1325, 0.805, 0.0025, 0.005, 245.0, 50.0, Color::WHITE);
-        painter.paint_ellipse_sector(0.145, 0.805, 0.005, 0.005, 195.0, 50.0, Color::WHITE);
+        painter.paint_ellipse_sector(
+            0.105,
+            0.805,
+            0.005,
+            0.005,
+            45.0,
+            305.0,
+            Color::WHITE,
+            Color::TRANSPARENT,
+        );
+        painter.paint_ellipse_sector(
+            0.12,
+            0.805,
+            0.01,
+            0.005,
+            -350.0,
+            395.0,
+            Color::WHITE,
+            Color::TRANSPARENT,
+        );
+        painter.paint_ellipse_sector(
+            0.1325,
+            0.805,
+            0.0025,
+            0.005,
+            245.0,
+            50.0,
+            Color::WHITE,
+            Color::TRANSPARENT,
+        );
+        painter.paint_ellipse_sector(
+            0.145,
+            0.805,
+            0.005,
+            0.005,
+            195.0,
+            50.0,
+            Color::WHITE,
+            Color::TRANSPARENT,
+        );
 
         // Rect outlines
-        painter.paint_rect_outlined(0.05, 0.82, 0.01, 0.01, &Stroke::new(Color::WHITE, 0.001));
+        painter.paint_rect_outlined(
+            0.05,
+            0.82,
+            0.01,
+            0.01,
+            &Stroke::new(Color::WHITE, 0.001),
+            Color::TRANSPARENT,
+        );
         let mut sd = Stroke::new(Color::WHITE, 0.001);
         sd.dash_pattern = vec![0.002, 0.001];
-        painter.paint_rect_outlined(0.07, 0.82, 0.02, 0.01, &sd);
-        painter.paint_rect_outlined(0.10, 0.82, 0.01, 0.01, &Stroke::new(Color::WHITE, 0.008));
-        painter.paint_rect_outlined(0.13, 0.82, 0.01, 0.01, &Stroke::new(Color::WHITE, 0.011));
+        painter.paint_rect_outlined(0.07, 0.82, 0.02, 0.01, &sd, Color::TRANSPARENT);
+        painter.paint_rect_outlined(
+            0.10,
+            0.82,
+            0.01,
+            0.01,
+            &Stroke::new(Color::WHITE, 0.008),
+            Color::TRANSPARENT,
+        );
+        painter.paint_rect_outlined(
+            0.13,
+            0.82,
+            0.01,
+            0.01,
+            &Stroke::new(Color::WHITE, 0.011),
+            Color::TRANSPARENT,
+        );
 
         // Round rects
         painter.paint_round_rect(0.05, 0.84, 0.01, 0.01, 0.001, Color::WHITE);
@@ -190,6 +287,7 @@ impl PanelBehavior for TestPanel {
             0.005,
             0.005,
             &Stroke::new(Color::WHITE, 0.003),
+            Color::TRANSPARENT,
         );
         painter.paint_ellipse_outlined(
             0.075,
@@ -197,12 +295,13 @@ impl PanelBehavior for TestPanel {
             0.01,
             0.005,
             &Stroke::new(Color::WHITE, 0.001),
+            Color::TRANSPARENT,
         );
         let mut dot_s = Stroke::new(Color::WHITE, 0.00025);
         dot_s.join = LineJoin::Round;
         dot_s.cap = LineCap::Round;
         dot_s.dash_pattern = vec![0.0001, 0.0005];
-        painter.paint_ellipse_outlined(0.0925, 0.865, 0.0025, 0.005, &dot_s);
+        painter.paint_ellipse_outlined(0.0925, 0.865, 0.0025, 0.005, &dot_s, Color::TRANSPARENT);
 
         // Ellipse arcs
         painter.paint_ellipse_arc(
@@ -213,6 +312,7 @@ impl PanelBehavior for TestPanel {
             90.0 * deg,
             225.0 * deg,
             &Stroke::new(Color::WHITE, 0.001),
+            Color::TRANSPARENT,
         );
         painter.paint_ellipse_sector_outlined(
             0.12,
@@ -222,6 +322,7 @@ impl PanelBehavior for TestPanel {
             45.0,
             -365.0,
             &Stroke::new(Color::WHITE, 0.0001),
+            Color::TRANSPARENT,
         );
         painter.paint_ellipse_arc(
             0.1325,
@@ -231,6 +332,7 @@ impl PanelBehavior for TestPanel {
             245.0 * deg,
             295.0 * deg,
             &Stroke::new(Color::WHITE, 0.001),
+            Color::TRANSPARENT,
         );
         painter.paint_ellipse_arc(
             0.145,
@@ -240,13 +342,23 @@ impl PanelBehavior for TestPanel {
             195.0 * deg,
             245.0 * deg,
             &Stroke::new(Color::WHITE, 0.001),
+            Color::TRANSPARENT,
         );
         let mut rs = Stroke::new(Color::WHITE, 0.0001);
         rs.join = LineJoin::Round;
         rs.cap = LineCap::Round;
         rs.start_end = StrokeEnd::new(StrokeEndType::Cap);
         rs.finish_end = StrokeEnd::new(StrokeEndType::LineArrow);
-        painter.paint_ellipse_arc(0.155, 0.865, 0.005, 0.005, 0.0, -145.0 * deg, &rs);
+        painter.paint_ellipse_arc(
+            0.155,
+            0.865,
+            0.005,
+            0.005,
+            0.0,
+            -145.0 * deg,
+            &rs,
+            Color::TRANSPARENT,
+        );
 
         // Round rect outlines
         painter.paint_round_rect_outlined(
@@ -294,7 +406,11 @@ impl PanelBehavior for TestPanel {
         );
 
         // Bezier curves
-        painter.paint_bezier(&[(0.05, 0.90), (0.06, 0.90), (0.05, 0.91)], Color::WHITE);
+        painter.paint_bezier(
+            &[(0.05, 0.90), (0.06, 0.90), (0.05, 0.91)],
+            Color::WHITE,
+            Color::TRANSPARENT,
+        );
         painter.paint_bezier(
             &[
                 (0.065, 0.91),
@@ -305,6 +421,7 @@ impl PanelBehavior for TestPanel {
                 (0.08, 0.902),
             ],
             Color::WHITE,
+            Color::TRANSPARENT,
         );
         let mut rd = Stroke::new(Color::WHITE, 0.0002);
         rd.join = LineJoin::Round;
@@ -320,6 +437,7 @@ impl PanelBehavior for TestPanel {
                 (0.10, 0.902),
             ],
             &rd,
+            Color::TRANSPARENT,
         );
         let mut bls = Stroke::new(Color::WHITE, 0.0002);
         bls.join = LineJoin::Round;
@@ -330,6 +448,7 @@ impl PanelBehavior for TestPanel {
         painter.paint_bezier_line(
             &[(0.105, 0.91), (0.09, 0.902), (0.098, 0.89), (0.105, 0.900)],
             &bls,
+            Color::TRANSPARENT,
         );
 
         // Stroke end types (34 lines)
@@ -369,6 +488,7 @@ impl PanelBehavior for TestPanel {
                 0.117 + 0.0075 * a.cos(),
                 0.903 + 0.0075 * a.sin(),
                 &ls,
+                Color::TRANSPARENT,
             );
         }
 
@@ -383,6 +503,7 @@ impl PanelBehavior for TestPanel {
             &[(0.13, 0.897), (0.14, 0.902), (0.13, 0.906), (0.137, 0.909)],
             &ps,
             false,
+            Color::TRANSPARENT,
         );
 
         // Polygon outline
@@ -390,6 +511,7 @@ impl PanelBehavior for TestPanel {
             &[(0.06, 0.80), (0.10, 0.85), (0.08, 0.91)],
             Color::RED,
             0.0002,
+            Color::TRANSPARENT,
         );
 
         // Textured polygons
@@ -413,6 +535,7 @@ impl PanelBehavior for TestPanel {
                 start: (0.23, 0.9),
                 end: (0.2, 0.93),
             },
+            Color::TRANSPARENT,
         );
         painter.paint_polygon_textured(
             &star(0.220),
@@ -422,6 +545,7 @@ impl PanelBehavior for TestPanel {
                 center: (0.235, 0.918),
                 radius: 0.04,
             },
+            Color::TRANSPARENT,
         );
         painter.paint_polygon_textured(
             &star(0.240),
@@ -430,6 +554,7 @@ impl PanelBehavior for TestPanel {
                 extension: ImageExtension::Clamp,
                 quality: ImageQuality::Bilinear,
             },
+            Color::TRANSPARENT,
         );
 
         // Gradient/image rects
@@ -441,6 +566,7 @@ impl PanelBehavior for TestPanel {
             Color::rgba(0, 0, 0, 128),
             Color::rgba(128, 128, 128, 128),
             true,
+            Color::TRANSPARENT,
         );
         painter.paint_radial_gradient(
             0.225,
@@ -449,6 +575,7 @@ impl PanelBehavior for TestPanel {
             0.005,
             Color::rgba(255, 136, 0, 255),
             Color::rgba(0, 85, 0, 255),
+            Color::TRANSPARENT,
         );
 
         // Ellipse with radial gradient
@@ -466,6 +593,7 @@ impl PanelBehavior for TestPanel {
                 center: (0.24, 0.945),
                 radius: 0.01,
             },
+            Color::TRANSPARENT,
         );
 
         // Image rects

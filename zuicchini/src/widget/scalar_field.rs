@@ -395,10 +395,17 @@ impl ScalarField {
         // Side bars — C++: col = bgCol.GetBlended(fgCol, 25)
         let side_col = bg_col.lerp(fg_col, 0.25);
         if ax > rx {
-            painter.paint_rect(rx, ry, ax - rx, rh, side_col);
+            painter.paint_rect(rx, ry, ax - rx, rh, side_col, Color::TRANSPARENT);
         }
         if ax + aw < rx + rw {
-            painter.paint_rect(ax + aw, ry, rx + rw - ax - aw, rh, side_col);
+            painter.paint_rect(
+                ax + aw,
+                ry,
+                rx + rw - ax - aw,
+                rh,
+                side_col,
+                Color::TRANSPARENT,
+            );
         }
 
         // Value arrow polygon (5-point downward arrow)
@@ -417,7 +424,7 @@ impl ScalarField {
             (tx, ay + ah),
             (tx - e, ay + ah - e),
         ];
-        painter.paint_polygon(&arrow, fg_col);
+        painter.paint_polygon(&arrow, fg_col, Color::TRANSPARENT);
 
         // Scale marks with text labels and small arrows.
         // C++ emScalarField.cpp lines 438-473.
@@ -483,7 +490,7 @@ impl ScalarField {
                         (mark_tx + h5 * 0.5, mark_ty + h4),
                         (mark_tx, mark_ty + h4 + h5),
                     ];
-                    painter.paint_polygon(&mini_arrow, mark_col);
+                    painter.paint_polygon(&mini_arrow, mark_col, Color::TRANSPARENT);
 
                     k += 1;
                 }

@@ -171,7 +171,14 @@ impl PanelBehavior for ToolkitRoot {
     }
 
     fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _state: &PanelState) {
-        p.paint_rect(0.0, 0.0, w, h, Color::rgba(0x20, 0x30, 0x40, 0xFF));
+        p.paint_rect(
+            0.0,
+            0.0,
+            w,
+            h,
+            Color::rgba(0x20, 0x30, 0x40, 0xFF),
+            Color::TRANSPARENT,
+        );
 
         p.paint_text_boxed(
             0.0,

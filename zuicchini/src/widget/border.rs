@@ -1593,7 +1593,7 @@ How to move or set the focus:\n\
         match self.outer {
             OuterBorderType::None => {}
             OuterBorderType::Filled => {
-                painter.paint_rect(0.0, 0.0, w, h, look.bg_color);
+                painter.paint_rect(0.0, 0.0, w, h, look.bg_color, Color::TRANSPARENT);
                 // C++ DoBorder: canvasColor=color after fill.
                 if !look.bg_color.is_transparent() {
                     painter.set_canvas_color(look.bg_color);
@@ -1602,7 +1602,14 @@ How to move or set the focus:\n\
             OuterBorderType::Margin => {}
             OuterBorderType::MarginFilled => {
                 let (ox, oy, _, _) = self.outer_insets(w, h);
-                painter.paint_rect(ox, oy, w - 2.0 * ox, h - 2.0 * oy, look.bg_color);
+                painter.paint_rect(
+                    ox,
+                    oy,
+                    w - 2.0 * ox,
+                    h - 2.0 * oy,
+                    look.bg_color,
+                    Color::TRANSPARENT,
+                );
                 // C++ DoBorder: canvasColor=color after fill.
                 if !look.bg_color.is_transparent() {
                     painter.set_canvas_color(look.bg_color);
@@ -1613,7 +1620,14 @@ How to move or set the focus:\n\
                 let s = self.base_unit(w, h);
                 let d = s * 0.023;
                 let e = s * 0.02;
-                painter.paint_rect(d, d, w - 2.0 * d, h - 2.0 * d, look.bg_color);
+                painter.paint_rect(
+                    d,
+                    d,
+                    w - 2.0 * d,
+                    h - 2.0 * d,
+                    look.bg_color,
+                    Color::TRANSPARENT,
+                );
                 // C++ updates canvasColor to bg_color after fill.
                 painter.set_canvas_color(look.bg_color);
                 let color = dim_color(look.fg_color);
@@ -1624,6 +1638,7 @@ How to move or set the focus:\n\
                     w - 2.0 * sd,
                     h - 2.0 * sd,
                     &Stroke::new(color, e),
+                    Color::TRANSPARENT,
                 );
             }
             OuterBorderType::RoundRect => {
@@ -1799,7 +1814,7 @@ How to move or set the focus:\n\
                 let color = look.bg_color;
                 let canvas = painter.canvas_color();
                 if !color.is_transparent() {
-                    painter.paint_rect(0.0, 0.0, w, h, color);
+                    painter.paint_rect(0.0, 0.0, w, h, color, Color::TRANSPARENT);
                     painter.set_canvas_color(color);
                 }
                 let r = d; // C++ ratio 159.0/159.0 = 1.0

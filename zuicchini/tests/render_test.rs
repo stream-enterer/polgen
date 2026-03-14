@@ -9,7 +9,7 @@ fn paint_rect_fills_correct_pixels() {
     {
         let mut p = Painter::new(&mut img);
         p.set_canvas_color(Color::BLACK);
-        p.paint_rect(2.0, 3.0, 4.0, 2.0, Color::RED);
+        p.paint_rect(2.0, 3.0, 4.0, 2.0, Color::RED, Color::TRANSPARENT);
     }
     // Pixel inside the rect
     assert_eq!(img.pixel(3, 3), &[255, 0, 0, 255]);
@@ -28,9 +28,15 @@ fn canvas_blend_works_in_painter() {
         let mut p = Painter::new(&mut img);
         // Canvas = rgb(50,50,50), source = rgb(150,150,150), alpha = 128
         // target += (150 - 50) * 128 / 255 = target + 50 = 150
-        p.set_canvas_color(Color::rgb(50, 50, 50));
         p.set_alpha(128);
-        p.paint_rect(0.0, 0.0, 4.0, 4.0, Color::rgb(150, 150, 150));
+        p.paint_rect(
+            0.0,
+            0.0,
+            4.0,
+            4.0,
+            Color::rgb(150, 150, 150),
+            Color::rgb(50, 50, 50),
+        );
     }
     let px = img.pixel(0, 0);
     assert_eq!(px[0], 150);
@@ -48,7 +54,7 @@ fn clip_rect_respected() {
         p.set_canvas_color(Color::BLACK);
         p.clip_rect(2.0, 2.0, 4.0, 4.0);
         // Paint a rect that extends beyond the clip
-        p.paint_rect(0.0, 0.0, 10.0, 10.0, Color::GREEN);
+        p.paint_rect(0.0, 0.0, 10.0, 10.0, Color::GREEN, Color::TRANSPARENT);
     }
     // Inside clip: should be painted
     assert_eq!(img.pixel(3, 3), &[0, 255, 0, 255]);
@@ -66,7 +72,7 @@ fn coordinate_transforms() {
         let mut p = Painter::new(&mut img);
         p.set_canvas_color(Color::BLACK);
         p.translate(5.0, 5.0);
-        p.paint_rect(0.0, 0.0, 2.0, 2.0, Color::BLUE);
+        p.paint_rect(0.0, 0.0, 2.0, 2.0, Color::BLUE, Color::TRANSPARENT);
     }
     // Translated rect should appear at (5,5)
     assert_eq!(img.pixel(5, 5), &[0, 0, 255, 255]);
@@ -85,10 +91,10 @@ fn push_pop_state() {
         p.set_canvas_color(Color::BLACK);
         p.push_state();
         p.translate(10.0, 10.0);
-        p.paint_rect(0.0, 0.0, 2.0, 2.0, Color::RED);
+        p.paint_rect(0.0, 0.0, 2.0, 2.0, Color::RED, Color::TRANSPARENT);
         p.pop_state();
         // After pop, translation is restored
-        p.paint_rect(0.0, 0.0, 2.0, 2.0, Color::GREEN);
+        p.paint_rect(0.0, 0.0, 2.0, 2.0, Color::GREEN, Color::TRANSPARENT);
     }
     // Red at translated position
     assert_eq!(img.pixel(10, 10), &[255, 0, 0, 255]);
@@ -104,7 +110,7 @@ fn paint_ellipse_basic() {
     {
         let mut p = Painter::new(&mut img);
         p.set_canvas_color(Color::BLACK);
-        p.paint_ellipse(10.0, 10.0, 5.0, 5.0, Color::RED);
+        p.paint_ellipse(10.0, 10.0, 5.0, 5.0, Color::RED, Color::TRANSPARENT);
     }
     // Center should be filled
     let px = img.pixel(10, 10);
@@ -121,7 +127,7 @@ fn paint_line_basic() {
     {
         let mut p = Painter::new(&mut img);
         p.set_canvas_color(Color::BLACK);
-        p.paint_line(0.0, 0.0, 9.0, 0.0, Color::WHITE);
+        p.paint_line(0.0, 0.0, 9.0, 0.0, Color::WHITE, Color::TRANSPARENT);
     }
     // Horizontal line at y=0
     assert_eq!(img.pixel(0, 0), &[255, 255, 255, 255]);
@@ -139,7 +145,7 @@ fn paint_rect_outlined() {
         let mut p = Painter::new(&mut img);
         p.set_canvas_color(Color::BLACK);
         let stroke = Stroke::new(Color::WHITE, 2.0);
-        p.paint_rect_outlined(5.0, 5.0, 10.0, 10.0, &stroke);
+        p.paint_rect_outlined(5.0, 5.0, 10.0, 10.0, &stroke, Color::TRANSPARENT);
     }
     // Top edge interior pixel (fully inside the stroke ring).
     // Stroke centered on boundary: outer=(4,4), inner=(6,6).

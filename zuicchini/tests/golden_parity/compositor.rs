@@ -27,7 +27,7 @@ impl ColorFillBehavior {
 
 impl PanelBehavior for ColorFillBehavior {
     fn paint(&mut self, painter: &mut Painter, vw: f64, vh: f64, _state: &PanelState) {
-        painter.paint_rect(0.0, 0.0, vw, vh, self.color);
+        painter.paint_rect(0.0, 0.0, vw, vh, self.color, Color::TRANSPARENT);
     }
 }
 

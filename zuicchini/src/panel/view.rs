@@ -1798,6 +1798,7 @@ impl View {
             self.viewport_width,
             self.viewport_height,
             self.background_color,
+            Color::TRANSPARENT,
         );
         painter.pop_state();
 
@@ -1869,7 +1870,14 @@ impl View {
             .min(4.0);
 
         painter.push_state();
-        painter.paint_rect_outlined(hx, hy, hw, hh, &Stroke::new(color, stroke_w));
+        painter.paint_rect_outlined(
+            hx,
+            hy,
+            hw,
+            hh,
+            &Stroke::new(color, stroke_w),
+            Color::TRANSPARENT,
+        );
         painter.pop_state();
     }
 

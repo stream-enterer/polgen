@@ -119,7 +119,7 @@ impl CheckBox {
             let mut stroke = Stroke::new(check_color, fw * 0.16);
             stroke.join = LineJoin::Round;
             stroke.cap = LineCap::Round;
-            painter.paint_solid_polyline(&verts, &stroke, false);
+            painter.paint_solid_polyline(&verts, &stroke, false, Color::TRANSPARENT);
         }
 
         // Paint checkbox image overlay (C++ line 318-331).
