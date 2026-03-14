@@ -22,27 +22,6 @@ macro_rules! require_golden {
     };
 }
 
-/// Load a compositor golden file. Returns (width, height, rgba_bytes).
-fn load_compositor_golden(name: &str) -> (u32, u32, Vec<u8>) {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("golden")
-        .join("compositor")
-        .join(format!("{name}.compositor.golden"));
-    let data =
-        std::fs::read(&path).unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
-    assert!(data.len() >= 8, "Golden file too short: {}", path.display());
-    let width = u32::from_le_bytes(data[0..4].try_into().unwrap());
-    let height = u32::from_le_bytes(data[4..8].try_into().unwrap());
-    let expected_len = 8 + (width as usize * height as usize * 4);
-    assert_eq!(
-        data.len(),
-        expected_len,
-        "Golden file size mismatch for {name}: got {} expected {expected_len}",
-        data.len()
-    );
-    (width, height, data[8..].to_vec())
-}
-
 /// Settle: deliver notices and update viewing until stable.
 fn settle(tree: &mut PanelTree, view: &mut View) {
     for _ in 0..5 {
@@ -304,7 +283,7 @@ fn widget_checkbox_unchecked() {
             check_box: CheckBox::new("Check Option", look),
         }),
         1,
-        5.5,
+        1.5,
     );
 }
 
@@ -321,7 +300,7 @@ fn widget_checkbox_checked() {
         "widget_checkbox_checked",
         Box::new(CheckBoxBehavior { check_box: cb }),
         1,
-        5.5,
+        1.5,
     );
 }
 
@@ -357,7 +336,7 @@ fn widget_textfield_content() {
         "widget_textfield_content",
         Box::new(TextFieldBehavior { text_field: tf }),
         3,
-        5.0,
+        1.5,
     );
 }
 
@@ -376,7 +355,7 @@ fn widget_scalarfield() {
         "widget_scalarfield",
         Box::new(ScalarFieldBehavior { scalar_field: sf }),
         3,
-        5.0,
+        1.5,
     );
 }
 
@@ -454,8 +433,8 @@ fn widget_colorfield() {
     let mut view = View::new(root, 800.0, 600.0);
     view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
 
-    // 20 settle rounds for auto-expansion cascade
-    for _ in 0..20 {
+    // C++ gen_golden.cpp: TerminateEngine ctrl(sched, 30)
+    for _ in 0..30 {
         tree.deliver_notices(view.window_focused());
         view.update_viewing(&mut tree);
     }
@@ -464,7 +443,7 @@ fn widget_colorfield() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("widget_colorfield", actual, &expected, w, h, 3, 15.0);
+    let result = compare_images("widget_colorfield", actual, &expected, w, h, 3, 3.5);
     if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
@@ -509,7 +488,7 @@ fn widget_listbox() {
         "widget_listbox",
         Box::new(ListBoxBehavior { list_box: lb }),
         3,
-        9.5,
+        1.5,
     );
 }
 
@@ -542,7 +521,7 @@ fn widget_splitter_v() {
         "widget_splitter_v",
         Box::new(SplitterBehavior { splitter: sp }),
         1,
-        2.0,
+        1.0,
     );
 }
 
@@ -601,8 +580,8 @@ fn colorfield_expanded() {
     view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
     view.set_window_focused(&mut tree, false);
 
-    // 20 settle rounds for auto-expansion cascade
-    for _ in 0..20 {
+    // C++ gen_golden.cpp: TerminateEngine ctrl(sched, 200)
+    for _ in 0..200 {
         tree.deliver_notices(view.window_focused());
         view.update_viewing(&mut tree);
     }
@@ -611,7 +590,7 @@ fn colorfield_expanded() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("colorfield_expanded", actual, &expected, w, h, 3, 45.0);
+    let result = compare_images("colorfield_expanded", actual, &expected, w, h, 3, 4.0);
     if result.is_err() && dump_golden_enabled() {
         dump_test_images("colorfield_expanded", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
@@ -676,7 +655,8 @@ fn listbox_expanded() {
     view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
     view.set_window_focused(&mut tree, false);
 
-    for _ in 0..20 {
+    // C++ gen_golden.cpp: TerminateEngine ctrl(sched, 200)
+    for _ in 0..200 {
         tree.deliver_notices(view.window_focused());
         view.update_viewing(&mut tree);
     }
@@ -685,7 +665,7 @@ fn listbox_expanded() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("listbox_expanded", actual, &expected, w, h, 3, 50.0);
+    let result = compare_images("listbox_expanded", actual, &expected, w, h, 3, 2.0);
     if result.is_err() && dump_golden_enabled() {
         dump_test_images("listbox_expanded", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);

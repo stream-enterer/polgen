@@ -45,30 +45,10 @@ macro_rules! require_golden {
     };
 }
 
-/// Load a compositor golden file. Returns (width, height, rgba_bytes).
-fn load_compositor_golden(name: &str) -> (u32, u32, Vec<u8>) {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("golden")
-        .join("compositor")
-        .join(format!("{name}.compositor.golden"));
-    let data =
-        std::fs::read(&path).unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
-    assert!(data.len() >= 8, "Golden file too short: {}", path.display());
-    let width = u32::from_le_bytes(data[0..4].try_into().unwrap());
-    let height = u32::from_le_bytes(data[4..8].try_into().unwrap());
-    let expected_len = 8 + (width as usize * height as usize * 4);
-    assert_eq!(
-        data.len(),
-        expected_len,
-        "Golden file size mismatch for {name}: got {} expected {expected_len}",
-        data.len()
-    );
-    (width, height, data[8..].to_vec())
-}
-
 /// Settle: deliver notices and update viewing until stable.
-fn settle(tree: &mut PanelTree, view: &mut View) {
-    for _ in 0..20 {
+/// `rounds` matches C++ TerminateEngine cycle count from gen_golden.cpp.
+fn settle(tree: &mut PanelTree, view: &mut View, rounds: usize) {
+    for _ in 0..rounds {
         tree.deliver_notices(view.window_focused());
         view.update_viewing(tree);
     }
@@ -1962,10 +1942,11 @@ fn render_testpanel(
     expected: &(u32, u32, Vec<u8>),
     channel_tolerance: u8,
     max_failure_pct: f64,
+    settle_rounds: usize,
 ) {
     let (w, h, ref expected_data) = *expected;
 
-    settle(tree, view);
+    settle(tree, view, settle_rounds);
 
     let mut compositor = SoftwareCompositor::new(w, h);
     compositor.render(tree, view);
@@ -2013,7 +1994,16 @@ fn testpanel_root() {
     // C++ golden gen doesn't focus the window — match unfocused state
     view.set_window_focused(&mut tree, false);
 
-    render_testpanel("testpanel_root", &mut tree, &mut view, &expected, 3, 15.0);
+    // C++ gen_golden.cpp: TerminateEngine ctrl(sched, 30)
+    render_testpanel(
+        "testpanel_root",
+        &mut tree,
+        &mut view,
+        &expected,
+        3,
+        12.0,
+        30,
+    );
 }
 
 /// Full TestPanel tree with auto-expanded children — integration test.
@@ -2037,12 +2027,14 @@ fn testpanel_expanded() {
     // C++ golden gen doesn't focus the window — match unfocused state
     view.set_window_focused(&mut tree, false);
 
+    // C++ gen_golden.cpp: TerminateEngine ctrl(sched, 200)
     render_testpanel(
         "testpanel_expanded",
         &mut tree,
         &mut view,
         &expected,
         3,
-        15.0,
+        10.5,
+        200,
     );
 }

@@ -44,6 +44,30 @@ pub fn load_painter_golden(name: &str) -> (u32, u32, Vec<u8>) {
     (width, height, data[8..].to_vec())
 }
 
+// ────────────────────── Compositor golden files ──────────────────────
+
+/// Load a compositor golden file. Returns (width, height, rgba_bytes).
+pub fn load_compositor_golden(name: &str) -> (u32, u32, Vec<u8>) {
+    let path = golden_dir()
+        .join("compositor")
+        .join(format!("{name}.compositor.golden"));
+    let data =
+        std::fs::read(&path).unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
+    assert!(data.len() >= 8, "Golden file too short: {}", path.display());
+    let width = u32::from_le_bytes(data[0..4].try_into().unwrap());
+    let height = u32::from_le_bytes(data[4..8].try_into().unwrap());
+    let expected_len = 8 + (width as usize * height as usize * 4);
+    assert_eq!(
+        data.len(),
+        expected_len,
+        "Golden file size mismatch for {name}: got {} expected {expected_len}",
+        data.len()
+    );
+    (width, height, data[8..].to_vec())
+}
+
+// ────────────────────── Image comparison ──────────────────────
+
 /// Compare two RGBA images pixel-by-pixel on RGB channels only.
 ///
 /// The alpha channel is **excluded** because C++ emPainter uses channel 3 to

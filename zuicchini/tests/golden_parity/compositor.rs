@@ -14,27 +14,6 @@ macro_rules! require_golden {
     };
 }
 
-/// Load a compositor golden file. Returns (width, height, rgba_bytes).
-fn load_compositor_golden(name: &str) -> (u32, u32, Vec<u8>) {
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("golden")
-        .join("compositor")
-        .join(format!("{name}.compositor.golden"));
-    let data =
-        std::fs::read(&path).unwrap_or_else(|e| panic!("Cannot read {}: {e}", path.display()));
-    assert!(data.len() >= 8, "Golden file too short: {}", path.display());
-    let width = u32::from_le_bytes(data[0..4].try_into().unwrap());
-    let height = u32::from_le_bytes(data[4..8].try_into().unwrap());
-    let expected_len = 8 + (width as usize * height as usize * 4);
-    assert_eq!(
-        data.len(),
-        expected_len,
-        "Golden file size mismatch for {name}: got {} expected {expected_len}",
-        data.len()
-    );
-    (width, height, data[8..].to_vec())
-}
-
 /// Behavior that fills its panel with a solid color.
 struct ColorFillBehavior {
     color: Color,
