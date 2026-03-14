@@ -47,6 +47,24 @@ impl<'a> PanelCtx<'a> {
         self.tree.set_layout_rect(child, x, y, w, h);
     }
 
+    /// Set layout rect and canvas color for a child panel.
+    ///
+    /// C++ equivalent: `child->Layout(x, y, w, h, canvasColor)`.
+    /// The canvas_color tells the child what background color it's being
+    /// painted on top of, which is needed for correct canvas-color compositing.
+    pub fn layout_child_canvas(
+        &mut self,
+        child: PanelId,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        canvas_color: Color,
+    ) {
+        self.tree.set_layout_rect(child, x, y, w, h);
+        self.tree.set_canvas_color(child, canvas_color);
+    }
+
     /// Get the parent panel ID.
     pub fn parent(&self) -> Option<PanelId> {
         self.tree.parent(self.id)
@@ -164,5 +182,23 @@ impl<'a> PanelCtx<'a> {
     /// Get the number of children.
     pub fn child_count(&self) -> usize {
         self.tree.child_count(self.id)
+    }
+
+    /// Set canvas color on a child panel.
+    ///
+    /// C++ equivalent: the canvasColor argument of `child->Layout()`.
+    pub fn set_child_canvas_color(&mut self, child: PanelId, color: Color) {
+        self.tree.set_canvas_color(child, color);
+    }
+
+    /// Set canvas color on all children of the current panel.
+    ///
+    /// Used after layout_children to propagate the content area's background
+    /// color to all child panels, matching C++ LayoutChildren behavior.
+    pub fn set_all_children_canvas_color(&mut self, color: Color) {
+        let children: Vec<PanelId> = self.tree.children(self.id).collect();
+        for child in children {
+            self.tree.set_canvas_color(child, color);
+        }
     }
 }

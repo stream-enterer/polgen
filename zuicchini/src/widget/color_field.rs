@@ -554,6 +554,13 @@ impl ColorField {
         // Position the RasterLayout child in the right half.
         let layout_id = children[0];
         ctx.layout_child(layout_id, x + cw * 0.5, y, cw * 0.5, ch);
+
+        // C++ LayoutChildren passes canvasColor to child->Layout().
+        // The content area canvas color is determined by the border painting.
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 
     /// Whether this color field provides how-to help text.

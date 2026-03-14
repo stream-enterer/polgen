@@ -110,15 +110,33 @@ the rounding direction.
 
 ---
 
-## Baseline (R15, 2026-03-14, post TextField enabled fix)
+## Baseline (R16, 2026-03-14, post canvas_color propagation fix)
 
 | Test | Pixels | Total | Pct | max_diff |
 |------|--------|-------|-----|----------|
 | widget_colorfield | 5,164 | 480,000 | 1.08% | 185 |
-| colorfield_expanded | 14,209 | 640,000 | 2.22% | 191 |
+| colorfield_expanded | 14,211 | 640,000 | 2.22% | 158 |
 | widget_scalarfield | 106 | 480,000 | 0.022% | 56 |
+| listbox_expanded | 314 | 640,000 | 0.049% | 33 |
 
-Rolling divergence log: `state/post_r15.jsonl`
+Rolling divergence log: `state/post_r16_canvas.jsonl`
+
+### R16 Three-Number Dashboard (canvas_color propagation fix)
+
+| # | Metric | Value |
+|---|--------|-------|
+| 1 | Fix description | Propagate canvas_color from parent borders to child panels during LayoutChildren, matching C++ `child->Layout(x,y,w,h,canvasColor)` |
+| 2 | Total divergent pixels | 226,386 → 220,822 (-5,564 net) |
+| 3 | Net regression | colorfield_expanded +2 px (within noise), max_diff improved 191→158 |
+
+**Acceptance:** Fix accepted. Canvas color now propagated to child panels
+during layout, matching C++ `emBorder::LayoutChildren()`. Key improvements:
+listbox_expanded -3,184 px (-91%), testpanel_expanded -2,382 px.
+Also fixed missing `set_canvas_color` in Filled/MarginFilled outer border paint.
+
+**Analysis:** widget_colorfield unchanged because ScalarField children are NOT
+painted as separate panels (not viewed at this zoom). The remaining 5,164 px
+divergence is from the ColorField's own IO overlay border image compositing.
 
 ### R15 Three-Number Dashboard (TextField enabled fix)
 
@@ -220,13 +238,20 @@ evidence: P34, P36 confirmed. Fix verified: -2 px colorfield, -1 px expanded,
 id:       S4-interp
 type:     FORMULA (probable) or EVAL_ORDER
 stage:    4 (rasterization)
-status:   BLOCKED_BY_S1
-rust:     scanline.rs, interpolation.rs
-cpp:      emPainter.cpp:637-716, emPainter_ScTlIntImg.cpp
-evidence: D2 pixels (x=412-682, y=284-395) overlap D1's clip-affected region.
-          Cannot diagnose until S1-clip is resolved and pixel set re-measured.
-note:     After S1-clip fix, pick a probe pixel well inside the child panel
-          (x < 680) to avoid clip boundary contamination.
+status:   DIAGNOSED (R16)
+rust:     painter.rs:paint_border_image, interpolation.rs (area-sampling path)
+cpp:      emPainter.cpp:PaintBorderImage, emPainter_ScTlIntImg.cpp
+evidence: Post-R16: 5,164 px in widget_colorfield from IO overlay border image.
+          ScalarField children are NOT viewed at this zoom — all divergence is
+          from ColorField's own border painting. Key divergent scanlines:
+          y=170 (618px, Rust=(207,0,0) vs C++=(181,4,9), consistent diff=26),
+          y=508 (618px, similar), y=283-395 (267px each, border image 9-slice
+          regions). The diff pattern (Rust G=B=0, C++ non-zero G,B) indicates
+          canvas_color compositing during border image area-sampling differs.
+note:     The canvas_color values match (both use output_bg_color). The
+          difference is in how paint_border_image area-samples and composites
+          the 9-slice image pixels. Compare Rust area-sampling with C++
+          FINPREMUL/WRITE formulas in emPainter_ScTlIntImg.cpp.
 ```
 
 ```
@@ -245,10 +270,11 @@ note:     Independent of S1-clip (different test, different widget).
 
 ```
 id:       S34-swatch-edge
-type:     UNKNOWN
+type:     SUBSUMED by S4-interp
 stage:    3 or 4
-status:   BLOCKED_BY_S1
-evidence: D4 pixels at swatch rect edges. May change after S1-clip fix.
+status:   SUBSUMED (R16)
+evidence: Swatch edge pixels are part of the IO overlay border image
+          compositing divergence diagnosed in S4-interp.
 ```
 
 ```
@@ -260,19 +286,37 @@ evidence: D6, 7 pixels at rounded corners of 9-slice border.
 note:     Independent of S1-clip (different test). Low priority (7 px).
 ```
 
+### Stage 2: Canvas Color Propagation
+
+```
+id:       S2-canvas
+type:     TYPE_REPR
+stage:    2 (transform/compositing setup)
+status:   RESOLVED (R16)
+rust:     panel/ctx.rs -- layout_child() sets geometry only, not canvas_color.
+          panel/view.rs:1919 -- children inherit parent_canvas if TRANSPARENT.
+cpp:      emPanel.cpp:421 -- child->Layout(x,y,w,h,canvasColor) sets both.
+          emBorder.cpp:307-322 -- DoBorder computes canvasColor through border
+          painting stages (outer fill → inner fill → content area).
+evidence: listbox_expanded -3,184 px, testpanel_expanded -2,382 px.
+          widget_colorfield unchanged (ScalarField children not viewed at
+          this zoom — divergence is in IO overlay border image compositing).
+fix:      Added content_canvas_color() to Border, layout_child_canvas() to
+          PanelCtx, set_all_children_canvas_color() after layout in all
+          border-based layout_children implementations. Also fixed missing
+          set_canvas_color calls for Filled/MarginFilled outer border paint.
+```
+
 ### Unclassified
 
 ```
 id:       U-expanded
 type:     UNKNOWN
 stage:    UNKNOWN
-status:   BLOCKED_BY_S1
-evidence: D7, 14,210 px in colorfield_expanded (800x800, editable=true,
-          alpha_enabled=true, color=0xBB2222FF). Expected to share root
-          causes with S1-clip and S4-interp at different scale.
-triage:   Before deferring fully, generate diff images (DUMP_GOLDEN=1) to
-          estimate what fraction of divergence comes from alpha/editable-
-          specific code paths vs shared clip/interp paths.
+status:   PARTIALLY_RESOLVED (R16 reduced max_diff 191→158)
+evidence: 14,211 px in colorfield_expanded (800x800, editable=true,
+          alpha_enabled=true, color=0xBB2222FF). Shares root causes with
+          S4-interp (border image compositing).
 ```
 
 ---
@@ -476,16 +520,16 @@ the pixel landscape is re-measured.
 
 | Priority | Item | Stage | Type | Status | Pixels |
 |----------|------|-------|------|--------|--------|
-| 1 | S4-interp | 4 | FORMULA | UNBLOCKED | ~5,507 (post-R14) |
+| 1 | S4-interp | 4 | FORMULA | DIAGNOSED | ~5,164 (IO overlay border image) |
 | 2 | S4-subpixel | 4 | FORMULA | UNDIAGNOSED | 106 |
-| 3 | S34-swatch-edge | 3/4 | UNKNOWN | UNBLOCKED | TBD (re-measure) |
-| 4 | U-expanded | ? | UNKNOWN | UNBLOCKED | ~14,209 |
+| 3 | U-expanded | ? | UNKNOWN | PARTIALLY_RESOLVED | ~14,211 |
 
 ### Resolved
 
 | Item | Stage | Resolution |
 |------|-------|------------|
 | S1-clip | 1 | RESOLVED R14: f64 clip storage, -2 px colorfield |
+| S2-canvas | 2 | RESOLVED R16: canvas_color propagation to children, -5,564 px total |
 
 ### Low Priority (independent, defer until active items resolved)
 
@@ -493,14 +537,20 @@ the pixel landscape is re-measured.
 |------|-------|--------|
 | S34-border-corner | 3/4 | 7 |
 
-### Next Steps (post S1-clip):
+### Next Steps (post R16):
 
-1. Generate diff images with `DUMP_GOLDEN=1` for widget_colorfield and
-   colorfield_expanded to re-classify remaining divergent pixels.
-2. Diagnose S4-interp: structural comparison of scanline.rs vs
-   emPainter.cpp:637-716 for rasterization formula differences.
-3. Pick a probe pixel well inside child panels (away from clip boundaries)
-   to isolate interpolation-specific divergence from clip residuals.
+1. **S4-interp diagnosis**: The widget_colorfield divergence (5,164 px) is
+   from the IO overlay border image compositing. The ScalarField children
+   are NOT painted as separate panels at this zoom level. The divergence is
+   at scanlines y=170, y=508 (full swatch width, 618px each), and y=283-395
+   (right half, ScalarField border positions in the 9-slice border image).
+2. **Structural comparison of paint_border_image**: Compare Rust
+   `painter.rs:paint_border_image` with C++ `emPainter::PaintBorderImage`
+   compositing path. The border image is area-sampled and composited with
+   canvas_color blending — formula differences here would explain the
+   remaining divergence.
+3. **S4-subpixel**: Independent (widget_scalarfield, different test). Can
+   proceed in parallel with S4-interp.
 
 ---
 

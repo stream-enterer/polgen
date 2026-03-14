@@ -97,6 +97,12 @@ impl Dialog {
                 ctx.layout_child(child, btn_x, btn_y, btn_w, BUTTON_HEIGHT);
             }
         }
+
+        // Propagate content canvas color to children.
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 
     pub fn preferred_size(&self) -> (f64, f64) {

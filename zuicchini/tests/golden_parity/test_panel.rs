@@ -287,6 +287,10 @@ impl PanelBehavior for TunnelStubPanel {
         let rect = ctx.layout_rect();
         let cr = self.border.content_rect(rect.w, rect.h, &self.look);
         ctx.layout_child(children[0], cr.x, cr.y, cr.w, cr.h);
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 
     fn auto_expand(&self) -> bool {
@@ -975,6 +979,10 @@ impl PanelBehavior for TkTestGrpPanel {
         if let Some(sp) = ctx.find_child_by_name("sp") {
             ctx.layout_child(sp, cr.x, cr.y, cr.w, cr.h);
         }
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 }
 
@@ -1470,6 +1478,10 @@ impl PanelBehavior for TkTestPanel {
         if let Some(grid) = ctx.find_child_by_name("grid") {
             ctx.layout_child(grid, cr.x, cr.y, cr.w, cr.h);
         }
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 }
 
@@ -1918,6 +1930,10 @@ impl PanelBehavior for PolyDrawPanel {
         if let Some(layout) = ctx.find_child_by_name("layout") {
             ctx.layout_child(layout, cr.x, cr.y, cr.w, cr.h);
         }
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 }
 

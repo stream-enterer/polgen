@@ -354,6 +354,10 @@ impl PanelBehavior for RasterGroup {
     fn layout_children(&mut self, ctx: &mut PanelCtx) {
         let aux_id = super::position_aux_panel(ctx, &self.border);
         self.layout.do_layout_skip(ctx, aux_id);
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 
     fn auto_expand(&self) -> bool {

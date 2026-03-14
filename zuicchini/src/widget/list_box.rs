@@ -874,6 +874,12 @@ impl ListBox {
         // The single child is the RasterLayout grid.
         let cr = self.border.content_rect_unobscured(w, h, &self.look);
         ctx.layout_child(children[0], cr.x, cr.y, cr.w, cr.h);
+
+        // Propagate content canvas color to children.
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+        ctx.set_all_children_canvas_color(cc);
     }
 
     // ── Paint ───────────────────────────────────────────────────────

@@ -1349,6 +1349,62 @@ How to move or set the focus:\n\
         }
     }
 
+    /// Compute the canvas color at the content area, matching C++ DoBorder's
+    /// canvasColor tracking.
+    ///
+    /// In C++, `DoBorder()` tracks `canvasColor` through outer and inner border
+    /// painting. After the outer border paints its fill (using `Look.GetBgColor()`),
+    /// `canvasColor` becomes `bg_color`. After the inner border paints its fill
+    /// (e.g., `InputField` uses `Look.GetInputBgColor()`), `canvasColor` is
+    /// updated again. The final value is what child panels receive via `Layout()`.
+    ///
+    /// This method replicates that logic without needing a painter.
+    pub fn content_canvas_color(&self, parent_canvas: Color, look: &Look, enabled: bool) -> Color {
+        let mut canvas = parent_canvas;
+
+        // Outer border: if the border type paints a fill with bg_color,
+        // canvas becomes bg_color. Matches C++ DoBorder lines 581-898.
+        match self.outer {
+            OuterBorderType::None | OuterBorderType::Margin => {}
+            OuterBorderType::Filled
+            | OuterBorderType::MarginFilled
+            | OuterBorderType::Rect
+            | OuterBorderType::RoundRect
+            | OuterBorderType::Group
+            | OuterBorderType::Instrument
+            | OuterBorderType::InstrumentMoreRound
+            | OuterBorderType::PopupRoot => {
+                if !look.bg_color.is_transparent() {
+                    canvas = look.bg_color;
+                }
+            }
+        }
+
+        // Inner border: InputField/OutputField paint their own background.
+        // Matches C++ DoBorder lines 1091-1136.
+        match self.inner {
+            InnerBorderType::None | InnerBorderType::Group | InnerBorderType::CustomRect => {}
+            InnerBorderType::InputField => {
+                let bg = if enabled {
+                    look.input_bg_color
+                } else {
+                    look.input_bg_color.lerp(look.bg_color, 0.80)
+                };
+                canvas = bg;
+            }
+            InnerBorderType::OutputField => {
+                let bg = if enabled {
+                    look.output_bg_color
+                } else {
+                    look.output_bg_color.lerp(look.bg_color, 0.80)
+                };
+                canvas = bg;
+            }
+        }
+
+        canvas
+    }
+
     /// Preferred size to fit the given content size.
     pub fn preferred_size_for_content(&self, cw: f64, ch: f64) -> (f64, f64) {
         let (_, _, ow, oh) = self.outer_insets(cw, ch);
@@ -1538,11 +1594,19 @@ How to move or set the focus:\n\
             OuterBorderType::None => {}
             OuterBorderType::Filled => {
                 painter.paint_rect(0.0, 0.0, w, h, look.bg_color);
+                // C++ DoBorder: canvasColor=color after fill.
+                if !look.bg_color.is_transparent() {
+                    painter.set_canvas_color(look.bg_color);
+                }
             }
             OuterBorderType::Margin => {}
             OuterBorderType::MarginFilled => {
                 let (ox, oy, _, _) = self.outer_insets(w, h);
                 painter.paint_rect(ox, oy, w - 2.0 * ox, h - 2.0 * oy, look.bg_color);
+                // C++ DoBorder: canvasColor=color after fill.
+                if !look.bg_color.is_transparent() {
+                    painter.set_canvas_color(look.bg_color);
+                }
             }
             OuterBorderType::Rect => {
                 // C++ DoBorder: margin d, stroke e, fill at (d,d), outline centered on fill edge.
