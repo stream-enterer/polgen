@@ -1355,6 +1355,7 @@ How to move or set the focus:\n\
                             Color::TRANSPARENT,
                             dim_color(look.fg_color),
                             Color::TRANSPARENT,
+                            crate::render::ImageExtension::EdgeOrZero,
                         );
                     } else {
                         painter.paint_image_scaled(

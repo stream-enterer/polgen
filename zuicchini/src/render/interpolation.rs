@@ -32,6 +32,9 @@ fn sample_pixel(image: &Image, ix: i32, iy: i32, ext: ImageExtension) -> [u8; 4]
             }
             (ix, iy)
         }
+        ImageExtension::EdgeOrZero => {
+            unreachable!("EdgeOrZero must be resolved before interpolation")
+        }
     };
 
     let p = image.pixel(sx as u32, sy as u32);
@@ -166,6 +169,9 @@ fn sample_pixel_section(
                 return [0, 0, 0, 0];
             }
             (ix, iy)
+        }
+        ImageExtension::EdgeOrZero => {
+            unreachable!("EdgeOrZero must be resolved before interpolation")
         }
     };
     let p = image.pixel((sec.ox + sx) as u32, (sec.oy + sy) as u32);

@@ -896,6 +896,7 @@ impl<'a> Painter<'a> {
         color1: Color,
         color2: Color,
         canvas_color: Color,
+        extension: ImageExtension,
     ) {
         // Floating-point dest rect in pixel space (sub-pixel precision).
         let dx = x * self.state.scale_x + self.state.offset_x;
@@ -939,12 +940,7 @@ impl<'a> Painter<'a> {
         let ratio_y = src_h_f / dh;
         let downscaling = ratio_x > 1.0 || ratio_y > 1.0;
 
-        // Odd channel count -> EXTEND_EDGE, even -> EXTEND_ZERO.
-        let ext = if ch.is_multiple_of(2) {
-            super::texture::ImageExtension::Zero
-        } else {
-            super::texture::ImageExtension::Clamp
-        };
+        let ext = extension.resolve_for_colored(color1, color2);
 
         // Helper: lum -> color mapping (shared between downscaling and non-downscaling paths).
         let lum_to_color = |lum: u8| -> Color {
@@ -1122,23 +1118,24 @@ impl<'a> Painter<'a> {
                 continue;
             }
 
-            if ch != ' ' {
-                let (src_x, src_y, src_w, src_h) = em_font::get_glyph(ch);
-                self.paint_image_colored(
-                    cx,
-                    y + y_offset,
-                    char_width,
-                    show_height,
-                    font_atlas,
-                    src_x,
-                    src_y,
-                    src_w,
-                    src_h,
-                    Color::TRANSPARENT,
-                    color,
-                    canvas_color,
-                );
-            }
+            // C++ PaintText renders ALL characters including space — no skip guard.
+            let (src_x, src_y, src_w, src_h) = em_font::get_glyph(ch);
+            // C++ emPainter.cpp:2125 passes EXTEND_ZERO explicitly for font glyphs.
+            self.paint_image_colored(
+                cx,
+                y + y_offset,
+                char_width,
+                show_height,
+                font_atlas,
+                src_x,
+                src_y,
+                src_w,
+                src_h,
+                Color::TRANSPARENT,
+                color,
+                canvas_color,
+                ImageExtension::Zero,
+            );
             cx += char_width;
         }
 
@@ -1817,6 +1814,7 @@ impl<'a> Painter<'a> {
                 color1,
                 color2,
                 canvas_color,
+                ImageExtension::EdgeOrZero,
             );
         }
         if which_sub_rects & (1 << 2) != 0 {
@@ -1833,6 +1831,7 @@ impl<'a> Painter<'a> {
                 color1,
                 color2,
                 canvas_color,
+                ImageExtension::EdgeOrZero,
             );
         }
         if which_sub_rects & (1 << 6) != 0 {
@@ -1849,6 +1848,7 @@ impl<'a> Painter<'a> {
                 color1,
                 color2,
                 canvas_color,
+                ImageExtension::EdgeOrZero,
             );
         }
         if which_sub_rects & (1 << 0) != 0 {
@@ -1865,6 +1865,7 @@ impl<'a> Painter<'a> {
                 color1,
                 color2,
                 canvas_color,
+                ImageExtension::EdgeOrZero,
             );
         }
 
@@ -1884,6 +1885,7 @@ impl<'a> Painter<'a> {
                     color1,
                     color2,
                     canvas_color,
+                    ImageExtension::EdgeOrZero,
                 );
             }
             if which_sub_rects & (1 << 3) != 0 {
@@ -1900,6 +1902,7 @@ impl<'a> Painter<'a> {
                     color1,
                     color2,
                     canvas_color,
+                    ImageExtension::EdgeOrZero,
                 );
             }
         }
@@ -1918,6 +1921,7 @@ impl<'a> Painter<'a> {
                     color1,
                     color2,
                     canvas_color,
+                    ImageExtension::EdgeOrZero,
                 );
             }
             if which_sub_rects & (1 << 1) != 0 {
@@ -1934,6 +1938,7 @@ impl<'a> Painter<'a> {
                     color1,
                     color2,
                     canvas_color,
+                    ImageExtension::EdgeOrZero,
                 );
             }
         }
@@ -1953,6 +1958,7 @@ impl<'a> Painter<'a> {
                 color1,
                 color2,
                 canvas_color,
+                ImageExtension::EdgeOrZero,
             );
         }
 

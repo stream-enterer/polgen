@@ -1,14 +1,39 @@
 use crate::foundation::{Color, Image};
 
 /// How to extend an image beyond its bounds.
+///
+/// Matches C++ `emTexture::ExtensionType`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ImageExtension {
-    /// Clamp to edge pixels.
+    /// Clamp to edge pixels (C++ `EXTEND_EDGE`).
     Clamp,
-    /// Repeat (tile).
+    /// Repeat (tile) (C++ `EXTEND_TILED`).
     Repeat,
-    /// Zero/transparent beyond bounds.
+    /// Zero/transparent beyond bounds (C++ `EXTEND_ZERO`).
     Zero,
+    /// Auto-resolve: Zero if the image has alpha or the texture uses a
+    /// transparent gradient color; otherwise Clamp.  C++ `EXTEND_EDGE_OR_ZERO`.
+    EdgeOrZero,
+}
+
+impl ImageExtension {
+    /// Resolve `EdgeOrZero` into a concrete variant for `paint_image_colored`.
+    ///
+    /// C++ rule (emTexture.h:102-107): if IMAGE_COLORED and one of the gradient
+    /// colors has zero alpha → EXTEND_ZERO, else if image has alpha channel →
+    /// EXTEND_ZERO, else EXTEND_EDGE.
+    pub(crate) fn resolve_for_colored(self, color1: Color, color2: Color) -> Self {
+        match self {
+            Self::EdgeOrZero => {
+                if color1.a() == 0 || color2.a() == 0 {
+                    Self::Zero
+                } else {
+                    Self::Clamp
+                }
+            }
+            other => other,
+        }
+    }
 }
 
 /// Quality hint for image rendering.
