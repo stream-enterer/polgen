@@ -562,15 +562,49 @@ impl Border {
             let cap_h = area_h * cap_units / total_units;
             let gap2 = area_h * gap2_units / total_units;
             let desc_h = area_h * desc_units / total_units;
-            // Font size is ~80% of the row height (leaving padding).
-            let cap_font = (cap_h * 0.8).max(MIN_FONT_SIZE);
-            let desc_font = (desc_h * 0.8).max(MIN_FONT_SIZE);
+            // C++ uses capH/descH directly as maxCharHeight — no 0.8 multiplier.
+            let cap_font = cap_h.max(MIN_FONT_SIZE);
+            let desc_font = desc_h.max(MIN_FONT_SIZE);
+
+            // C++ DoLabel computes totalW from GetTextSize and narrows the
+            // label rect when the text block is narrower than the area.
+            // totalW = capW (the natural text width at char_height=1.0),
+            // then scaled by f = area_h / totalH.  When f*totalW <= area_w,
+            // the rect is narrowed and positioned using LabelAlignment.
+            let total_w = {
+                use crate::render::Painter;
+                let cap_tw = if has_cap {
+                    let (tw, _) = Painter::get_text_size(&self.caption, 1.0, true, 0.0);
+                    tw
+                } else {
+                    1.0
+                };
+                // totalH at unit scale mirrors unit computation above
+                let total_h_unit = cap_units + gap2_units + desc_units;
+                if total_h_unit > 0.0 {
+                    cap_tw // no icon: totalW = capW
+                } else {
+                    1.0
+                }
+            };
+            let f = area_h / (cap_units + gap2_units + desc_units);
+            let w2 = f * total_w;
+            let (label_x, label_w) = if w2 <= area_w {
+                let x_off = match self.label_alignment {
+                    TextAlignment::Left => 0.0,
+                    TextAlignment::Right => area_w - w2,
+                    TextAlignment::Center => (area_w - w2) * 0.5,
+                };
+                (area_x + x_off, w2)
+            } else {
+                (area_x, area_w)
+            };
 
             let cap_rect = if has_cap {
                 Some(Rect {
-                    x: area_x,
+                    x: label_x,
                     y: area_y,
-                    w: area_w,
+                    w: label_w,
                     h: cap_h,
                 })
             } else {
@@ -578,9 +612,9 @@ impl Border {
             };
             let desc_rect = if has_desc {
                 Some(Rect {
-                    x: area_x,
+                    x: label_x,
                     y: area_y + cap_h + gap2,
-                    w: area_w,
+                    w: label_w,
                     h: desc_h,
                 })
             } else {
@@ -1390,6 +1424,8 @@ How to move or set the focus:\n\
             } else {
                 label._caption_font_size
             };
+            // C++ DoLabel passes EM_ALIGN_CENTER as boxAlignment and
+            // CaptionAlignment as textAlignment (emBorder.cpp:1393-1394).
             painter.paint_text_boxed(
                 cr.x,
                 cr.y,
@@ -1399,7 +1435,7 @@ How to move or set the focus:\n\
                 cap_font,
                 dim_color(look.fg_color),
                 Color::TRANSPARENT,
-                cap_align,
+                TextAlignment::Center,
                 VAlign::Center,
                 cap_align,
                 0.5,
@@ -1408,7 +1444,8 @@ How to move or set the focus:\n\
             );
         }
 
-        // Description
+        // Description — C++ uses same `color` for both caption and description
+        // (emBorder.cpp:1406), and EM_ALIGN_CENTER as boxAlignment (line 1408).
         if let Some(ref dr) = label.description_rect {
             painter.paint_text_boxed(
                 dr.x,
@@ -1417,9 +1454,9 @@ How to move or set the focus:\n\
                 dr.h,
                 &self.description,
                 label._description_font_size,
-                dim_color(look.fg_color.darken(0.3)),
+                dim_color(look.fg_color),
                 Color::TRANSPARENT,
-                desc_align,
+                TextAlignment::Center,
                 VAlign::Center,
                 desc_align,
                 0.5,
