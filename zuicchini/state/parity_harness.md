@@ -110,7 +110,7 @@ the rounding direction.
 
 ---
 
-## Baseline (R21, 2026-03-14, post ScalarField/TextField canvas propagation)
+## Baseline (R22, 2026-03-14, post teddy.tga test image fix)
 
 | Test | Pixels | Total | Pct | max_diff |
 |------|--------|-------|-----|----------|
@@ -118,10 +118,23 @@ the rounding direction.
 | colorfield_expanded | 11,986 | 640,000 | 1.87% | 158 |
 | widget_scalarfield | 98 | 480,000 | 0.020% | 56 |
 | listbox_expanded | 314 | 640,000 | 0.049% | 33 |
-| testpanel_expanded | 59,460 | 1,000,000 | 5.95% | 255 |
-| testpanel_root | 81,418 | 1,000,000 | 8.14% | 255 |
+| testpanel_expanded | 59,341 | 1,000,000 | 5.93% | 255 |
+| testpanel_root | 81,295 | 1,000,000 | 8.13% | 255 |
 
-Rolling divergence log: `state/post_r21_widget_canvas.jsonl`
+Rolling divergence log: `state/post_r22_teddy.jsonl`
+
+### R22 Three-Number Dashboard (teddy.tga test image)
+
+| # | Metric | Value |
+|---|--------|-------|
+| 1 | Fix description | Replaced procedural 64x64 gradient with C++ teddy.tga (209x256 RGBA) as TestPanel test image, matching emTestPanel's emGetInsResImage("icons","teddy.tga") |
+| 2 | Total divergent pixels | 157,876 → 157,634 (-242 net) |
+| 3 | Net regression | 0 (no test regressed) |
+
+**Acceptance:** Fix accepted. Test-only change. The C++ emTestPanel loads teddy.tga from
+Eagle Mode's icon resources. Rust was using a procedural 64x64 gradient, causing every
+image-textured area to diverge. Now uses the same TGA via include_bytes! + load_tga.
+Remaining testpanel divergence is EVAL_ORDER (coordinate-space FP).
 
 ### R21 Three-Number Dashboard (ScalarField/TextField canvas propagation)
 

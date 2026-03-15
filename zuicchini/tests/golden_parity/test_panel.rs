@@ -1,8 +1,7 @@
 //! TestPanel integration golden tests.
 //!
 //! Compares rendered output of the Rust TestPanel against C++ emTestPanel.
-//! The C++ version uses teddy.tga for its test image while Rust uses a 64x64
-//! procedural gradient, so textured areas will differ. Paint primitives
+//! Both C++ and Rust use teddy.tga (209x256 RGBA) as the test image. Paint primitives
 //! (polygons, ellipses, strokes, beziers) should match within tolerance.
 //!
 //! Two tests:
@@ -15,7 +14,7 @@ use std::cell::Cell;
 use std::f64::consts::PI;
 use std::rc::Rc;
 
-use zuicchini::foundation::{Color, Image};
+use zuicchini::foundation::{load_tga, Color, Image};
 use zuicchini::input::{Cursor, InputEvent, InputState};
 use zuicchini::layout::linear::{LinearGroup, LinearLayout};
 use zuicchini::layout::raster::{RasterGroup, RasterLayout};
@@ -402,15 +401,7 @@ struct TestPanel {
 
 impl TestPanel {
     fn new(depth: u32, bg_color_shared: Rc<Cell<Color>>) -> Self {
-        let mut img = Image::new(64, 64, 4);
-        for y in 0..64u32 {
-            for x in 0..64u32 {
-                img.set_pixel_channel(x, y, 0, (x * 4) as u8);
-                img.set_pixel_channel(x, y, 1, (y * 4) as u8);
-                img.set_pixel_channel(x, y, 2, 128);
-                img.set_pixel_channel(x, y, 3, 255);
-            }
-        }
+        let img = load_tga(include_bytes!("teddy.tga")).expect("failed to load teddy.tga");
         Self {
             bg_color_shared,
             test_image: img,
@@ -2054,9 +2045,8 @@ fn render_testpanel(
 // ═══════════════════════════════════════════════════════════════════
 
 /// Root panel paint only — no auto-expansion, tests paint primitives.
-/// Known diffs: C++ uses teddy.tga test image, Rust uses 64x64 gradient.
-/// Also: some ellipse sector/round rect parameters differ, C++ non-zero
-/// winding vs Rust even-odd for one polygon, and text rendering variance.
+/// Known diffs: some ellipse sector/round rect parameters differ,
+/// and text rendering variance (runtime values like Pri/MemLim).
 #[test]
 fn testpanel_root() {
     require_golden!();
