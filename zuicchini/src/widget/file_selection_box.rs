@@ -1,10 +1,15 @@
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
-use crate::panel::{PanelBehavior, PanelState};
+use crate::panel::{PanelBehavior, PanelCtx, PanelId, PanelState};
 use crate::render::Painter;
 
 use super::border::{Border, InnerBorderType, OuterBorderType};
+use super::check_box::CheckBox;
+use super::field_panel::{CheckBoxPanel, ListBoxPanel};
+use super::list_box::{ListBox, SelectionMode};
 use super::look::Look;
+use super::text_field::TextField;
 
 /// Data associated with each file entry in the listing.
 #[derive(Clone, Debug)]
@@ -24,6 +29,7 @@ pub struct FileItemData {
 /// - A filter list for file type filtering
 pub struct FileSelectionBox {
     border: Border,
+    look: Rc<Look>,
     multi_selection_enabled: bool,
     parent_dir: PathBuf,
     selected_names: Vec<String>,
@@ -37,6 +43,12 @@ pub struct FileSelectionBox {
     filter_hidden: bool,
     listing_invalid: bool,
     listing: Vec<(String, FileItemData)>,
+    // Child panel IDs (populated on auto-expand)
+    dir_field_id: Option<PanelId>,
+    hidden_cb_id: Option<PanelId>,
+    files_lb_id: Option<PanelId>,
+    name_field_id: Option<PanelId>,
+    filter_lb_id: Option<PanelId>,
 }
 
 impl FileSelectionBox {
@@ -46,6 +58,7 @@ impl FileSelectionBox {
             border: Border::new(OuterBorderType::Group)
                 .with_inner(InnerBorderType::Group)
                 .with_caption(caption),
+            look: Look::new(),
             multi_selection_enabled: false,
             parent_dir,
             selected_names: Vec::new(),
@@ -59,6 +72,11 @@ impl FileSelectionBox {
             filter_hidden: false,
             listing_invalid: true,
             listing: Vec::new(),
+            dir_field_id: None,
+            hidden_cb_id: None,
+            files_lb_id: None,
+            name_field_id: None,
+            filter_lb_id: None,
         }
     }
 
@@ -345,6 +363,89 @@ impl FileSelectionBox {
     pub fn border_mut(&mut self) -> &mut Border {
         &mut self.border
     }
+
+    /// Create child panels matching C++ AutoExpand().
+    fn create_children(&mut self, ctx: &mut PanelCtx) {
+        // Pre-calculate border scaling for FilesLB (C++ sets this dynamically,
+        // but we set it at creation time to avoid downcasting).
+        let rect = ctx.layout_rect();
+        let cr = self
+            .border
+            .content_rect_unobscured(rect.w, rect.h, &self.look);
+        let hs = (cr.w * 0.05).min(cr.h * 0.15);
+        let has_top = !self.parent_dir_field_hidden || !self.hidden_check_box_hidden;
+        let has_bottom = !self.name_field_hidden || !self.filter_hidden;
+        let h1 = if has_top { hs } else { 0.0 };
+        let h3 = if has_bottom { hs } else { 0.0 };
+        let h2 = cr.h - h1 - h3;
+
+        // 1. ParentDirField
+        if !self.parent_dir_field_hidden {
+            let mut tf = TextField::new(self.look.clone());
+            tf.set_caption("Directory");
+            tf.set_editable(true);
+            tf.set_text(&self.parent_dir.to_string_lossy());
+            let id = ctx.create_child_with(
+                "directory",
+                Box::new(super::field_panel::TextFieldPanel { text_field: tf }),
+            );
+            self.dir_field_id = Some(id);
+        }
+
+        // 2. HiddenCheckBox
+        if !self.hidden_check_box_hidden {
+            let mut cb = CheckBox::new("Show\nHidden\nFiles", self.look.clone());
+            cb.set_checked(self.hidden_files_shown);
+            let id =
+                ctx.create_child_with("showHiddenFiles", Box::new(CheckBoxPanel { check_box: cb }));
+            self.hidden_cb_id = Some(id);
+        }
+
+        // 3. FilesLB (always created)
+        {
+            let mut lb = ListBox::new(self.look.clone());
+            lb.set_caption("Files");
+            lb.set_selection_mode(if self.multi_selection_enabled {
+                SelectionMode::Multi
+            } else {
+                SelectionMode::Single
+            });
+            if h2 > 1e-100 {
+                lb.border_mut().set_border_scaling(hs / h2);
+            }
+            let id = ctx.create_child_with("files", Box::new(ListBoxPanel { list_box: lb }));
+            self.files_lb_id = Some(id);
+        }
+
+        // 4. NameField
+        if !self.name_field_hidden {
+            let mut tf = TextField::new(self.look.clone());
+            tf.set_caption("Name");
+            tf.set_editable(true);
+            if let Some(name) = self.selected_names.first() {
+                tf.set_text(name);
+            }
+            let id = ctx.create_child_with(
+                "name",
+                Box::new(super::field_panel::TextFieldPanel { text_field: tf }),
+            );
+            self.name_field_id = Some(id);
+        }
+
+        // 5. FiltersLB
+        if !self.filter_hidden {
+            let mut lb = ListBox::new(self.look.clone());
+            lb.set_caption("Filter");
+            for (i, filter) in self.filters.iter().enumerate() {
+                lb.add_item(format!("{}", i), filter.clone());
+            }
+            if self.selected_filter_index >= 0 {
+                lb.set_selected_index(self.selected_filter_index as usize);
+            }
+            let id = ctx.create_child_with("filter", Box::new(ListBoxPanel { list_box: lb }));
+            self.filter_lb_id = Some(id);
+        }
+    }
 }
 
 /// Match a filename against a filter string of the form `Description (*.ext1 *.ext2)`.
@@ -403,9 +504,69 @@ fn match_pattern_recursive(fname: &[u8], pattern: &[u8]) -> bool {
 
 impl PanelBehavior for FileSelectionBox {
     fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, state: &PanelState) {
-        let look = Look::new();
         self.border
-            .paint_border(painter, w, h, &look, state.enabled, true);
+            .paint_border(painter, w, h, &self.look, state.enabled, true);
+    }
+
+    fn auto_expand(&self) -> bool {
+        true
+    }
+
+    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.is_auto_expanded(ctx.id) {
+            return;
+        }
+
+        if ctx.child_count() == 0 {
+            self.create_children(ctx);
+        }
+
+        let rect = ctx.layout_rect();
+        let (w, h) = (rect.w, rect.h);
+
+        let cr = self.border.content_rect_unobscured(w, h, &self.look);
+        let (x, y, cw, ch) = (cr.x, cr.y, cr.w, cr.h);
+
+        let cc = self
+            .border
+            .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
+
+        // 3-zone geometry matching C++ LayoutChildren
+        let hs = (cw * 0.05).min(ch * 0.15);
+        let has_top = self.dir_field_id.is_some() || self.hidden_cb_id.is_some();
+        let has_bottom = self.name_field_id.is_some() || self.filter_lb_id.is_some();
+        let h1 = if has_top { hs } else { 0.0 };
+        let h3 = if has_bottom { hs } else { 0.0 };
+        let h2 = ch - h1 - h3;
+
+        // Top row: directory field + checkbox
+        if let Some(cb_id) = self.hidden_cb_id {
+            let w2 = (cw * 0.5).min(h1 * 2.0);
+            let w1 = cw - w2;
+            if let Some(df_id) = self.dir_field_id {
+                ctx.layout_child_canvas(df_id, x, y, w1, h1, cc);
+            }
+            ctx.layout_child_canvas(cb_id, x + w1, y, w2, h1, cc);
+        } else if let Some(df_id) = self.dir_field_id {
+            ctx.layout_child_canvas(df_id, x, y, cw, h1, cc);
+        }
+
+        // Middle: files list
+        if let Some(fl_id) = self.files_lb_id {
+            ctx.layout_child_canvas(fl_id, x, y + h1, cw, h2, cc);
+        }
+
+        // Bottom row: name field + filter list
+        if let Some(flb_id) = self.filter_lb_id {
+            let w2 = (cw * 0.5).min(h3 * 10.0);
+            let w1 = cw - w2;
+            if let Some(nf_id) = self.name_field_id {
+                ctx.layout_child_canvas(nf_id, x, y + h1 + h2, w1, h3, cc);
+            }
+            ctx.layout_child_canvas(flb_id, x + w1, y + h1 + h2, w2, h3, cc);
+        } else if let Some(nf_id) = self.name_field_id {
+            ctx.layout_child_canvas(nf_id, x, y + h1 + h2, cw, h3, cc);
+        }
     }
 }
 

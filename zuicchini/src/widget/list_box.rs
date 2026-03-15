@@ -277,6 +277,10 @@ impl ListBox {
         self.border.caption = caption.to_string();
     }
 
+    pub fn border_mut(&mut self) -> &mut Border {
+        &mut self.border
+    }
+
     // ── Selection mode ──────────────────────────────────────────────
 
     pub fn selection_mode(&self) -> SelectionMode {
