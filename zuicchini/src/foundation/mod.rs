@@ -6,6 +6,7 @@ mod color;
 mod em_rec;
 mod fixed;
 mod image;
+mod install_info;
 mod process;
 mod rect;
 mod tga;
@@ -21,6 +22,9 @@ pub use em_rec::{
 };
 pub use fixed::Fixed12;
 pub use image::Image;
+pub use install_info::{
+    get_config_dir_overloadable, get_install_path, InstallDirType, InstallInfoError,
+};
 pub use process::{PipeResult, Process, ProcessError, StartFlags};
 pub use rect::{PixelRect, Rect};
 pub use tga::{load_tga, TgaError};

@@ -4,6 +4,7 @@ mod config_model;
 mod cursor;
 mod default_item_panel;
 mod file_model;
+mod install_info;
 mod job;
 mod look;
 mod pri_sched_agent;
