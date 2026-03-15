@@ -1,6 +1,7 @@
 mod clipboard;
 mod config_model;
 mod context;
+mod core_config;
 mod file_model;
 mod fp_plugin;
 mod image_file_model;
@@ -13,6 +14,7 @@ mod watched_var;
 pub use clipboard::{lookup_clipboard, Clipboard, PrivateClipboard};
 pub use config_model::ConfigModel;
 pub use context::Context;
+pub use core_config::CoreConfig;
 pub use file_model::{FileModel, FileModelOps, FileState};
 pub use fp_plugin::{FileStatMode, FpPlugin, FpPluginError, FpPluginList, FpPluginProperty};
 pub use image_file_model::{ImageFileData, ImageFileModel};

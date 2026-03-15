@@ -1,0 +1,115 @@
+use zuicchini::foundation::RecStruct;
+use zuicchini::model::{Context, CoreConfig, Record};
+
+#[test]
+fn defaults_match_cpp() {
+    let cfg = CoreConfig::default();
+    assert!(!cfg.stick_mouse_when_navigating);
+    assert!(!cfg.emulate_middle_button);
+    assert!(!cfg.pan_function);
+    assert_eq!(cfg.mouse_zoom_speed, 1.0);
+    assert_eq!(cfg.mouse_scroll_speed, 1.0);
+    assert_eq!(cfg.mouse_wheel_zoom_speed, 1.0);
+    assert_eq!(cfg.mouse_wheel_zoom_acceleration, 1.0);
+    assert_eq!(cfg.keyboard_zoom_speed, 1.0);
+    assert_eq!(cfg.keyboard_scroll_speed, 1.0);
+    assert_eq!(cfg.kinetic_zooming_and_scrolling, 1.0);
+    assert_eq!(cfg.magnetism_radius, 1.0);
+    assert_eq!(cfg.magnetism_speed, 1.0);
+    assert_eq!(cfg.visit_speed, 1.0);
+    assert_eq!(cfg.max_megabytes_per_view, 2048);
+    assert_eq!(cfg.max_render_threads, 8);
+    assert!(cfg.allow_simd);
+    assert_eq!(cfg.downscale_quality, 3); // DQ_3X3
+    assert_eq!(cfg.upscale_quality, 2); // UQ_BILINEAR
+}
+
+#[test]
+fn round_trip_all_fields() {
+    let cfg = CoreConfig {
+        stick_mouse_when_navigating: true,
+        emulate_middle_button: true,
+        pan_function: true,
+        mouse_zoom_speed: 2.5,
+        mouse_scroll_speed: 3.0,
+        mouse_wheel_zoom_speed: 0.5,
+        mouse_wheel_zoom_acceleration: 1.5,
+        keyboard_zoom_speed: 3.5,
+        keyboard_scroll_speed: 0.25,
+        kinetic_zooming_and_scrolling: 0.75,
+        magnetism_radius: 2.0,
+        magnetism_speed: 3.0,
+        visit_speed: 5.0,
+        max_megabytes_per_view: 4096,
+        max_render_threads: 16,
+        allow_simd: false,
+        downscale_quality: 6,
+        upscale_quality: 5,
+    };
+
+    let rec = cfg.to_rec();
+    let restored = CoreConfig::from_rec(&rec).unwrap();
+    assert_eq!(cfg, restored);
+}
+
+#[test]
+fn clamping_double_fields() {
+    let mut rec = RecStruct::new();
+    // Out-of-range values
+    rec.set_double("MouseZoomSpeed", 100.0); // max 4.0
+    rec.set_double("MouseScrollSpeed", 0.01); // min 0.25
+    rec.set_double("MouseWheelZoomAcceleration", 5.0); // max 2.0
+    rec.set_double("VisitSpeed", 0.001); // min 0.1
+    rec.set_double("KineticZoomingAndScrolling", 99.0); // max 2.0
+
+    let cfg = CoreConfig::from_rec(&rec).unwrap();
+    assert_eq!(cfg.mouse_zoom_speed, 4.0);
+    assert_eq!(cfg.mouse_scroll_speed, 0.25);
+    assert_eq!(cfg.mouse_wheel_zoom_acceleration, 2.0);
+    assert_eq!(cfg.visit_speed, 0.1);
+    assert_eq!(cfg.kinetic_zooming_and_scrolling, 2.0);
+}
+
+#[test]
+fn clamping_int_fields() {
+    let mut rec = RecStruct::new();
+    rec.set_int("MaxMegabytesPerView", 1); // min 8
+    rec.set_int("MaxRenderThreads", 100); // max 32
+    rec.set_int("DownscaleQuality", 0); // min 2 (DQ_2X2)
+    rec.set_int("UpscaleQuality", 99); // max 5 (UQ_ADAPTIVE)
+
+    let cfg = CoreConfig::from_rec(&rec).unwrap();
+    assert_eq!(cfg.max_megabytes_per_view, 8);
+    assert_eq!(cfg.max_render_threads, 32);
+    assert_eq!(cfg.downscale_quality, 2);
+    assert_eq!(cfg.upscale_quality, 5);
+}
+
+#[test]
+fn missing_fields_use_defaults() {
+    let rec = RecStruct::new();
+    let cfg = CoreConfig::from_rec(&rec).unwrap();
+    assert_eq!(cfg, CoreConfig::default());
+}
+
+#[test]
+fn acquire_returns_singleton() {
+    let ctx = Context::new_root();
+    let m1 = CoreConfig::acquire(&ctx);
+    let m2 = CoreConfig::acquire(&ctx);
+    assert!(std::rc::Rc::ptr_eq(&m1, &m2));
+}
+
+#[test]
+fn set_to_default_restores_defaults() {
+    let mut cfg = CoreConfig {
+        mouse_zoom_speed: 3.5,
+        max_render_threads: 1,
+        allow_simd: false,
+        ..CoreConfig::default()
+    };
+    assert!(!cfg.is_default());
+    cfg.set_to_default();
+    assert!(cfg.is_default());
+    assert_eq!(cfg, CoreConfig::default());
+}

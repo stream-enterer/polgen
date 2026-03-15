@@ -1,6 +1,7 @@
 mod clipboard;
 mod color_field;
 mod config_model;
+mod core_config;
 mod cursor;
 mod default_item_panel;
 mod file_model;
