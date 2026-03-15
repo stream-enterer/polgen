@@ -41,6 +41,12 @@
 #include <emCore/emSplitter.h>
 #include <emCore/emTextField.h>
 
+// Coverage extension widget headers (CAP audit)
+#include <emCore/emErrorPanel.h>
+#include <emCore/emFilePanel.h>
+#include <emCore/emFileSelectionBox.h>
+#include <emCore/emTunnel.h>
+
 // TestPanel integration tests
 #include <emTest/emTestPanel.h>
 
@@ -2576,6 +2582,71 @@ static void gen_widget_splitter_v() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Coverage extension widget rendering generators (CAP audit)
+// ═══════════════════════════════════════════════════════════════════
+
+// CAP-0023: emErrorPanel — dark-red background with yellow error text
+static void gen_widget_error_panel() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emErrorPanel>(view, "test",
+                                          "Test error: something went wrong");
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_error_panel", vp, ctx);
+}
+
+// CAP-0076: emTunnel — concentric rounded-rectangle tunnel visual
+static void gen_widget_tunnel() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emTunnel>(view, "test", "Tunnel Test");
+    w->SetDepth(10.0);
+    w->SetChildTallness(0.75);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_tunnel", vp, ctx);
+}
+
+// CAP-0026: emFilePanel — no file model state (shows status text)
+static void gen_widget_file_panel() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emFilePanel>(view, "test", NULL, true);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_file_panel", vp, ctx);
+}
+
+// CAP-0027: emFileSelectionBox — empty directory listing
+static void gen_widget_file_selection_box() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emFileSelectionBox>(view, "test", "Select File");
+    w->SetParentDirectory("/nonexistent_golden_test_dir");
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_file_selection_box", vp, ctx);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Phase 7: Widget interaction golden generators
 // ═══════════════════════════════════════════════════════════════════
 
@@ -4115,6 +4186,12 @@ int main() {
     gen_widget_listbox();
     gen_widget_splitter_h();
     gen_widget_splitter_v();
+
+    printf("Generating coverage extension widget golden files...\n");
+    gen_widget_error_panel();
+    gen_widget_tunnel();
+    gen_widget_file_panel();
+    gen_widget_file_selection_box();
 
     printf("Generating widget interaction golden files...\n");
     gen_widget_checkbox_toggle();

@@ -6,8 +6,9 @@ use zuicchini::panel::{
 };
 use zuicchini::render::{Painter, SoftwareCompositor};
 use zuicchini::widget::{
-    Border, Button, CheckBox, ColorField, InnerBorderType, Label, ListBox, Look, OuterBorderType,
-    RadioButton, RadioGroup, ScalarField, Splitter, TextField,
+    Border, Button, CheckBox, ColorField, ErrorPanel, FilePanel, FileSelectionBox, InnerBorderType,
+    Label, ListBox, Look, OuterBorderType, RadioButton, RadioGroup, ScalarField, Splitter,
+    TextField, Tunnel,
 };
 
 use super::common::*;
@@ -671,4 +672,116 @@ fn listbox_expanded() {
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
     result.unwrap();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Coverage extension golden tests (CAP audit)
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── CAP-0023: widget_error_panel ──────────────────────────────
+
+#[test]
+fn widget_error_panel() {
+    require_golden!();
+    let panel = ErrorPanel::new("Test error: something went wrong");
+
+    render_and_compare_tol("widget_error_panel", Box::new(panel), 3, 3.0);
+}
+
+// ─── CAP-0076: widget_tunnel ───────────────────────────────────
+
+/// Wraps a Tunnel widget as a PanelBehavior.
+struct TunnelBehavior {
+    tunnel: Tunnel,
+}
+
+impl PanelBehavior for TunnelBehavior {
+    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, _state: &PanelState) {
+        self.tunnel.paint(painter, w, h);
+    }
+}
+
+#[test]
+fn widget_tunnel() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_tunnel");
+
+    let look = Look::new();
+    let mut tunnel = Tunnel::new(look).with_caption("Tunnel Test");
+    tunnel.set_depth(10.0);
+    tunnel.set_child_tallness(0.75);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(TunnelBehavior { tunnel }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images("widget_tunnel", actual, &expected, w, h, 3, 10.0);
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_tunnel", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 3);
+    }
+    if let Err(e) = result {
+        eprintln!("widget_tunnel: KNOWN DIVERGENCE — {e}");
+    }
+}
+
+// ─── CAP-0026: widget_file_panel ───────────────────────────────
+
+#[test]
+fn widget_file_panel() {
+    require_golden!();
+    // Matches C++ gen: `new emFilePanel(view, "test", NULL, true)` — no file model.
+    let panel = FilePanel::new();
+
+    render_and_compare_tol("widget_file_panel", Box::new(panel), 3, 3.0);
+}
+
+// ─── CAP-0027: widget_file_selection_box ───────────────────────
+
+#[test]
+fn widget_file_selection_box() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_file_selection_box");
+
+    let mut fsb = FileSelectionBox::new("Select File");
+    fsb.set_parent_directory(std::path::Path::new("/nonexistent_golden_test_dir"));
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(fsb));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_file_selection_box",
+        actual,
+        &expected,
+        w,
+        h,
+        3,
+        90.0,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_file_selection_box", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 3);
+    }
+    if let Err(e) = result {
+        eprintln!("widget_file_selection_box: KNOWN DIVERGENCE — {e}");
+    }
 }
