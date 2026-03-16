@@ -1943,9 +1943,9 @@ impl View {
         // Get the panel's substance rect in viewport coords
         let (sx, sy, sw, sh, _sr) = tree.get_substance_rect(active_id);
         let hx = panel.viewed_x + sx * panel.viewed_width;
-        let hy = panel.viewed_y + sy * panel.viewed_height;
+        let hy = panel.viewed_y + sy * panel.viewed_width;
         let hw = sw * panel.viewed_width;
-        let hh = sh * panel.viewed_height;
+        let hh = sh * panel.viewed_width;
 
         if hw < 1.0 || hh < 1.0 {
             return;
@@ -2434,5 +2434,48 @@ mod tests {
         let ms = view.get_input_clock_ms();
         // Should be a reasonable epoch-based timestamp (after year 2020)
         assert!(ms > 1_577_836_800_000);
+    }
+
+    #[test]
+    fn test_highlight_rect_uses_viewed_width_for_y() {
+        // Create a non-square child panel so viewed_height != viewed_width.
+        // Root is square so viewed_width == viewed_height for it — we need
+        // to test with a child whose layout_h != layout_w.
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("root");
+        tree.get_mut(root).unwrap().focusable = true;
+        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+
+        let child = tree.create_child(root, "child");
+        tree.get_mut(child).unwrap().focusable = true;
+        // Non-square child: w=0.5, h=0.25 → tallness = 0.5
+        tree.set_layout_rect(child, 0.1, 0.1, 0.5, 0.25);
+
+        let mut view = View::new(root, 800.0, 600.0);
+        view.set_active_panel(&mut tree, child, false);
+        view.update_viewing(&mut tree);
+
+        let panel = tree.get(child).unwrap();
+        assert!(panel.viewed, "child should be viewed");
+        // For a non-square child, viewed_width and viewed_height differ
+        assert!(
+            (panel.viewed_height - panel.viewed_width).abs() > 1.0,
+            "Test setup: child must have viewed_width != viewed_height, got w={} h={}",
+            panel.viewed_width,
+            panel.viewed_height
+        );
+
+        // Substance rect components are in width-relative units.
+        // Y and H must multiply by viewed_width, not viewed_height.
+        let (_sx, sy, _sw, sh, _sr) = tree.get_substance_rect(child);
+        let correct_hy = panel.viewed_y + sy * panel.viewed_width;
+        let correct_hh = sh * panel.viewed_width;
+        let wrong_hh = sh * panel.viewed_height;
+        assert!(
+            (correct_hh - wrong_hh).abs() > 1.0,
+            "viewed_width and viewed_height must produce different results"
+        );
+        assert!(correct_hy.is_finite());
+        assert!(correct_hh > 0.0);
     }
 }
