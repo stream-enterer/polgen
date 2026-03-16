@@ -8,6 +8,12 @@ use super::view::{View, ViewFlags};
 pub trait ViewInputFilter {
     /// Process an input event. Returns true if the event was consumed.
     fn filter(&mut self, event: &InputEvent, state: &InputState, view: &mut View) -> bool;
+
+    /// Tick per-frame animations (wheel zoom spring, grip pan spring).
+    /// Returns true if animation is still active and needs another frame.
+    fn animate(&mut self, _view: &mut View, _tree: &mut super::tree::PanelTree, _dt: f64) -> bool {
+        false
+    }
 }
 
 /// Mouse wheel zoom and middle-button pan filter.
@@ -630,6 +636,12 @@ impl ViewInputFilter for MouseZoomScrollVIF {
         }
 
         false
+    }
+
+    fn animate(&mut self, view: &mut View, tree: &mut super::tree::PanelTree, dt: f64) -> bool {
+        let wheel = self.animate_wheel(view, tree, dt);
+        let grip = self.animate_grip(view, tree, dt);
+        wheel || grip
     }
 }
 
@@ -1931,5 +1943,31 @@ mod tests {
         let (mut tree, mut view) = setup();
         let mut vif = MouseZoomScrollVIF::new();
         assert!(!vif.animate_grip(&mut view, &mut tree, 1.0 / 60.0));
+    }
+
+    #[test]
+    fn test_vif_animate_trait_delegates_wheel() {
+        let (mut tree, mut view) = setup();
+        let mut vif = MouseZoomScrollVIF::new();
+        let state = InputState::new();
+
+        // Feed a wheel event to activate wheel spring
+        let event = InputEvent::press(InputKey::WheelUp);
+        let consumed = vif.filter(&event, &state, &mut view);
+        assert!(consumed);
+
+        // Call animate via the trait — should return true (animation active)
+        let active = ViewInputFilter::animate(&mut vif, &mut view, &mut tree, 1.0 / 60.0);
+        assert!(active, "animate() should return true when wheel is active");
+    }
+
+    #[test]
+    fn test_vif_animate_returns_false_when_idle() {
+        let (mut tree, mut view) = setup();
+        let mut vif = MouseZoomScrollVIF::new();
+
+        // No events fed — animate should return false
+        let active = ViewInputFilter::animate(&mut vif, &mut view, &mut tree, 1.0 / 60.0);
+        assert!(!active, "animate() should return false when idle");
     }
 }

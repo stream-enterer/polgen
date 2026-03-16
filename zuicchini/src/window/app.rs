@@ -263,6 +263,11 @@ impl ApplicationHandler for App {
                 }
             }
 
+            // Tick VIF animations (wheel zoom spring, grip pan spring)
+            if win.tick_vif_animations(tree, dt) {
+                needs_repaint = true;
+            }
+
             // Update view (recompute viewing coords, auto-select active)
             win.view_mut().update(tree);
 

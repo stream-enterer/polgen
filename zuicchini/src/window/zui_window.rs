@@ -681,6 +681,19 @@ impl ZuiWindow {
         &mut self.view
     }
 
+    /// Tick VIF animations (wheel zoom spring, grip pan spring).
+    /// Returns true if any animation is still active.
+    pub fn tick_vif_animations(&mut self, tree: &mut PanelTree, dt: f64) -> bool {
+        let view = &mut self.view;
+        let mut active = false;
+        for vif in &mut self.vif_chain {
+            if vif.animate(view, tree, dt) {
+                active = true;
+            }
+        }
+        active
+    }
+
     pub fn root_panel(&self) -> PanelId {
         self.root_panel
     }
