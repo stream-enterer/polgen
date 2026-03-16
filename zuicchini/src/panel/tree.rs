@@ -1353,6 +1353,35 @@ impl PanelTree {
         }
     }
 
+    /// Walk this tree's parent chain from `id`, but create the control panel
+    /// in `target_tree` as a child of `parent_arg`.
+    ///
+    /// This enables cross-tree creation: behaviors live in the content tree,
+    /// but the control panel is created in the control tree.
+    pub fn create_control_panel_in(
+        &mut self,
+        id: PanelId,
+        target_tree: &mut PanelTree,
+        parent_arg: PanelId,
+        name: &str,
+    ) -> Option<PanelId> {
+        let mut cur = id;
+        loop {
+            if let Some(mut behavior) = self.take_behavior(cur) {
+                let mut ctx = PanelCtx::new(target_tree, parent_arg);
+                let result = behavior.create_control_panel(&mut ctx, name);
+                self.put_behavior(cur, behavior);
+                if result.is_some() {
+                    return result;
+                }
+            }
+            match self.panels.get(cur).and_then(|p| p.parent) {
+                Some(parent) => cur = parent,
+                None => return None,
+            }
+        }
+    }
+
     // ── View condition ──────────────────────────────────────────────
 
     /// Return a size metric for how large the panel appears in the view.

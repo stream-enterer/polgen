@@ -750,6 +750,7 @@ impl View {
             }
         }
         self.activation_adherent = adherent;
+        self.control_panel_invalid = true;
     }
 
     /// Auto-select best visible focusable panel as active.
@@ -1876,11 +1877,21 @@ impl View {
 
     // --- Control panel (C++ CreateControlPanel / GetControlPanelSignal) ---
 
-    /// TODO: Port emView::CreateControlPanel (emView.cpp) — creates overlay
-    /// panel when a panel is visited. The TestPanel overrides this to show
-    /// a BgColor field (emTestPanel.cpp:511-517). Currently returns None.
-    pub fn create_control_panel(&self, _tree: &PanelTree) -> Option<PanelId> {
-        None
+    /// Create the control panel for the currently active panel.
+    ///
+    /// Walks the content tree's parent chain from the active panel to find
+    /// a behavior that creates a control panel, but creates the panel in
+    /// `control_tree` as a child of `parent`. Matches C++
+    /// `emView::CreateControlPanel`.
+    pub fn create_control_panel(
+        &self,
+        content_tree: &mut PanelTree,
+        control_tree: &mut PanelTree,
+        parent: PanelId,
+        name: &str,
+    ) -> Option<PanelId> {
+        let active = self.active?;
+        content_tree.create_control_panel_in(active, control_tree, parent, name)
     }
 
     /// Whether the control panel signal has been raised (needs recreation).
@@ -2658,13 +2669,16 @@ mod tests {
         view.update_viewing(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
-        // child1 is in active path
-        assert!(!view.is_control_panel_invalid());
+        // set_active_panel unconditionally invalidates the control panel
+        assert!(view.is_control_panel_invalid());
+        view.clear_control_panel_invalid();
+
+        // child1 is in active path — invalidate_control_panel sets flag
         view.invalidate_control_panel(&tree, child1);
         assert!(view.is_control_panel_invalid());
         view.clear_control_panel_invalid();
 
-        // child2 is NOT in active path
+        // child2 is NOT in active path — flag stays clear
         view.invalidate_control_panel(&tree, child2);
         assert!(!view.is_control_panel_invalid());
     }
