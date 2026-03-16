@@ -8,7 +8,7 @@ mod scanline;
 mod software_compositor;
 mod stroke;
 mod texture;
-pub(crate) mod thread_pool;
+pub mod thread_pool;
 pub mod tile_cache;
 
 pub use compositor::WgpuCompositor;

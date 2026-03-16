@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// Port of C++ `emRenderThreadPool`. Manages a configurable number of
 /// worker threads for rendering tiles concurrently. Uses `std::thread::scope`
 /// for zero-cost thread lifetime management.
-pub(crate) struct RenderThreadPool {
+pub struct RenderThreadPool {
     thread_count: usize,
 }
 

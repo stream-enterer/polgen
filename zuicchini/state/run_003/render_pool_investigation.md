@@ -202,4 +202,42 @@ The implementation uses a display list approach instead of the C++ UserSpaceMute
 - Zero clippy warnings
 
 ### Miri / ThreadSanitizer
-Not run — Miri doesn't support `std::thread::scope` well, and ThreadSanitizer requires nightly + custom RUSTFLAGS. Noted as a gap.
+Not run — nightly toolchain not installed. Noted as a gap.
+
+## Gate 6: Verification and Benchmark
+
+### Test results with max_render_threads=1
+All 1105 tests pass (199 golden + 8 parallel + 612 unit + ... others).
+
+### Test results with max_render_threads=4
+All 1105 tests pass. The 8 parallel tests verify byte-identical output
+between 1-thread and 4-thread tiled rendering using the display list pipeline.
+
+### Results are identical
+Single-threaded tiled rendering and multi-threaded tiled rendering produce
+byte-identical output for all tested scenes (border, checkbox, label,
+scalar field) with tile sizes 32, 64, and 128.
+
+Note: Tiled rendering has inherent sub-pixel AA artifacts at tile boundaries
+compared to viewport (non-tiled) rendering. These artifacts are identical
+between single- and multi-threaded tiled paths. They are preexisting in the
+per-tile rendering path used by ZuiWindow.
+
+### Divergence comparison against baseline
+All golden tests show unchanged divergence, except `widget_colorfield` which
+IMPROVED (2664→2428 failing pixels, max 185→71). This improvement is from
+earlier commits (ListBox/TextField stub closures), not from thread pool changes.
+
+### Benchmark (100 iterations, 800x600, Border with caption)
+- Single-threaded: 4391.6ms total (43.92ms/frame)
+- Multi-threaded (4 threads, 128px tiles): 2164.1ms total (21.64ms/frame)
+- Speedup: 2.03x
+
+The 2x speedup with 4 threads reflects the overhead of:
+1. Display list recording (single-threaded tree walk + DrawOp capture)
+2. Thread pool dispatch (std::thread::scope spawning overhead)
+3. Tile compositing (copying tile buffers back to framebuffer)
+
+The recording phase is overhead not present in direct rendering, limiting
+the theoretical speedup. More complex scenes with heavier pixel work
+(text, gradients, images) should see better speedup ratios.

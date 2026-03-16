@@ -7,6 +7,7 @@ mod interaction;
 mod layout;
 mod notice;
 mod painter;
+mod parallel;
 mod scheduler;
 #[path = "../support/mod.rs"]
 mod support;
