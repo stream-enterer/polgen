@@ -347,9 +347,12 @@ impl TextField {
         }
         // D-WIDGET-03: Reset undo merge on cursor/selection movement.
         self.undo_merge = UndoMergeType::NoMerge;
+        // C++ Select() always fires SelectionSignal (line 171) unless state
+        // is completely unchanged. Match by always firing when clearing or
+        // when bounds changed — C++ EmptySelection() fires even on empty→empty.
         let new_start = self.selection_start();
         let new_end = self.selection_end();
-        if old_start != new_start || old_end != new_end {
+        if old_start != new_start || old_end != new_end || !extend {
             self.fire_selection_change();
         }
     }
@@ -2064,6 +2067,12 @@ impl TextField {
                 self.fire_change();
                 self.fire_selection_change();
             }
+        }
+
+        // C++ publishes selection to clipboard on mouse release after drag
+        // (DM_SELECT line 450, DM_SELECT_BY_WORDS line 478, DM_SELECT_BY_ROWS line 506).
+        if was_dragging && !self.is_selection_empty() {
+            self.publish_selection();
         }
 
         self.drag_mode = DragMode::None;
