@@ -258,6 +258,7 @@ impl PanelBehavior for WidgetGroupPanel {
                 }
                 WidgetCategory::TextFields => {
                     let mut tf1 = TextField::new(look.clone());
+                    tf1.set_editable(false);
                     tf1.set_text("Read-Only");
                     ctx.create_child_with("tf1", Box::new(TextFieldPanel { widget: tf1 }));
                     let mut tf2 = TextField::new(look.clone());

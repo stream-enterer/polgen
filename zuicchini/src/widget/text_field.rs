@@ -949,7 +949,7 @@ impl TextField {
         painter.clip_rect(cx, cy, cw, ch);
 
         if self.multi_line {
-            self.paint_multi_line(painter, cx, cy, cw, ch);
+            self.paint_multi_line(painter, cx, cy, cw, ch, radius);
         } else {
             self.paint_single_line(painter, cx, cy, cw, ch, radius);
         }
@@ -1149,31 +1149,30 @@ impl TextField {
         }
     }
 
-    fn paint_multi_line(&mut self, painter: &mut Painter, cx: f64, cy: f64, _cw: f64, ch: f64) {
+    fn paint_multi_line(
+        &mut self,
+        painter: &mut Painter,
+        cx: f64,
+        cy: f64,
+        cw: f64,
+        ch: f64,
+        radius: f64,
+    ) {
         let canvas_color = painter.canvas_color();
-        let rows: Vec<&str> = self.text.split('\n').collect();
-        let total_rows = rows.len();
 
-        // Update row_y_positions
-        self.row_y_positions.clear();
-        for i in 0..total_rows {
-            self.row_y_positions.push(i as f64 * LINE_HEIGHT);
-        }
+        // C++ DoTextField sizing: d = min(h,w)*0.1 + r*0.5; th = h-2*d; cell_h = th/rows
+        let d = ch.min(cw) * 0.1 + radius * 0.5;
+        let tx = cx + d;
+        let ty = cy + d;
+        let tw = (cw - 2.0 * d).max(0.0);
+        let th = (ch - 2.0 * d).max(0.0);
 
-        let (cursor_col, cursor_row) = self.index_to_col_row(self.cursor);
-        let cursor_y_px = cursor_row as f64 * LINE_HEIGHT;
-
-        // Scroll to keep cursor visible
-        let visible_h = ch;
-        if cursor_y_px - self.scroll_y + LINE_HEIGHT > visible_h {
-            self.scroll_y = cursor_y_px + LINE_HEIGHT - visible_h;
-        }
-        if cursor_y_px - self.scroll_y < 0.0 {
-            self.scroll_y = cursor_y_px;
-        }
-        if self.scroll_y < 0.0 {
-            self.scroll_y = 0.0;
-        }
+        let (_, total_rows) = self.calc_total_cols_rows();
+        let cell_h = if total_rows > 0 {
+            th / total_rows as f64
+        } else {
+            th
+        };
 
         // Select colors based on editable state (C++ emTextField.cpp:956-965)
         let fg = if self.editable {
@@ -1181,6 +1180,28 @@ impl TextField {
         } else {
             self.look.output_fg_color
         };
+
+        let rows: Vec<&str> = self.text.split('\n').collect();
+
+        // Update row_y_positions
+        self.row_y_positions.clear();
+        for i in 0..rows.len() {
+            self.row_y_positions.push(i as f64 * cell_h);
+        }
+
+        let (cursor_col, cursor_row) = self.index_to_col_row(self.cursor);
+        let cursor_y_px = cursor_row as f64 * cell_h;
+
+        // Scroll to keep cursor visible
+        if cursor_y_px - self.scroll_y + cell_h > th {
+            self.scroll_y = cursor_y_px + cell_h - th;
+        }
+        if cursor_y_px - self.scroll_y < 0.0 {
+            self.scroll_y = cursor_y_px;
+        }
+        if self.scroll_y < 0.0 {
+            self.scroll_y = 0.0;
+        }
 
         let sel_start = self.selection_start();
         let sel_end = self.selection_end();
@@ -1190,62 +1211,47 @@ impl TextField {
         if has_selection {
             let (col0, row0) = self.index_to_col_row(sel_start);
             let (col1, row1) = self.index_to_col_row(sel_end);
-            let tx = cx + TEXT_PADDING;
-            let ty = cy - self.scroll_y;
 
-            // Compute column x-positions using text measurement
             let sel_start_row = self.row_start(sel_start);
             let sel_end_row = self.row_start(sel_end);
             let start_text = &self.text[sel_start_row..sel_start];
             let end_text = &self.text[sel_end_row..sel_end];
-            let x0 = Painter::measure_text_width(start_text, TEXT_SIZE);
-            let x1 = Painter::measure_text_width(end_text, TEXT_SIZE);
+            let x0 = Painter::measure_text_width(start_text, cell_h);
+            let x1 = Painter::measure_text_width(end_text, cell_h);
 
-            // Total text width for right edge (use max row width)
-            let tw = _cw - 2.0 * TEXT_PADDING;
+            let scroll_ty = ty - self.scroll_y;
 
             if row0 == row1 {
-                // Single row: simple rect
                 painter.paint_rect(
                     tx + x0,
-                    ty + row0 as f64 * LINE_HEIGHT,
+                    scroll_ty + row0 as f64 * cell_h,
                     x1 - x0,
-                    LINE_HEIGHT,
+                    cell_h,
                     self.look.input_hl_color,
                     canvas_color,
                 );
             } else {
-                // Multi-row: 8-vertex polygon
                 let vertices = [
-                    (tx + x0, ty + row0 as f64 * LINE_HEIGHT),
-                    (tx + tw, ty + row0 as f64 * LINE_HEIGHT),
-                    (tx + tw, ty + row1 as f64 * LINE_HEIGHT),
-                    (tx + x1, ty + row1 as f64 * LINE_HEIGHT),
-                    (tx + x1, ty + (row1 + 1) as f64 * LINE_HEIGHT),
-                    (tx, ty + (row1 + 1) as f64 * LINE_HEIGHT),
-                    (tx, ty + (row0 + 1) as f64 * LINE_HEIGHT),
-                    (tx + x0, ty + (row0 + 1) as f64 * LINE_HEIGHT),
+                    (tx + x0, scroll_ty + row0 as f64 * cell_h),
+                    (tx + tw, scroll_ty + row0 as f64 * cell_h),
+                    (tx + tw, scroll_ty + row1 as f64 * cell_h),
+                    (tx + x1, scroll_ty + row1 as f64 * cell_h),
+                    (tx + x1, scroll_ty + (row1 + 1) as f64 * cell_h),
+                    (tx, scroll_ty + (row1 + 1) as f64 * cell_h),
+                    (tx, scroll_ty + (row0 + 1) as f64 * cell_h),
+                    (tx + x0, scroll_ty + (row0 + 1) as f64 * cell_h),
                 ];
                 painter.paint_polygon(&vertices, self.look.input_hl_color, canvas_color);
             }
-            let _ = (col0, col1); // used via index_to_col_row for row calculation
+            let _ = (col0, col1);
         }
 
         for (row_idx, row_text) in rows.iter().enumerate() {
-            let row_y = cy + row_idx as f64 * LINE_HEIGHT - self.scroll_y;
-            if row_y + LINE_HEIGHT < cy || row_y > cy + ch {
+            let row_y = ty + row_idx as f64 * cell_h - self.scroll_y;
+            if row_y + cell_h < cy || row_y > cy + ch {
                 continue;
             }
-
-            painter.paint_text(
-                cx + TEXT_PADDING,
-                row_y + (LINE_HEIGHT - TEXT_SIZE) / 2.0,
-                row_text,
-                TEXT_SIZE,
-                1.0,
-                fg,
-                canvas_color,
-            );
+            painter.paint_text(tx, row_y, row_text, cell_h, 1.0, fg, canvas_color);
         }
 
         // Cursor — C++ only renders when panel is in focused path
@@ -1254,9 +1260,9 @@ impl TextField {
         }
         let cursor_row_start = self.row_start(self.cursor);
         let cursor_in_row = &self.text[cursor_row_start..self.cursor];
-        let cursor_x_px = Painter::measure_text_width(cursor_in_row, TEXT_SIZE);
-        let cursor_x = cx + TEXT_PADDING + cursor_x_px;
-        let cursor_screen_y = cy + cursor_row as f64 * LINE_HEIGHT - self.scroll_y;
+        let cursor_x_px = Painter::measure_text_width(cursor_in_row, cell_h);
+        let cursor_x = tx + cursor_x_px;
+        let cursor_screen_y = ty + cursor_row as f64 * cell_h - self.scroll_y;
         let _ = cursor_col;
 
         // Compute cursor color with transparency (C++ emTextField.cpp:1056-1059)
@@ -1270,18 +1276,17 @@ impl TextField {
 
         if self.overwrite_mode && self.cursor < self.text.len() && self.char_at(self.cursor) != '\n'
         {
-            // Overwrite mode: 10-vertex frame polygon
             let cxp = cursor_x;
             let cyp = cursor_screen_y;
-            let ch_w = Painter::measure_text_width("X", TEXT_SIZE);
-            let chp = LINE_HEIGHT;
-            let d = chp * 0.07;
+            let ch_w = Painter::measure_text_width("X", cell_h);
+            let chp = cell_h;
+            let dd = chp * 0.07;
             let vertices = [
-                (cxp - d, cyp - d),
-                (cxp + ch_w + d, cyp - d),
-                (cxp + ch_w + d, cyp + chp + d),
-                (cxp - d, cyp + chp + d),
-                (cxp - d, cyp - d),
+                (cxp - dd, cyp - dd),
+                (cxp + ch_w + dd, cyp - dd),
+                (cxp + ch_w + dd, cyp + chp + dd),
+                (cxp - dd, cyp + chp + dd),
+                (cxp - dd, cyp - dd),
                 (cxp, cyp),
                 (cxp, cyp + chp),
                 (cxp + ch_w, cyp + chp),
@@ -1290,20 +1295,19 @@ impl TextField {
             ];
             painter.paint_polygon(&vertices, cur_color, canvas_color);
         } else {
-            // Insert mode: 8-vertex I-beam with serifs
             let cxp = cursor_x;
             let cyp = cursor_screen_y;
-            let chp = LINE_HEIGHT;
-            let d = chp * 0.07;
-            let d1 = d * 0.5;
-            let d2 = d * 2.2;
+            let chp = cell_h;
+            let dd = chp * 0.07;
+            let d1 = dd * 0.5;
+            let d2 = dd * 2.2;
             let vertices = [
-                (cxp - d2, cyp - d),
-                (cxp + d2, cyp - d),
+                (cxp - d2, cyp - dd),
+                (cxp + d2, cyp - dd),
                 (cxp + d1, cyp),
                 (cxp + d1, cyp + chp),
-                (cxp + d2, cyp + chp + d),
-                (cxp - d2, cyp + chp + d),
+                (cxp + d2, cyp + chp + dd),
+                (cxp - d2, cyp + chp + dd),
                 (cxp - d1, cyp + chp),
                 (cxp - d1, cyp),
             ];
