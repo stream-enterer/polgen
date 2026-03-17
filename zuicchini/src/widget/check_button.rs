@@ -1,10 +1,12 @@
 use std::rc::Rc;
 
+use crate::foundation::{Color, Rect};
 use crate::input::{Cursor, InputEvent, InputKey, InputVariant};
-use crate::render::Painter;
+use crate::render::{Painter, BORDER_EDGES_ONLY};
 
 use super::border::{Border, OuterBorderType};
 use super::look::Look;
+use super::toolkit_images::with_toolkit_images;
 
 /// Toggle button widget — visually depressed when checked.
 pub struct CheckButton {
@@ -19,8 +21,9 @@ pub struct CheckButton {
 impl CheckButton {
     pub fn new(caption: &str, look: Rc<Look>) -> Self {
         Self {
-            border: Border::new(OuterBorderType::RoundRect)
+            border: Border::new(OuterBorderType::InstrumentMoreRound)
                 .with_caption(caption)
+                .with_label_in_border(false)
                 .with_how_to(true),
             look,
             checked: false,
@@ -38,17 +41,103 @@ impl CheckButton {
         self.checked = checked;
     }
 
+    /// Paint using the non-boxed C++ DoButton path (emButton.cpp:343-421).
+    ///
+    /// CheckButton renders as a normal button face with centered label.
+    /// When checked (ShownChecked=true), the label is slightly shrunk and
+    /// a ButtonChecked overlay is painted instead of the normal Button overlay.
     pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
         self.last_w = w;
         self.last_h = h;
-        let face_color = if self.checked {
-            self.look.button_pressed()
-        } else {
-            self.look.button_bg_color
-        };
-        painter.paint_round_rect(1.0, 1.0, w - 2.0, h - 2.0, 3.0, face_color);
         self.border
             .paint_border(painter, w, h, &self.look, false, true);
+
+        // C++ DoButton non-boxed path: GetContentRoundRect, clamp r.
+        let (cr, r) = self.border.content_round_rect(w, h, &self.look);
+        let r = r.max(cr.w.min(cr.h) * self.border.border_scaling * 0.223);
+
+        // Face inset: d = (14/264) * r (C++ line 348).
+        let d = (14.0 / 264.0) * r;
+        let fx = cr.x + d;
+        let fy = cr.y + d;
+        let fw = cr.w - 2.0 * d;
+        let fh = cr.h - 2.0 * d;
+        let fr = (r - d).max(0.0);
+
+        let face_color = self.look.button_bg_color;
+        painter.paint_round_rect(fx, fy, fw, fh, fr, face_color);
+        painter.set_canvas_color(face_color);
+
+        // Label inside face with padding (C++ lines 370-391).
+        let d_min = fw.min(fh) * 0.1;
+        let dx = (r * 0.7).max(d_min);
+        let dy = (r * 0.4).max(d_min);
+        let mut lx = fx + dx;
+        let mut ly = fy + dy;
+        let mut lw = fw - 2.0 * dx;
+        let mut lh = fh - 2.0 * dy;
+
+        if self.checked {
+            // C++ line 378: ShownChecked → scale 0.983.
+            let s = 0.983;
+            lx += (1.0 - s) * 0.5 * lw;
+            lw *= s;
+            ly += (1.0 - s) * 0.5 * lh;
+            lh *= s;
+        }
+        self.border.paint_label_colored(
+            painter,
+            Rect::new(lx, ly, lw, lh),
+            &self.look,
+            self.look.button_fg_color,
+            true,
+        );
+
+        // Button overlay image (C++ lines 393-421).
+        with_toolkit_images(|img| {
+            if self.checked {
+                // ShownChecked: ButtonChecked overlay (C++ lines 402-409).
+                painter.paint_border_image(
+                    cr.x,
+                    cr.y,
+                    cr.w,
+                    cr.h,
+                    340.0 / 264.0 * r,
+                    374.0 / 264.0 * r,
+                    r,
+                    r,
+                    &img.button_checked,
+                    340,
+                    374,
+                    264,
+                    264,
+                    255,
+                    Color::TRANSPARENT,
+                    BORDER_EDGES_ONLY,
+                );
+            } else {
+                // Normal: Button overlay (C++ lines 411-420).
+                let extra = (658.0 - 648.0) / 264.0 * r;
+                painter.paint_border_image(
+                    cr.x,
+                    cr.y,
+                    cr.w + extra,
+                    cr.h + extra,
+                    278.0 / 264.0 * r,
+                    278.0 / 264.0 * r,
+                    278.0 / 264.0 * r,
+                    278.0 / 264.0 * r,
+                    &img.button,
+                    278,
+                    278,
+                    278,
+                    278,
+                    255,
+                    Color::TRANSPARENT,
+                    BORDER_EDGES_ONLY,
+                );
+            }
+        });
     }
 
     /// Rounded-rect hit test matching C++ `emButton::CheckMouse`.
