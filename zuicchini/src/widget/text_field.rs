@@ -104,6 +104,15 @@ pub struct TextField {
     /// Whether this text field is in the focused panel path.
     /// C++ only renders the cursor when focused. Default false.
     pub focused: bool,
+    // Cached multi-line layout geometry (populated during paint_multi_line).
+    // Used by scroll_to_cursor and xy_to_index_multi_line for consistent
+    // coordinate mapping that matches what was actually painted.
+    ml_effective_ch: f64,
+    ml_effective_ty: f64,
+    ml_ws: f64,
+    ml_tx: f64,
+    ml_th: f64,
+    ml_cell_h: f64,
 }
 
 const MAX_UNDO: usize = 100;
@@ -153,6 +162,12 @@ impl TextField {
             undo_merge: UndoMergeType::NoMerge,
             drag_offset: None,
             focused: false,
+            ml_effective_ch: 0.0,
+            ml_effective_ty: 0.0,
+            ml_ws: 1.0,
+            ml_tx: 0.0,
+            ml_th: 0.0,
+            ml_cell_h: 0.0,
         }
     }
 
@@ -886,25 +901,17 @@ impl TextField {
         if self.last_w <= 0.0 || self.last_h <= 0.0 {
             return 0;
         }
-        let (content, radius) = self.border.content_round_rect(self.last_w, self.last_h, &self.look);
-        let d = content.h.min(content.w) * 0.1 + radius * 0.5;
-        let tx = content.x + d;
-        let ty = content.y + d;
-        let th = (content.h - 2.0 * d).max(0.0);
-        let (cols, total_rows) = self.calc_total_cols_rows();
-        let cell_h = if total_rows > 0 { th / total_rows as f64 } else { return 0; };
-        if cell_h <= 0.0 {
+        // Use cached layout geometry from paint_multi_line for consistency.
+        let tx = self.ml_tx;
+        let effective_ty = self.ml_effective_ty;
+        let effective_ch = self.ml_effective_ch;
+        let cell_h = self.ml_cell_h;
+        let ws = self.ml_ws;
+        if effective_ch <= 0.0 {
             return 0;
         }
-        let tw = (content.w - 2.0 * d).max(0.0);
-        let cell_w = Painter::measure_text_width("X", cell_h);
-        let ws = if cell_w * cols as f64 > tw {
-            (tw / (cell_w * cols as f64)).max(0.66)
-        } else {
-            1.0
-        };
 
-        let row = ((y - ty + self.scroll_y) / cell_h).floor().max(0.0) as usize;
+        let row = ((y - effective_ty + self.scroll_y) / effective_ch).floor().max(0.0) as usize;
         let rows: Vec<&str> = self.text.split('\n').collect();
         let row = row.min(rows.len().saturating_sub(1));
         let row_text = rows[row];
@@ -1289,7 +1296,14 @@ impl TextField {
             }
         }
 
-        // Select colors based on editable state (C++ emTextField.cpp:956-965)
+        // Cache layout for scroll_to_cursor and xy_to_index_multi_line.
+        self.ml_effective_ch = effective_ch;
+        self.ml_effective_ty = effective_ty;
+        self.ml_ws = ws;
+        self.ml_tx = tx;
+        self.ml_th = th;
+        self.ml_cell_h = cell_h;
+
         // Select colors based on editable state (C++ emTextField.cpp:956-965)
         let fg = if self.editable {
             self.look.input_fg_color
@@ -1314,15 +1328,15 @@ impl TextField {
         // Update row_y_positions
         self.row_y_positions.clear();
         for i in 0..rows.len() {
-            self.row_y_positions.push(i as f64 * cell_h);
+            self.row_y_positions.push(i as f64 * effective_ch);
         }
 
         let (cursor_col, cursor_row) = self.index_to_col_row(self.cursor);
-        let cursor_y_px = cursor_row as f64 * cell_h;
+        let cursor_y_px = cursor_row as f64 * effective_ch;
 
         // Scroll to keep cursor visible
-        if cursor_y_px - self.scroll_y + cell_h > th {
-            self.scroll_y = cursor_y_px + cell_h - th;
+        if cursor_y_px - self.scroll_y + effective_ch > th {
+            self.scroll_y = cursor_y_px + effective_ch - th;
         }
         if cursor_y_px - self.scroll_y < 0.0 {
             self.scroll_y = cursor_y_px;
@@ -1490,29 +1504,40 @@ impl TextField {
 
         let (col, row) = self.index_to_col_row(self.cursor);
 
-        // Cursor X from cached char_positions (populated during paint).
-        let cursor_x_px = if col < self.char_positions.len() {
-            self.char_positions[col]
+        if self.multi_line {
+            // Use cached layout from paint_multi_line for consistent geometry.
+            let effective_ch = self.ml_effective_ch;
+            let effective_ty = self.ml_effective_ty;
+            let tx = self.ml_tx;
+
+            let cursor_row_start = self.row_start(self.cursor);
+            let cursor_in_row = &self.text[cursor_row_start..self.cursor];
+            let cursor_x_px = Painter::measure_text_width(cursor_in_row, self.ml_cell_h) * self.ml_ws;
+
+            // C++ ScrollToCursor padding: col ± 0.5 char, row ± 0.2 row height
+            let half_char = Painter::measure_text_width("X", self.ml_cell_h) * self.ml_ws * 0.5;
+            let x1 = tx + cursor_x_px - half_char;
+            let y1 = effective_ty + row as f64 * effective_ch - self.scroll_y - effective_ch * 0.2;
+            let x2 = x1 + half_char * 2.0;
+            let y2 = y1 + effective_ch * 1.4;
+
+            self.pending_scroll_to_visible = Some((x1, y1, x2 - x1, y2 - y1));
         } else {
-            self.char_positions.last().copied().unwrap_or(0.0)
-        };
+            // Single-line: use cached char_positions from paint_single_line.
+            let cursor_x_px = if col < self.char_positions.len() {
+                self.char_positions[col]
+            } else {
+                self.char_positions.last().copied().unwrap_or(0.0)
+            };
 
-        // Cursor Y from row index.
-        let cursor_y_px = if row < self.row_y_positions.len() {
-            self.row_y_positions[row]
-        } else {
-            row as f64 * LINE_HEIGHT
-        };
+            let half_char = 4.0;
+            let x1 = content.x + TEXT_PADDING + cursor_x_px - self.scroll_x - half_char;
+            let y1 = content.y - LINE_HEIGHT * 0.2;
+            let x2 = x1 + half_char * 2.0;
+            let y2 = y1 + LINE_HEIGHT * 1.4;
 
-        // Cursor rect in panel-pixel coords (after internal scroll).
-        // Padding matches C++ (±0.5 char, ±0.2 row).
-        let half_char = 4.0;
-        let x1 = content.x + TEXT_PADDING + cursor_x_px - self.scroll_x - half_char;
-        let y1 = content.y + cursor_y_px - self.scroll_y - LINE_HEIGHT * 0.2;
-        let x2 = x1 + half_char * 2.0;
-        let y2 = y1 + LINE_HEIGHT * 1.4;
-
-        self.pending_scroll_to_visible = Some((x1, y1, x2 - x1, y2 - y1));
+            self.pending_scroll_to_visible = Some((x1, y1, x2 - x1, y2 - y1));
+        }
     }
 
     /// Take the pending scroll-to-visible request, if any.
