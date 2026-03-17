@@ -309,6 +309,44 @@ fn animator_visiting_short() {
         .unwrap_or_else(|e| panic!("animator_visiting_short: {e}"));
 }
 
+/// Same as setup_anim_view but with a SQUARE panel (height=1.0) on a 4:3
+/// viewport. This makes panel_aspect != viewport_aspect, exercising the
+/// scroll denominator fix (BUG-8) which is invisible at matching aspects.
+fn setup_anim_view_square_panel() -> (PanelTree, View) {
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("root");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0); // square panel
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::ROOT_SAME_TALLNESS);
+    view.update_viewing(&mut tree);
+
+    view.zoom(4.0, 400.0, 300.0);
+    view.update_viewing(&mut tree);
+
+    (tree, view)
+}
+
+#[test]
+fn animator_visiting_square_panel() {
+    let (mut tree, mut view) = setup_anim_view_square_panel();
+    let actual = run_visiting_trajectory(&mut tree, &mut view, 0.1, 0.1, 2.0, 60);
+
+    // Rust-native golden: no C++ reference for non-matching-aspect geometry.
+    // On first run, generate with DUMP_GOLDEN=1; thereafter compare.
+    if dump_golden_enabled() {
+        save_trajectory_golden("animator_visiting_square_panel", &actual);
+    }
+    if let Ok(golden) =
+        std::panic::catch_unwind(|| load_trajectory_golden("animator_visiting_square_panel"))
+    {
+        compare_trajectory(&actual, &golden, 1e-4)
+            .unwrap_or_else(|e| panic!("animator_visiting_square_panel: {e}"));
+    } else {
+        eprintln!("SKIP: animator_visiting_square_panel golden not found — run with DUMP_GOLDEN=1");
+    }
+}
+
 #[test]
 fn animator_visiting_zoom() {
     require_golden!();

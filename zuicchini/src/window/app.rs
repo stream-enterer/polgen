@@ -104,6 +104,10 @@ impl App {
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
         let mut app = self;
         event_loop.run_app(&mut app).expect("event loop error");
+        // Work around wgpu segfault on shutdown: dropping Instance/Device
+        // after Surface is already destroyed crashes in the Vulkan driver.
+        // https://github.com/gfx-rs/wgpu/issues/5781
+        std::process::exit(0);
     }
 
     /// Get the GPU context (panics if not yet initialized).
