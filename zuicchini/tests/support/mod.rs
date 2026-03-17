@@ -94,7 +94,7 @@ impl TestHarness {
 
     /// Dispatch input through VIF chain → hit-test → behavior delivery.
     /// Matches C++ emPanel::Input which broadcasts to ALL viewed panels in
-    /// depth-first order (root → leaves).
+    /// post-order (children → parents, last → first).
     pub fn inject_input(&mut self, event: &InputEvent) {
         // Run VIF chain
         for vif in &mut self.vif_chain {
@@ -120,9 +120,9 @@ impl TestHarness {
         // Stamp modifier keys from InputState onto the event
         let ev = event.clone().with_modifiers(&self.input_state);
 
-        // Dispatch to ALL viewed panels in DFS order (matching C++ emPanel::Input
-        // recursive broadcast). Each panel's behavior receives the event;
-        // if any returns true (consumed), propagation stops.
+        // Dispatch to ALL viewed panels in post-order (matching C++ emPanel::Input
+        // recursive broadcast: children before parents, last-child first).
+        // If any returns true (consumed), propagation stops.
         let wf = self.view.window_focused();
         let viewed = self.tree.viewed_panels_dfs();
         for panel_id in viewed {

@@ -54,16 +54,32 @@ impl PackLayout {
         self.child_constraints.clear();
     }
 
-    pub(crate) fn do_layout_skip(&mut self, ctx: &mut PanelCtx, skip: Option<PanelId>) {
-        self.do_layout_inner(ctx, skip);
+    pub(crate) fn do_layout_skip(
+        &mut self,
+        ctx: &mut PanelCtx,
+        skip: Option<PanelId>,
+        content_rect: Option<Rect>,
+    ) {
+        self.do_layout_inner(ctx, skip, content_rect);
     }
 
     fn do_layout(&mut self, ctx: &mut PanelCtx) {
-        self.do_layout_inner(ctx, None);
+        self.do_layout_inner(ctx, None, None);
     }
 
-    fn do_layout_inner(&mut self, ctx: &mut PanelCtx, skip: Option<PanelId>) {
-        let Rect { w, h, .. } = ctx.layout_rect();
+    fn do_layout_inner(
+        &mut self,
+        ctx: &mut PanelCtx,
+        skip: Option<PanelId>,
+        content_rect: Option<Rect>,
+    ) {
+        let cr = content_rect.unwrap_or_else(|| ctx.layout_rect());
+        let Rect {
+            x: origin_x,
+            y: origin_y,
+            w,
+            h,
+        } = cr;
         let mut children = ctx.children();
         if let Some(skip_id) = skip {
             children.retain(|&id| id != skip_id);
@@ -90,8 +106,8 @@ impl PackLayout {
         let content_h = sy;
 
         let rect = PackRect {
-            x: actual_ml,
-            y: actual_mt,
+            x: origin_x + actual_ml,
+            y: origin_y + actual_mt,
             w: content_w,
             h: content_h,
         };
@@ -190,7 +206,9 @@ impl PanelBehavior for PackGroup {
 
     fn layout_children(&mut self, ctx: &mut PanelCtx) {
         let aux_id = super::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());

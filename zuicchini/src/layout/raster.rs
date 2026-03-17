@@ -84,16 +84,32 @@ impl RasterLayout {
         self
     }
 
-    pub(crate) fn do_layout_skip(&mut self, ctx: &mut PanelCtx, skip: Option<PanelId>) {
-        self.do_layout_inner(ctx, skip);
+    pub(crate) fn do_layout_skip(
+        &mut self,
+        ctx: &mut PanelCtx,
+        skip: Option<PanelId>,
+        content_rect: Option<Rect>,
+    ) {
+        self.do_layout_inner(ctx, skip, content_rect);
     }
 
     fn do_layout(&mut self, ctx: &mut PanelCtx) {
-        self.do_layout_inner(ctx, None);
+        self.do_layout_inner(ctx, None, None);
     }
 
-    fn do_layout_inner(&mut self, ctx: &mut PanelCtx, skip: Option<PanelId>) {
-        let Rect { w, h, .. } = ctx.layout_rect();
+    fn do_layout_inner(
+        &mut self,
+        ctx: &mut PanelCtx,
+        skip: Option<PanelId>,
+        content_rect: Option<Rect>,
+    ) {
+        let cr = content_rect.unwrap_or_else(|| ctx.layout_rect());
+        let Rect {
+            x: origin_x,
+            y: origin_y,
+            w,
+            h,
+        } = cr;
         let mut children = ctx.children();
         if let Some(skip_id) = skip {
             children.retain(|&id| id != skip_id);
@@ -225,7 +241,10 @@ impl RasterLayout {
         let actual_gap_h = sp.inner_h * sx;
         let actual_gap_v = sp.inner_v * sy;
 
-        let (base_x, base_y) = (offset_x + actual_ml, offset_y + actual_mt);
+        let (base_x, base_y) = (
+            origin_x + offset_x + actual_ml,
+            origin_y + offset_y + actual_mt,
+        );
 
         // Only place actual children; padding cells from min_cell_count are empty.
         for (i, child) in children.iter().enumerate() {
@@ -353,7 +372,9 @@ impl PanelBehavior for RasterGroup {
 
     fn layout_children(&mut self, ctx: &mut PanelCtx) {
         let aux_id = super::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());

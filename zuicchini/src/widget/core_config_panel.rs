@@ -250,7 +250,9 @@ impl PanelBehavior for KBGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -351,7 +353,9 @@ impl PanelBehavior for MouseMiscGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -492,7 +496,9 @@ impl PanelBehavior for KineticGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -591,7 +597,9 @@ impl PanelBehavior for MaxMemGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -662,7 +670,7 @@ impl PanelBehavior for MemFieldLayoutPanel {
             self.create_children(ctx);
         }
 
-        self.layout.do_layout_skip(ctx, None);
+        self.layout.do_layout_skip(ctx, None, None);
     }
 }
 
@@ -896,7 +904,9 @@ impl PanelBehavior for CpuGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -1042,7 +1052,9 @@ impl PanelBehavior for PerformanceGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -1200,7 +1212,9 @@ impl PanelBehavior for MouseGroup {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());
@@ -1266,7 +1280,7 @@ impl PanelBehavior for ButtonsPanel {
             self.create_children(ctx);
         }
 
-        self.layout.do_layout_skip(ctx, None);
+        self.layout.do_layout_skip(ctx, None, None);
     }
 }
 
@@ -1353,7 +1367,7 @@ impl PanelBehavior for ContentPanel {
             self.create_children(ctx);
         }
 
-        self.layout.do_layout_skip(ctx, None);
+        self.layout.do_layout_skip(ctx, None, None);
     }
 }
 
@@ -1450,7 +1464,9 @@ impl PanelBehavior for CoreConfigPanel {
         }
 
         let aux_id = crate::layout::position_aux_panel(ctx, &self.border);
-        self.layout.do_layout_skip(ctx, aux_id);
+        let r = ctx.layout_rect();
+        let cr = self.border.content_rect_unobscured(r.w, r.h, &self.look);
+        self.layout.do_layout_skip(ctx, aux_id, Some(cr));
         let cc = self
             .border
             .content_canvas_color(ctx.canvas_color(), &self.look, ctx.is_enabled());

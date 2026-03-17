@@ -1684,6 +1684,10 @@ impl PanelTree {
 
     /// Return viewed panels in depth-first order (root → leaves), matching the
     /// order C++ `emPanel::Input` recursively dispatches input events.
+    /// Return viewed panels in post-order: children before parents, last child
+    /// before first child.  This matches the C++ input dispatch order
+    /// (emPanel.h:577-578: "from children to parents and from top to bottom
+    /// (=last to first)").
     pub fn viewed_panels_dfs(&self) -> Vec<PanelId> {
         let root = match self.root {
             Some(r) => r,
@@ -1711,6 +1715,9 @@ impl PanelTree {
                 stack.push(cid);
             }
         }
+        // Reverse pre-order to get post-order: children before parents,
+        // last-child before first-child — matching C++ dispatch order.
+        result.reverse();
         result
     }
 
