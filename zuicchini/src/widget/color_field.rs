@@ -5,7 +5,7 @@ use crate::input::{InputEvent, InputKey, InputVariant};
 use crate::layout::raster::RasterLayout;
 use crate::layout::{AlignmentH, AlignmentV, Spacing};
 use crate::panel::PanelCtx;
-use crate::render::Painter;
+use crate::render::{Painter, TextAlignment, VAlign};
 
 use super::border::{Border, InnerBorderType, OuterBorderType};
 use super::field_panel::{ScalarFieldPanel, TextFieldPanel};
@@ -354,8 +354,32 @@ impl ColorField {
         let rw = (cr.w - 2.0 * d).max(0.0);
         let rh = (cr.h - 2.0 * d).max(0.0);
 
+        // C++ emColorField.cpp:380-393: paint "transparent" text underlay when alpha < 255.
+        let mut canvas_color = Color::TRANSPARENT;
+        if !self.color.is_opaque() {
+            let text_color = if self.editable {
+                self.look.input_fg_color
+            } else {
+                self.look.output_fg_color
+            };
+            painter.paint_text_boxed(
+                rx, ry, rw, rh,
+                "transparent",
+                cr.h,
+                text_color,
+                canvas_color,
+                TextAlignment::Center,
+                VAlign::Center,
+                TextAlignment::Center,
+                0.5,
+                true,
+                0.0,
+            );
+            canvas_color = Color::rgba(0, 0, 0, 0);
+        }
+
         // Paint color rect.
-        painter.paint_rect(rx, ry, rw, rh, self.color, Color::TRANSPARENT);
+        painter.paint_rect(rx, ry, rw, rh, self.color, canvas_color);
 
         // Paint rect outline (C++ PaintRectOutline defaults to canvasColor=0).
         let thickness = d * 0.08;
