@@ -288,6 +288,12 @@ impl RadioBox {
                     if !self.pressed {
                         return false;
                     }
+                    // C++ emButton.cpp:101: IsViewed check on release.
+                    if !state.viewed {
+                        self.pressed = false;
+                        self.box_pressed = false;
+                        return true;
+                    }
                     let hit = self.hit_test(event.mouse_x, event.mouse_y);
                     if trace {
                         eprintln!(
