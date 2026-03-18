@@ -42,7 +42,7 @@ impl Label {
         // DoLabel measures text at unit height, then scales proportionally
         // to fit the content area.
         let cr = self.border.content_rect(w, h, &self.look);
-        let mut cx = cr.x;
+        let cx = cr.x;
         let mut cy = cr.y;
         let mut cw = cr.w;
         let mut ch = cr.h;
@@ -64,8 +64,7 @@ impl Label {
         let w2 = f * cap_w;
 
         if w2 <= cw {
-            // Fits horizontally — center.
-            cx += (cw - w2) * 0.5;
+            // Fits horizontally — left-align (C++ LabelAlignment default is EM_ALIGN_LEFT).
             cw = w2;
         } else {
             // Width constrained — check if min squeeze fits.
@@ -94,7 +93,7 @@ impl Label {
             Color::TRANSPARENT,
             TextAlignment::Center,
             VAlign::Center,
-            TextAlignment::Center,
+            TextAlignment::Left,
             min_ws,
             true,
             0.0,
