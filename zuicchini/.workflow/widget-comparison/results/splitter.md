@@ -47,9 +47,9 @@
 - **Fix**: Overlay alpha set to 64 when disabled, matching C++ transparency.
 - See CC-03
 
-### [LOW] Missing Focus()/Activate() calls on drag
-- Needs `PanelCtx` available in `input()` to call focus infrastructure. Architecture gap — not fixable without broader input context plumbing.
-- **Confidence**: high | **Coverage**: uncovered
+### [LOW] Missing Focus()/Activate() calls on drag — **CLOSED 2026-03-18**
+- C++ calls `Activate()` during drag if `IsInActivePath() && !IsActive()`.
+- **Resolution**: The Rust window loop already sets the active panel on mouse press (zui_window.rs:706-718) before dispatching input. During drag, the active panel doesn't change. The initial press focus is functionally equivalent. C++ `Activate()` during drag is a re-entrancy guard that re-activates if another panel stole activation, which doesn't occur in Rust's single-threaded dispatch model.
 
 ## Summary
 

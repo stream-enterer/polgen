@@ -45,20 +45,15 @@
 - Cross-cutting: CC-03
 - **Confidence**: high | **Coverage**: uncovered
 
-### [GAP] No clip rect check on mouse release
-- **C++**: emButton.cpp:101-109 — verifies release position against clip rect
-- **Rust**: no clip rect verification — needs panel-to-view transform infrastructure before this can be implemented
-- **Confidence**: high | **Coverage**: uncovered
+### [GAP] No clip rect check on mouse release — **FIXED**
+- **Fix**: PanelToView transform implemented using viewed_rect.w + pixel_tallness. Mouse coords converted to view space and checked against clip_rect bounds matching C++ emButton.cpp:101-109.
 
 ### [GAP] No IsViewed() check on mouse release — **FIXED**
-- **C++**: emButton.cpp:101
-- **Rust**: no equivalent
-- **Confidence**: high | **Coverage**: uncovered
+- **Fix**: Implemented with clip rect check above.
 
-### [GAP] No Focus() call on mouse press
-- **C++**: emButton.cpp:86
-- **Rust**: no focus management in button — needs `PanelCtx` available in `input()` to call focus infrastructure. Architecture gap.
-- **Confidence**: medium | **Coverage**: uncovered
+### [GAP] No Focus() call on mouse press — **CLOSED 2026-03-18**
+- C++ emButton.cpp:86 calls `Focus()` which walks up to the focusable ancestor and activates it.
+- **Resolution**: The Rust window loop (zui_window.rs:706-718) already calls `get_focusable_panel_at()` + `set_active_panel()` on every mouse press before dispatching input. This is functionally equivalent to C++ `Focus()` — the clicked panel gets focus through the framework, not the widget. No widget-level change needed.
 
 ### [GAP] Boxed/RadioBox paint path missing from base Button — **NOTE**
 - `shown_boxed`/`shown_radioed` flags in base Button are dead code in `paint()`. This is intentional: CheckBox and RadioBox are separate widgets that handle the boxed and radioed paint paths respectively. Base Button only needs the non-boxed path. The API flags are misleading but the behavior is correct for the widget hierarchy.
