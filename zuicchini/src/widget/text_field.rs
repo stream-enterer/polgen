@@ -1689,6 +1689,8 @@ impl TextField {
             }
             InputKey::Key('a') if ctrl && !shift => {
                 self.select_all();
+                // C++ SelectAll(true) publishes to clipboard.
+                self.publish_selection();
                 true
             }
             InputKey::Key('a') if ctrl && shift => {
