@@ -197,7 +197,7 @@ impl CheckButton {
         super::check_mouse_round_rect(mx, my, &face, fr)
     }
 
-    pub fn input(&mut self, event: &InputEvent, _state: &PanelState, _input_state: &InputState) -> bool {
+    pub fn input(&mut self, event: &InputEvent, state: &PanelState, _input_state: &InputState) -> bool {
         if !self.enabled {
             return false;
         }
@@ -207,6 +207,11 @@ impl CheckButton {
                 InputVariant::Press => {
                     // C++ emButton.cpp:82: (state.IsNoMod() || state.IsShiftMod())
                     if event.ctrl || event.alt || event.meta {
+                        return false;
+                    }
+                    // C++ emButton.cpp:84: GetViewCondition(VCT_MIN_EXT) >= 8.0
+                    let min_ext = state.viewed_rect.w.min(state.viewed_rect.h);
+                    if min_ext < 8.0 {
                         return false;
                     }
                     let hit = self.hit_test(event.mouse_x, event.mouse_y);
@@ -247,7 +252,8 @@ impl CheckButton {
                 if event.variant == InputVariant::Press
                     && !event.alt
                     && !event.meta
-                    && !event.ctrl =>
+                    && !event.ctrl
+                    && state.viewed_rect.w.min(state.viewed_rect.h) >= 8.0 =>
             {
                 self.toggle();
                 true
