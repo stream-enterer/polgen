@@ -31,6 +31,7 @@ pub struct RadioBox {
 
 impl RadioBox {
     pub fn new(label: &str, look: Rc<Look>, group: Rc<RefCell<RadioGroup>>, index: usize) -> Self {
+        group.borrow_mut().register();
         Self {
             border: Border::new(OuterBorderType::Margin)
                 .with_caption(label)
@@ -199,13 +200,15 @@ impl RadioBox {
         }
     }
 
-    /// Rounded-rect hit test matching C++ `emButton::CheckMouse` outer hit.
+    /// Rounded-rect hit test matching C++ `emButton::CheckMouse` boxed path.
+    /// Uses content_rect with r = h * 0.2 (C++ emButton.cpp:276).
     fn hit_test(&self, mx: f64, my: f64) -> bool {
         if self.last_w <= 0.0 || self.last_h <= 0.0 {
             return false;
         }
         let tallness = self.last_h / self.last_w;
-        let (rect, r) = self.border.content_round_rect(1.0, tallness, &self.look);
+        let rect = self.border.content_rect(1.0, tallness, &self.look);
+        let r = rect.h * 0.2;
         super::check_mouse_round_rect(mx, my, &rect, r)
     }
 
@@ -305,6 +308,12 @@ impl RadioBox {
         let th = 13.0;
         let tw = Painter::measure_text_width(&self.border.caption, th);
         self.border.preferred_size_for_content(tw + 8.0, th + 4.0)
+    }
+}
+
+impl Drop for RadioBox {
+    fn drop(&mut self) {
+        self.group.borrow_mut().deregister(self.index);
     }
 }
 

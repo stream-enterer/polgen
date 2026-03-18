@@ -263,16 +263,21 @@ impl Button {
         self.hovered = mx >= 0.0 && mx <= self.last_w && my >= 0.0 && my <= self.last_h;
     }
 
-    /// Rounded-rect hit test matching C++ `emButton::CheckMouse`.
-    /// Mouse coords are in normalized panel space (0..1, 0..tallness), so
-    /// content_round_rect must also be computed in normalized space.
+    /// Rounded-rect hit test matching C++ `emButton::CheckMouse` non-boxed path.
+    /// Tests against the face rect (content rect with face inset), not the raw
+    /// content rect. Mouse coords are in normalized panel space.
     fn hit_test(&self, mx: f64, my: f64) -> bool {
         if self.last_w <= 0.0 || self.last_h <= 0.0 {
             return false;
         }
         let tallness = self.last_h / self.last_w;
-        let (rect, r) = self.border.content_round_rect(1.0, tallness, &self.look);
-        super::check_mouse_round_rect(mx, my, &rect, r)
+        let (cr, r) = self.border.content_round_rect(1.0, tallness, &self.look);
+        let r = r.max(cr.w.min(cr.h) * self.border.border_scaling * 0.223);
+        // Face inset: d = (14/264) * r (C++ emButton.cpp:348)
+        let d = (14.0 / 264.0) * r;
+        let face = Rect::new(cr.x + d, cr.y + d, cr.w - 2.0 * d, cr.h - 2.0 * d);
+        let fr = (r - d).max(0.0);
+        super::check_mouse_round_rect(mx, my, &face, fr)
     }
 
     pub fn input(&mut self, event: &InputEvent) -> bool {

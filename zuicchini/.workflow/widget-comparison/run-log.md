@@ -1,0 +1,127 @@
+# Widget Comparison Run Log
+
+## 2026-03-18 — Session 1: Initial Dispatch
+
+### Strategy
+
+Three-layer approach, bottom-up:
+1. **Layer 0 — Individual widgets**: Compare each em* class against its Rust port in isolation
+2. **Layer 1 — TkTest compositions**: Compare widget compositions in test toolkit
+3. **Layer 2 — TestPanel full integration**: Full panel tree with all widgets composed
+
+### Calibration Batch (complete)
+
+| Time | Widget | Status | BUG | SUSPECT | GAP | NOTE |
+|------|--------|--------|-----|---------|-----|------|
+| 10:58 | Label | DONE | 2 | 0 | 3 | 1 |
+| 10:58 | Button | DONE | 3 | 2 | 7 | 2 |
+| 10:58 | CheckBox | DONE | 2 | 1 | 2 | 1 |
+
+**Total calibration findings**: 7 BUG, 3 SUSPECT, 12 GAP, 4 NOTE = 26 findings
+
+### Calibration Assessment
+
+Quality of subagent analysis: **HIGH**. Agents were thorough, read all relevant files, traced through C++ logic carefully, correctly identified alignment and hit-test bugs that are masked by golden tests. No false positives from rosetta-stone patterns. Good confidence calibration.
+
+Key cross-cutting findings (see cross-cutting-concerns.md):
+- CC-01: Button-family code duplication (fixes don't propagate)
+- CC-02: set_* methods don't fire signals
+- CC-03: No disabled state rendering across all widgets
+- CC-04: No VCT_MIN_EXT guard on input
+
+### Layer 1 Finding (manual)
+
+TkTest composition divergence documented in results/tktest-divergence.md. Missing: Tunnels section, Test Dialog section, File Selection section, several individual widget variants (NoEOI button, custom scalar formatters, custom list box, single-column list).
+
+### Batch 2 (complete)
+
+| Time | Widget | Status | Findings |
+|------|--------|--------|----------|
+| 11:10 | RadioButton+RadioBox | DONE | 3 MEDIUM, 4 LOW, 1 CC — RadioBox group registration broken, Drop doesn't re-index |
+| 11:10 | ScalarField | DONE | 2 HIGH, 4 MEDIUM, 4 LOW — f64 vs i64, absolute vs relative drag |
+| 11:10 | Splitter | DONE | 2 MEDIUM, 9 LOW — drag math edge case, missing hover tracking |
+| 11:10 | ColorField | DONE | 1 MEDIUM, 3 LOW, 4 CC — missing "transparent" text underlay |
+
+### Batch 3 (complete)
+
+| Time | Widget | Status | Findings |
+|------|--------|--------|----------|
+| 11:30 | TextField | DONE | 4 HIGH, 9 MEDIUM, 5 LOW — undo architecture, selection model, tab rendering, word boundary |
+| 11:30 | ListBox | DONE | 2 MEDIUM, 9 LOW, 3 INFO — row height mismatch, arrow key addition, HowTo truncation |
+| — | Border | Pending | Next session — highest remaining priority |
+
+### Session 1 Complete
+
+**Grand total**: ~107 findings across 9 widgets + 2 composition layers
+**Result files**: 14 reports in `.workflow/widget-comparison/results/`
+**Key outcome**: Pixel compositing pipeline is HIGH FIDELITY. Widget interaction layer has significant divergences, especially in TextField (undo, selection) and ScalarField (type, drag model).
+
+### Future Batches
+
+| Widget | Status | Notes |
+|--------|--------|-------|
+| ColorField | pending | Tier 2 |
+| FileSelectionBox | pending | Tier 2 — inverse size asymmetry |
+| CheckButton | pending | Tier 2 — needs CC-01 analysis |
+| Dialog | pending | Tier 3 — size asymmetry, no golden tests |
+| Look | pending | Tier 3 |
+| Tunnel | pending | Tier 3 |
+| FilePanel | pending | Tier 3 |
+| FileDialog | pending | Tier 3 |
+| ErrorPanel | pending | Tier 3 |
+| CoreConfigPanel | pending | Tier 3 |
+
+## 2026-03-18 — Fix Session: RadioButton/RadioBox Group Lifecycle
+
+### Fix 1: RadioBox/RadioButton group lifecycle (findings #10, #11)
+
+**Findings addressed**:
+- #10: RadioBox doesn't register in group on construction
+- #11: RadioButton Drop doesn't adjust selection
+- (Implicit) RadioBox has no Drop impl
+
+**Root cause**: RadioBox::new didn't call `group.register()`, RadioButton::Drop only decremented count without clearing stale selection, RadioBox had no Drop at all.
+
+**Changes**:
+- `radio_button.rs`: Added `register()` and `deregister(index)` methods to RadioGroup. Changed RadioButton::new to use `register()`. Changed RadioButton::Drop to use `deregister(self.index)` (clears selection if this button was selected).
+- `radio_box.rs`: Added `register()` call in RadioBox::new. Added Drop impl using `deregister(self.index)`.
+
+**Scope limitation**: Does NOT re-index other buttons on drop (C++ does via back-references in the Mechanism array; Rust's index-based design can't). Callers needing ordered removal should use `remove_by_index` + manual `set_index`. This matches actual usage patterns (buttons created/destroyed together).
+
+**Tests**: cargo clippy clean, 1137/1137 tests pass (including all golden tests).
+
+### Fix 2: ListBox row height mismatch (finding #12, LB-05)
+
+**Finding addressed**: #12 — Hit test vs paint row height mismatch
+
+**Root cause**: Paint used `ch / items.len()` (dynamic), input/scroll used constant `ROW_HEIGHT=17.0`. When the widget's content height doesn't equal `items.len() * 17.0`, clicks land on wrong items.
+
+**Changes**:
+- `list_box.rs`: Added `row_height()` helper that returns `visible_height / items.len()` (matching paint) with fallback to `ROW_HEIGHT` when empty or before first paint. Used it in click handler and `scroll_to_index`.
+
+**Tests**: cargo clippy clean, 1137/1137 tests pass.
+
+### Fix 3: CC-06 hit_test() face-inset divergence (all button-family widgets)
+
+**Finding addressed**: CC-06 — hit_test() vs check_mouse() face-inset divergence
+
+**Root cause**: All button-family widgets used `content_round_rect` in their `hit_test()` methods, but C++ `emButton::CheckMouse` tests against the face rect (which is inset from the content rect). This made the clickable area slightly larger than C++.
+
+**Changes (non-boxed path — Button, RadioButton, CheckButton)**:
+- Applied face inset: `d = (14/264) * r`, test against `(cr.x+d, cr.y+d, cr.w-2d, cr.h-2d)` with `fr = r-d`
+- Also applied `r = max(r, min(w,h) * border_scaling * 0.223)` clamp matching paint path
+
+**Changes (boxed path — CheckBox, RadioBox)**:
+- Changed from `content_round_rect` to `content_rect` with `r = h * 0.2`
+- Matches C++ emButton.cpp:276: explicit `r=h*0.2` on content rect for boxed hit test
+
+**Files**: button.rs, radio_button.rs, check_button.rs, check_box.rs, radio_box.rs
+
+**Tests**: cargo clippy clean, 1137/1137 tests pass.
+
+### Notes
+
+- Calibration batch validated methodology. Subagents are thorough and find real bugs.
+- The alignment bugs in Label are systemic — they affect DoLabel which is used by ALL border-based widgets. This needs tracking as a cross-cutting concern.
+- hit_test() vs check_mouse() mismatch in Button is the highest-confidence bug found so far.
+- The missing input guards (modifier keys, min extent, enabled, clip rect, IsViewed) are systemic — they affect all interactive widgets. Should verify once definitively rather than repeating for each widget.

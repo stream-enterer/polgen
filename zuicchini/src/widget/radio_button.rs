@@ -109,6 +109,24 @@ impl RadioGroup {
         }
     }
 
+    /// Register a new button in the group (increments the member count).
+    pub fn register(&mut self) {
+        self.count += 1;
+    }
+
+    /// Deregister a button from the group.
+    ///
+    /// Decrements the member count and clears the selection if the
+    /// deregistered button was the currently selected one.
+    pub fn deregister(&mut self, index: usize) {
+        if self.count > 0 {
+            self.count -= 1;
+            if self.selected == Some(index) {
+                self.selected = None;
+            }
+        }
+    }
+
     /// Add multiple buttons to the group at once.
     ///
     /// Port of C++ `emRadioButton::Mechanism::AddAll(emPanel* parent)`.
@@ -183,7 +201,7 @@ impl RadioButton {
         group: Rc<RefCell<RadioGroup>>,
         index: usize,
     ) -> Self {
-        group.borrow_mut().count += 1;
+        group.borrow_mut().register();
         Self {
             border: Border::new(OuterBorderType::InstrumentMoreRound)
                 .with_caption(caption)
@@ -355,14 +373,20 @@ impl RadioButton {
         });
     }
 
-    /// Rounded-rect hit test matching C++ `emButton::CheckMouse`.
+    /// Rounded-rect hit test matching C++ `emButton::CheckMouse` non-boxed path.
+    /// Tests against the face rect (content rect with face inset).
     fn hit_test(&self, mx: f64, my: f64) -> bool {
         if self.last_w <= 0.0 || self.last_h <= 0.0 {
             return false;
         }
         let tallness = self.last_h / self.last_w;
-        let (rect, r) = self.border.content_round_rect(1.0, tallness, &self.look);
-        super::check_mouse_round_rect(mx, my, &rect, r)
+        let (cr, r) = self.border.content_round_rect(1.0, tallness, &self.look);
+        let r = r.max(cr.w.min(cr.h) * self.border.border_scaling * 0.223);
+        // Face inset: d = (14/264) * r (C++ emButton.cpp:348)
+        let d = (14.0 / 264.0) * r;
+        let face = Rect::new(cr.x + d, cr.y + d, cr.w - 2.0 * d, cr.h - 2.0 * d);
+        let fr = (r - d).max(0.0);
+        super::check_mouse_round_rect(mx, my, &face, fr)
     }
 
     pub fn input(&mut self, event: &InputEvent) -> bool {
@@ -520,10 +544,7 @@ impl RadioRasterGroup {
 
 impl Drop for RadioButton {
     fn drop(&mut self) {
-        let mut group = self.group.borrow_mut();
-        if group.count > 0 {
-            group.count -= 1;
-        }
+        self.group.borrow_mut().deregister(self.index);
     }
 }
 

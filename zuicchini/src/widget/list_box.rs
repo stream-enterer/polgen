@@ -1050,6 +1050,16 @@ impl ListBox {
         self.border.paint_inner_overlay(painter, w, h, &self.look);
     }
 
+    /// Row height matching the paint path: `visible_height / items.len()`.
+    /// Falls back to `ROW_HEIGHT` when there are no items or before first paint.
+    fn row_height(&self) -> f64 {
+        if self.items.is_empty() || self.visible_height <= 0.0 {
+            ROW_HEIGHT
+        } else {
+            self.visible_height / self.items.len() as f64
+        }
+    }
+
     // ── Input ───────────────────────────────────────────────────────
 
     fn hit_test(&self, mx: f64, my: f64) -> bool {
@@ -1096,7 +1106,7 @@ impl ListBox {
                     self.border
                         .content_rect(self.last_w, self.last_h, &self.look);
                 let rel_y = event.mouse_y - cy + self.scroll_y;
-                let clicked_idx = (rel_y / ROW_HEIGHT) as usize;
+                let clicked_idx = (rel_y / self.row_height()) as usize;
                 if clicked_idx < self.items.len() && !event.alt && !event.meta {
                     self.focus_index = clicked_idx;
                     let trigger = event.is_repeat(); // double-click
@@ -1429,8 +1439,9 @@ impl ListBox {
     }
 
     fn scroll_to_index(&mut self, index: usize) {
-        let item_top = index as f64 * ROW_HEIGHT;
-        let item_bottom = item_top + ROW_HEIGHT;
+        let rh = self.row_height();
+        let item_top = index as f64 * rh;
+        let item_bottom = item_top + rh;
         if item_top < self.scroll_y {
             self.scroll_y = item_top;
         } else if self.visible_height > 0.0 && item_bottom > self.scroll_y + self.visible_height {
