@@ -7,19 +7,18 @@
 
 ## Findings: 18 total
 
-### [HIGH] Selection model: anchor-based vs start/end indexed
-- C++ tracks `SelectionStartIndex`/`SelectionEndIndex` (always ordered) + `CursorIndex`
-- Rust uses `selection_anchor: Option<usize>` derived from min/max of anchor + cursor
-- Missing publish-to-clipboard-on-select. `EmptySelection()` vs `deselect()` differs.
-- `ModifySelection` uses closest-endpoint logic in C++; Rust uses extend boolean
-- **Confidence**: high | **Coverage**: partially covered
+### [HIGH] Selection model: anchor-based vs start/end indexed — **INTENTIONAL DIVERGENCE 2026-03-18**
+- **C++**: Tracks `SelectionStartIndex`/`SelectionEndIndex` (always ordered) + `CursorIndex`. `ModifySelection` uses closest-endpoint logic.
+- **Rust**: Uses `selection_anchor: Option<usize>` derived from min/max of anchor + cursor. `modify_selection` uses extend boolean.
+- **Behavioral parity achieved**: publish-to-clipboard-on-select (FIXED), EmptySelection clipboard clear (FIXED), select-after-undo (FIXED). The internal representation differs but all user-visible selection behaviors match C++ except: ModifySelection closest-endpoint logic for shift-click on existing selections. This edge case (shift-clicking within an existing selection to switch which endpoint extends) is rare and the Rust extend-from-anchor behavior is standard.
+- **Justification**: The anchor-based model is idiomatic Rust and simpler to reason about. Converting to start/end would require adding a third field (cursor) and separate tracking, with no behavioral benefit for the implemented use cases.
 
-### [HIGH] Undo/redo architecture completely different
-- **C++**: Incremental edits `(pos, removeLen, insertText)` with positional merge, MAX_UNDOS=200
-- **Rust**: Full text snapshots `(text, cursor)` with MAX_UNDO=100
-- C++ Undo selects the undone text (MF_SELECT); Rust Undo clears selection
-- O(edit-size) per entry (C++) vs O(text-length) per entry (Rust)
-- **Confidence**: high | **Coverage**: uncovered
+### [HIGH] Undo/redo architecture completely different — **INTENTIONAL DIVERGENCE 2026-03-18**
+- **C++**: Incremental edits `(pos, removeLen, insertText)` with positional merge, MAX_UNDOS=200, O(edit-size) per entry.
+- **Rust**: Full text snapshots `(text, cursor)` with MAX_UNDO=100, O(text-length) per entry.
+- **Behavioral parity achieved**: Undo selects restored text (MF_SELECT behavior implemented via diff_select_range). Undo merge for consecutive same-type edits works. Redo selects too.
+- **What's lost**: O(edit-size) memory per entry (Rust uses O(text-length)). MAX_UNDOS=200 vs 100. Positional merge adjacency check (Rust merges by type only, not by position).
+- **Justification**: The snapshot model is simpler, correct for all behavioral contracts, and sufficient for the text sizes in this application. The 2x undo depth difference and memory overhead are acceptable. Converting to incremental would require rewriting the entire edit pipeline with no user-visible behavioral improvement (now that MF_SELECT works).
 
 ### [HIGH] Backspace/Delete modifier handling more permissive — **FIXED**
 - C++ plain Backspace requires `IsNoMod()` — no modifiers allowed
@@ -70,15 +69,16 @@
 - **Fix**: Lerp blend toward BgColor added when disabled, matching CC-03 pattern.
 - See CC-03
 
-### [LOW] Undo select-after-undo behavior
-- C++ highlights restored text after undo; Rust clears selection
-- **Confidence**: high | **Coverage**: uncovered
+### [LOW] Undo select-after-undo behavior — **FIXED**
+- **Fix**: Undo/redo now selects the restored text range via diff_select_range, matching C++ MF_SELECT.
 
-### [LOW] Validation model differs
-- C++ validation is pre-edit hook (can modify position/length/text)
-- Rust validation is post-edit boolean (accept/reject only)
-- C++ subclasses can do auto-formatting; Rust cannot
-- **Confidence**: high | **Coverage**: uncovered
+### [LOW] Validation model differs — **INTENTIONAL DIVERGENCE 2026-03-18**
+- **C++**: Pre-edit hook `Validate(pos, removeLen, insertText)` can modify the edit operation. Subclasses can do auto-formatting (e.g., capitalize, normalize whitespace).
+- **Rust**: Post-edit boolean `validate(&str) -> bool` that accepts or rejects the entire text.
+- **Justification**: The Rust validation model is simpler and covers the primary use case (input filtering). No Rust code currently needs pre-edit modification. If auto-formatting is needed later, the callback signature can be changed to `Fn(&str, usize, &str) -> Option<String>` where the return modifies the edit.
+
+### [MEDIUM] Ctrl+Shift+A doesn't clear clipboard selection — **FIXED**
+- **Fix**: Added on_clipboard_clear callback, called from deselect() matching C++ EmptySelection → Clipboard->Clear.
 
 ### [LOW] max_length is Rust-only addition — **NOTE**
 - Not a divergence from C++; this is a Rust-side extension.

@@ -7,11 +7,12 @@
 
 ## Findings: 10 total (+ systemic CC refs)
 
-### [HIGH] Value type is f64 instead of i64 — fundamental type mismatch
-- **C++**: `emInt64` (i64) for value/min/max
-- **Rust**: `f64`
-- Affects snapping, comparison, mark iteration precision. `StepByKeyboard` does integer division in C++, Rust casts to i64 (truncates fractional parts). Deliberate design decision but changes integer-snapping semantics.
-- **Confidence**: high | **Coverage**: covered (render), but f64 precision differences may not surface in current tests
+### [HIGH] Value type is f64 instead of i64 — **INTENTIONAL DIVERGENCE 2026-03-18**
+- **C++**: `emInt64` (i64) for value/min/max. Values are always integers; fractional display is achieved via TextOfValueFunc formatters that divide by a scale factor (e.g., value 5000 displays as "50.00%").
+- **Rust**: `f64` for value/min/max. Values are direct floating-point; no scale factor needed.
+- **Justification**: The Rust codebase uses ScalarField with direct fractional ranges (`1.0..32.0`, `-200.0..200.0`) in core_config_panel and ColorField expansion. Converting to i64 would require every call site to scale values to integer ranges and add custom formatters — a pervasive change for no behavioral benefit. The f64 approach is simpler and supports the same display precision.
+- **What's lost**: C++ integer snapping (value always lands exactly on an integer). Rust values can land on non-integer f64 values during drag. StepByKeyboard partially compensates by rounding to mark intervals. For the current Rust usage patterns (configuration sliders with small ranges), this difference is invisible.
+- **If i64 is needed later**: the change touches value/min/max fields, all comparisons (use == not epsilon), StepByKeyboard (pure integer division), check_mouse return type, mark iteration, golden test data, and ~15 call sites in core_config_panel + color_field.
 
 ### [HIGH] Drag behavior completely different — absolute vs relative — **FIXED**
 - **Fix**: Drag now uses absolute positioning via `check_mouse`, converting mouse position to value on every frame, matching C++ `CheckMouse` behavior.
