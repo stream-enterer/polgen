@@ -20,7 +20,7 @@ mod tests {
     }
     impl PanelBehavior for ButtonPanel {
         fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-            self.widget.paint(p, w, h);
+            self.widget.paint(p, w, h, _s.enabled);
         }
         fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
             self.widget.input(e)
@@ -35,7 +35,7 @@ mod tests {
     }
     impl PanelBehavior for CheckButtonPanel {
         fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-            self.widget.paint(p, w, h);
+            self.widget.paint(p, w, h, _s.enabled);
         }
         fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
             self.widget.input(e)
@@ -117,7 +117,7 @@ mod tests {
         // Paint to set last_w/last_h
         let mut img = crate::foundation::Image::new(100, 40, 4);
         let mut painter = Painter::new(&mut img);
-        btn.paint(&mut painter, 1.0, 0.4);
+        btn.paint(&mut painter, 1.0, 0.4, true);
 
         // Test content_round_rect directly
         let border =

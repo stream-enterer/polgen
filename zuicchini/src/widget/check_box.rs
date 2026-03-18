@@ -91,7 +91,7 @@ impl CheckBox {
     ///
     /// Layout: small checkbox box on the left, label text on the right.
     /// The box contains: InputBgColor face → checkmark symbol → CheckBox image overlay.
-    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, enabled: bool) {
         self.last_w = w;
         self.last_h = h;
         // Paint outer border (Margin = transparent spacing only).
@@ -131,7 +131,7 @@ impl CheckBox {
         // Paint label to the right of the box.
         if self.border.has_label() {
             self.border
-                .paint_label(painter, Rect::new(lx, ly, lw, lh), &self.look, true);
+                .paint_label(painter, Rect::new(lx, ly, lw, lh), &self.look, enabled);
         }
 
         // Paint face (InputBgColor).
@@ -188,6 +188,12 @@ impl CheckBox {
                     BORDER_EDGES_ONLY,
                 );
             });
+        }
+
+        // C++ DoButton: disabled gray overlay for boxed path.
+        // PaintRoundRect(fx, fy, fw, fh, fr, fr, 0x888888E0).
+        if !enabled {
+            painter.paint_round_rect(fx, fy, fw, fh, fr, Color::rgba(0x88, 0x88, 0x88, 0xE0));
         }
     }
 

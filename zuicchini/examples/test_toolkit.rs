@@ -25,7 +25,7 @@ struct ButtonPanel {
 }
 impl PanelBehavior for ButtonPanel {
     fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+        self.widget.paint(p, w, h, _s.enabled);
     }
     fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
         self.widget.input(e)
@@ -43,7 +43,7 @@ struct CheckButtonPanel {
 }
 impl PanelBehavior for CheckButtonPanel {
     fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+        self.widget.paint(p, w, h, _s.enabled);
     }
     fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
         self.widget.input(e)
@@ -61,7 +61,7 @@ struct CheckBoxPanel {
 }
 impl PanelBehavior for CheckBoxPanel {
     fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+        self.widget.paint(p, w, h, _s.enabled);
     }
     fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
         self.widget.input(e)
@@ -79,7 +79,7 @@ struct RadioButtonPanel {
 }
 impl PanelBehavior for RadioButtonPanel {
     fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+        self.widget.paint(p, w, h, _s.enabled);
     }
     fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
         self.widget.input(e)
@@ -97,7 +97,7 @@ struct RadioBoxPanel {
 }
 impl PanelBehavior for RadioBoxPanel {
     fn paint(&mut self, p: &mut Painter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+        self.widget.paint(p, w, h, _s.enabled);
     }
     fn input(&mut self, e: &InputEvent, _s: &PanelState, _is: &InputState) -> bool {
         self.widget.input(e)

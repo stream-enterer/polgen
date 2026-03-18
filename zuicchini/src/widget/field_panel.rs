@@ -94,8 +94,8 @@ pub(crate) struct CheckBoxPanel {
 }
 
 impl PanelBehavior for CheckBoxPanel {
-    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, _state: &PanelState) {
-        self.check_box.paint(painter, w, h);
+    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, state: &PanelState) {
+        self.check_box.paint(painter, w, h, state.enabled);
     }
 
     fn input(
@@ -147,8 +147,8 @@ pub(crate) struct ButtonPanel {
 }
 
 impl PanelBehavior for ButtonPanel {
-    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, _state: &PanelState) {
-        self.button.paint(painter, w, h);
+    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, state: &PanelState) {
+        self.button.paint(painter, w, h, state.enabled);
     }
 
     fn input(

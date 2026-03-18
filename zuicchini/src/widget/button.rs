@@ -154,7 +154,7 @@ impl Button {
         text
     }
 
-    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, enabled: bool) {
         self.last_w = w;
         self.last_h = h;
         // C++ emButton.cpp:361: always ButtonBgColor. Pressed/checked visual
@@ -195,11 +195,17 @@ impl Button {
             ly += (1.0 - s) * 0.5 * lh;
             lh *= s;
         }
+        let label_color = if enabled {
+            self.look.button_fg_color
+        } else {
+            let c = self.look.button_fg_color;
+            c.with_alpha((c.a() as u16 * 64 / 255) as u8)
+        };
         self.border.paint_label_colored(
             painter,
             Rect::new(lx, ly, lw, lh),
             &self.look,
-            self.look.button_fg_color,
+            label_color,
             true,
         );
 
@@ -538,7 +544,7 @@ mod tests {
         // Simulate paint to cache dimensions
         let mut img = Image::new(200, 100, 4);
         let mut painter = Painter::new(&mut img);
-        btn.paint(&mut painter, 200.0, 100.0);
+        btn.paint(&mut painter, 200.0, 100.0, true);
         // Center of the button should hit
         assert!(btn.check_mouse(100.0, 50.0));
     }
@@ -550,7 +556,7 @@ mod tests {
         let mut btn = Button::new("X", look);
         let mut img = Image::new(200, 100, 4);
         let mut painter = Painter::new(&mut img);
-        btn.paint(&mut painter, 200.0, 100.0);
+        btn.paint(&mut painter, 200.0, 100.0, true);
         // Well outside the button bounds
         assert!(!btn.check_mouse(-50.0, -50.0));
         assert!(!btn.check_mouse(300.0, 200.0));

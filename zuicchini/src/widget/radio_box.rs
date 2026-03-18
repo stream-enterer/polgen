@@ -99,7 +99,7 @@ impl RadioBox {
     }
 
     /// Paint using the C++ DoButton ShownBoxed=true, ShownRadioed=true path.
-    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, enabled: bool) {
         self.last_w = w;
         self.last_h = h;
         self.border
@@ -138,7 +138,7 @@ impl RadioBox {
         // Paint label to the right of the box.
         if self.border.has_label() {
             self.border
-                .paint_label(painter, Rect::new(lx, ly, lw, lh), &self.look, true);
+                .paint_label(painter, Rect::new(lx, ly, lw, lh), &self.look, enabled);
         }
 
         // Paint face (InputBgColor) — circular for radio.
@@ -197,6 +197,12 @@ impl RadioBox {
                     BORDER_EDGES_ONLY,
                 );
             });
+        }
+
+        // C++ DoButton: disabled gray overlay for boxed+radioed path.
+        // PaintRoundRect(fx, fy, fw, fh, fr, fr, 0x888888E0).
+        if !enabled {
+            painter.paint_round_rect(fx, fy, fw, fh, fr, Color::rgba(0x88, 0x88, 0x88, 0xE0));
         }
     }
 

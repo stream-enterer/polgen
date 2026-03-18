@@ -255,7 +255,7 @@ impl RadioButton {
     /// RadioButton renders as a normal button (face + centered label).
     /// When checked (ShownChecked=true), the label is slightly shrunk and
     /// a ButtonChecked overlay is painted instead of the normal Button overlay.
-    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64) {
+    pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, enabled: bool) {
         self.last_w = w;
         self.last_h = h;
         self.border
@@ -297,11 +297,17 @@ impl RadioButton {
             ly += (1.0 - s) * 0.5 * lh;
             lh *= s;
         }
+        let label_color = if enabled {
+            self.look.button_fg_color
+        } else {
+            let c = self.look.button_fg_color;
+            c.with_alpha((c.a() as u16 * 64 / 255) as u8)
+        };
         self.border.paint_label_colored(
             painter,
             Rect::new(lx, ly, lw, lh),
             &self.look,
-            self.look.button_fg_color,
+            label_color,
             true,
         );
 

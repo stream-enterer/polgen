@@ -136,7 +136,7 @@ struct CheckBoxBehavior {
 
 impl PanelBehavior for CheckBoxBehavior {
     fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, _state: &PanelState) {
-        self.check_box.paint(painter, w, h);
+        self.check_box.paint(painter, w, h, _state.enabled);
     }
 }
 
