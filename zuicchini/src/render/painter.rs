@@ -761,7 +761,7 @@ impl<'a> Painter<'a> {
                     color_b,
                     (col as f64 + 0.5, row as f64 + 0.5),
                 );
-                self.blend_pixel(col, row, color);
+                self.blend_pixel_unchecked(col, row, color);
             }
         }
         self.state.canvas_color = saved_canvas;
@@ -1119,7 +1119,7 @@ impl<'a> Painter<'a> {
             for row in start_y..end_y {
                 for col in start_x..end_x {
                     let src_color = interpolation::sample_area_fp(image, col, row, &xfm, &sec, ext);
-                    self.blend_with_coverage(col, row, src_color, sp.coverage(col, row));
+                    self.blend_with_coverage_unchecked(col, row, src_color, sp.coverage(col, row));
                 }
             }
         } else {
@@ -1132,7 +1132,12 @@ impl<'a> Painter<'a> {
                         let tx = (col - px) as i64 * sxfm.tdx + sxfm.base_x - 0x180_0000;
                         let ty = (row - py) as i64 * sxfm.tdy + sxfm.base_y - 0x180_0000;
                         let pm = interpolation::sample_adaptive_premul_fp(image, tx, ty, ext);
-                        self.blend_premul_with_coverage(col, row, pm, sp.coverage(col, row));
+                        self.blend_premul_with_coverage_unchecked(
+                            col,
+                            row,
+                            pm,
+                            sp.coverage(col, row),
+                        );
                     } else {
                         // Nearest: returns straight Color, use normal blend.
                         let tx = (col - px) as i64 * sxfm.tdx + sxfm.base_x;
@@ -1143,7 +1148,12 @@ impl<'a> Painter<'a> {
                             (ty >> 24) as f64,
                             ext,
                         );
-                        self.blend_with_coverage(col, row, src_color, sp.coverage(col, row));
+                        self.blend_with_coverage_unchecked(
+                            col,
+                            row,
+                            src_color,
+                            sp.coverage(col, row),
+                        );
                     }
                 }
             }
@@ -1296,7 +1306,12 @@ impl<'a> Painter<'a> {
                         ((color.r() as u32 * 77 + color.g() as u32 * 150 + color.b() as u32 * 29)
                             >> 8) as u8
                     };
-                    self.blend_with_coverage(col, row, lum_to_color(lum), sp.coverage(col, row));
+                    self.blend_with_coverage_unchecked(
+                        col,
+                        row,
+                        lum_to_color(lum),
+                        sp.coverage(col, row),
+                    );
                 }
             }
         } else {
@@ -1338,7 +1353,12 @@ impl<'a> Painter<'a> {
                         let b = bilinear_ch(2) as u32;
                         ((r * 77 + g * 150 + b * 29) >> 8) as u8
                     };
-                    self.blend_with_coverage(col, row, lum_to_color(lum), sp.coverage(col, row));
+                    self.blend_with_coverage_unchecked(
+                        col,
+                        row,
+                        lum_to_color(lum),
+                        sp.coverage(col, row),
+                    );
                 }
             }
         }
@@ -1772,7 +1792,7 @@ impl<'a> Painter<'a> {
                 let src_y = (row - py) as f64 * src_h / ph as f64;
                 let color =
                     interpolation::sample(image, src_x, src_y, interp_quality, extension, &ctx);
-                self.blend_pixel(col, row, color);
+                self.blend_pixel_unchecked(col, row, color);
             }
         }
     }
@@ -2466,7 +2486,7 @@ impl<'a> Painter<'a> {
                         &sec,
                         super::texture::ImageExtension::Clamp, // 9-slice uses EXTEND_EDGE
                     );
-                    self.blend_with_coverage(col, row, color, sp.coverage(col, row));
+                    self.blend_with_coverage_unchecked(col, row, color, sp.coverage(col, row));
                 }
             }
         } else {
@@ -2489,7 +2509,7 @@ impl<'a> Painter<'a> {
                     let pm = interpolation::sample_adaptive_premul_fp_section(
                         image, tx, ty, &sec, extension,
                     );
-                    self.blend_premul_with_coverage(col, row, pm, sp.coverage(col, row));
+                    self.blend_premul_with_coverage_unchecked(col, row, pm, sp.coverage(col, row));
                 }
             }
         }
@@ -4872,14 +4892,18 @@ impl<'a> Painter<'a> {
             self.blend_with_coverage(x_start, y, color, span.opacity_beg);
         }
 
-        // Interior pixels (full coverage) — fast path.
-        if span.opacity_mid >= 0x1000 {
-            for x in (x_start + 1)..(x_end - 1) {
-                self.blend_pixel(x, y, color);
-            }
-        } else if span.opacity_mid > 0 {
-            for x in (x_start + 1)..(x_end - 1) {
-                self.blend_with_coverage(x, y, color, span.opacity_mid);
+        // Interior pixels — bulk scanline, no per-pixel clip/bounds checks.
+        let ix1 = x_start + 1;
+        let ix2 = x_end - 1;
+        if ix1 < ix2 {
+            if span.opacity_mid >= 0x1000 {
+                self.fill_span_blended(y, ix1, ix2, color);
+            } else if span.opacity_mid > 0 {
+                // Uniform partial coverage: pre-compute alpha-adjusted color once.
+                let alpha =
+                    ((color.a() as i32 * span.opacity_mid + 0x800) >> 12).clamp(0, 255) as u8;
+                let blended = Color::rgba(color.r(), color.g(), color.b(), alpha);
+                self.fill_span_blended(y, ix1, ix2, blended);
             }
         }
 
@@ -4903,63 +4927,121 @@ impl<'a> Painter<'a> {
         }
     }
 
-    /// Blend a premultiplied-alpha pixel onto the canvas.
-    ///
-    /// When canvas_color is opaque, uses C++ PaintScanlineIntCv (canvas-color variant):
-    ///   `dst_ch += pm_ch - round(canvas_ch * a / 255)`
-    /// Alpha channel is unchanged (canvas_A=255, so net alpha delta=0).
-    ///
-    /// When canvas_color is transparent, uses standard source-over:
-    ///   `dst = bg * (1-a/255) + pm_rgba`
-    fn blend_pixel_premul(&mut self, x: i32, y: i32, pm: [u8; 4]) {
-        let clip = self.state.clip;
-        if (x as f64) < clip.x1
-            || (x as f64) >= clip.x2
-            || (y as f64) < clip.y1
-            || (y as f64) >= clip.y2
-        {
-            return;
+    /// Same as `blend_pixel` but without clip/bounds checks.
+    /// Caller must guarantee x,y are within both the clip rect and the target image.
+    #[inline(always)]
+    fn blend_pixel_unchecked(&mut self, x: i32, y: i32, color: Color) {
+        let xu = x as u32;
+        let yu = y as u32;
+        if color.is_opaque() && self.state.alpha == 255 {
+            let out = self.image().pixel_mut(xu, yu);
+            out[0] = color.r();
+            out[1] = color.g();
+            out[2] = color.b();
+            out[3] = 255;
+        } else if self.state.canvas_color.is_opaque() {
+            let combined_alpha = if self.state.alpha == 255 {
+                color.a()
+            } else {
+                ((color.a() as u16 * self.state.alpha as u16 + 128) >> 8) as u8
+            };
+            if combined_alpha == 0 {
+                return;
+            }
+            let px = self.read_pixel(xu, yu);
+            let existing = Color::rgba(px[0], px[1], px[2], px[3]);
+            let result = existing.canvas_blend(color, self.state.canvas_color, combined_alpha);
+            let out = self.image().pixel_mut(xu, yu);
+            out[0] = result.r();
+            out[1] = result.g();
+            out[2] = result.b();
+        } else {
+            let ca = color.a() as u16;
+            let ea = if self.state.alpha == 255 {
+                ca
+            } else {
+                (ca * self.state.alpha as u16 + 128) >> 8
+            };
+            if ea == 0 {
+                return;
+            }
+            if ea >= 255 {
+                let out = self.image().pixel_mut(xu, yu);
+                out[0] = color.r();
+                out[1] = color.g();
+                out[2] = color.b();
+                out[3] = 255;
+                return;
+            }
+            let bg = self.read_pixel(xu, yu);
+            let alpha = ea as u32;
+            let t = (255 - alpha) * 257;
+            let r = ((bg[0] as u32 * t + 0x8073) >> 16)
+                + ((color.r() as u32 * alpha * 257 + 0x8073) >> 16);
+            let g = ((bg[1] as u32 * t + 0x8073) >> 16)
+                + ((color.g() as u32 * alpha * 257 + 0x8073) >> 16);
+            let b = ((bg[2] as u32 * t + 0x8073) >> 16)
+                + ((color.b() as u32 * alpha * 257 + 0x8073) >> 16);
+            let a =
+                ((bg[3] as u32 * t + 0x8073) >> 16) + ((255u32 * alpha * 257 + 0x8073) >> 16);
+            let out = self.image().pixel_mut(xu, yu);
+            out[0] = r as u8;
+            out[1] = g as u8;
+            out[2] = b as u8;
+            out[3] = a as u8;
         }
-        if x < 0 || y < 0 || x >= self.target_width as i32 || y >= self.target_height as i32 {
-            return;
+    }
+
+    /// Same as `blend_with_coverage` but without clip/bounds checks.
+    #[inline(always)]
+    fn blend_with_coverage_unchecked(&mut self, x: i32, y: i32, color: Color, cov: i32) {
+        if cov >= 0x1000 {
+            self.blend_pixel_unchecked(x, y, color);
+        } else if cov > 0 {
+            let alpha = ((color.a() as i32 * cov + 0x800) >> 12).clamp(0, 255) as u8;
+            let blended = Color::rgba(color.r(), color.g(), color.b(), alpha);
+            self.blend_pixel_unchecked(x, y, blended);
         }
+    }
+
+    /// Same as `blend_pixel_premul` but without clip/bounds checks.
+    #[inline(always)]
+    fn blend_pixel_premul_unchecked(&mut self, x: i32, y: i32, pm: [u8; 4]) {
+        let xu = x as u32;
+        let yu = y as u32;
         let a = pm[3] as u32;
         if a == 0 {
             return;
         }
         if self.state.canvas_color.is_opaque() {
-            // C++ PaintScanlineIntCv: pix -= hcR[a]+hcG[a]+hcB[a]; *p += pix;
-            // where hcX[a] = round(canvas_X * a / 255) = (canvas_X * a + 127) / 255.
-            // Alpha: canvas_A=255, so hcA[a]=a, net alpha delta = a-a = 0 (unchanged).
             let cv = self.state.canvas_color;
             let cr = (cv.r() as u32 * a + 127) / 255;
             let cg = (cv.g() as u32 * a + 127) / 255;
             let cb = (cv.b() as u32 * a + 127) / 255;
-            let bg = self.read_pixel(x as u32, y as u32);
+            let bg = self.read_pixel(xu, yu);
             let nr = (bg[0] as i32 + pm[0] as i32 - cr as i32).clamp(0, 255) as u8;
             let ng = (bg[1] as i32 + pm[1] as i32 - cg as i32).clamp(0, 255) as u8;
             let nb = (bg[2] as i32 + pm[2] as i32 - cb as i32).clamp(0, 255) as u8;
-            let out = self.image().pixel_mut(x as u32, y as u32);
+            let out = self.image().pixel_mut(xu, yu);
             out[0] = nr;
             out[1] = ng;
             out[2] = nb;
-            // out[3] unchanged
         } else {
             if a >= 255 {
-                let out = self.image().pixel_mut(x as u32, y as u32);
+                let out = self.image().pixel_mut(xu, yu);
                 out[0] = pm[0];
                 out[1] = pm[1];
                 out[2] = pm[2];
                 out[3] = 255;
                 return;
             }
-            let bg = self.read_pixel(x as u32, y as u32);
+            let bg = self.read_pixel(xu, yu);
             let t = (255 - a) * 257;
             let r = (((bg[0] as u32 * t + 0x8073) >> 16) + pm[0] as u32) as u8;
             let g = (((bg[1] as u32 * t + 0x8073) >> 16) + pm[1] as u32) as u8;
             let b = (((bg[2] as u32 * t + 0x8073) >> 16) + pm[2] as u32) as u8;
             let a_out = (((bg[3] as u32 * t + 0x8073) >> 16) + a) as u8;
-            let out = self.image().pixel_mut(x as u32, y as u32);
+            let out = self.image().pixel_mut(xu, yu);
             out[0] = r;
             out[1] = g;
             out[2] = b;
@@ -4967,21 +5049,19 @@ impl<'a> Painter<'a> {
         }
     }
 
-    /// Blend a premultiplied-alpha pixel with 12-bit coverage modulation.
-    /// C++ PaintScanlineInt: each premul channel and alpha are independently
-    /// modulated by `(channel * o_eff + 0x800) >> 12` before premul blend.
-    fn blend_premul_with_coverage(&mut self, x: i32, y: i32, pm: [u8; 4], cov: i32) {
+    /// Same as `blend_premul_with_coverage` but without clip/bounds checks.
+    #[inline(always)]
+    fn blend_premul_with_coverage_unchecked(&mut self, x: i32, y: i32, pm: [u8; 4], cov: i32) {
         if cov <= 0 {
             return;
         }
-        // Combine coverage with painter alpha (C++ HAVE_ALPHA path).
         let o_eff = if self.state.alpha == 255 {
             cov
         } else {
             (cov * self.state.alpha as i32 + 127) / 255
         };
         if o_eff >= 0x1000 {
-            self.blend_pixel_premul(x, y, pm);
+            self.blend_pixel_premul_unchecked(x, y, pm);
         } else if o_eff > 0 {
             let pm_mod = [
                 ((pm[0] as i32 * o_eff + 0x800) >> 12) as u8,
@@ -4989,7 +5069,7 @@ impl<'a> Painter<'a> {
                 ((pm[2] as i32 * o_eff + 0x800) >> 12) as u8,
                 ((pm[3] as i32 * o_eff + 0x800) >> 12) as u8,
             ];
-            self.blend_pixel_premul(x, y, pm_mod);
+            self.blend_pixel_premul_unchecked(x, y, pm_mod);
         }
     }
 
@@ -5235,9 +5315,9 @@ impl<'a> Painter<'a> {
             let color = Self::sample_pixel_texture(texture, x as f64 + 0.5, py);
 
             if opacity >= 0x1000 {
-                self.blend_pixel(x, y, color);
+                self.blend_pixel_unchecked(x, y, color);
             } else {
-                self.blend_with_coverage(x, y, color, opacity);
+                self.blend_with_coverage_unchecked(x, y, color, opacity);
             }
         }
     }
@@ -5595,9 +5675,7 @@ impl<'a> Painter<'a> {
         }
 
         for row in start_y..end_y {
-            for col in start_x..end_x {
-                self.blend_pixel(col, row, color);
-            }
+            self.fill_span_blended(row, start_x, end_x, color);
         }
     }
 
