@@ -34,8 +34,8 @@
 - **Fix**: Added ctrl/alt/meta check before hit test in all 5 button-family widgets
 - **Confidence**: high | **Coverage**: uncovered
 
-### [GAP] No VCT_MIN_EXT minimum extent check
-- **C++**: requires `GetViewCondition(VCT_MIN_EXT)>=8.0` (emButton.cpp:84-85)
+### [GAP] No VCT_MIN_EXT minimum extent check — **FIXED**
+- **Fix**: min_ext check (viewed_rect) >= 8.0 added in input(). Panel state now passed through.
 - **Rust**: no such guard — tiny buttons can be clicked
 - Cross-cutting: CC-04
 - **Confidence**: high | **Coverage**: uncovered
@@ -50,7 +50,7 @@
 - **Rust**: no clip rect verification
 - **Confidence**: high | **Coverage**: uncovered
 
-### [GAP] No IsViewed() check on mouse release
+### [GAP] No IsViewed() check on mouse release — **FIXED**
 - **C++**: emButton.cpp:101
 - **Rust**: no equivalent
 - **Confidence**: high | **Coverage**: uncovered

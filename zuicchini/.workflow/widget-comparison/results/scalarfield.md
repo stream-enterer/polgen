@@ -38,7 +38,7 @@
 - See CC-03
 - **Confidence**: high | **Coverage**: uncovered
 
-### [LOW] VCT_MIN_EXT missing (see CC-04)
+### [LOW] VCT_MIN_EXT missing (see CC-04) — **FIXED**
 
 ### [LOW] set_* methods don't fire signals (see CC-02)
 

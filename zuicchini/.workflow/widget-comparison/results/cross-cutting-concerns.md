@@ -52,7 +52,7 @@ When one is fixed, the others may not be. Check that fixes applied to one are re
 **Issue**: `input()` dispatches via `hit_test()` which tests the raw content_round_rect. The public `check_mouse()` has the correct C++ face-inset formula. The clickable area is slightly larger than C++ intended.
 **Fix**: Non-boxed (Button, RadioButton, CheckButton): face inset d=(14/264)*r applied. Boxed (CheckBox, RadioBox): content_rect with r=h*0.2.
 
-## CC-04: Missing VCT_MIN_EXT Checks
+## CC-04: Missing VCT_MIN_EXT Checks — **PARTIALLY FIXED**
 
 **Found in**: Button audit (2026-03-18, in progress)
 **Affected widgets**: All interactive widgets
