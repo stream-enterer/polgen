@@ -21,17 +21,14 @@
 - O(edit-size) per entry (C++) vs O(text-length) per entry (Rust)
 - **Confidence**: high | **Coverage**: uncovered
 
-### [HIGH] Backspace/Delete modifier handling more permissive
+### [HIGH] Backspace/Delete modifier handling more permissive — **FIXED**
 - C++ plain Backspace requires `IsNoMod()` — no modifiers allowed
-- Rust accepts Backspace with any unmatched modifier combo (e.g., Shift+Backspace)
-- C++ Shift+Backspace does nothing; Rust fires plain backspace
+- **Fix**: Added `!alt && !meta && (!shift || ctrl)` guard on both Backspace and Delete
 - **Confidence**: medium | **Coverage**: partially covered
 
-### [HIGH] Ctrl+Left/Right calls wrong word-boundary function
+### [HIGH] Ctrl+Left/Right calls wrong word-boundary function — **FIXED**
 - C++ uses `GetPrevWordIndex`/`GetNextWordIndex`
-- Rust keyboard handler calls `prev_word_boundary`/`next_word_boundary` (different semantics)
-- Rust HAS matching functions (`next_word_index`/`prev_word_index`) but doesn't use them
-- May produce same results in common cases, diverges for edge cases like "hello  .  world"
+- **Fix**: Replaced prev/next_word_boundary with prev/next_word_index in all 4 Ctrl+word ops
 - **Confidence**: medium | **Coverage**: covered (widget_textfield_cursor_nav)
 
 ### [MEDIUM] Tab rendering in multi-line not expanded during paint
@@ -45,9 +42,9 @@
 - Rust has no equivalent — text layout scaling (`ws`) differs at end of text
 - **Confidence**: high | **Coverage**: uncovered
 
-### [MEDIUM] Double-click word selection differs on delimiters
+### [MEDIUM] Double-click word selection differs on delimiters — **FIXED**
 - C++ double-click on delimiter selects from delimiter to next word boundary (always non-empty)
-- Rust `word_start`/`word_end` on delimiter returns empty range (delimiter is not a word char)
+- **Fix**: Added prev_word_boundary_index, updated double-click and drag-by-words to use boundary-based segment selection
 - **Confidence**: high | **Coverage**: uncovered
 
 ### [MEDIUM] DM_MOVE: no live drag feedback

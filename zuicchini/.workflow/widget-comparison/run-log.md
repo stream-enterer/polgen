@@ -159,9 +159,29 @@ TkTest composition divergence documented in results/tktest-divergence.md. Missin
 **Finding addressed**: CheckBox [BUG] SetChecked silent, CC-02
 **Change**: set_checked now fires on_check when state changes.
 
+### Fix 12: TextField Ctrl+arrow/Backspace/Delete word-index functions
+
+**Finding addressed**: TextField [HIGH] Ctrl+Left/Right calls wrong word-boundary function
+**Change**: Replaced prev/next_word_boundary with prev/next_word_index in all 4 Ctrl+word operations.
+
+### Fix 13: TextField Backspace/Delete modifier guards
+
+**Finding addressed**: TextField [HIGH] Backspace modifier handling too permissive
+**Change**: Added `!alt && !meta && (!shift || ctrl)` guard matching C++ modifier handling.
+
+### Fix 14: TextField double-click segment selection
+
+**Finding addressed**: TextField [MEDIUM] Double-click on delimiters selects empty range
+**Change**: Added prev_word_boundary_index, updated double-click and drag-by-words to use boundary-based segment selection matching C++.
+
+### Fix 15: Splitter 2D hit test with exclusive upper bound
+
+**Finding addressed**: Splitter [LOW] Hit test is 1D not 2D, [LOW] Inclusive upper bound
+**Change**: Now checks both axes; changed `<=` to `<` matching C++.
+
 ### All Fixes Summary
 
-All 1137 tests pass after every fix. Total: 11 fixes across 10 files.
+All 1137 tests pass after every fix. Total: 15 fixes across 11 files.
 
 ### Notes
 
