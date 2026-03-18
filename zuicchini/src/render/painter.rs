@@ -766,16 +766,32 @@ impl<'a> Painter<'a> {
             ((px as f64, py as f64), (px as f64, (py + ph) as f64))
         };
 
+        let tw = self.target_width as usize;
+        let mode = BlendMode::from_state(self.state.canvas_color, self.state.alpha);
+        let mut ibuf = InterpolationBuffer::new(4);
+        let max_batch = ibuf.max_pixels();
+
         for row in start_y..end_y {
-            for col in start_x..end_x {
-                let color = interpolation::sample_linear_gradient(
-                    start,
-                    end,
-                    color_a,
-                    color_b,
-                    (col as f64 + 0.5, row as f64 + 0.5),
-                );
-                self.blend_pixel_unchecked(col, row, color);
+            let mut col = start_x;
+            while col < end_x {
+                let batch = ((end_x - col) as usize).min(max_batch);
+                for i in 0..batch {
+                    let c = col + i as i32;
+                    let color = interpolation::sample_linear_gradient(
+                        start,
+                        end,
+                        color_a,
+                        color_b,
+                        (c as f64 + 0.5, row as f64 + 0.5),
+                    );
+                    ibuf.set_pixel(i, [color.r(), color.g(), color.b(), color.a()]);
+                }
+                ibuf.set_len(batch);
+                let dest_offset = (row as usize * tw + col as usize) * 4;
+                let data = self.image().data_mut();
+                let dest = &mut data[dest_offset..];
+                blend_scanline(dest, &ibuf, batch, None, &mode);
+                col += batch as i32;
             }
         }
         self.state.canvas_color = saved_canvas;
@@ -1876,13 +1892,35 @@ impl<'a> Painter<'a> {
             dest_h: ph as f64,
         };
 
+        let tw = self.target_width as usize;
+        let mode = BlendMode::from_state(self.state.canvas_color, self.state.alpha);
+        let mut ibuf = InterpolationBuffer::new(4);
+        let max_batch = ibuf.max_pixels();
+
         for row in start_y..end_y {
-            for col in start_x..end_x {
-                let src_x = (col - px) as f64 * src_w / pw as f64;
-                let src_y = (row - py) as f64 * src_h / ph as f64;
-                let color =
-                    interpolation::sample(image, src_x, src_y, interp_quality, extension, &ctx);
-                self.blend_pixel_unchecked(col, row, color);
+            let mut col = start_x;
+            while col < end_x {
+                let batch = ((end_x - col) as usize).min(max_batch);
+                for i in 0..batch {
+                    let c = col + i as i32;
+                    let src_x = (c - px) as f64 * src_w / pw as f64;
+                    let src_y = (row - py) as f64 * src_h / ph as f64;
+                    let color = interpolation::sample(
+                        image,
+                        src_x,
+                        src_y,
+                        interp_quality,
+                        extension,
+                        &ctx,
+                    );
+                    ibuf.set_pixel(i, [color.r(), color.g(), color.b(), color.a()]);
+                }
+                ibuf.set_len(batch);
+                let dest_offset = (row as usize * tw + col as usize) * 4;
+                let data = self.image().data_mut();
+                let dest = &mut data[dest_offset..];
+                blend_scanline(dest, &ibuf, batch, None, &mode);
+                col += batch as i32;
             }
         }
     }
