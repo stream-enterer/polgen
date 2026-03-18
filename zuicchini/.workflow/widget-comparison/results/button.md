@@ -68,9 +68,11 @@
 ### [NOTE] Hover state is Rust-only addition — **FIXED**
 - **Fix**: Removed hover field, update_hover, is_hovered. Face color always ButtonBgColor.
 
-### [NOTE] Click() API: no shift parameter, no enabled check, no EOI signal
+### [NOTE] Click() API: no shift parameter, no enabled check, no EOI signal — **PARTIALLY FIXED**
+- **Fix**: `click()` now gates on `enabled`; disabled buttons no longer fire their callback.
+- **Remaining**: `shift` parameter not implemented (requires view/EOI infrastructure); EOI signal not fired.
 - **C++**: Click(bool shift) — gates on IsEnabled(), fires EOI when !shift && !NoEOI
-- **Rust**: click() — just invokes callback unconditionally
+- **Rust**: click() — shift and EOI not implemented
 - **Confidence**: high | **Coverage**: uncovered
 
 ## Summary

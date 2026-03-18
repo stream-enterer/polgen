@@ -15,10 +15,10 @@
 - **Fix**: Changed text_alignment from Center to Left matching C++ CaptionAlignment default.
 - **Confidence**: high | **Coverage**: uncovered (golden uses single-line text)
 
-### [GAP] No description or icon support
+### [GAP] No description or icon support — **FIXED**
+- **Fix**: `with_label` constructor, `set_description`, and `set_icon` added; delegates to `border.paint_label` which handles full DoLabel layout including description and icon.
 - **C++**: emLabel.h:40-45 — constructor accepts description and icon, DoLabel lays them out
 - **Rust**: label.rs:16-23 — only caption
-- Likely intentional scope reduction since emLabel is typically caption-only
 - **Confidence**: high | **Coverage**: uncovered
 
 ### [GAP] No disabled state handling — **FIXED**

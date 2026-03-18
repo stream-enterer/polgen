@@ -31,10 +31,10 @@
 - **Fix**: Replaced prev/next_word_boundary with prev/next_word_index in all 4 Ctrl+word ops
 - **Confidence**: medium | **Coverage**: covered (widget_textfield_cursor_nav)
 
-### [MEDIUM] Tab rendering in multi-line not expanded during paint
+### [MEDIUM] Tab rendering in multi-line not expanded during paint — **FIXED**
+- **Fix**: Column-grid based segment rendering added; each row is now split at tab characters and segments are painted at `tx + col * cw` positions, with tab stops advancing to the next 8-column boundary via `col = (col + 7) & !7`.
 - C++ processes tabs char-by-char: `col=(col+7)&~7`, paints segments between tabs
 - Rust splits on '\n' and paints each row as a single string — tabs not expanded
-- `calc_total_cols_rows` correctly handles tabs for width, but paint doesn't use tab-expanded positioning
 - **Confidence**: high | **Coverage**: uncovered
 
 ### [MEDIUM] Overwrite mode doesn't expand cols count for cursor — **FIXED**

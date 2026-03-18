@@ -15,8 +15,10 @@
 - **LB-05**: Input and scroll now use `row_height()` helper that matches paint's `visible_height / items.len()`. Falls back to `ROW_HEIGHT` when empty or before first paint.
 - **Confidence**: high | **Coverage**: uncovered
 
-### [LOW] add_item/insert_item don't accept data parameter (LB-01)
-### [LOW] sort_items comparator lacks data access (LB-02)
+### [LOW] add_item/insert_item don't accept data parameter (LB-01) — **FIXED**
+- **Fix**: `add_item_with_data` and `insert_item_with_data` added, accepting an associated data value alongside the item label.
+### [LOW] sort_items comparator lacks data access (LB-02) — **FIXED**
+- **Fix**: `sort_items_with_data` added; comparator closure receives both items' data values enabling data-aware ordering.
 ### [LOW] focus_index concept not in C++ (LB-04)
 ### [LOW] Custom item panels can't intercept input (LB-06)
 ### [LOW] Inline paint row height may differ from C++ RasterGroup layout (LB-08)
