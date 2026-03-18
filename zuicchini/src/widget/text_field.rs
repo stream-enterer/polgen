@@ -102,6 +102,9 @@ pub struct TextField {
     undo_merge: UndoMergeType,
     /// D-WIDGET-04: Drag offset for DM_MOVE (char offset from selection start).
     drag_offset: Option<usize>,
+    /// Pre-move snapshot for live DM_MOVE: (text, sel_start, sel_end, cursor).
+    /// Stored at drag start so each motion event can revert and re-apply.
+    move_snapshot: Option<(String, usize, usize, usize)>,
     /// Whether this text field is in the focused panel path.
     /// C++ only renders the cursor when focused. Default false.
     pub focused: bool,
@@ -162,6 +165,7 @@ impl TextField {
             pending_scroll_to_visible: None,
             undo_merge: UndoMergeType::NoMerge,
             drag_offset: None,
+            move_snapshot: None,
             focused: false,
             ml_effective_ch: 0.0,
             ml_effective_ty: 0.0,
@@ -2037,11 +2041,15 @@ impl TextField {
             {
                 // D-WIDGET-04: Record drag offset from selection start.
                 self.drag_offset = Some(pos.saturating_sub(self.selection_start()));
+                // Save pre-move snapshot for live feedback.
+                self.move_snapshot = Some((
+                    self.text.clone(),
+                    self.selection_start(),
+                    self.selection_end(),
+                    self.cursor,
+                ));
+                self.save_undo_with_merge(UndoMergeType::Move);
                 self.drag_mode = DragMode::Move;
-                // C++: Reset UM_MOVE to prevent merging separate moves.
-                if self.undo_merge == UndoMergeType::Move {
-                    self.undo_merge = UndoMergeType::NoMerge;
-                }
             } else {
                 self.cursor = pos;
                 self.selection_anchor = None;
@@ -2187,15 +2195,52 @@ impl TextField {
                 true
             }
             DragMode::Move => {
-                // D-WIDGET-04: During move drag, compute target position
-                // applying drag offset so cursor doesn't jump.
-                // The actual move happens on release.
+                // C++ DM_MOVE (emTextField.cpp:526-556): continuously move
+                // selected text to drag position on every mouse motion.
+                if self.editable {
+                    if let Some((ref snap_text, snap_sel_start, snap_sel_end, _snap_cursor)) =
+                        self.move_snapshot
+                    {
+                        let snap_text = snap_text.clone();
+                        let sel_len = snap_sel_end - snap_sel_start;
+                        let selected = snap_text[snap_sel_start..snap_sel_end].to_string();
+
+                        // Revert to pre-move text.
+                        self.text = snap_text;
+
+                        // Compute target from current mouse position.
+                        let raw_pos = self.pos_from_event(event.mouse_x, event.mouse_y);
+                        let offset = self.drag_offset.unwrap_or(0);
+                        let target = raw_pos.saturating_sub(offset);
+
+                        if target < snap_sel_start || target > snap_sel_end {
+                            // Remove selected text from original position.
+                            self.text.drain(snap_sel_start..snap_sel_end);
+                            let insert_pos = if target > snap_sel_end {
+                                target - sel_len
+                            } else {
+                                target
+                            };
+                            let insert_pos = insert_pos.min(self.text.len());
+                            let insert_pos = self.clamp_to_boundary(insert_pos);
+                            self.text.insert_str(insert_pos, &selected);
+                            self.selection_anchor = Some(insert_pos);
+                            self.cursor = insert_pos + sel_len;
+                            self.fire_change();
+                            self.fire_selection_change();
+                        } else {
+                            // Target within selection — no move, restore original state.
+                            self.selection_anchor = Some(snap_sel_start);
+                            self.cursor = snap_sel_end;
+                        }
+                    }
+                }
                 true
             }
         }
     }
 
-    fn handle_mouse_release(&mut self, event: &InputEvent) -> bool {
+    fn handle_mouse_release(&mut self, _event: &InputEvent) -> bool {
         let was_dragging = self.drag_mode != DragMode::None;
 
         if self.drag_mode == DragMode::Insert && self.editable {
@@ -2229,32 +2274,10 @@ impl TextField {
             }
         }
 
-        if self.drag_mode == DragMode::Move && self.editable {
-            // D-WIDGET-04: Apply drag offset to compute target position.
-            let raw_pos = self.pos_from_event(event.mouse_x, event.mouse_y);
-            let offset = self.drag_offset.unwrap_or(0);
-            let pos = raw_pos.saturating_sub(offset);
-            let sel_start = self.selection_start();
-            let sel_end = self.selection_end();
-            if pos < sel_start || pos > sel_end {
-                let selected = self.text[sel_start..sel_end].to_string();
-                self.save_undo_with_merge(UndoMergeType::Move);
-                // Remove selection first
-                self.text.drain(sel_start..sel_end);
-                // Adjust insert position
-                let insert_pos = if pos > sel_end {
-                    pos - (sel_end - sel_start)
-                } else {
-                    pos
-                };
-                let insert_pos = insert_pos.min(self.text.len());
-                let insert_pos = self.clamp_to_boundary(insert_pos);
-                self.text.insert_str(insert_pos, &selected);
-                self.cursor = insert_pos + selected.len();
-                self.selection_anchor = Some(insert_pos);
-                self.fire_change();
-                self.fire_selection_change();
-            }
+        if self.drag_mode == DragMode::Move {
+            // Live DM_MOVE already applied the move during drag motion.
+            // Just clean up the snapshot.
+            self.move_snapshot = None;
         }
 
         // C++ publishes selection to clipboard on mouse release after drag
@@ -2265,6 +2288,7 @@ impl TextField {
 
         self.drag_mode = DragMode::None;
         self.drag_offset = None;
+        self.move_snapshot = None;
         was_dragging
     }
 
