@@ -47,7 +47,11 @@ impl RadioGroup {
     }
 
     /// Select the button at `index`, unchecking any previously selected button.
+    /// No-op if already selected (matches C++ recursion guard / no-change check).
     pub fn select(&mut self, index: usize) {
+        if self.selected == Some(index) {
+            return;
+        }
         self.selected = Some(index);
         if let Some(cb) = &mut self.on_select {
             cb(Some(index));
