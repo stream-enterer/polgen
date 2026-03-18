@@ -1491,7 +1491,20 @@ const HOWTO_MULTI_SELECTION: &str = "\n\n\
       Shift+Ctrl+Left-Button-Click - Invert the selection of a range of items or\n\
                                      select an additional range.\n\n\
       Left-Button-Double-Click     - Trigger the clicked item (application-defined\n\
-                                     function).\n";
+                                     function).\n\n\
+    Keyboard control:\n\n\
+      Space                        - Select the focused item.\n\n\
+      Shift+Space                  - Select the range of items from the previously\n\
+                                     selected item to the focused item.\n\n\
+      Ctrl+Space                   - Invert the selection of the focused item.\n\n\
+      Shift+Ctrl+Space             - Invert the selection of a range of items or\n\
+                                     select an additional range.\n\n\
+      Ctrl+A                       - Select all items.\n\n\
+      Shift+Ctrl+A                 - Clear the selection.\n\n\
+      Enter                        - Trigger the focused item (application-defined\n\
+                                     function).\n\n\
+      Any normal key               - To find, focus and select an item, you can simply\n\
+                                     enter the first characters of its caption.\n";
 
 /// C++ `emListBox::HowToToggleSelection`.
 const HOWTO_TOGGLE_SELECTION: &str = "\n\n\
@@ -1504,7 +1517,18 @@ const HOWTO_TOGGLE_SELECTION: &str = "\n\n\
                                      the previously clicked item to this clicked\n\
                                      item.\n\n\
       Left-Button-Double-Click     - Trigger the clicked item (application-defined\n\
-                                     function).\n";
+                                     function).\n\n\
+    Keyboard control:\n\n\
+      Space                        - Invert the selection of the focused item.\n\n\
+      Shift+Space                  - Invert the selection of the range of items from\n\
+                                     the previously selected item to the focused\n\
+                                     item.\n\n\
+      Ctrl+A                       - Select all items.\n\n\
+      Shift+Ctrl+A                 - Deselect all items.\n\n\
+      Enter                        - Trigger the focused item (application-defined\n\
+                                     function).\n\n\
+      Any normal key               - To find, focus and select an item, you can simply\n\
+                                     enter the first characters of its caption.\n";
 
 #[cfg(test)]
 mod tests {
