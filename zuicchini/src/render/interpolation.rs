@@ -1143,7 +1143,7 @@ pub(crate) fn interpolate_scanline_area_sampled(
     xfm: &AreaSampleTransform,
     sec: &SectionBounds,
     ext: ImageExtension,
-    buf: &mut super::scanline_tool::InterpolationBuffer,
+    buf: &mut crate::render::scanline_tool::InterpolationBuffer,
 ) {
     let ch = image.channel_count();
 
@@ -1345,7 +1345,7 @@ pub(crate) fn interpolate_scanline_adaptive_premul(
     count: usize,
     sxfm: &ScaleTransform24,
     ext: ImageExtension,
-    buf: &mut super::scanline_tool::InterpolationBuffer,
+    buf: &mut crate::render::scanline_tool::InterpolationBuffer,
 ) {
     for i in 0..count {
         let col = dest_x_start + i as i32;
@@ -1369,7 +1369,7 @@ pub(crate) fn interpolate_scanline_adaptive_premul_section(
     sxfm: &ScaleTransform24,
     sec: &SectionBounds,
     ext: ImageExtension,
-    buf: &mut super::scanline_tool::InterpolationBuffer,
+    buf: &mut crate::render::scanline_tool::InterpolationBuffer,
 ) {
     for i in 0..count {
         let col = dest_x_start + i as i32;
@@ -1392,7 +1392,7 @@ pub(crate) fn interpolate_scanline_nearest(
     count: usize,
     sxfm: &ScaleTransform24,
     ext: ImageExtension,
-    buf: &mut super::scanline_tool::InterpolationBuffer,
+    buf: &mut crate::render::scanline_tool::InterpolationBuffer,
 ) {
     // ty is constant for the whole row
     let ty = (dest_y - py) as i64 * sxfm.tdy + sxfm.base_y;
@@ -1714,5 +1714,163 @@ mod tests {
         let sec = full_sec(4, 4);
         let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Clamp);
         assert_eq!(c, Color::rgba(100, 150, 200, 255));
+    }
+
+    // ── Scanline vs per-pixel equivalence tests ─────────────────────
+
+    #[test]
+    fn scanline_area_matches_perpixel_4ch() {
+        // 8x8 RGBA gradient, 2:1 downscale to 4x4 dest.
+        let mut img = Image::new(8, 8, 4);
+        for y in 0..8u32 {
+            for x in 0..8u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = (x * 30 + y * 10) as u8;
+                p[1] = (255 - x * 25) as u8;
+                p[2] = (y * 30) as u8;
+                p[3] = (200 + (x * 5).min(55)) as u8;
+            }
+        }
+        let xfm = make_area_xfm(8, 8, 4.0, 4.0);
+        let sec = full_sec(8, 8);
+        let ext = ImageExtension::Zero;
+
+        // Per-pixel reference
+        let mut ref_pixels = Vec::new();
+        for dest_y in 0..4 {
+            for dest_x in 0..4 {
+                let c = sample_area_fp(&img, dest_x, dest_y, &xfm, &sec, ext);
+                ref_pixels.push([c.r(), c.g(), c.b(), c.a()]);
+            }
+        }
+
+        // Scanline version: one row at a time
+        let mut buf = crate::render::scanline_tool::InterpolationBuffer::new(4);
+        let mut scan_pixels = Vec::new();
+        for dest_y in 0..4 {
+            interpolate_scanline_area_sampled(&img, 0, dest_y, 4, &xfm, &sec, ext, &mut buf);
+            for i in 0..4 {
+                scan_pixels.push(buf.pixel_rgba(i));
+            }
+        }
+
+        assert_eq!(ref_pixels, scan_pixels, "scanline area 4ch mismatch");
+    }
+
+    #[test]
+    fn scanline_area_matches_perpixel_1ch() {
+        let mut img = Image::new(6, 6, 1);
+        for y in 0..6u32 {
+            for x in 0..6u32 {
+                img.pixel_mut(x, y)[0] = (x * 40 + y * 20) as u8;
+            }
+        }
+        let xfm = make_area_xfm(6, 6, 3.0, 3.0);
+        let sec = full_sec(6, 6);
+        let ext = ImageExtension::Clamp;
+
+        let mut ref_pixels = Vec::new();
+        for dest_y in 0..3 {
+            for dest_x in 0..3 {
+                let c = sample_area_fp(&img, dest_x, dest_y, &xfm, &sec, ext);
+                ref_pixels.push([c.r(), c.g(), c.b(), c.a()]);
+            }
+        }
+
+        let mut buf = crate::render::scanline_tool::InterpolationBuffer::new(4);
+        let mut scan_pixels = Vec::new();
+        for dest_y in 0..3 {
+            interpolate_scanline_area_sampled(&img, 0, dest_y, 3, &xfm, &sec, ext, &mut buf);
+            for i in 0..3 {
+                scan_pixels.push(buf.pixel_rgba(i));
+            }
+        }
+
+        assert_eq!(ref_pixels, scan_pixels, "scanline area 1ch mismatch");
+    }
+
+    #[test]
+    fn scanline_area_matches_perpixel_3ch() {
+        let mut img = Image::new(6, 6, 3);
+        for y in 0..6u32 {
+            for x in 0..6u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = (x * 35 + y * 15) as u8;
+                p[1] = (128 + (x * 10).min(127)) as u8;
+                p[2] = (y * 40) as u8;
+            }
+        }
+        let xfm = make_area_xfm(6, 6, 3.0, 3.0);
+        let sec = full_sec(6, 6);
+        let ext = ImageExtension::Clamp;
+
+        let mut ref_pixels = Vec::new();
+        for dest_y in 0..3 {
+            for dest_x in 0..3 {
+                let c = sample_area_fp(&img, dest_x, dest_y, &xfm, &sec, ext);
+                ref_pixels.push([c.r(), c.g(), c.b(), c.a()]);
+            }
+        }
+
+        let mut buf = crate::render::scanline_tool::InterpolationBuffer::new(4);
+        let mut scan_pixels = Vec::new();
+        for dest_y in 0..3 {
+            interpolate_scanline_area_sampled(&img, 0, dest_y, 3, &xfm, &sec, ext, &mut buf);
+            for i in 0..3 {
+                scan_pixels.push(buf.pixel_rgba(i));
+            }
+        }
+
+        assert_eq!(ref_pixels, scan_pixels, "scanline area 3ch mismatch");
+    }
+
+    #[test]
+    fn scanline_area_extend_zero_oob() {
+        // Test that out-of-bounds pixels return transparent with EXTEND_ZERO.
+        let mut img = Image::new(2, 2, 4);
+        for y in 0..2u32 {
+            for x in 0..2u32 {
+                let p = img.pixel_mut(x, y);
+                p[0] = 200;
+                p[1] = 100;
+                p[2] = 50;
+                p[3] = 255;
+            }
+        }
+        let tdx = 1i64 << 24;
+        let tdy = 1i64 << 24;
+        let xfm = AreaSampleTransform {
+            tdx,
+            tdy,
+            tx: 5 << 24,
+            ty: 5 << 24,
+            odx: rational_inv(tdx),
+            ody: rational_inv(tdy),
+            img_w: 2,
+            img_h: 2,
+            stride_x: 1,
+            stride_y: 1,
+            off_x: 0,
+            off_y: 0,
+        };
+        let sec = full_sec(2, 2);
+
+        // Per-pixel reference
+        let c = sample_area_fp(&img, 0, 0, &xfm, &sec, ImageExtension::Zero);
+        assert_eq!(c, Color::TRANSPARENT);
+
+        // Scanline version
+        let mut buf = crate::render::scanline_tool::InterpolationBuffer::new(4);
+        interpolate_scanline_area_sampled(
+            &img,
+            0,
+            0,
+            1,
+            &xfm,
+            &sec,
+            ImageExtension::Zero,
+            &mut buf,
+        );
+        assert_eq!(buf.pixel_rgba(0), [0, 0, 0, 0]);
     }
 }
