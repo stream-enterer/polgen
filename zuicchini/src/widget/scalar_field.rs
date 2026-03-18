@@ -91,6 +91,8 @@ pub struct ScalarField {
     max: f64,
     precision: usize,
     editable: bool,
+    /// Cached enabled state from last paint (for input gating).
+    enabled: bool,
     dragging: bool,
     drag_start_x: f64,
     drag_start_value: f64,
@@ -122,6 +124,7 @@ impl ScalarField {
             max: clamped_max,
             precision: 2,
             editable: true,
+            enabled: true,
             dragging: false,
             drag_start_x: 0.0,
             drag_start_value: 0.0,
@@ -292,6 +295,7 @@ impl ScalarField {
     pub fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, enabled: bool) {
         self.last_w = w;
         self.last_h = h;
+        self.enabled = enabled;
         // C++ emScalarField::GetHowTo() builds the text dynamically.
         {
             let mut text = String::from(HOWTO_PREFACE);
@@ -512,7 +516,8 @@ impl ScalarField {
     }
 
     pub fn input(&mut self, event: &InputEvent) -> bool {
-        if !self.editable {
+        // C++ emScalarField.cpp:246-268: gates on IsEditable() && IsEnabled().
+        if !self.editable || !self.enabled {
             return false;
         }
 
