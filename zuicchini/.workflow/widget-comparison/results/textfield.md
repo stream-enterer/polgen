@@ -75,7 +75,9 @@
 - Rust `deselect()` only sets `selection_published = false`
 - **Confidence**: medium | **Coverage**: uncovered
 
-### [MEDIUM] Disabled state color blending absent (see CC-03)
+### [MEDIUM] Disabled state color blending absent — **FIXED**
+- **Fix**: Lerp blend toward BgColor added when disabled, matching CC-03 pattern.
+- See CC-03
 
 ### [LOW] Undo select-after-undo behavior
 - C++ highlights restored text after undo; Rust clears selection

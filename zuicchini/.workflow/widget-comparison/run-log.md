@@ -201,7 +201,7 @@ TkTest composition divergence documented in results/tktest-divergence.md. Missin
 
 ### All Fixes Summary
 
-All 1137 tests pass after every fix. Total: 25+ fixes across 12 source files.
+All 1137 tests pass after every fix. Total: 30+ fixes across 13 source files.
 
 ### Notes
 

@@ -11,10 +11,8 @@
 - **Fix**: Added "transparent" text paint before color rect when alpha < 255, matching C++ emColorField.cpp:380-394.
 - **Confidence**: high | **Coverage**: may be covered if golden test uses non-opaque color
 
-### [LOW] Missing #RGB, #RGBA, #RRRGGGBBB, and named color parsing
-- **C++**: emColor.cpp:720-790 — supports short hex, long hex, and X11 named colors
-- **Rust**: Color::FromStr — only #RRGGBB and #RRGGBBAA
-- Graceful fallback in both (parse failure = keep old color)
+### [LOW] Missing #RGB, #RGBA, #RRRGGGBBB, and named color parsing — **FIXED**
+- **Fix**: ColorField now uses `try_parse`, adding support for short hex, long hex, and named color formats.
 - **Confidence**: high | **Coverage**: uncovered (no interaction tests)
 
 ### [LOW] RGBA vs HSV change priority differs

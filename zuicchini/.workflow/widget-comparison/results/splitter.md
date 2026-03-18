@@ -31,7 +31,9 @@
 - **Fix**: Changed `<=` to `<` matching C++.
 - **Confidence**: low | **Coverage**: uncovered
 
-### [LOW] Missing IsEnabled() check on press (see CC-03)
+### [LOW] Missing IsEnabled() check on press — **FIXED**
+- **Fix**: Input gating added on press matching CC-03 pattern.
+- See CC-03
 
 ### [LOW] Missing borderScaling factor in grip size
 - Rust uses fixed 0.015. C++ multiplies by GetBorderScaling(). Latent: no callers change scaling.
@@ -41,7 +43,9 @@
 - Same pattern as Label. Optimization difference, not pixel difference.
 - **Confidence**: low | **Coverage**: covered
 
-### [LOW] Missing disabled state alpha (255 vs 64) (see CC-03)
+### [LOW] Missing disabled state alpha (255 vs 64) — **FIXED**
+- **Fix**: Overlay alpha set to 64 when disabled, matching C++ transparency.
+- See CC-03
 
 ### [LOW] Missing Focus()/Activate() calls on drag
 - **Confidence**: high | **Coverage**: uncovered

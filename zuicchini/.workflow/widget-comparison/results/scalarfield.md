@@ -33,9 +33,8 @@
 ### [MEDIUM] Arrow keys (Left/Right) accepted as increment/decrement — **FIXED**
 - **Fix**: Removed ArrowLeft/ArrowRight, only +/- character keys matching C++.
 
-### [MEDIUM] Missing IsEnabled() check on input (only checks editable)
-- **C++**: gates on both `IsEditable()` AND `IsEnabled()`
-- **Rust**: only checks `is_editable()`
+### [MEDIUM] Missing IsEnabled() check on input (only checks editable) — **FIXED**
+- **Fix**: Input gating now checks both `is_editable()` and `is_enabled()` matching C++.
 - See CC-03
 - **Confidence**: high | **Coverage**: uncovered
 

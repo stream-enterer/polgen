@@ -21,15 +21,13 @@
 - Likely intentional scope reduction since emLabel is typically caption-only
 - **Confidence**: high | **Coverage**: uncovered
 
-### [GAP] No disabled state handling
-- **C++**: emLabel.cpp:44-47 — `IsEnabled()` check, `GetTransparented(75.0)` dims fg_color
-- **Rust**: label.rs:33 — hardcoded `enabled: true`, no transparency
+### [GAP] No disabled state handling — **FIXED**
+- **Fix**: Foreground alpha dim applied when disabled, matching C++ `GetTransparented(75.0)`.
 - Cross-cutting: CC-03
 - **Confidence**: high | **Coverage**: uncovered
 
-### [GAP] No alignment configurability
-- **C++**: emBorder.h:87-99 — `SetLabelAlignment`, `SetCaptionAlignment`, `SetDescriptionAlignment`
-- **Rust**: no setters, hardcoded to wrong defaults (Center instead of Left)
+### [GAP] No alignment configurability — **FIXED**
+- **Fix**: `set_label_alignment` and `set_caption_alignment` added matching C++ emBorder API.
 - **Confidence**: high | **Coverage**: uncovered
 
 ### [NOTE] canvas_color passed as TRANSPARENT

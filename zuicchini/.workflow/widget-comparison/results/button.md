@@ -40,9 +40,8 @@
 - Cross-cutting: CC-04
 - **Confidence**: high | **Coverage**: uncovered
 
-### [GAP] No enabled/disabled state
-- **C++**: gates input on IsEnabled(), dims colors by 75% transparency
-- **Rust**: no enabled concept at all
+### [GAP] No enabled/disabled state — **FIXED**
+- **Fix**: Enabled input gating added; paint label dim implemented when disabled.
 - Cross-cutting: CC-03
 - **Confidence**: high | **Coverage**: uncovered
 

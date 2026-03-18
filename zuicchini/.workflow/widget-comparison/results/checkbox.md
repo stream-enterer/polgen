@@ -29,9 +29,8 @@ Category **(b): code duplication**. Rust CheckBox is 4x larger because it inline
 - Functionally equivalent, just redundant
 - **Confidence**: low | **Coverage**: covered
 
-### [GAP] Missing disabled visual overlay
-- C++: `PaintRoundRect(fx,fy,fw,fh,fr,fr,0x888888E0)` when disabled (emButton.cpp:316)
-- Rust: no disabled state at all
+### [GAP] Missing disabled visual overlay — **FIXED**
+- **Fix**: Gray overlay 0x888888E0 added when disabled; label dim implemented.
 - **Confidence**: high | **Coverage**: uncovered
 
 ### [GAP] Missing ShownRadioed path
