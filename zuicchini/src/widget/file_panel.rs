@@ -396,6 +396,10 @@ impl PanelBehavior for FilePanel {
         }
     }
 
+    fn get_icon_file_name(&self) -> Option<String> {
+        Some("file.tga".to_string())
+    }
+
     fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, _state: &PanelState) {
         self.paint_status(painter, w, h);
     }

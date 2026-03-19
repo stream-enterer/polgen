@@ -19,6 +19,8 @@ const KEYWALK_TIMEOUT_MS: u128 = 1000;
 type SelectionCb = Box<dyn FnMut(&[usize])>;
 type TriggerCb = Box<dyn FnMut(usize)>;
 type ItemPanelFactory = Box<dyn Fn(usize, String, bool) -> Box<dyn ItemPanelInterface>>;
+type ItemBehaviorFactory =
+    Box<dyn Fn(usize, &str, bool, Rc<Look>, SelectionMode, bool) -> Box<dyn PanelBehavior>>;
 
 /// Selection mode for list box items.
 ///
@@ -265,6 +267,9 @@ pub struct ListBox {
 
     /// Custom item panel factory. Port of C++ virtual CreateItemPanel.
     item_panel_factory: Option<ItemPanelFactory>,
+    /// Custom item *behavior* factory. When set, `create_item_children` uses
+    /// this instead of `DefaultItemPanelBehavior` for child panel painting.
+    item_behavior_factory: Option<ItemBehaviorFactory>,
     /// Whether item panels are currently expanded.
     expanded: bool,
     /// Fixed number of columns for the item grid layout.
@@ -300,6 +305,7 @@ impl ListBox {
             on_selection: None,
             on_trigger: None,
             item_panel_factory: None,
+            item_behavior_factory: None,
             expanded: false,
             fixed_column_count: None,
             visible_height: 0.0,
@@ -888,6 +894,18 @@ impl ListBox {
         self.item_panel_factory = Some(Box::new(factory));
     }
 
+    /// Set a custom factory for creating item panel *behaviors* (visual layer).
+    ///
+    /// When set, `create_item_children` calls this factory instead of
+    /// creating `DefaultItemPanelBehavior` for each item.
+    /// Signature: `(index, text, selected, look, selection_mode, enabled) -> Box<dyn PanelBehavior>`
+    pub fn set_item_behavior_factory<F>(&mut self, factory: F)
+    where
+        F: Fn(usize, &str, bool, Rc<Look>, SelectionMode, bool) -> Box<dyn PanelBehavior> + 'static,
+    {
+        self.item_behavior_factory = Some(Box::new(factory));
+    }
+
     /// Create item panels for all items. Called when the list box expands.
     /// Port of C++ emListBox::AutoExpand().
     pub fn auto_expand_items(&mut self) {
@@ -930,18 +948,21 @@ impl ListBox {
         let look = self.look.clone();
         let sel_mode = self.selection_mode;
         let enabled = self.enabled;
-        for item in &self.items {
+        for (i, item) in self.items.iter().enumerate() {
             let child = ctx.tree.create_child(layout_id, &item.name);
-            ctx.tree.set_behavior(
-                child,
-                Box::new(DefaultItemPanelBehavior::new(
-                    item.text.clone(),
-                    item.selected,
-                    look.clone(),
-                    sel_mode,
-                    enabled,
-                )),
-            );
+            let behavior: Box<dyn PanelBehavior> =
+                if let Some(factory) = &self.item_behavior_factory {
+                    factory(i, &item.text, item.selected, look.clone(), sel_mode, enabled)
+                } else {
+                    Box::new(DefaultItemPanelBehavior::new(
+                        item.text.clone(),
+                        item.selected,
+                        look.clone(),
+                        sel_mode,
+                        enabled,
+                    ))
+                };
+            ctx.tree.set_behavior(child, behavior);
         }
     }
 

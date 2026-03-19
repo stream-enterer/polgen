@@ -266,6 +266,7 @@ struct MouseMiscGroup {
     look: Rc<Look>,
     generation: Rc<Cell<u64>>,
     last_generation: u64,
+    stick_possible: bool,
     border: Border,
     layout: RasterLayout,
 }
@@ -275,6 +276,7 @@ impl MouseMiscGroup {
         config: Rc<RefCell<ConfigModel<CoreConfig>>>,
         look: Rc<Look>,
         generation: Rc<Cell<u64>>,
+        stick_possible: bool,
     ) -> Self {
         let gen = generation.get();
         Self {
@@ -282,6 +284,7 @@ impl MouseMiscGroup {
             look,
             generation,
             last_generation: gen,
+            stick_possible,
             border: Border::new(OuterBorderType::Group)
                 .with_inner(InnerBorderType::Group)
                 .with_caption("Miscellaneous mouse settings"),
@@ -293,9 +296,8 @@ impl MouseMiscGroup {
         let cfg = self.config.borrow();
         let c = cfg.get();
 
-        // TODO(StickPossible): In C++, this checkbox is disabled when the screen cannot
-        // move the mouse pointer (emScreen::CanMoveMousePointer()). We have no platform
-        // query for this yet, so the checkbox is always enabled for now.
+        // C++ emCoreConfigPanel.cpp:295: StickBox->SetEnableSwitch(StickPossible)
+        // Disabled when the screen cannot move the mouse pointer.
         let mut stick = CheckBox::new("Stick mouse\nwhen navigating", self.look.clone());
         stick.set_checked(c.stick_mouse_when_navigating);
         let config: Rc<RefCell<ConfigModel<CoreConfig>>> = Rc::clone(&self.config);
@@ -304,7 +306,10 @@ impl MouseMiscGroup {
             cm.modify(|c| c.stick_mouse_when_navigating = checked);
             let _ = cm.save();
         }));
-        ctx.create_child_with("stick", Box::new(CheckBoxPanel { check_box: stick }));
+        let stick_id = ctx.create_child_with("stick", Box::new(CheckBoxPanel { check_box: stick }));
+        if !self.stick_possible {
+            ctx.tree.set_enable_switch(stick_id, false);
+        }
 
         let mut emu = CheckBox::new("Emulate\nmiddle button", self.look.clone());
         emu.set_checked(c.emulate_middle_button);
@@ -1100,6 +1105,7 @@ struct MouseGroup {
     look: Rc<Look>,
     generation: Rc<Cell<u64>>,
     last_generation: u64,
+    stick_possible: bool,
     border: Border,
     layout: RasterLayout,
 }
@@ -1109,6 +1115,7 @@ impl MouseGroup {
         config: Rc<RefCell<ConfigModel<CoreConfig>>>,
         look: Rc<Look>,
         generation: Rc<Cell<u64>>,
+        stick_possible: bool,
     ) -> Self {
         let gen = generation.get();
         Self {
@@ -1116,6 +1123,7 @@ impl MouseGroup {
             look,
             generation,
             last_generation: gen,
+            stick_possible,
             border: Border::new(OuterBorderType::Group)
                 .with_inner(InnerBorderType::Group)
                 .with_caption("Mouse Control"),
@@ -1218,6 +1226,7 @@ impl MouseGroup {
                 Rc::clone(&self.config),
                 self.look.clone(),
                 Rc::clone(&self.generation),
+                self.stick_possible,
             )),
         );
     }
@@ -1328,6 +1337,7 @@ struct ContentPanel {
     config: Rc<RefCell<ConfigModel<CoreConfig>>>,
     look: Rc<Look>,
     generation: Rc<Cell<u64>>,
+    stick_possible: bool,
     layout: RasterLayout,
 }
 
@@ -1336,11 +1346,13 @@ impl ContentPanel {
         config: Rc<RefCell<ConfigModel<CoreConfig>>>,
         look: Rc<Look>,
         generation: Rc<Cell<u64>>,
+        stick_possible: bool,
     ) -> Self {
         Self {
             config,
             look,
             generation,
+            stick_possible,
             layout: RasterLayout::new()
                 .with_preferred_tallness(0.5)
                 .with_spacing(Spacing {
@@ -1358,6 +1370,7 @@ impl ContentPanel {
                 Rc::clone(&self.config),
                 self.look.clone(),
                 Rc::clone(&self.generation),
+                self.stick_possible,
             )),
         );
 
@@ -1422,6 +1435,9 @@ pub struct CoreConfigPanel {
     config: Rc<RefCell<ConfigModel<CoreConfig>>>,
     look: Rc<Look>,
     generation: Rc<Cell<u64>>,
+    /// Whether the screen can move the mouse pointer (C++ StickPossible).
+    /// Controls whether the "Stick mouse when navigating" checkbox is enabled.
+    stick_possible: bool,
     border: Border,
     layout: LinearLayout,
 }
@@ -1436,6 +1452,7 @@ impl CoreConfigPanel {
             config,
             look,
             generation: Rc::new(Cell::new(0)),
+            stick_possible: true,
             border,
             layout: LinearLayout::vertical().with_spacing(Spacing {
                 margin_left: 0.01,
@@ -1448,6 +1465,15 @@ impl CoreConfigPanel {
         }
     }
 
+    /// Set whether the "Stick mouse when navigating" checkbox is enabled.
+    ///
+    /// Pass `screen.can_move_mouse_pointer()`. Matches C++ emCoreConfigPanel line 232:
+    /// `StickPossible = (screen && screen->CanMoveMousePointer())`.
+    /// Must be called before the panel's children are first created (before first layout).
+    pub fn set_stick_possible(&mut self, possible: bool) {
+        self.stick_possible = possible;
+    }
+
     fn create_children(&mut self, ctx: &mut PanelCtx) {
         let content_id = ctx.create_child_with(
             "content",
@@ -1455,6 +1481,7 @@ impl CoreConfigPanel {
                 Rc::clone(&self.config),
                 self.look.clone(),
                 Rc::clone(&self.generation),
+                self.stick_possible,
             )),
         );
         self.layout.set_child_constraint(

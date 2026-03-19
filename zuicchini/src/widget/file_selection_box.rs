@@ -2,8 +2,9 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+use crate::foundation::Color;
 use crate::panel::{PanelBehavior, PanelCtx, PanelId, PanelState};
-use crate::render::Painter;
+use crate::render::{Painter, Stroke};
 
 use super::border::{Border, InnerBorderType, OuterBorderType};
 use super::check_box::CheckBox;
@@ -18,6 +19,227 @@ pub struct FileItemData {
     pub is_directory: bool,
     pub is_readable: bool,
     pub is_hidden: bool,
+}
+
+/// Panel behavior for a single file/directory item inside the file list.
+///
+/// Port of C++ `emFileSelectionBox::FileItemPanel::Paint` (lines 958-1062).
+/// Renders:
+/// 1. Selection highlight (round rect) when selected
+/// 2. Filename text (center-aligned, bottom region)
+/// 3. Directory icon (colored rectangle) or nothing for regular files
+/// 4. "Parent Directory" label for ".." entries
+/// 5. Not-readable indicator (circle + diagonal line)
+struct FileItemPanelBehavior {
+    name: String,
+    is_directory: bool,
+    is_readable: bool,
+    is_selected: bool,
+    look: Rc<Look>,
+    selection_mode: SelectionMode,
+    enabled: bool,
+}
+
+impl FileItemPanelBehavior {
+    fn new(
+        name: String,
+        is_directory: bool,
+        is_readable: bool,
+        is_selected: bool,
+        look: Rc<Look>,
+        selection_mode: SelectionMode,
+        enabled: bool,
+    ) -> Self {
+        Self {
+            name,
+            is_directory,
+            is_readable,
+            is_selected,
+            look,
+            selection_mode,
+            enabled,
+        }
+    }
+}
+
+impl PanelBehavior for FileItemPanelBehavior {
+    fn paint(&mut self, painter: &mut Painter, w: f64, h: f64, _state: &PanelState) {
+        // C++ emFileSelectionBox::FileItemPanel::Paint (lines 958-1062).
+        // Panel coordinates: (0,0)-(w,h) where w is normalized to 1.0 in C++.
+        // Here w and h are the actual panel dimensions.
+
+        let panel_h = h / w.max(1e-100); // normalized height (C++ GetHeight())
+        let nh = panel_h.max(1e-3);
+
+        // Color setup matching C++ GetFgColor/GetBgColor via Look.
+        let (bg, fg, hl) = if self.selection_mode == SelectionMode::ReadOnly {
+            (
+                self.look.output_bg_color,
+                self.look.output_fg_color,
+                self.look.output_hl_color,
+            )
+        } else {
+            (
+                self.look.input_bg_color,
+                self.look.input_fg_color,
+                self.look.input_hl_color,
+            )
+        };
+        let (bg, fg, hl) = if !self.enabled {
+            let base = self.look.bg_color;
+            (
+                bg.lerp(base, 0.80),
+                fg.lerp(base, 0.80),
+                hl.lerp(base, 0.80),
+            )
+        } else {
+            (bg, fg, hl)
+        };
+
+        let fg_color = fg;
+        let mut canvas_color = bg;
+
+        // 1. Selection highlight (C++ lines 973-985).
+        if self.is_selected {
+            let s = 1.0_f64.min(nh);
+            let fx = s * 0.015;
+            let fw = 1.0 - 2.0 * fx;
+            let fy = fx;
+            let fh = nh - 2.0 * fy;
+            let r = s * 0.1;
+            painter.paint_round_rect(
+                fx * w,
+                fy * w,
+                fw * w,
+                fh * w,
+                r * w,
+                hl,
+            );
+            canvas_color = hl;
+        }
+
+        // 2. Filename text (C++ lines 987-999).
+        {
+            let fx = 0.06;
+            let fw = 1.0 - 2.0 * fx;
+            let fy = nh * 0.77;
+            let fh = nh - fy - nh * 0.05;
+            let text_color = if self.is_selected { bg } else { fg_color };
+            painter.paint_text_boxed(
+                fx * w,
+                fy * w,
+                fw * w,
+                fh * w,
+                &self.name,
+                nh * w,
+                text_color,
+                canvas_color,
+                crate::render::TextAlignment::Center,
+                crate::render::VAlign::Center,
+                crate::render::TextAlignment::Center,
+                0.5,
+                true,
+                0.0,
+            );
+        }
+
+        // 3. Directory icon area (C++ lines 1001-1044).
+        if self.is_directory {
+            // Icon region: aspect-ratio-preserving box.
+            // C++ uses actual image dimensions; we use a 310:216 aspect ratio
+            // matching the dir image dimensions from C++.
+            let img_aspect = 216.0 / 310.0; // height/width
+
+            let mut fx = 0.06;
+            let mut fw = 1.0 - 2.0 * fx;
+            let mut fy = nh * 0.1;
+            let mut fh = nh * 0.62;
+
+            // Aspect ratio preservation (C++ lines 1019-1026).
+            if fh / fw < img_aspect {
+                fw = fh / img_aspect;
+                fx = (1.0 - fw) * 0.5;
+            } else {
+                fy += (fh - fw * img_aspect) * 0.5;
+                fh = fw * img_aspect;
+            }
+
+            // Draw a simple folder icon as a colored rectangle with a tab.
+            let icon_color = if self.is_selected { bg } else { fg_color };
+            let icon_alpha = icon_color.with_alpha(180);
+
+            // Folder body
+            let bx = fx * w;
+            let by = (fy + fh * 0.15) * w;
+            let bw = fw * w;
+            let bh = (fh * 0.85) * w;
+            painter.paint_round_rect(bx, by, bw, bh, bw * 0.05, icon_alpha);
+
+            // Folder tab (top-left flap)
+            let tx = fx * w;
+            let ty = fy * w;
+            let tw = fw * 0.4 * w;
+            let th = fh * 0.2 * w;
+            painter.paint_round_rect(tx, ty, tw, th, tw * 0.1, icon_alpha);
+
+            // 4. "Parent Directory" overlay for ".." (C++ lines 1031-1044).
+            if self.name == ".." {
+                let pd_color = fg_color.transparented(40.0);
+                let pdx = (fx + fw * 115.0 / 310.0) * w;
+                let pdy = (fy + fh * 168.0 / 216.0) * w;
+                let pdw = (fw * 150.0 / 310.0) * w;
+                let pdh = (fh * 23.0 / 216.0) * w;
+                painter.paint_text_boxed(
+                    pdx,
+                    pdy,
+                    pdw,
+                    pdh,
+                    "Parent Directory",
+                    fh * w,
+                    pd_color,
+                    Color::TRANSPARENT,
+                    crate::render::TextAlignment::Center,
+                    crate::render::VAlign::Center,
+                    crate::render::TextAlignment::Center,
+                    0.5,
+                    true,
+                    0.0,
+                );
+            }
+
+            // 5. Not-readable indicator (C++ lines 1045-1059).
+            if !self.is_readable {
+                let r = fw.min(fh) * 0.35;
+                let cx = (fx + fw * 0.5) * w;
+                let cy = (fy + fh * 0.5) * w;
+                let rw = r * w;
+
+                // Circle outline via ellipse outlined.
+                let stroke = Stroke::new(fg_color, rw * 0.26);
+                painter.paint_ellipse_outlined(cx, cy, rw, rw, &stroke, canvas_color);
+
+                // Diagonal line.
+                let t = rw * std::f64::consts::FRAC_1_SQRT_2;
+                let line_stroke = Stroke::new(fg_color, rw * 0.22);
+                painter.paint_line_stroked(
+                    cx - t,
+                    cy - t,
+                    cx + t,
+                    cy + t,
+                    &line_stroke,
+                    canvas_color,
+                );
+            }
+        }
+    }
+
+    fn canvas_color(&self) -> Color {
+        if self.selection_mode == SelectionMode::ReadOnly {
+            self.look.output_bg_color
+        } else {
+            self.look.input_bg_color
+        }
+    }
 }
 
 type SelectionChangedCb = Box<dyn FnMut()>;
@@ -69,6 +291,8 @@ pub struct FileSelectionBox {
     children_dirty: bool,
     /// Shared event state collected by child-panel callbacks.
     events: Rc<RefCell<FsbEvents>>,
+    /// Shared listing metadata for the item behavior factory closure.
+    listing_data: Rc<RefCell<Vec<FileItemData>>>,
     /// Consumer callback: selection changed.
     pub on_selection: Option<SelectionChangedCb>,
     /// Consumer callback: file triggered (double-click / Enter on a file).
@@ -103,6 +327,7 @@ impl FileSelectionBox {
             filter_lb_id: None,
             children_dirty: false,
             events: Rc::new(RefCell::new(FsbEvents::default())),
+            listing_data: Rc::new(RefCell::new(Vec::new())),
             on_selection: None,
             on_trigger: None,
         }
@@ -350,8 +575,15 @@ impl FileSelectionBox {
             entries.push((name, data));
         }
 
-        // Sort: directories first, then by name (locale-insensitive).
-        entries.sort_by(|(a, _), (b, _)| a.cmp(b));
+        // Sort: directories first, then by name (locale-aware, matching C++ strcoll).
+        entries.sort_by(|(a_name, a_data), (b_name, b_data)| {
+            // Directories first (matching C++ behavior)
+            match (a_data.is_directory, b_data.is_directory) {
+                (true, false) => std::cmp::Ordering::Less,
+                (false, true) => std::cmp::Ordering::Greater,
+                _ => strcoll_compare(a_name, b_name),
+            }
+        });
 
         // Add ".." entry at the beginning if not at root.
         if self.parent_dir != Path::new("/") {
@@ -367,6 +599,9 @@ impl FileSelectionBox {
                 ),
             );
         }
+
+        // Update shared listing data for the item behavior factory.
+        *self.listing_data.borrow_mut() = entries.iter().map(|(_, d)| d.clone()).collect();
 
         self.listing = entries;
         self.listing_invalid = false;
@@ -464,6 +699,26 @@ impl FileSelectionBox {
                 let mut e = events.borrow_mut();
                 e.triggered_index = Some(index);
             }));
+            // Set custom item behavior factory for FileItemPanel rendering.
+            let listing_data = self.listing_data.clone();
+            lb.set_item_behavior_factory(
+                move |index, text, selected, look, sel_mode, enabled| {
+                    let data = listing_data.borrow();
+                    let (is_dir, is_readable) = data
+                        .get(index)
+                        .map(|d| (d.is_directory, d.is_readable))
+                        .unwrap_or((false, true));
+                    Box::new(FileItemPanelBehavior::new(
+                        text.to_string(),
+                        is_dir,
+                        is_readable,
+                        selected,
+                        look,
+                        sel_mode,
+                        enabled,
+                    ))
+                },
+            );
             let id = ctx.create_child_with("files", Box::new(ListBoxPanel { list_box: lb }));
             self.files_lb_id = Some(id);
         }
@@ -806,6 +1061,14 @@ impl PanelBehavior for FileSelectionBox {
         // Stay awake as long as we have children (panel is expanded).
         self.files_lb_id.is_some()
     }
+}
+
+fn strcoll_compare(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::ffi::CString;
+    let a_c = CString::new(a).unwrap_or_default();
+    let b_c = CString::new(b).unwrap_or_default();
+    let result = unsafe { libc::strcoll(a_c.as_ptr(), b_c.as_ptr()) };
+    result.cmp(&0)
 }
 
 #[cfg(test)]

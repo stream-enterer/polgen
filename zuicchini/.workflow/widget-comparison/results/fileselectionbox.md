@@ -24,7 +24,11 @@
 - FSB::cycle() follows C++ Cycle() algorithm: directory field polling, hidden toggle, listing reload, selection sync, trigger handling, name field path resolution, filter changes.
 - Consumer callbacks: on_selection, on_trigger exposed for parent/dialog wiring.
 
-### [HIGH] FileItemPanel missing entirely (~280 LOC in C++) — **DEFERRED: FileItemPanel is a custom panel that renders each file entry with icon, filename text, selection highlight, "not readable" indicator, and optional file content preview via emFpPlugin. The Rust port uses generic ListBox items instead. Implementing this would require: the panel class (~150 LOC), icon loading from file type (~50 LOC), selection highlight rendering (~30 LOC), and plugin-based file preview (~50+ LOC). This is a feature implementation, not a bugfix. User-facing impact: file entries show as plain text items rather than rich panels with icons and previews.**
+### [HIGH] FileItemPanel missing entirely (~280 LOC in C++) — **FIXED**
+- Implemented FileItemPanelBehavior as inner type matching C++ nested FileItemPanel.
+- Paint faithfully ports C++ lines 958-1062: selection highlight (round rect with inset/radius), filename text, directory icon (colored rect with folder tab, 310:216 aspect ratio), "Parent Directory" overlay for ".." entries, not-readable indicator (ellipse + diagonal line).
+- Added ItemBehaviorFactory to ListBox for custom item panel creation.
+- FSB wires factory via shared listing_data so each item gets correct is_directory/is_readable metadata.
 
 ### [MEDIUM] No interactive directory navigation — **FIXED**
 - ListBox on_trigger callback wired to FsbEvents. cycle() handles triggered_index: if directory or "..", calls enter_sub_dir() then syncs dir field. If file, sets triggered_file_name and fires on_trigger callback.
@@ -34,7 +38,8 @@
 - Bidirectional sync implemented: selection_from_list_box() copies indices→names, sync_name_field() pushes first selected name to TextField.
 - Name field on_text callback detects path separators (/ or \) → resolves via set_selected_path(), syncs both fields. Plain names → set_selected_name().
 
-### [LOW] Locale-aware sort missing (strcoll → str::cmp) — **DEFERRED: C++ uses strcoll() for locale-aware filename ordering. Rust's str::cmp uses byte ordering which differs for non-ASCII filenames (accented characters, CJK). Fixing this would require pulling in a Unicode collation library (e.g. icu_collator) which adds a dependency for a minor sort-order difference. User-facing impact: filenames with accented characters may appear in different order than C++. Acceptable for current use case.**
+### [LOW] Locale-aware sort missing (strcoll → str::cmp) — **FIXED**
+- Sort now uses libc::strcoll via FFI (CString conversion), matching C++ CompareNames exactly. libc was already a dependency. Also added directories-first grouping to the sort comparator.
 
 ### [LOW] set_filters doesn't update existing child ListBox — **FIXED**
 - set_filters now sets children_dirty flag. layout_children detects dirty flag, tears down and recreates all children with fresh state. Filter ListBox gets updated items.
