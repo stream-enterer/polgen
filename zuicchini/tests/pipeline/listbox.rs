@@ -1172,3 +1172,251 @@ fn listbox_keywalk_timeout_clears_accumulator() {
         "After timeout, 'b' starts fresh and matches 'Banana'"
     );
 }
+
+// ── BP-3: ListBox keyboard navigation (arrow keys) behavioral parity tests ──
+//
+// The Rust ListBox adds arrow-key focus navigation that is NOT present in the
+// C++ emListBox (which relies on mouse clicks and keywalk only). These tests
+// verify the Rust-specific arrow key behavior through the full pipeline.
+//
+// Behavior:
+// - ArrowDown: focus_index += 1 (clamped to last item)
+// - ArrowUp:   focus_index -= 1 (clamped to 0)
+// - In Single mode: arrow keys auto-select the focused item
+// - In Multi/Toggle/ReadOnly modes: arrows move focus without selecting
+
+#[test]
+fn listbox_arrow_down_moves_focus_single() {
+    // In Single mode, ArrowDown moves focus AND auto-selects.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    // Click item 0 to activate panel and set initial state.
+    h.click(cx, ys[0]);
+    assert_eq!(lb.borrow().focus_index(), 0);
+    assert_eq!(lb.borrow().selected_index(), Some(0));
+
+    h.press_key(InputKey::ArrowDown);
+    assert_eq!(lb.borrow().focus_index(), 1, "ArrowDown moves focus to 1");
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "Single mode: ArrowDown auto-selects"
+    );
+
+    h.press_key(InputKey::ArrowDown);
+    assert_eq!(lb.borrow().focus_index(), 2);
+    assert_eq!(lb.borrow().selected_index(), Some(2));
+}
+
+#[test]
+fn listbox_arrow_up_moves_focus_single() {
+    // In Single mode, ArrowUp moves focus AND auto-selects.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    // Click item 2 to focus there.
+    h.click(cx, ys[2]);
+    assert_eq!(lb.borrow().focus_index(), 2);
+    assert_eq!(lb.borrow().selected_index(), Some(2));
+
+    h.press_key(InputKey::ArrowUp);
+    assert_eq!(lb.borrow().focus_index(), 1, "ArrowUp moves focus to 1");
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "Single mode: ArrowUp auto-selects"
+    );
+}
+
+#[test]
+fn listbox_arrow_down_clamps_at_last() {
+    // ArrowDown at the last item does NOT wrap — focus stays at last.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    // Click last item (index 4).
+    h.click(cx, ys[4]);
+    assert_eq!(lb.borrow().focus_index(), 4);
+
+    h.press_key(InputKey::ArrowDown);
+    assert_eq!(
+        lb.borrow().focus_index(),
+        4,
+        "ArrowDown at last item clamps (no wrap)"
+    );
+    assert_eq!(lb.borrow().selected_index(), Some(4));
+}
+
+#[test]
+fn listbox_arrow_up_clamps_at_first() {
+    // ArrowUp at the first item does NOT wrap — focus stays at 0.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    // Click item 0.
+    h.click(cx, ys[0]);
+    assert_eq!(lb.borrow().focus_index(), 0);
+
+    h.press_key(InputKey::ArrowUp);
+    assert_eq!(
+        lb.borrow().focus_index(),
+        0,
+        "ArrowUp at first item clamps (no wrap)"
+    );
+    assert_eq!(lb.borrow().selected_index(), Some(0));
+}
+
+#[test]
+fn listbox_arrow_down_multi_mode_no_auto_select() {
+    // In Multi mode, ArrowDown moves focus but does NOT auto-select.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
+
+    // Click item 0 to activate and select it.
+    h.click(cx, ys[0]);
+    assert_eq!(lb.borrow().selected_indices(), &[0]);
+
+    h.press_key(InputKey::ArrowDown);
+    assert_eq!(lb.borrow().focus_index(), 1, "ArrowDown moves focus");
+    assert_eq!(
+        lb.borrow().selected_indices(),
+        &[0],
+        "Multi mode: ArrowDown does not change selection"
+    );
+}
+
+#[test]
+fn listbox_arrow_up_multi_mode_no_auto_select() {
+    // In Multi mode, ArrowUp moves focus but does NOT auto-select.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
+
+    // Click item 2 to set focus there.
+    h.click(cx, ys[2]);
+    assert_eq!(lb.borrow().selected_indices(), &[2]);
+
+    h.press_key(InputKey::ArrowUp);
+    assert_eq!(lb.borrow().focus_index(), 1, "ArrowUp moves focus");
+    assert_eq!(
+        lb.borrow().selected_indices(),
+        &[2],
+        "Multi mode: ArrowUp does not change selection"
+    );
+}
+
+#[test]
+fn listbox_arrow_down_toggle_mode_no_auto_select() {
+    // In Toggle mode, ArrowDown moves focus but does NOT auto-select.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
+
+    // Click item 0 (toggles on).
+    h.click(cx, ys[0]);
+    assert!(lb.borrow().is_selected(0));
+
+    h.press_key(InputKey::ArrowDown);
+    assert_eq!(lb.borrow().focus_index(), 1);
+    assert!(
+        lb.borrow().is_selected(0),
+        "Toggle mode: item 0 stays selected"
+    );
+    assert!(
+        !lb.borrow().is_selected(1),
+        "Toggle mode: ArrowDown does not toggle item 1"
+    );
+}
+
+#[test]
+fn listbox_arrow_down_readonly_mode_moves_focus() {
+    // In ReadOnly mode, ArrowDown moves focus but cannot select anything.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::ReadOnly);
+
+    // Click to activate panel (ReadOnly won't select).
+    h.click(cx, ys[0]);
+    assert!(lb.borrow().selected_indices().is_empty());
+    assert_eq!(lb.borrow().focus_index(), 0);
+
+    h.press_key(InputKey::ArrowDown);
+    assert_eq!(
+        lb.borrow().focus_index(),
+        1,
+        "ReadOnly: ArrowDown moves focus"
+    );
+    assert!(
+        lb.borrow().selected_indices().is_empty(),
+        "ReadOnly: no selection change"
+    );
+}
+
+#[test]
+fn listbox_arrow_traverse_full_list() {
+    // Traverse all 5 items with ArrowDown, then back up with ArrowUp.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    h.click(cx, ys[0]);
+    assert_eq!(lb.borrow().focus_index(), 0);
+
+    // Down through all items.
+    for expected in 1..5 {
+        h.press_key(InputKey::ArrowDown);
+        assert_eq!(lb.borrow().focus_index(), expected);
+        assert_eq!(lb.borrow().selected_index(), Some(expected));
+    }
+
+    // Back up through all items.
+    for expected in (0..4).rev() {
+        h.press_key(InputKey::ArrowUp);
+        assert_eq!(lb.borrow().focus_index(), expected);
+        assert_eq!(lb.borrow().selected_index(), Some(expected));
+    }
+}
+
+#[test]
+fn listbox_arrow_then_space_selects_focused_multi() {
+    // In Multi mode: arrow to move focus, then Space to select the focused item.
+    // This is the typical keyboard-only workflow for Multi mode.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
+
+    // Click item 0 to activate.
+    h.click(cx, ys[0]);
+    assert_eq!(lb.borrow().selected_indices(), &[0]);
+
+    // Arrow to item 3.
+    h.press_key(InputKey::ArrowDown); // focus 1
+    h.press_key(InputKey::ArrowDown); // focus 2
+    h.press_key(InputKey::ArrowDown); // focus 3
+    assert_eq!(lb.borrow().focus_index(), 3);
+    // Selection unchanged (still [0] from click).
+    assert_eq!(lb.borrow().selected_indices(), &[0]);
+
+    // Ctrl+Space to toggle item 3 on (keeping item 0).
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Space);
+    h.input_state.release(InputKey::Ctrl);
+    assert!(lb.borrow().is_selected(0));
+    assert!(lb.borrow().is_selected(3));
+}
+
+#[test]
+#[ignore] // BLOCKED: needs Home/End key handling in ListBox::input(). C++ ref: emListBox.cpp:Input (no Home/End in C++)
+fn listbox_home_jumps_to_first() {
+    // Home key should move focus to the first item.
+    // Not implemented in Rust ListBox::input() — the C++ emListBox also does
+    // not handle Home/End.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    h.click(cx, ys[3]);
+    assert_eq!(lb.borrow().focus_index(), 3);
+
+    h.press_key(InputKey::Home);
+    assert_eq!(lb.borrow().focus_index(), 0, "Home jumps to first item");
+}
+
+#[test]
+#[ignore] // BLOCKED: needs Home/End key handling in ListBox::input(). C++ ref: emListBox.cpp:Input (no Home/End in C++)
+fn listbox_end_jumps_to_last() {
+    // End key should move focus to the last item.
+    // Not implemented in Rust ListBox::input() — the C++ emListBox also does
+    // not handle Home/End.
+    let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
+
+    h.click(cx, ys[0]);
+    assert_eq!(lb.borrow().focus_index(), 0);
+
+    h.press_key(InputKey::End);
+    assert_eq!(lb.borrow().focus_index(), 4, "End jumps to last item");
+}
