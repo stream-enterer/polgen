@@ -9,7 +9,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use zuicchini::input::{Cursor, InputEvent, InputState};
+use zuicchini::input::{Cursor, InputEvent, InputKey, InputState};
 use zuicchini::panel::{PanelBehavior, PanelState};
 use zuicchini::render::{Painter, SoftwareCompositor};
 use zuicchini::widget::{Look, ScalarField};
@@ -167,4 +167,357 @@ fn scalarfield_click_and_drag_1x_and_2x() {
         "2x drag from 30% to 70% should increase value: \
          was {val_after_click_2x:.1}, now {val_after_drag_2x:.1}"
     );
+}
+
+// ── BP-8 behavioral parity tests ──────────────────────────────────────
+
+/// Helper: set up a ScalarField in a PipelineTestHarness, render once to
+/// populate `last_w`/`last_h`, and click at center to activate the panel
+/// for keyboard input. Returns (harness, value_handle, panel_id).
+fn setup_sf(
+    min: f64,
+    max: f64,
+    initial: f64,
+    editable: bool,
+    mark_intervals: &[u64],
+    kb_interval: u64,
+) -> (PipelineTestHarness, Rc<RefCell<f64>>, zuicchini::panel::PanelId) {
+    let mut h = PipelineTestHarness::new();
+    let root = h.root();
+
+    let look = Look::new();
+    let mut sf = ScalarField::new(min, max, look);
+    sf.set_value(initial);
+    sf.set_editable(editable);
+    if !mark_intervals.is_empty() {
+        sf.set_scale_mark_intervals(mark_intervals);
+    }
+    if kb_interval > 0 {
+        sf.set_keyboard_interval(kb_interval);
+    }
+
+    let value = Rc::new(RefCell::new(initial));
+    let value_read = value.clone();
+
+    let behavior = ScalarFieldPanel::new(sf, value);
+    let panel_id = h.add_panel_with(root, "sf", Box::new(behavior));
+
+    // Tick + render to populate paint dimensions.
+    h.tick_n(5);
+    let mut comp = SoftwareCompositor::new(800, 600);
+    comp.render(&mut h.tree, &h.view);
+
+    // Click center to activate panel for keyboard events.
+    h.click(400.0, 300.0);
+
+    (h, value_read, panel_id)
+}
+
+/// BP-8a: Click on scale jumps to absolute value position.
+/// C++ ref: emScalarField.cpp:250-258 — inArea && LeftButton press → SetValue(mv).
+#[test]
+fn scalarfield_click_jumps_to_absolute_position() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 0.0, true, &[], 0);
+
+    // Click at ~75% of viewport width — should jump to a high value.
+    h.click(600.0, 300.0);
+    let val = *value.borrow();
+    assert!(
+        val > 40.0,
+        "click at 75% viewport: expected value > 40, got {val:.1}"
+    );
+
+    // Click at ~25% of viewport width — should jump to a lower value.
+    h.click(200.0, 300.0);
+    let val2 = *value.borrow();
+    assert!(
+        val2 < val - 10.0,
+        "click at 25% viewport: expected value significantly less than {val:.1}, got {val2:.1}"
+    );
+}
+
+/// BP-8b: Drag continuously updates value.
+/// C++ ref: emScalarField.cpp:241-248 — Pressed state continuously sets
+/// value to mouse position on every event.
+#[test]
+fn scalarfield_drag_continuous_update() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[], 0);
+
+    // Multi-step drag: press, move to several positions, release.
+    let press = InputEvent::press(InputKey::MouseLeft).with_mouse(400.0, 300.0);
+    h.dispatch(&press);
+    let v0 = *value.borrow();
+
+    // Move to a position further right.
+    let move1 = InputEvent::mouse_move(InputKey::MouseLeft, 500.0, 300.0);
+    h.dispatch(&move1);
+    let v1 = *value.borrow();
+    assert!(
+        v1 > v0,
+        "drag move right: expected value > {v0:.1}, got {v1:.1}"
+    );
+
+    // Move further right again.
+    let move2 = InputEvent::mouse_move(InputKey::MouseLeft, 600.0, 300.0);
+    h.dispatch(&move2);
+    let v2 = *value.borrow();
+    assert!(
+        v2 > v1,
+        "drag move further right: expected value > {v1:.1}, got {v2:.1}"
+    );
+
+    // Move back left — value should decrease.
+    let move3 = InputEvent::mouse_move(InputKey::MouseLeft, 350.0, 300.0);
+    h.dispatch(&move3);
+    let v3 = *value.borrow();
+    assert!(
+        v3 < v2,
+        "drag move left: expected value < {v2:.1}, got {v3:.1}"
+    );
+
+    // Release.
+    let release = InputEvent::release(InputKey::MouseLeft).with_mouse(350.0, 300.0);
+    h.dispatch(&release);
+}
+
+/// BP-8c: '+' key steps value up by mark interval.
+/// C++ ref: emScalarField.cpp:261-265 — strcmp("+") → StepByKeyboard(1).
+#[test]
+fn scalarfield_plus_key_steps_up() {
+    // Range 0-100, mark intervals [10, 5, 1], start at 50.
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[10, 5, 1], 0);
+
+    // C++ auto-interval: range/129 ≈ 0.77, so mindv=1. Scan intervals:
+    // [10]>=1 → dv=10, [5]>=1 → dv=5, [1]>=1 → dv=1. Final dv=1.
+    // But Rust uses f64 range, so range=100, 100/129=0 → mindv=1, same logic.
+    let before = *value.borrow();
+    h.press_key(InputKey::Key('+'));
+    let after = *value.borrow();
+    assert!(
+        after > before,
+        "'+' key should increase value from {before:.1}, got {after:.1}"
+    );
+}
+
+/// BP-8d: '-' key steps value down by mark interval.
+/// C++ ref: emScalarField.cpp:267-272 — strcmp("-") → StepByKeyboard(-1).
+#[test]
+fn scalarfield_minus_key_steps_down() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[10, 5, 1], 0);
+
+    let before = *value.borrow();
+    h.press_key(InputKey::Key('-'));
+    let after = *value.borrow();
+    assert!(
+        after < before,
+        "'-' key should decrease value from {before:.1}, got {after:.1}"
+    );
+}
+
+/// BP-8e: Keyboard stepping with explicit kb_interval steps by that amount.
+/// C++ ref: emScalarField.cpp:483 — if (KBInterval>0) dv=KBInterval.
+#[test]
+fn scalarfield_keyboard_explicit_interval() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[10, 5, 1], 10);
+
+    h.press_key(InputKey::Key('+'));
+    let after_plus = *value.borrow();
+    assert_approx(after_plus, 60.0, 1.0, "explicit kb_interval=10: +");
+
+    h.press_key(InputKey::Key('-'));
+    let after_minus = *value.borrow();
+    assert_approx(after_minus, 50.0, 1.0, "explicit kb_interval=10: -");
+}
+
+/// BP-8f: Keyboard stepping snaps to nearest grid mark.
+/// C++ ref: emScalarField.cpp:495-503 — integer division rounding snaps to
+/// multiples of dv.
+#[test]
+fn scalarfield_keyboard_snaps_to_grid() {
+    // Range 0-100, kb_interval=10, start at 53 (not on grid).
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 53.0, true, &[], 10);
+
+    // C++ step_up: v = 53 + 10 = 63. v >= 0 → (63/10)*10 = 60.
+    h.press_key(InputKey::Key('+'));
+    let after_plus = *value.borrow();
+    assert_approx(
+        after_plus,
+        60.0,
+        1.0,
+        "snap-to-grid: 53 + step(10) should snap to 60",
+    );
+
+    // Step down from 60: v = 60 - 10 = 50. (50+9)/10*10 = 50.
+    h.press_key(InputKey::Key('-'));
+    let after_minus = *value.borrow();
+    assert_approx(
+        after_minus,
+        50.0,
+        1.0,
+        "snap-to-grid: 60 - step(10) should snap to 50",
+    );
+}
+
+/// BP-8g: Keyboard stepping snaps off-grid value in step-down direction.
+/// C++ ref: emScalarField.cpp:495-497.
+#[test]
+fn scalarfield_keyboard_snap_down_from_off_grid() {
+    // Range 0-100, kb_interval=10, start at 47 (not on grid).
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 47.0, true, &[], 10);
+
+    // C++ step_down: v = 47 - 10 = 37. v >= 0 → (37+9)/10*10 = 40.
+    h.press_key(InputKey::Key('-'));
+    let after_minus = *value.borrow();
+    assert_approx(
+        after_minus,
+        40.0,
+        1.0,
+        "snap-to-grid down: 47 - step(10) should snap to 40",
+    );
+}
+
+/// BP-8h: Value clamping at max boundary via keyboard stepping.
+/// C++ ref: emScalarField.cpp:503 → SetValue(v) which clamps.
+#[test]
+fn scalarfield_keyboard_clamp_at_max() {
+    // Use kb_interval=10, range 0-100. setup_sf clicks center → value ~50.
+    // Step up repeatedly until we hit the ceiling.
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[], 10);
+
+    // Step up many times to reach max.
+    for _ in 0..20 {
+        h.press_key(InputKey::Key('+'));
+    }
+    let at_max = *value.borrow();
+    assert_approx(at_max, 100.0, 1.0, "clamp at max after many steps");
+
+    // One more step should stay at 100.
+    h.press_key(InputKey::Key('+'));
+    let still_max = *value.borrow();
+    assert_approx(still_max, 100.0, 1.0, "clamp at max: stays at 100");
+}
+
+/// BP-8i: Value clamping at min boundary via keyboard stepping.
+/// C++ ref: emScalarField.cpp:503 → SetValue(v) which clamps.
+#[test]
+fn scalarfield_keyboard_clamp_at_min() {
+    // Use kb_interval=10, range 0-100. setup_sf clicks center → value ~50.
+    // Step down repeatedly until we hit the floor.
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[], 10);
+
+    // Step down many times to reach min.
+    for _ in 0..20 {
+        h.press_key(InputKey::Key('-'));
+    }
+    let at_min = *value.borrow();
+    assert_approx(at_min, 0.0, 1.0, "clamp at min after many steps");
+
+    // One more step should stay at 0.
+    h.press_key(InputKey::Key('-'));
+    let still_min = *value.borrow();
+    assert_approx(still_min, 0.0, 1.0, "clamp at min: stays at 0");
+}
+
+/// BP-8j: Non-editable ScalarField rejects all input.
+/// C++ ref: emScalarField.cpp:251,261,268 — gates on IsEditable().
+#[test]
+fn scalarfield_non_editable_rejects_input() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, false, &[], 10);
+
+    // Click should not change value.
+    h.click(600.0, 300.0);
+    let after_click = *value.borrow();
+    assert_approx(after_click, 50.0, 0.01, "non-editable: click rejected");
+
+    // Keyboard should not change value.
+    h.press_key(InputKey::Key('+'));
+    let after_plus = *value.borrow();
+    assert_approx(after_plus, 50.0, 0.01, "non-editable: '+' rejected");
+
+    h.press_key(InputKey::Key('-'));
+    let after_minus = *value.borrow();
+    assert_approx(after_minus, 50.0, 0.01, "non-editable: '-' rejected");
+}
+
+/// BP-8k: Disabled ScalarField rejects all input.
+/// C++ ref: emScalarField.cpp:246,251,261,268 — gates on IsEnabled().
+#[test]
+fn scalarfield_disabled_rejects_input() {
+    let (mut h, value, pid) = setup_sf(0.0, 100.0, 50.0, true, &[], 10);
+
+    // Disable the panel via the tree.
+    h.tree.set_enable_switch(pid, false);
+    h.tick_n(3);
+    // Re-render so that paint() propagates the disabled state into the widget.
+    let mut comp = SoftwareCompositor::new(800, 600);
+    comp.render(&mut h.tree, &h.view);
+
+    // Click should not change value.
+    h.click(600.0, 300.0);
+    let after_click = *value.borrow();
+    assert_approx(after_click, 50.0, 0.01, "disabled: click rejected");
+
+    // Keyboard should not change value.
+    h.press_key(InputKey::Key('+'));
+    let after_plus = *value.borrow();
+    assert_approx(after_plus, 50.0, 0.01, "disabled: '+' rejected");
+}
+
+/// BP-8l: Click on scale sets absolute position (not relative/incremental).
+/// C++ ref: emScalarField.cpp:256-258 — SetValue(mv) where mv is computed
+/// from mouse x-position on the scale.
+#[test]
+fn scalarfield_click_is_absolute_not_relative() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 0.0, true, &[], 0);
+
+    // Click at center — value should jump to ~50 regardless of starting at 0.
+    h.click(400.0, 300.0);
+    let val1 = *value.borrow();
+    assert!(
+        val1 > 30.0 && val1 < 70.0,
+        "absolute click at center: expected ~50, got {val1:.1}"
+    );
+
+    // Click at the same spot again — value should stay approximately the same.
+    h.click(400.0, 300.0);
+    let val2 = *value.borrow();
+    assert_approx(val2, val1, 1.0, "repeated click at same position");
+}
+
+/// BP-8m: Drag release terminates continuous update.
+/// C++ ref: emScalarField.cpp:241-245 — !LeftButton → Pressed=false.
+/// After release, further mouse moves should NOT update the value.
+#[test]
+fn scalarfield_drag_release_stops_update() {
+    let (mut h, value, _pid) = setup_sf(0.0, 100.0, 50.0, true, &[], 0);
+
+    // Drag to set a value.
+    h.drag(400.0, 300.0, 600.0, 300.0);
+    let val_after_drag = *value.borrow();
+
+    // Now just move the mouse (no button held) — value should not change.
+    let move_ev = InputEvent::mouse_move(InputKey::MouseLeft, 200.0, 300.0);
+    h.dispatch(&move_ev);
+    let val_after_move = *value.borrow();
+    assert_approx(
+        val_after_move,
+        val_after_drag,
+        0.01,
+        "mouse move after release should not change value",
+    );
+}
+
+/// BP-8n: Auto keyboard interval selection from scale mark intervals.
+/// C++ ref: emScalarField.cpp:484-493 — scans ScaleMarkIntervals to find
+/// best match for mindv = range/129.
+#[test]
+fn scalarfield_keyboard_auto_interval_selection() {
+    // Range 0-1000, marks [100, 50, 10, 5, 1], kb_interval=0 (auto).
+    // mindv = 1000/129 = 7. Scan: [100]>=7 → dv=100, [50]>=7 → dv=50,
+    // [10]>=7 → dv=10, [5]<7 → skip, [1]<7 → skip. Final dv=10.
+    let (mut h, value, _pid) = setup_sf(0.0, 1000.0, 500.0, true, &[100, 50, 10, 5, 1], 0);
+
+    h.press_key(InputKey::Key('+'));
+    let after = *value.borrow();
+    assert_approx(after, 510.0, 1.0, "auto interval: 500 + step should use dv=10");
 }
