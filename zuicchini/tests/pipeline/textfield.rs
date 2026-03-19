@@ -1874,3 +1874,414 @@ fn textfield_ctrl_a_then_type_replaces_all() {
     assert_eq!(tf.cursor_pos(), 1);
     assert!(tf.is_selection_empty());
 }
+
+// ===========================================================================
+// BP-7: TextField clipboard operations
+// ===========================================================================
+
+// ---------------------------------------------------------------------------
+// Helper: set up a focused, editable TextField with clipboard recorders wired.
+// Returns (harness, shared_tf, copy_recorder, paste_source).
+// The copy_recorder captures all strings passed to on_clipboard_copy.
+// The paste_source provides the text returned by on_clipboard_paste.
+// ---------------------------------------------------------------------------
+
+fn setup_clipboard_harness(
+    text: &str,
+    cursor_pos: usize,
+    paste_content: &str,
+) -> (
+    PipelineTestHarness,
+    Rc<RefCell<TextField>>,
+    Rc<RefCell<Vec<String>>>,
+) {
+    let (mut h, tf_ref) = setup_textfield_harness();
+    tf_ref.borrow_mut().set_text(text);
+    tf_ref.borrow_mut().set_cursor_index(cursor_pos);
+
+    // Wire clipboard copy recorder
+    let copy_recorder: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+    let recorder_clone = copy_recorder.clone();
+    tf_ref.borrow_mut().on_clipboard_copy = Some(Box::new(move |text: &str| {
+        recorder_clone.borrow_mut().push(text.to_string());
+    }));
+
+    // Wire clipboard paste source
+    let paste_text = paste_content.to_string();
+    tf_ref.borrow_mut().on_clipboard_paste = Some(Box::new(move || paste_text.clone()));
+
+    render(&mut h, 800, 600);
+    h.click(400.0, 300.0);
+
+    // Restore cursor position and clear any selection the click created.
+    tf_ref.borrow_mut().set_cursor_index(cursor_pos);
+    tf_ref.borrow_mut().deselect();
+
+    (h, tf_ref, copy_recorder)
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+C with selection -> copies selected text
+// C++ ref: emTextField.cpp:666-671 (EM_KEY_C + IsCtrlMod -> CopySelectedTextToClipboard)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_c_with_selection_copies_text() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
+
+    // Select "Hello" (indices 0..5)
+    tf_ref.borrow_mut().select(0, 5);
+    tf_ref.borrow_mut().set_cursor_index(5);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('c'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let copies = copy_recorder.borrow();
+    assert_eq!(copies.len(), 1, "Copy callback should fire exactly once");
+    assert_eq!(copies[0], "Hello", "Copied text should be 'Hello'");
+
+    // Text and selection should be unchanged after copy.
+    let tf = tf_ref.borrow();
+    assert_eq!(tf.text(), "Hello World");
+    assert!(!tf.is_selection_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+C without selection -> no copy callback fired
+// C++ ref: emTextField.cpp:666-671 — copy_to_clipboard returns early if empty
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_c_without_selection_no_copy() {
+    let (mut h, _tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
+
+    // No selection — just cursor at 5.
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('c'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let copies = copy_recorder.borrow();
+    assert!(
+        copies.is_empty(),
+        "Copy callback should NOT fire without a selection, but got {:?}",
+        *copies
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+X with selection -> cuts selected text (text removed + captured)
+// C++ ref: emTextField.cpp:726-731 (EM_KEY_X + IsCtrlMod -> CutSelectedTextToClipboard)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_x_with_selection_cuts_text() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("ABCDEF", 4, "");
+
+    // Select "CD" (indices 2..4)
+    tf_ref.borrow_mut().select(2, 4);
+    tf_ref.borrow_mut().set_cursor_index(4);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('x'));
+    h.input_state.release(InputKey::Ctrl);
+
+    // Verify the cut text was sent to the copy callback.
+    let copies = copy_recorder.borrow();
+    assert_eq!(copies.len(), 1, "Cut should fire copy callback once");
+    assert_eq!(copies[0], "CD", "Cut text should be 'CD'");
+
+    // Verify text was modified: "CD" removed from "ABCDEF" -> "ABEF".
+    let tf = tf_ref.borrow();
+    assert_eq!(
+        tf.text(),
+        "ABEF",
+        "After cutting 'CD' from 'ABCDEF', expected 'ABEF', got '{}'",
+        tf.text()
+    );
+    assert_eq!(tf.cursor_pos(), 2, "Cursor should be at 2 after cut");
+    assert!(tf.is_selection_empty(), "Selection should be cleared after cut");
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+X without selection -> no effect
+// C++ ref: emTextField.cpp:726-731 — cut returns early if selection empty
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_x_without_selection_no_effect() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello", 3, "");
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('x'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let copies = copy_recorder.borrow();
+    assert!(
+        copies.is_empty(),
+        "Cut callback should NOT fire without a selection"
+    );
+    assert_eq!(
+        tf_ref.borrow().text(),
+        "Hello",
+        "Text should be unchanged after cut with no selection"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+V -> pastes text at cursor
+// C++ ref: emTextField.cpp:733-738 (EM_KEY_V + IsCtrlMod -> PasteSelectedTextFromClipboard)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_v_pastes_text_at_cursor() {
+    let (mut h, tf_ref, _copy_recorder) = setup_clipboard_harness("Hello", 5, "World");
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('v'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let tf = tf_ref.borrow();
+    assert_eq!(
+        tf.text(),
+        "HelloWorld",
+        "Pasting 'World' at end of 'Hello' should produce 'HelloWorld', got '{}'",
+        tf.text()
+    );
+    assert_eq!(tf.cursor_pos(), 10, "Cursor should be at end after paste");
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+V with selection -> replaces selection with pasted text
+// C++ ref: emTextField.cpp:733-738 — paste_from_clipboard calls paste_text
+//          which does delete_selection() before inserting
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_v_with_selection_replaces_selection() {
+    let (mut h, tf_ref, _copy_recorder) = setup_clipboard_harness("ABCDEF", 4, "XY");
+
+    // Select "CD" (indices 2..4)
+    tf_ref.borrow_mut().select(2, 4);
+    tf_ref.borrow_mut().set_cursor_index(4);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('v'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let tf = tf_ref.borrow();
+    assert_eq!(
+        tf.text(),
+        "ABXYEF",
+        "Pasting 'XY' over selection 'CD' in 'ABCDEF' should produce 'ABXYEF', got '{}'",
+        tf.text()
+    );
+    assert_eq!(tf.cursor_pos(), 4, "Cursor should be at end of pasted text");
+    assert!(tf.is_selection_empty());
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+V at mid-cursor inserts at position
+// C++ ref: same paste path, verifying insertion at non-end position
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_v_inserts_at_mid_cursor() {
+    let (mut h, tf_ref, _copy_recorder) = setup_clipboard_harness("AC", 1, "B");
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('v'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let tf = tf_ref.borrow();
+    assert_eq!(
+        tf.text(),
+        "ABC",
+        "Pasting 'B' at pos 1 in 'AC' should produce 'ABC', got '{}'",
+        tf.text()
+    );
+    assert_eq!(tf.cursor_pos(), 2);
+}
+
+// ---------------------------------------------------------------------------
+// Insert+Ctrl copies (alternate key binding)
+// C++ ref: emTextField.cpp:666-671 (EM_KEY_INSERT + IsCtrlMod)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_insert_copies_text() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
+
+    tf_ref.borrow_mut().select(0, 5);
+    tf_ref.borrow_mut().set_cursor_index(5);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Insert);
+    h.input_state.release(InputKey::Ctrl);
+
+    let copies = copy_recorder.borrow();
+    assert_eq!(copies.len(), 1, "Ctrl+Insert should fire copy callback once");
+    assert_eq!(copies[0], "Hello");
+}
+
+// ---------------------------------------------------------------------------
+// Shift+Insert pastes (alternate key binding)
+// C++ ref: emTextField.cpp:733-738 (EM_KEY_INSERT + IsShiftMod)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_shift_insert_pastes_text() {
+    let (mut h, tf_ref, _copy_recorder) = setup_clipboard_harness("AB", 2, "CD");
+
+    h.input_state.press(InputKey::Shift);
+    h.press_key(InputKey::Insert);
+    h.input_state.release(InputKey::Shift);
+
+    let tf = tf_ref.borrow();
+    assert_eq!(
+        tf.text(),
+        "ABCD",
+        "Shift+Insert should paste, got '{}'",
+        tf.text()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Shift+Delete cuts (alternate key binding)
+// C++ ref: emTextField.cpp:726-731 (EM_KEY_DELETE + IsShiftMod)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_shift_delete_cuts_text() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("ABCDEF", 4, "");
+
+    tf_ref.borrow_mut().select(2, 4);
+    tf_ref.borrow_mut().set_cursor_index(4);
+
+    h.input_state.press(InputKey::Shift);
+    h.press_key(InputKey::Delete);
+    h.input_state.release(InputKey::Shift);
+
+    let copies = copy_recorder.borrow();
+    assert_eq!(copies.len(), 1, "Shift+Delete should fire copy callback");
+    assert_eq!(copies[0], "CD");
+
+    let tf = tf_ref.borrow();
+    assert_eq!(tf.text(), "ABEF");
+    assert_eq!(tf.cursor_pos(), 2);
+}
+
+// ---------------------------------------------------------------------------
+// Selection publish on mouse drag
+// C++ ref: emTextField.cpp:450,478,506 — PublishSelection on drag release
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_drag_publishes_selection() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 0, "");
+
+    // Drag to select some text. The drag uses view-space coords.
+    // Focus click at offset y to avoid double-click with drag.
+    h.click(400.0, 310.0);
+
+    // Clear any copy events from the focus click.
+    copy_recorder.borrow_mut().clear();
+
+    // Drag within content area to select text.
+    h.drag(300.0, 300.0, 500.0, 300.0);
+
+    let tf = tf_ref.borrow();
+    if !tf.is_selection_empty() {
+        let copies = copy_recorder.borrow();
+        assert!(
+            !copies.is_empty(),
+            "Drag selection should publish to clipboard (selection = '{}')",
+            tf.selected_text()
+        );
+        // The published text should match the selected text.
+        let last_copy = copies.last().unwrap();
+        assert_eq!(
+            last_copy,
+            tf.selected_text(),
+            "Published text should match selected text"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+C on non-editable field still copies (copy is not an edit)
+// C++ ref: emTextField.cpp:666-671 — copy is outside the IsEditable guard
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_c_works_when_non_editable() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
+    tf_ref.borrow_mut().set_editable(false);
+
+    tf_ref.borrow_mut().select(0, 5);
+    tf_ref.borrow_mut().set_cursor_index(5);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('c'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let copies = copy_recorder.borrow();
+    assert_eq!(
+        copies.len(),
+        1,
+        "Copy should work even on non-editable fields"
+    );
+    assert_eq!(copies[0], "Hello");
+    // Text unchanged
+    assert_eq!(tf_ref.borrow().text(), "Hello World");
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+X on non-editable field does NOT cut (cut is an edit)
+// C++ ref: emTextField.cpp:726-731 — IsEditable guard
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_x_noop_when_non_editable() {
+    let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
+    tf_ref.borrow_mut().set_editable(false);
+
+    tf_ref.borrow_mut().select(0, 5);
+    tf_ref.borrow_mut().set_cursor_index(5);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('x'));
+    h.input_state.release(InputKey::Ctrl);
+
+    let copies = copy_recorder.borrow();
+    assert!(
+        copies.is_empty(),
+        "Cut should not fire on non-editable field"
+    );
+    assert_eq!(
+        tf_ref.borrow().text(),
+        "Hello World",
+        "Text should be unchanged when cutting on non-editable field"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Ctrl+V on non-editable field does NOT paste (paste is an edit)
+// C++ ref: emTextField.cpp:733-738 — IsEditable guard
+// ---------------------------------------------------------------------------
+
+#[test]
+fn textfield_ctrl_v_noop_when_non_editable() {
+    let (mut h, tf_ref, _copy_recorder) = setup_clipboard_harness("Hello", 5, "World");
+    tf_ref.borrow_mut().set_editable(false);
+
+    h.input_state.press(InputKey::Ctrl);
+    h.press_key(InputKey::Key('v'));
+    h.input_state.release(InputKey::Ctrl);
+
+    assert_eq!(
+        tf_ref.borrow().text(),
+        "Hello",
+        "Paste should not work on non-editable field"
+    );
+}
