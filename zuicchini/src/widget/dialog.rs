@@ -51,6 +51,18 @@ impl Dialog {
         self.buttons.push((label.to_string(), result));
     }
 
+    /// Update the dialog title (border caption).
+    pub fn set_title(&mut self, title: &str) {
+        self.border.set_caption(title);
+    }
+
+    /// Update the label of the first button whose result matches `result`.
+    pub fn set_button_label_for_result(&mut self, result: &DialogResult, label: &str) {
+        if let Some((lbl, _)) = self.buttons.iter_mut().find(|(_, r)| r == result) {
+            *lbl = label.to_string();
+        }
+    }
+
     pub fn result(&self) -> Option<&DialogResult> {
         self.result.as_ref()
     }

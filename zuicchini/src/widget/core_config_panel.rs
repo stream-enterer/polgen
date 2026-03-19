@@ -293,6 +293,9 @@ impl MouseMiscGroup {
         let cfg = self.config.borrow();
         let c = cfg.get();
 
+        // TODO(StickPossible): In C++, this checkbox is disabled when the screen cannot
+        // move the mouse pointer (emScreen::CanMoveMousePointer()). We have no platform
+        // query for this yet, so the checkbox is always enabled for now.
         let mut stick = CheckBox::new("Stick mouse\nwhen navigating", self.look.clone());
         stick.set_checked(c.stick_mouse_when_navigating);
         let config: Rc<RefCell<ConfigModel<CoreConfig>>> = Rc::clone(&self.config);
@@ -404,8 +407,8 @@ impl KineticGroup {
         let cfg = self.config.borrow();
         let c = cfg.get();
 
-        // KineticZoomingAndScrolling — disabled
-        let kinetic = make_factor_field(
+        // KineticZoomingAndScrolling
+        let mut kinetic = make_factor_field(
             "Kinetic zooming and scrolling",
             "Whether and how much to have kinetic effects on zooming and scrolling",
             self.look.clone(),
@@ -414,10 +417,17 @@ impl KineticGroup {
             c.kinetic_zooming_and_scrolling,
             true,
         );
+        let config: Rc<RefCell<ConfigModel<CoreConfig>>> = Rc::clone(&self.config);
+        kinetic.scalar_field.on_value = Some(Box::new(move |val| {
+            let cfg_val = factor_val_to_cfg(val, 0.25, 2.0);
+            let mut cm = config.borrow_mut();
+            cm.modify(|c| c.kinetic_zooming_and_scrolling = cfg_val);
+            let _ = cm.save();
+        }));
         ctx.create_child_with("KineticZoomingAndScrolling", Box::new(kinetic));
 
-        // MagnetismRadius — disabled
-        let mag_radius = make_factor_field(
+        // MagnetismRadius
+        let mut mag_radius = make_factor_field(
             "Magnetism radius",
             "Maximum radius for magnetism to snap the focus to nearby panels",
             self.look.clone(),
@@ -426,6 +436,13 @@ impl KineticGroup {
             c.magnetism_radius,
             true,
         );
+        let config: Rc<RefCell<ConfigModel<CoreConfig>>> = Rc::clone(&self.config);
+        mag_radius.scalar_field.on_value = Some(Box::new(move |val| {
+            let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
+            let mut cm = config.borrow_mut();
+            cm.modify(|c| c.magnetism_radius = cfg_val);
+            let _ = cm.save();
+        }));
         ctx.create_child_with("MagnetismRadius", Box::new(mag_radius));
 
         // MagnetismSpeed
@@ -536,12 +553,27 @@ impl MaxMemGroup {
     }
 
     fn create_children(&mut self, ctx: &mut PanelCtx) {
-        let label_text = "WARNING: If this is set too high, the system may\n\
-            get extremely slow, or the program could even abort.\n\
-            The value is the maximum number of megabytes for the\n\
-            pixel engines of a single view. Please note that the\n\
-            total consumption can be much more, depending on what\n\
-            file types are shown, and how many views are open.";
+        let label_text = "Here you can set the maximum allowed memory consumption per view (or window) in\n\
+            megabytes. This mainly plays a role when viewing extravagant files like\n\
+            high-resolution image files. The higher the maximum allowed memory consumption,\n\
+            the earlier the files are shown and the more extravagant files are shown at all.\n\
+            \n\
+            IMPORTANT: This is just a guideline for the program. The internal algorithms\n\
+            around this are working with heuristics and they are far from being exact. In\n\
+            very seldom situations, a view may consume much more memory (factor two or so).\n\
+            \n\
+            RECOMMENDATION: The value should not be greater than a quarter of the total\n\
+            system memory (RAM). Examples: 4096MB RAM => 1024MB; 8192MB RAM => 2048MB. This\n\
+            is just a rough recommendation for an average system and user. It depends on the\n\
+            number of windows you open, and on the memory consumption through other running\n\
+            programs.\n\
+            \n\
+            WARNING: If you set a too large value, everything may work fine for a long time,\n\
+            but one day it could happen you zoom into something and the whole system gets\n\
+            extremely slow, or it even hangs, in lack of free memory.\n\
+            \n\
+            NOTE: After changing the value, you may have to restart the program for the\n\
+            change to take effect. Or zoom out from all panels once.";
         let label = Label::new(label_text, self.look.clone());
         let label_id = ctx.create_child_with("label", Box::new(LabelPanel { label }));
         self.layout.set_child_constraint(
@@ -999,8 +1031,8 @@ impl PerformanceGroup {
             }),
         );
 
-        // UpscaleQuality: range 1-5
-        let mut us_sf = ScalarField::new(1.0, 5.0, self.look.clone());
+        // UpscaleQuality: range 0-5 (0 = Nearest Pixel)
+        let mut us_sf = ScalarField::new(0.0, 5.0, self.look.clone());
         us_sf.set_caption("Upscale quality");
         us_sf.border_mut().description = "Quality of image upscaling (interpolation)".to_string();
         us_sf.set_value(c.upscale_quality as f64);
@@ -1012,7 +1044,7 @@ impl PerformanceGroup {
         us_sf.on_value = Some(Box::new(move |val| {
             let q = (val + 0.5) as i32;
             let mut cm = config.borrow_mut();
-            cm.modify(|c| c.upscale_quality = q.clamp(1, 5));
+            cm.modify(|c| c.upscale_quality = q.clamp(0, 5));
             let _ = cm.save();
         }));
         ctx.create_child_with(
@@ -1122,8 +1154,8 @@ impl MouseGroup {
         }));
         ctx.create_child_with("wheelzoom", Box::new(wz));
 
-        // wheelaccel — disabled (no callback)
-        let wa = make_factor_field(
+        // wheelaccel
+        let mut wa = make_factor_field(
             "Mouse wheel zoom acceleration",
             "Acceleration of zooming by mouse wheel",
             self.look.clone(),
@@ -1132,6 +1164,13 @@ impl MouseGroup {
             c.mouse_wheel_zoom_acceleration,
             true,
         );
+        let config: Rc<RefCell<ConfigModel<CoreConfig>>> = Rc::clone(&self.config);
+        wa.scalar_field.on_value = Some(Box::new(move |val| {
+            let cfg_val = factor_val_to_cfg(val, 0.25, 2.0);
+            let mut cm = config.borrow_mut();
+            cm.modify(|c| c.mouse_wheel_zoom_acceleration = cfg_val);
+            let _ = cm.save();
+        }));
         ctx.create_child_with("wheelaccel", Box::new(wa));
 
         // zoom

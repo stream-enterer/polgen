@@ -49,6 +49,8 @@ pub struct FileSelectionBox {
     files_lb_id: Option<PanelId>,
     name_field_id: Option<PanelId>,
     filter_lb_id: Option<PanelId>,
+    /// True when children must be torn down and rebuilt on next layout pass.
+    children_dirty: bool,
 }
 
 impl FileSelectionBox {
@@ -77,6 +79,7 @@ impl FileSelectionBox {
             files_lb_id: None,
             name_field_id: None,
             filter_lb_id: None,
+            children_dirty: false,
         }
     }
 
@@ -91,6 +94,7 @@ impl FileSelectionBox {
                 self.set_selected_name(&first);
             }
             self.multi_selection_enabled = enabled;
+            self.children_dirty = true;
         }
     }
 
@@ -188,6 +192,7 @@ impl FileSelectionBox {
         } else if self.selected_filter_index < 0 && count > 0 {
             self.selected_filter_index = 0;
         }
+        self.children_dirty = true;
         self.invalidate_listing();
     }
 
@@ -516,6 +521,18 @@ impl PanelBehavior for FileSelectionBox {
         if !ctx.tree.is_auto_expanded(ctx.id) {
             return;
         }
+
+        // If state that affects child structure changed after initial creation,
+        // tear down and rebuild all children.
+        if self.children_dirty && ctx.child_count() > 0 {
+            ctx.delete_all_children();
+            self.dir_field_id = None;
+            self.hidden_cb_id = None;
+            self.files_lb_id = None;
+            self.name_field_id = None;
+            self.filter_lb_id = None;
+        }
+        self.children_dirty = false;
 
         if ctx.child_count() == 0 {
             self.create_children(ctx);

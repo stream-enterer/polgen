@@ -208,12 +208,11 @@ impl FilePanel {
                 );
             }
             VirtualFileState::Saving => {
-                let text = format!("Saving: {:.1}%", self.file_state_progress());
                 paint_status_text(
                     painter,
                     w,
                     h,
-                    &text,
+                    "Saving...",
                     Color::rgba(0, 112, 0, 192),
                     canvas_color,
                 );
@@ -349,12 +348,6 @@ impl FilePanel {
         }
     }
 
-    fn file_state_progress(&self) -> f64 {
-        match &self.file_state {
-            FileState::Loading { progress } => *progress,
-            _ => 0.0,
-        }
-    }
 }
 
 /// Paint a centered status text over the full panel area.

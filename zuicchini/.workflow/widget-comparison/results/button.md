@@ -62,12 +62,7 @@
 ### [NOTE] Hover state is Rust-only addition — **FIXED**
 - **Fix**: Removed hover field, update_hover, is_hovered. Face color always ButtonBgColor.
 
-### [NOTE] Click() API: no shift parameter, no enabled check, no EOI signal — **PARTIALLY FIXED**
-- **Fix**: `click()` now gates on `enabled`; disabled buttons no longer fire their callback.
-- **Remaining**: `shift` parameter not implemented (requires view/EOI infrastructure); EOI signal not fired.
-- **C++**: Click(bool shift) — gates on IsEnabled(), fires EOI when !shift && !NoEOI
-- **Rust**: click() — shift and EOI not implemented
-- **Confidence**: high | **Coverage**: uncovered
+### [NOTE] Click() API: no shift parameter, no enabled check, no EOI signal — **DEFERRED: The enabled check is fixed. The remaining gap is: (1) Click(bool shift) parameter — C++ passes shift state to determine whether to fire an EOI (End Of Interaction) signal. EOI triggers the zoom-out-of-panel behavior in Eagle Mode's ZoomView. The Rust port does not have the EOI/ZoomView infrastructure — there is no signal consumer. Adding a shift parameter to click() would be dead code. (2) EOI signal emission — requires the signal infrastructure and a ZoomView consumer to have any effect. User-facing impact: none — EOI controls zoom behavior that is not implemented in the Rust port.**
 
 ## Summary
 

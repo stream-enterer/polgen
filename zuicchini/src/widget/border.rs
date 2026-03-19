@@ -103,6 +103,10 @@ impl Border {
         self
     }
 
+    pub fn set_caption(&mut self, caption: &str) {
+        self.caption = caption.to_string();
+    }
+
     pub fn with_description(mut self, description: &str) -> Self {
         self.description = description.to_string();
         self

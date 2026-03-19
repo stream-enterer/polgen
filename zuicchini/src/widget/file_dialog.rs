@@ -71,7 +71,10 @@ impl FileDialog {
 
     pub fn set_mode(&mut self, mode: FileDialogMode) {
         self.mode = mode;
-        // Update dialog title and OK button text would happen via Dialog API.
+        let (title, ok_label) = mode_title_and_ok(mode);
+        self.dialog.set_title(title);
+        self.dialog
+            .set_button_label_for_result(&DialogResult::Ok, ok_label);
     }
 
     pub fn is_directory_result_allowed(&self) -> bool {
