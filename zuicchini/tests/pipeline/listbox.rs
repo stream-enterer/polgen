@@ -793,3 +793,382 @@ fn listbox_multi_ctrl_space_toggles() {
     h.input_state.release(InputKey::Ctrl);
     assert!(!lb.borrow().is_selected(1), "Ctrl+Space toggles off in Multi");
 }
+
+// ── BP-2: ListBox keywalk (type-ahead search) behavioral parity tests ────
+//
+// These tests verify the keywalk/type-to-search behavior matching C++
+// emListBox::KeyWalk (emListBox.cpp:851-927).
+//
+// C++ behavior summary:
+// - Typing printable chars (not ctrl/alt/meta) accumulates a search prefix
+// - Timeout > 1000ms clears the accumulator (uses GetInputClockMS)
+// - '*' prefix triggers case-insensitive substring search
+// - No match clears the accumulator and calls Beep()
+// - Prefix match is tried first, then fuzzy match (skip separators)
+// - On match: Select(i, true) if not ReadOnly, visit the item panel
+// - Focus loss (NF_FOCUS_CHANGED) clears the accumulator
+
+/// Helper: set up a keywalk-focused harness with named items for search tests.
+/// Returns (harness, lb_ref, panel_id, click_x, first_item_y).
+fn setup_keywalk_harness(
+    items: &[&str],
+) -> (
+    PipelineTestHarness,
+    Rc<RefCell<ListBox>>,
+    zuicchini::panel::PanelId,
+    f64,
+    f64,
+) {
+    let mut h = PipelineTestHarness::new();
+    let root = h.root();
+
+    let look = Look::new();
+    let mut lb = ListBox::new(look);
+    lb.set_selection_mode(SelectionMode::Single);
+    for (i, text) in items.iter().enumerate() {
+        lb.add_item(format!("item{}", i), text.to_string());
+    }
+
+    let lb_ref = Rc::new(RefCell::new(lb));
+    let panel_id = h.add_panel_with(
+        root,
+        "listbox",
+        Box::new(SharedListBoxPanel {
+            inner: lb_ref.clone(),
+        }),
+    );
+
+    h.tick_n(5);
+    let mut compositor = SoftwareCompositor::new(800, 600);
+    compositor.render(&mut h.tree, &h.view);
+
+    let pt = h.view.pixel_tallness();
+    let state = h.tree.build_panel_state(panel_id, h.view.window_focused(), pt);
+    let vr = state.viewed_rect;
+    let click_x = content_center_view_x(&vr, pt);
+    let first_y = item_center_view_y(&vr, pt, 0, items.len());
+
+    // Click to activate the panel so keyboard events are delivered.
+    h.click(click_x, first_y);
+
+    (h, lb_ref, panel_id, click_x, first_y)
+}
+
+#[test]
+fn listbox_keywalk_single_char_prefix() {
+    // C++ ref: emListBox.cpp:889-891 — strncasecmp prefix match.
+    // Typing a single char should select the first item whose text starts with
+    // that character (case-insensitive).
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Banana", "Cherry", "Date", "Elderberry"]);
+
+    // The initial click selected item 0 ("Apple"). Clear that to verify keywalk.
+    lb.borrow_mut().clear_selection();
+
+    h.press_char('c');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(2),
+        "Typing 'c' should select 'Cherry' (index 2)"
+    );
+}
+
+#[test]
+fn listbox_keywalk_single_char_case_insensitive() {
+    // C++ ref: strncasecmp is case-insensitive.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Banana", "Cherry"]);
+
+    lb.borrow_mut().clear_selection();
+
+    h.press_char('B');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "Typing 'B' (uppercase) should select 'Banana' (case-insensitive)"
+    );
+}
+
+#[test]
+fn listbox_keywalk_accumulated_prefix() {
+    // C++ ref: emListBox.cpp:871 — str=KeyWalkChars+event.GetChars()
+    // Multiple keystrokes within the timeout accumulate a prefix.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Apricot", "Banana"]);
+
+    lb.borrow_mut().clear_selection();
+
+    // Type 'a' -> matches "Apple" (first prefix match).
+    h.press_char('a');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(0),
+        "'a' matches 'Apple' first"
+    );
+
+    // Type 'p' -> accumulated "ap" still matches "Apple".
+    h.press_char('p');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(0),
+        "'ap' still matches 'Apple'"
+    );
+
+    // Type 'r' -> accumulated "apr" matches "Apricot".
+    h.press_char('r');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "'apr' matches 'Apricot'"
+    );
+}
+
+#[test]
+fn listbox_keywalk_star_substring_search() {
+    // C++ ref: emListBox.cpp:874-888 — '*' prefix triggers substring search.
+    // Typing '*' then chars does case-insensitive substring matching.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Banana", "Pineapple"]);
+
+    lb.borrow_mut().clear_selection();
+
+    // Type '*' then 'n' then 'a' then 'n' -> search for substring "nan".
+    h.press_char('*');
+    // '*' alone matches first item (C++ behavior: empty needle always matches).
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(0),
+        "'*' alone matches first item"
+    );
+
+    h.press_char('n');
+    h.press_char('a');
+    h.press_char('n');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "'*nan' substring matches 'Banana'"
+    );
+}
+
+#[test]
+fn listbox_keywalk_star_substring_case_insensitive() {
+    // C++ ref: emListBox.cpp:879-886 — the substring comparison uses tolower.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["FooBar", "BazQux"]);
+
+    lb.borrow_mut().clear_selection();
+
+    h.press_char('*');
+    h.press_char('b');
+    h.press_char('a');
+    h.press_char('r');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(0),
+        "'*bar' substring matches 'FooBar' (case-insensitive)"
+    );
+}
+
+#[test]
+fn listbox_keywalk_no_match_clears_accumulator() {
+    // C++ ref: emListBox.cpp:920-924 — on no match, KeyWalkChars.Clear().
+    // After a failed search, the accumulator is cleared so the next keystroke
+    // starts a fresh search.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Banana", "Cherry"]);
+
+    lb.borrow_mut().clear_selection();
+
+    // Type 'z' -> no item starts with 'z', no match -> accumulator cleared.
+    h.press_char('z');
+    // No match: C++ does not change selection (KeyWalkChars cleared, no Select call).
+    // The initial click selected item 0, but we cleared it. With no match,
+    // nothing is selected.
+    assert!(
+        lb.borrow().selected_index().is_none(),
+        "No match for 'z': selection unchanged (nothing selected)"
+    );
+
+    // Now type 'b' -> fresh search (not "zb") -> should match "Banana".
+    h.press_char('b');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "After no-match clear, 'b' starts fresh and matches 'Banana'"
+    );
+}
+
+#[test]
+fn listbox_keywalk_no_match_retains_previous_selection() {
+    // C++ ref: emListBox.cpp:920-924 — on no match, only the accumulator is
+    // cleared; the existing selection is NOT changed.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Banana", "Cherry"]);
+
+    // Initial click selected item 0. Type 'b' to select "Banana".
+    h.press_char('b');
+    assert_eq!(lb.borrow().selected_index(), Some(1));
+
+    // Type 'z' -> no match. Selection should remain on "Banana".
+    h.press_char('z');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(1),
+        "No-match 'z' does not change existing selection"
+    );
+}
+
+#[test]
+fn listbox_keywalk_focus_lost_clears_accumulator() {
+    // C++ ref: emListBox.cpp:647-656 — NF_FOCUS_CHANGED with !InFocusedPath
+    // clears KeyWalkChars.
+    //
+    // We verify this by accumulating a prefix, simulating focus loss via
+    // on_focus_changed(false), then typing again and verifying fresh search.
+    // Note: calling on_focus_changed directly rather than through a multi-panel
+    // pipeline click, since creating a second panel for focus stealing is
+    // orthogonal to keywalk behavior.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Apricot", "Banana"]);
+
+    lb.borrow_mut().clear_selection();
+
+    // Accumulate "ap" -> matches "Apple".
+    h.press_char('a');
+    h.press_char('p');
+    assert_eq!(lb.borrow().selected_index(), Some(0));
+
+    // Simulate focus loss.
+    lb.borrow_mut().on_focus_changed(false);
+    // Restore focus (so subsequent keystrokes are delivered).
+    lb.borrow_mut().on_focus_changed(true);
+
+    // Type 'b' -> should be a fresh search, not "apb".
+    h.press_char('b');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(2),
+        "After focus loss, 'b' starts fresh and matches 'Banana'"
+    );
+}
+
+#[test]
+fn listbox_keywalk_fuzzy_match_skips_separators() {
+    // C++ ref: emListBox.cpp:893-906 — fuzzy match skips ' ', '-', '_' in
+    // item text when prefix match fails.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Red-Apple", "Banana"]);
+
+    lb.borrow_mut().clear_selection();
+
+    // "ra" does not prefix-match "Red-Apple", but fuzzy match succeeds:
+    // 'r' matches 'R', 'a' skips '-', matches 'A'.
+    h.press_char('r');
+    h.press_char('a');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(0),
+        "'ra' fuzzy-matches 'Red-Apple' (skipping '-')"
+    );
+}
+
+#[test]
+fn listbox_keywalk_ctrl_chars_rejected() {
+    // C++ ref: emListBox.cpp:861 — if state.GetCtrl() return (no keywalk).
+    // Ctrl+key should NOT be processed as keywalk.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Banana"]);
+
+    lb.borrow_mut().clear_selection();
+
+    // Ctrl+b should not trigger keywalk to select "Banana".
+    h.input_state.press(InputKey::Ctrl);
+    h.press_char('b');
+    h.input_state.release(InputKey::Ctrl);
+
+    assert!(
+        lb.borrow().selected_index().is_none(),
+        "Ctrl+char should not trigger keywalk"
+    );
+}
+
+#[test]
+fn listbox_keywalk_readonly_no_selection_change() {
+    // C++ ref: emListBox.cpp:912 — if (IsEnabled() && SelType != READ_ONLY_SELECTION)
+    // In ReadOnly mode, keywalk finds the item but does NOT change selection.
+    let mut h = PipelineTestHarness::new();
+    let root = h.root();
+
+    let look = Look::new();
+    let mut lb = ListBox::new(look);
+    lb.set_selection_mode(SelectionMode::ReadOnly);
+    lb.add_item("i0".to_string(), "Apple".to_string());
+    lb.add_item("i1".to_string(), "Banana".to_string());
+    lb.add_item("i2".to_string(), "Cherry".to_string());
+
+    let lb_ref = Rc::new(RefCell::new(lb));
+    let _panel_id = h.add_panel_with(
+        root,
+        "listbox",
+        Box::new(SharedListBoxPanel {
+            inner: lb_ref.clone(),
+        }),
+    );
+
+    h.tick_n(5);
+    let mut compositor = SoftwareCompositor::new(800, 600);
+    compositor.render(&mut h.tree, &h.view);
+
+    // Activate the panel by clicking (ReadOnly won't select on click).
+    let pt = h.view.pixel_tallness();
+    let state = h.tree.build_panel_state(_panel_id, h.view.window_focused(), pt);
+    let vr = state.viewed_rect;
+    let cx = content_center_view_x(&vr, pt);
+    let fy = item_center_view_y(&vr, pt, 0, 3);
+    h.click(cx, fy);
+
+    assert!(lb_ref.borrow().selected_indices().is_empty());
+
+    // Type 'b' -> keywalk finds "Banana" but does not select in ReadOnly mode.
+    h.press_char('b');
+    assert!(
+        lb_ref.borrow().selected_indices().is_empty(),
+        "ReadOnly mode: keywalk does not change selection"
+    );
+    // Focus index should still move (C++ visits the panel).
+    assert_eq!(
+        lb_ref.borrow().focus_index(),
+        1,
+        "ReadOnly mode: keywalk moves focus_index to matched item"
+    );
+}
+
+#[test]
+#[ignore] // needs injectable clock. C++ ref: emListBox.cpp:867-868 (GetInputClockMS timeout)
+fn listbox_keywalk_timeout_clears_accumulator() {
+    // C++ behavior: if GetInputClockMS() - KeyWalkClock > 1000, clear KeyWalkChars.
+    // The Rust implementation uses Instant::now() (list_box.rs:1394) with no way
+    // to inject a fake clock. Testing would require std::thread::sleep(1001ms)
+    // which is fragile and slow. This test is left as #[ignore] until an
+    // injectable clock mechanism is added.
+    //
+    // Expected behavior: after waiting >1000ms between keystrokes, the
+    // accumulator resets and the next character starts a fresh prefix search.
+    let (mut h, lb, _pid, _cx, _fy) =
+        setup_keywalk_harness(&["Apple", "Apricot", "Banana"]);
+
+    lb.borrow_mut().clear_selection();
+
+    h.press_char('a');
+    assert_eq!(lb.borrow().selected_index(), Some(0));
+
+    // Would need: advance_time(1001ms)
+    // Then typing 'b' should start fresh and match "Banana", not accumulate "ab".
+    h.press_char('b');
+    assert_eq!(
+        lb.borrow().selected_index(),
+        Some(2),
+        "After timeout, 'b' starts fresh and matches 'Banana'"
+    );
+}
