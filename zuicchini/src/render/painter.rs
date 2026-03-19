@@ -1400,7 +1400,10 @@ impl<'a> Painter<'a> {
                 }
             }
         } else {
-            // Bilinear upscaling with lum mapping
+            // Adaptive upscaling with lum mapping — matches C++ UQ_ADAPTIVE
+            // for font glyph rendering (PaintImageColored with upscaling).
+            let sxfm =
+                self.scale_transform_24(src_w, src_h, x, y, w, h);
             let sec = interpolation::SectionBounds {
                 ox: src_x as i32,
                 oy: src_y as i32,
@@ -1413,43 +1416,24 @@ impl<'a> Painter<'a> {
                     let batch = ((end_x - col) as usize).min(max_batch);
                     for i in 0..batch {
                         let c = col + i as i32;
-                        let fx = (c as f64 - dx + 0.5) * ratio_x - 0.5;
-                        let fy = (row as f64 - dy + 0.5) * ratio_y - 0.5;
-                        let ix = fx.floor() as i32;
-                        let iy = fy.floor() as i32;
-                        let tx = ((fx - fx.floor()) * 256.0) as u32;
-                        let ty = ((fy - fy.floor()) * 256.0) as u32;
-                        let itx = 256 - tx;
-                        let ity = 256 - ty;
+                        // Match interpolate_scanline_adaptive_premul_section
+                        // coordinate convention: (col - px) * tdx + base_x.
+                        let tx64 = (c - px) as i64 * sxfm.tdx
+                            + sxfm.base_x
+                            - 0x180_0000;
+                        let ty64 = (row - py) as i64 * sxfm.tdy
+                            + sxfm.base_y
+                            - 0x180_0000;
+                        let src_ix = (tx64 >> 24) as i32;
+                        let src_iy = (ty64 >> 24) as i32;
+                        let ox =
+                            (((tx64 & 0xFF_FFFF) as u32).wrapping_add(0x7FFF)) >> 16;
+                        let oy =
+                            (((ty64 & 0xFF_FFFF) as u32).wrapping_add(0x7FFF)) >> 16;
 
-                        let p00 =
-                            interpolation::sample_section_pixel(image, ix, iy, &sec, ext);
-                        let p10 =
-                            interpolation::sample_section_pixel(image, ix + 1, iy, &sec, ext);
-                        let p01 =
-                            interpolation::sample_section_pixel(image, ix, iy + 1, &sec, ext);
-                        let p11 = interpolation::sample_section_pixel(
-                            image,
-                            ix + 1,
-                            iy + 1,
-                            &sec,
-                            ext,
+                        let lum = interpolation::sample_adaptive_lum_section(
+                            image, src_ix, src_iy, ox, oy, &sec, ext,
                         );
-
-                        let bilinear_ch = |ch_idx: usize| -> u8 {
-                            let top = p00[ch_idx] as u32 * itx + p10[ch_idx] as u32 * tx;
-                            let bot = p01[ch_idx] as u32 * itx + p11[ch_idx] as u32 * tx;
-                            ((top * ity + bot * ty + 0x8000) >> 16) as u8
-                        };
-
-                        let lum = if ch == 1 {
-                            bilinear_ch(0)
-                        } else {
-                            let r = bilinear_ch(0) as u32;
-                            let g = bilinear_ch(1) as u32;
-                            let b = bilinear_ch(2) as u32;
-                            ((r * 77 + g * 150 + b * 29) >> 8) as u8
-                        };
                         let mapped = lum_to_color(lum);
                         ibuf.set_pixel(i, [mapped.r(), mapped.g(), mapped.b(), mapped.a()]);
                     }

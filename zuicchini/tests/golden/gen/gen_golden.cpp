@@ -3154,6 +3154,364 @@ static void gen_widget_splitter_drag() {
     printf("  widget_state/widget_splitter_drag\n");
 }
 
+// BV-1: emBorder OBT_RECT, extreme tall aspect ratio (8x taller than wide)
+static void gen_widget_border_rect_extreme_tall() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emBorder>(view, "test", "Test");
+    w->SetBorderType(emBorder::OBT_RECT, emBorder::IBT_NONE);
+    w->DoLayout(0, 0, 1.0, 8.0);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_border_rect_extreme_tall", vp, ctx);
+}
+
+// BV-2: emBorder OBT_RECT, extreme wide aspect ratio (20x wider than tall)
+static void gen_widget_border_rect_extreme_wide() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emBorder>(view, "test", "Test");
+    w->SetBorderType(emBorder::OBT_RECT, emBorder::IBT_NONE);
+    w->DoLayout(0, 0, 1.0, 0.05);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_border_rect_extreme_wide", vp, ctx);
+}
+
+// BV-3: emBorder OBT_ROUND_RECT, single-pixel height (radius clamping)
+static void gen_widget_border_roundrect_thin() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emBorder>(view, "test", "Test");
+    w->SetBorderType(emBorder::OBT_ROUND_RECT, emBorder::IBT_NONE);
+    w->DoLayout(0, 0, 1.0, 0.002);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_border_roundrect_thin", vp, ctx);
+}
+
+// BV-4: emBorder OBT_INSTRUMENT, zero-size content area (cramped caption+desc)
+static void gen_widget_border_instrument_cramped() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emBorder>(view, "test", "ABCDEFGHIJ",
+                                     "Long description that fills space");
+    w->SetBorderType(emBorder::OBT_INSTRUMENT, emBorder::IBT_NONE);
+    w->DoLayout(0, 0, 1.0, 0.15);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_border_instrument_cramped", vp, ctx);
+}
+
+// BV-5: emLabel single character "X" on height-constrained panel
+static void gen_widget_label_single_char() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emLabel>(view, "test", "X");
+    w->DoLayout(0, 0, 1.0, 0.1);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_label_single_char", vp, ctx);
+}
+
+// BV-6: emLabel empty string — zero-width text measurement
+static void gen_widget_label_empty() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emLabel>(view, "test", "");
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_label_empty", vp, ctx);
+}
+
+// BV-7: emLabel very long text on narrow (extreme vertical) panel
+static void gen_widget_label_long_narrow() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emLabel>(view, "test",
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 !@#$%^&*() test");
+    w->DoLayout(0, 0, 1.0, 4.0);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_label_long_narrow", vp, ctx);
+}
+
+// BV-8: emTextField empty content, extreme wide sliver
+static void gen_widget_textfield_empty_wide() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emTextField>(view, "test", "Name", "", emImage(),
+                                        emString(), true);
+    w->DoLayout(0, 0, 1.0, 0.05);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_textfield_empty_wide", vp, ctx);
+}
+
+// BV-9: emTextField single character "A", square panel
+static void gen_widget_textfield_single_char_square() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emTextField>(view, "test", "Name", "", emImage(),
+                                        "A", true);
+    w->DoLayout(0, 0, 1.0, 1.0);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_textfield_single_char_square", vp, ctx);
+}
+
+// BV-10: emScalarField minimum value — slider at left edge, large negative display
+static void gen_widget_scalarfield_min_value() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emScalarField>(view, "test", "Value", "", emImage(),
+                                          (emInt64)-1000000000000LL,
+                                          (emInt64)1000000000000LL,
+                                          (emInt64)-1000000000000LL, true);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_scalarfield_min_value", vp, ctx);
+}
+
+// BV-11: emScalarField maximum value — slider at right edge, large positive display
+static void gen_widget_scalarfield_max_value() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emScalarField>(view, "test", "Value", "", emImage(),
+                                          (emInt64)-1000000000000LL,
+                                          (emInt64)1000000000000LL,
+                                          (emInt64)1000000000000LL, true);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_scalarfield_max_value", vp, ctx);
+}
+
+// BV-12: emScalarField zero range — min=max=value, division-by-zero guard in slider
+static void gen_widget_scalarfield_zero_range() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emScalarField>(view, "test", "Value", "", emImage(),
+                                          (emInt64)50, (emInt64)50,
+                                          (emInt64)50, true);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_scalarfield_zero_range", vp, ctx);
+}
+
+// BV-13: emListBox empty — zero items, tests layout with no children
+static void gen_widget_listbox_empty() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emListBox>(view, "test", "Items");
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_listbox_empty", vp, ctx);
+}
+
+// BV-14: emListBox single item — one entry "Solo", tests single-child layout
+static void gen_widget_listbox_single() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emListBox>(view, "test", "Items");
+    w->AddItem("item0", "Solo");
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_listbox_single", vp, ctx);
+}
+
+// BV-15: emListBox extreme wide — 3 items in horizontal sliver
+static void gen_widget_listbox_extreme_wide() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emListBox>(view, "test", "Items");
+    w->AddItem("item0", "Alpha");
+    w->AddItem("item1", "Beta");
+    w->AddItem("item2", "Gamma");
+    w->DoLayout(0, 0, 1.0, 0.05);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_listbox_extreme_wide", vp, ctx);
+}
+
+// BV-16: emSplitter horizontal, pos=0.0 — first child gets zero width
+static void gen_widget_splitter_h_pos0() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emSplitter>(view, "test", "", "", emImage(),
+                                       false, 0.0, 1.0, 0.0);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_splitter_h_pos0", vp, ctx);
+}
+
+// BV-17: emSplitter horizontal, pos=1.0 — second child gets zero width
+static void gen_widget_splitter_h_pos1() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emSplitter>(view, "test", "", "", emImage(),
+                                       false, 0.0, 1.0, 1.0);
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_splitter_h_pos1", vp, ctx);
+}
+
+// BV-18: emSplitter vertical, extreme tall — grip rendering in narrow panel
+static void gen_widget_splitter_v_extreme_tall() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emSplitter>(view, "test", "", "", emImage(),
+                                       true, 0.0, 1.0, 0.5);
+    w->DoLayout(0, 0, 1.0, 8.0);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_splitter_v_extreme_tall", vp, ctx);
+}
+
+// BV-19: emColorField — fully transparent (alpha=0), blend fast-path
+static void gen_widget_colorfield_alpha_zero() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emColorField>(view, "test", "Color", "", emImage(),
+                                         emColor(255, 0, 0, 0));
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_colorfield_alpha_zero", vp, ctx);
+}
+
+// BV-20a: emColorField — fully opaque (alpha=255)
+static void gen_widget_colorfield_alpha_opaque() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emColorField>(view, "test", "Color", "", emImage(),
+                                         emColor(255, 0, 0, 255));
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_colorfield_alpha_opaque", vp, ctx);
+}
+
+// BV-20b: emColorField — near-boundary alpha (alpha=1)
+static void gen_widget_colorfield_alpha_near() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    StubClipboard::Setup(ctx);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emColorField>(view, "test", "Color", "", emImage(),
+                                         emColor(255, 0, 0, 1));
+    w->DoLayout(0, 0, 1.0, 0.75);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_colorfield_alpha_near", vp, ctx);
+}
+
+// BV-21: emCheckBox — extreme tall aspect ratio
+static void gen_widget_checkbox_extreme_tall() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emCheckBox>(view, "test", "Check");
+    w->DoLayout(0, 0, 1.0, 4.0);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_checkbox_extreme_tall", vp, ctx);
+}
+
+// BV-22: emTunnel — extreme wide aspect ratio
+static void gen_widget_tunnel_extreme_wide() {
+    emStandardScheduler sched;
+    emRootContext ctx(sched);
+    emView view(ctx, emView::VF_NO_ACTIVE_HIGHLIGHT);
+    GoldenViewPort vp(view);
+
+    auto* w = new Testable<emTunnel>(view, "test", "Tunnel");
+    w->SetDepth(10.0);
+    w->SetChildTallness(0.75);
+    w->DoLayout(0, 0, 1.0, 0.02);
+
+    { TerminateEngine ctrl(sched, 30); sched.Run(); }
+    render_and_dump("widget_tunnel_extreme_wide", vp, ctx);
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Phase 8 — Animator trajectory golden tests
 // ═══════════════════════════════════════════════════════════════════
@@ -4192,6 +4550,29 @@ int main() {
     gen_widget_tunnel();
     gen_widget_file_panel();
     gen_widget_file_selection_box();
+    gen_widget_border_rect_extreme_tall();
+    gen_widget_border_rect_extreme_wide();
+    gen_widget_border_roundrect_thin();
+    gen_widget_border_instrument_cramped();
+    gen_widget_label_single_char();
+    gen_widget_label_empty();
+    gen_widget_label_long_narrow();
+    gen_widget_textfield_empty_wide();
+    gen_widget_textfield_single_char_square();
+    gen_widget_scalarfield_min_value();
+    gen_widget_scalarfield_max_value();
+    gen_widget_scalarfield_zero_range();
+    gen_widget_listbox_empty();
+    gen_widget_listbox_single();
+    gen_widget_listbox_extreme_wide();
+    gen_widget_splitter_h_pos0();
+    gen_widget_splitter_h_pos1();
+    gen_widget_splitter_v_extreme_tall();
+    gen_widget_colorfield_alpha_zero();
+    gen_widget_colorfield_alpha_opaque();
+    gen_widget_colorfield_alpha_near();
+    gen_widget_checkbox_extreme_tall();
+    gen_widget_tunnel_extreme_wide();
 
     printf("Generating widget interaction golden files...\n");
     gen_widget_checkbox_toggle();

@@ -950,6 +950,46 @@ pub(crate) fn sample_adaptive_premul_fp_section(
     result
 }
 
+/// Adaptive single-channel sampling within a section.
+///
+/// Matches C++ `InterpolateImageAdaptive` for 1-channel sources (font glyphs).
+/// Uses 24-bit fixed-point coordinates. `ix`, `iy` are relative to the section
+/// origin (before the -1.5 offset that C++ applies for the 4x4 kernel).
+/// Returns the interpolated luminance as u8.
+pub(crate) fn sample_adaptive_lum_section(
+    image: &Image,
+    ix: i32,
+    iy: i32,
+    ox: u32,
+    oy: u32,
+    sec: &SectionBounds,
+    ext: ImageExtension,
+) -> u8 {
+    // Y-pass: for each of 4 columns, read 4 rows and adaptively interpolate.
+    let mut col_vals = [0i64; 4];
+    for col in 0..4i32 {
+        let mut rv = [0i32; 4];
+        for row in 0..4i32 {
+            let p = sample_section_pixel(image, ix + col, iy + row, sec, ext);
+            rv[row as usize] = p[0] as i32;
+        }
+        col_vals[col as usize] =
+            interpolate_four_values_adaptive(rv[0], rv[1], rv[2], rv[3], oy);
+    }
+
+    // X-pass: adaptively interpolate the 4 column results.
+    let final_val = interpolate_four_values_adaptive(
+        col_vals[0] as i32,
+        col_vals[1] as i32,
+        col_vals[2] as i32,
+        col_vals[3] as i32,
+        ox,
+    );
+
+    let rnd = (1i64 << 19) - 1;
+    ((final_val + rnd) >> 20).clamp(0, 255) as u8
+}
+
 /// Bicubic (Catmull-Rom) sampling with 4x4 kernel.
 pub(crate) fn sample_bicubic(image: &Image, x: f64, y: f64, ext: ImageExtension) -> Color {
     let fx = x.floor();

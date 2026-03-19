@@ -663,6 +663,303 @@ fn listbox_expanded() {
     result.unwrap();
 }
 
+// ─── BV-1: widget_border_rect_extreme_tall ──────────────────────
+
+#[test]
+fn golden_widget_border_rect_extreme_tall() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_border_rect_extreme_tall");
+
+    let look = Look::new();
+    let behavior = BorderBehavior::new(
+        OuterBorderType::Rect,
+        InnerBorderType::None,
+        "Test",
+        look,
+    );
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 8.0);
+    tree.set_behavior(root, Box::new(behavior));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_border_rect_extreme_tall",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_border_rect_extreme_tall", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-2: widget_border_rect_extreme_wide ─────────────────────
+
+#[test]
+fn golden_widget_border_rect_extreme_wide() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_border_rect_extreme_wide");
+
+    let look = Look::new();
+    let behavior = BorderBehavior::new(
+        OuterBorderType::Rect,
+        InnerBorderType::None,
+        "Test",
+        look,
+    );
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.05);
+    tree.set_behavior(root, Box::new(behavior));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_border_rect_extreme_wide",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_border_rect_extreme_wide", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-3: widget_border_roundrect_thin ─────────────────────────
+
+#[test]
+fn golden_widget_border_roundrect_thin() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_border_roundrect_thin");
+
+    let look = Look::new();
+    let behavior = BorderBehavior::new(
+        OuterBorderType::RoundRect,
+        InnerBorderType::None,
+        "Test",
+        look,
+    );
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.002);
+    tree.set_behavior(root, Box::new(behavior));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_border_roundrect_thin",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_border_roundrect_thin", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-4: widget_border_instrument_cramped ─────────────────────
+
+#[test]
+fn golden_widget_border_instrument_cramped() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_border_instrument_cramped");
+
+    let look = Look::new();
+    let behavior = BorderBehavior::new(
+        OuterBorderType::Instrument,
+        InnerBorderType::None,
+        "ABCDEFGHIJ",
+        look,
+    )
+    .with_description("Long description that fills space");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.15);
+    tree.set_behavior(root, Box::new(behavior));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_border_instrument_cramped",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_border_instrument_cramped", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-5: widget_label_single_char ─────────────────────────────
+
+#[test]
+fn golden_widget_label_single_char() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_label_single_char");
+
+    let look = Look::new();
+    let label = Label::new("X", look);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.1);
+    tree.set_behavior(root, Box::new(LabelBehavior { label }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_label_single_char",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_label_single_char", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-6: widget_label_empty ───────────────────────────────────
+
+#[test]
+fn golden_widget_label_empty() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_label_empty");
+
+    let look = Look::new();
+    let label = Label::new("", look);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(LabelBehavior { label }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_label_empty",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_label_empty", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-7: widget_label_long_narrow ─────────────────────────────
+
+#[test]
+fn golden_widget_label_long_narrow() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_label_long_narrow");
+
+    let look = Look::new();
+    let label = Label::new(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 !@#$%^&*() test",
+        look,
+    );
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 4.0);
+    tree.set_behavior(root, Box::new(LabelBehavior { label }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_label_long_narrow",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_label_long_narrow", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Coverage extension golden tests (CAP audit)
 // ═══════════════════════════════════════════════════════════════════
@@ -759,6 +1056,686 @@ fn widget_file_selection_box() {
     if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_file_selection_box", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
+    }
+    result.unwrap();
+}
+
+// ─── BV-8: widget_textfield_empty_wide ──────────────────────────
+
+#[test]
+fn golden_widget_textfield_empty_wide() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_textfield_empty_wide");
+
+    let look = Look::new();
+    let mut tf = TextField::new(look);
+    tf.set_caption("Name");
+    tf.set_editable(true);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.05);
+    tree.set_behavior(root, Box::new(TextFieldBehavior { text_field: tf }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_textfield_empty_wide",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_textfield_empty_wide", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-9: widget_textfield_single_char_square ──────────────────
+
+#[test]
+fn golden_widget_textfield_single_char_square() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_textfield_single_char_square");
+
+    let look = Look::new();
+    let mut tf = TextField::new(look);
+    tf.set_caption("Name");
+    tf.set_editable(true);
+    tf.set_text("A");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+    tree.set_behavior(root, Box::new(TextFieldBehavior { text_field: tf }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_textfield_single_char_square",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_textfield_single_char_square", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-10: widget_scalarfield_min_value ────────────────────────
+
+#[test]
+fn golden_widget_scalarfield_min_value() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_scalarfield_min_value");
+
+    let look = Look::new();
+    let mut sf = ScalarField::new(-1_000_000_000_000.0, 1_000_000_000_000.0, look);
+    sf.set_caption("Value");
+    sf.set_editable(true);
+    sf.set_value(-1_000_000_000_000.0);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(ScalarFieldBehavior { scalar_field: sf }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_scalarfield_min_value",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_scalarfield_min_value", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-11: widget_scalarfield_max_value ────────────────────────
+
+#[test]
+fn golden_widget_scalarfield_max_value() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_scalarfield_max_value");
+
+    let look = Look::new();
+    let mut sf = ScalarField::new(-1_000_000_000_000.0, 1_000_000_000_000.0, look);
+    sf.set_caption("Value");
+    sf.set_editable(true);
+    sf.set_value(1_000_000_000_000.0);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(ScalarFieldBehavior { scalar_field: sf }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_scalarfield_max_value",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_scalarfield_max_value", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-12: widget_scalarfield_zero_range ───────────────────────
+
+#[test]
+fn golden_widget_scalarfield_zero_range() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_scalarfield_zero_range");
+
+    let look = Look::new();
+    let mut sf = ScalarField::new(50.0, 50.0, look);
+    sf.set_caption("Value");
+    sf.set_editable(true);
+    sf.set_value(50.0);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(ScalarFieldBehavior { scalar_field: sf }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_scalarfield_zero_range",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_scalarfield_zero_range", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-13: widget_listbox_empty ────────────────────────────────
+
+#[test]
+fn golden_widget_listbox_empty() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_listbox_empty");
+
+    let look = Look::new();
+    let mut lb = ListBox::new(look);
+    lb.set_caption("Items");
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(ListBoxBehavior { list_box: lb }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_listbox_empty",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_listbox_empty", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-14: widget_listbox_single ───────────────────────────────
+
+#[test]
+fn golden_widget_listbox_single() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_listbox_single");
+
+    let look = Look::new();
+    let mut lb = ListBox::new(look);
+    lb.set_caption("Items");
+    lb.add_item("item0".to_string(), "Solo".to_string());
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(ListBoxBehavior { list_box: lb }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_listbox_single",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_listbox_single", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-15: widget_listbox_extreme_wide ─────────────────────────
+
+#[test]
+fn golden_widget_listbox_extreme_wide() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_listbox_extreme_wide");
+
+    let look = Look::new();
+    let mut lb = ListBox::new(look);
+    lb.set_caption("Items");
+    lb.add_item("item0".to_string(), "Alpha".to_string());
+    lb.add_item("item1".to_string(), "Beta".to_string());
+    lb.add_item("item2".to_string(), "Gamma".to_string());
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.05);
+    tree.set_behavior(root, Box::new(ListBoxBehavior { list_box: lb }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_listbox_extreme_wide",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_listbox_extreme_wide", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-16: widget_splitter_h_pos0 ──────────────────────────────
+
+#[test]
+fn golden_widget_splitter_h_pos0() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_splitter_h_pos0");
+
+    let look = Look::new();
+    let mut sp = Splitter::new(Orientation::Horizontal, look);
+    sp.set_position(0.0);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(SplitterBehavior { splitter: sp }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_splitter_h_pos0",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_splitter_h_pos0", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-17: widget_splitter_h_pos1 ──────────────────────────────
+
+#[test]
+fn golden_widget_splitter_h_pos1() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_splitter_h_pos1");
+
+    let look = Look::new();
+    let mut sp = Splitter::new(Orientation::Horizontal, look);
+    sp.set_position(1.0);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_behavior(root, Box::new(SplitterBehavior { splitter: sp }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_splitter_h_pos1",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_splitter_h_pos1", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-18: widget_splitter_v_extreme_tall ──────────────────────
+
+#[test]
+fn golden_widget_splitter_v_extreme_tall() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_splitter_v_extreme_tall");
+
+    let look = Look::new();
+    let mut sp = Splitter::new(Orientation::Vertical, look);
+    sp.set_position(0.5);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 8.0);
+    tree.set_behavior(root, Box::new(SplitterBehavior { splitter: sp }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_splitter_v_extreme_tall",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_splitter_v_extreme_tall", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-21: widget_checkbox_extreme_tall ─────────────────────────
+
+#[test]
+fn golden_widget_checkbox_extreme_tall() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_checkbox_extreme_tall");
+
+    let look = Look::new();
+    let cb = CheckBox::new("Check", look);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 4.0);
+    tree.set_behavior(root, Box::new(CheckBoxBehavior { check_box: cb }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_checkbox_extreme_tall",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_checkbox_extreme_tall", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-22: widget_tunnel_extreme_wide ──────────────────────────
+
+#[test]
+fn golden_widget_tunnel_extreme_wide() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_tunnel_extreme_wide");
+
+    let look = Look::new();
+    let mut tunnel = Tunnel::new(look).with_caption("Tunnel");
+    tunnel.set_depth(10.0);
+    tunnel.set_child_tallness(0.75);
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.02);
+    tree.set_behavior(root, Box::new(TunnelBehavior { tunnel }));
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+    settle(&mut tree, &mut view);
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_tunnel_extreme_wide",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_tunnel_extreme_wide", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-19: widget_colorfield_alpha_zero ─────────────────────────
+
+#[test]
+fn golden_widget_colorfield_alpha_zero() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_colorfield_alpha_zero");
+
+    let look = Look::new();
+    let mut cf = ColorField::new(look);
+    cf.set_caption("Color");
+    cf.set_color(zuicchini::foundation::Color::rgba(255, 0, 0, 0));
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_auto_expansion_threshold(root, 9.0, ViewConditionType::MinExt);
+    tree.set_behavior(
+        root,
+        Box::new(ColorFieldExpandedBehavior { color_field: cf }),
+    );
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+
+    for _ in 0..30 {
+        tree.deliver_notices(view.window_focused(), view.pixel_tallness());
+        view.update_viewing(&mut tree);
+    }
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_colorfield_alpha_zero",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_colorfield_alpha_zero", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-20a: widget_colorfield_alpha_opaque ──────────────────────
+
+#[test]
+fn golden_widget_colorfield_alpha_opaque() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_colorfield_alpha_opaque");
+
+    let look = Look::new();
+    let mut cf = ColorField::new(look);
+    cf.set_caption("Color");
+    cf.set_color(zuicchini::foundation::Color::rgba(255, 0, 0, 255));
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_auto_expansion_threshold(root, 9.0, ViewConditionType::MinExt);
+    tree.set_behavior(
+        root,
+        Box::new(ColorFieldExpandedBehavior { color_field: cf }),
+    );
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+
+    for _ in 0..30 {
+        tree.deliver_notices(view.window_focused(), view.pixel_tallness());
+        view.update_viewing(&mut tree);
+    }
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_colorfield_alpha_opaque",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_colorfield_alpha_opaque", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
+    }
+    result.unwrap();
+}
+
+// ─── BV-20b: widget_colorfield_alpha_near ────────────────────────
+
+#[test]
+fn golden_widget_colorfield_alpha_near() {
+    require_golden!();
+    let (w, h, expected) = load_compositor_golden("widget_colorfield_alpha_near");
+
+    let look = Look::new();
+    let mut cf = ColorField::new(look);
+    cf.set_caption("Color");
+    cf.set_color(zuicchini::foundation::Color::rgba(255, 0, 0, 1));
+
+    let mut tree = PanelTree::new();
+    let root = tree.create_root("test");
+    tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+    tree.set_auto_expansion_threshold(root, 9.0, ViewConditionType::MinExt);
+    tree.set_behavior(
+        root,
+        Box::new(ColorFieldExpandedBehavior { color_field: cf }),
+    );
+
+    let mut view = View::new(root, 800.0, 600.0);
+    view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+
+    for _ in 0..30 {
+        tree.deliver_notices(view.window_focused(), view.pixel_tallness());
+        view.update_viewing(&mut tree);
+    }
+
+    let mut compositor = SoftwareCompositor::new(w, h);
+    compositor.render(&mut tree, &view);
+    let actual = compositor.framebuffer().data();
+
+    let result = compare_images(
+        "widget_colorfield_alpha_near",
+        actual,
+        &expected,
+        w,
+        h,
+        1,
+        0.5,
+    );
+    if result.is_err() && dump_golden_enabled() {
+        dump_test_images("widget_colorfield_alpha_near", actual, &expected, w, h);
+        analyze_diff_distribution(actual, &expected, w, h, 1);
     }
     result.unwrap();
 }

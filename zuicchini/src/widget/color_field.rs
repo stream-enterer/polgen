@@ -359,7 +359,12 @@ impl ColorField {
         let rh = (cr.h - 2.0 * d).max(0.0);
 
         // C++ emColorField.cpp:380-393: paint "transparent" text underlay when alpha < 255.
-        let mut canvas_color = Color::TRANSPARENT;
+        // C++ PaintContent receives canvasColor from the border framework (the IO
+        // field background). When the color is opaque the canvas propagates to
+        // PaintRect so the painter can optimise edge blending. When the color is
+        // NOT opaque, canvasColor is reset to 0 after painting the "transparent"
+        // text (see C++ line 393).
+        let mut canvas_color = painter.canvas_color();
         if !self.color.is_opaque() {
             let text_color = if self.editable {
                 self.look.input_fg_color
@@ -386,10 +391,21 @@ impl ColorField {
         painter.paint_rect(rx, ry, rw, rh, self.color, canvas_color);
 
         // Paint rect outline (C++ PaintRectOutline defaults to canvasColor=0).
+        // C++ PaintRectOutline uses a 10-vertex polygon (outer + bridge + inner).
+        // Use paint_rect for each outline side to match C++ PaintPolygon coverage
+        // at axis-aligned edges, which uses the same fixed-point sub-pixel model.
         let thickness = d * 0.08;
         if thickness > 0.0 {
-            let outline_stroke = crate::render::Stroke::new(self.look.input_fg_color, thickness);
-            painter.paint_rect_outlined(rx, ry, rw, rh, &outline_stroke, Color::TRANSPARENT);
+            let t2 = thickness * 0.5;
+            let oc = self.look.input_fg_color;
+            // Top
+            painter.paint_rect(rx - t2, ry - t2, rw + thickness, thickness, oc, Color::TRANSPARENT);
+            // Bottom
+            painter.paint_rect(rx - t2, ry + rh - t2, rw + thickness, thickness, oc, Color::TRANSPARENT);
+            // Left
+            painter.paint_rect(rx - t2, ry + t2, thickness, (rh - thickness).max(0.0), oc, Color::TRANSPARENT);
+            // Right
+            painter.paint_rect(rx + rw - t2, ry + t2, thickness, (rh - thickness).max(0.0), oc, Color::TRANSPARENT);
         }
 
         // C++ paints content, THEN overlays the IO field border image.

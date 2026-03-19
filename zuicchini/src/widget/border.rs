@@ -1125,6 +1125,20 @@ How to move or set the focus:\n\
                 if rnd_r < r {
                     rnd_r = r;
                 }
+                // C++ line 1080: d = rndR * (17.0/225.0) — uses the actual
+                // rndR (which may be larger than `r` when the outer border
+                // contributed a bigger radius).
+                let d = rnd_r * (17.0 / 225.0);
+                // C++ lines 1081-1085: inset by d, reduce radius.
+                return (
+                    Rect {
+                        x: rnd_x + d,
+                        y: rnd_y + d,
+                        w: (rnd_w - 2.0 * d).max(0.0),
+                        h: (rnd_h_inner - 2.0 * d).max(0.0),
+                    },
+                    rnd_r - d,
+                );
             }
             InnerBorderType::InputField | InnerBorderType::OutputField => {
                 let r = inner_s * 0.094;

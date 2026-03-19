@@ -580,3 +580,38 @@ All three relate to canvas blend mode:
 ### Alpha Channel Audit Complete
 
 **All 12 items DONE.** 0 actionable fixes needed. 3 divergences confirmed invisible (Rust is more correct than C++). 3 intentional design choices verified correct.
+
+---
+
+## 2026-03-19 — Boundary-Value Differential Testing
+
+### Strategy
+
+Systematically probe boundary inputs (extreme aspect ratios, zero sizes, single pixels, alpha extremes) most likely to expose C++/Rust divergences. 22 items across 8 widget types. Each item adds a C++ golden generator + Rust golden test.
+
+### Results
+
+| # | Widget | Boundary | Result | Notes |
+|---|--------|----------|--------|-------|
+| BV-1 | Border (Rect) | Extreme tall 1.0×8.0 | DIVERGENCE+fix | view.rs: root panel viewed height, zoom-out rel_a convention, initial zoom-out |
+| BV-2 | Border (Rect) | Extreme wide 1.0×0.05 | DIVERGENCE+fix | Same view.rs fixes as BV-1 |
+| BV-3 | Border (RoundRect) | Single-pixel height | PASS | No divergence |
+| BV-4 | Border (Instrument) | Zero-size content | PASS | No divergence |
+| BV-5 | Label | Single char wide panel | PASS | No divergence |
+| BV-6 | Label | Empty string | PASS | No divergence |
+| BV-7 | Label | Long text narrow panel | PASS | No divergence |
+| BV-8 | TextField | Empty extreme wide | PASS | No divergence |
+| BV-9 | TextField | Single char square | DIVERGENCE+fix | view.rs: removed 0.5 threshold on initial zoom-out (C++ is unconditional) |
+| BV-10 | ScalarField | INT64_MIN value | PASS | No divergence |
+| BV-11 | ScalarField | INT64_MAX value | PASS | No divergence |
+| BV-12 | ScalarField | Zero range | PASS | No divergence |
+| BV-13 | ListBox | Empty list | PASS | No divergence |
+| BV-14 | ListBox | Single item | DIVERGENCE | 1.17% mismatch, max_diff=59 — single-item layout |
+| BV-15 | ListBox | Extreme wide | PASS | No divergence |
+| BV-16 | Splitter | Position=0.0 | PASS | No divergence |
+| BV-17 | Splitter | Position=1.0 | PASS | No divergence |
+| BV-18 | Splitter | Extreme narrow vertical | PASS | No divergence |
+| BV-19 | ColorField | Alpha=0 | PASS | No divergence |
+| BV-20 | ColorField | Alpha=255,1,254 | DIVERGENCE+fix | color_field.rs: canvas color + rect outline via 4 rects instead of polygon |
+| BV-21 | CheckBox | Extreme tall | PASS | No divergence |
+| BV-22 | Tunnel | Extreme wide | DIVERGENCE+fix | border.rs: IBT_GROUP inset used outer rnd_r not group min r |

@@ -130,7 +130,9 @@ fn layout_affects_hit_test() {
     h.tick();
 
     // Click at right side — should NOT find the panel
-    let click_right = InputEvent::press(InputKey::MouseLeft).with_mouse(700.0, 300.0);
+    // Use x=600 (well within the right-half viewport region even after
+    // zoom-out of the square root panel on an 800x600 viewport).
+    let click_right = InputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
     h.inject_input(&click_right);
     let _active_before = h.view.active();
 
@@ -139,12 +141,12 @@ fn layout_affects_hit_test() {
     h.tick();
 
     // Click at right side — should now find the panel
-    let click_right2 = InputEvent::press(InputKey::MouseLeft).with_mouse(700.0, 300.0);
+    let click_right2 = InputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
     h.inject_input(&click_right2);
 
     assert_eq!(
         h.view.active(),
         Some(panel),
-        "After moving panel to right side and updating, click at x=700 should find it"
+        "After moving panel to right side and updating, click at x=600 should find it"
     );
 }

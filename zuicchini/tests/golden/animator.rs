@@ -305,6 +305,14 @@ fn animator_visiting_short() {
     if dump_golden_enabled() {
         save_trajectory_golden("animator_visiting_short", &actual);
     }
+    for (i, (a, g)) in actual.iter().zip(golden.iter()).enumerate() {
+        let dx = (a.vel_x - g.vel_x).abs();
+        let dy = (a.vel_y - g.vel_y).abs();
+        let dz = (a.vel_z - g.vel_z).abs();
+        let flag = if dx > 1e-4 || dy > 1e-4 || dz > 1e-4 { " <<< FAIL" } else { "" };
+        eprintln!("step {i:2}: actual=({:.10e}, {:.10e}, {:.10e})  golden=({:.10e}, {:.10e}, {:.10e})  diff=({dx:.3e}, {dy:.3e}, {dz:.3e}){flag}",
+            a.vel_x, a.vel_y, a.vel_z, g.vel_x, g.vel_y, g.vel_z);
+    }
     compare_trajectory(&actual, &golden, 1e-4)
         .unwrap_or_else(|e| panic!("animator_visiting_short: {e}"));
 }

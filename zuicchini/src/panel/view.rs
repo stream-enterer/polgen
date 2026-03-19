@@ -107,6 +107,10 @@ pub struct View {
     visited_vw: f64,
     /// Cached visited panel ViewedHeight (screen pixels). Set by update_viewing().
     visited_vh: f64,
+    /// C++ ZoomedOutBeforeSG: when true the next update_viewing() will
+    /// compute the zoom-out relA so the root panel fits in the viewport.
+    /// Initially true; cleared after the first viewing update.
+    zoomed_out_before_sg: bool,
 }
 
 impl View {
@@ -153,6 +157,7 @@ impl View {
             visited_vw: viewport_width.max(1.0),
             visited_vh: viewport_height.max(1.0),
             viewing_dirty: true,
+            zoomed_out_before_sg: true,
         }
     }
 
@@ -468,20 +473,41 @@ impl View {
     ) -> [f64; 3] {
         let before = self.visit_stack.last().cloned();
         // Save pre-operation visited dimensions for done-distance.
-        // scroll() uses these same values as its denominator, so the
-        // round-trip (scroll → delta_rel_x → done_x) is self-consistent.
         let pre_vw = self.visited_vw;
         let pre_vh = self.visited_vh;
-        if dx != 0.0 || dy != 0.0 {
-            self.scroll(dx, dy);
-        }
-        if dz != 0.0 {
-            // C++: reFac = exp(-deltaZ * zflpp), ra *= reFac^2
-            // Since rel_a = 1/ra: rel_a *= 1/reFac^2 = exp(2 * dz * zflpp)
-            let zflpp = self.get_zoom_factor_log_per_pixel();
-            let re_fac = (-dz * zflpp).exp();
-            let area_factor = 1.0 / (re_fac * re_fac);
-            self.zoom(area_factor, fix_x, fix_y);
+
+        // C++ RawScrollAndZoom applies scroll+zoom atomically:
+        //   reFac = exp(-deltaZ * zflpp)
+        //   rx2 = rx + ((fixX-hmx)*(1-reFac) + deltaX) / pvw
+        //   ry2 = ry + ((fixY-hmy)*(1-reFac) + deltaY) / pvh
+        //   ra2 = ra * reFac^2
+        //
+        // Scroll and zoom fix-point correction are additive to rx/ry;
+        // the zoom does NOT scale the scroll delta (unlike sequential
+        // scroll-then-zoom which would multiply rel_x by the zoom ratio).
+        let vw = self.viewport_width.max(1.0);
+        let vh = self.viewport_height.max(1.0);
+        let zflpp = self.get_zoom_factor_log_per_pixel();
+        let re_fac = (-dz * zflpp).exp();
+        let pvw = self.visited_vw;
+        let pvh = self.visited_vh;
+
+        if let Some(state) = self.visit_stack.last_mut() {
+            // Fix-point zoom correction: (fixX - vw/2)*(1-reFac) / pvw
+            let fix_corr_x = (fix_x - vw * 0.5) * (1.0 - re_fac) / pvw;
+            let fix_corr_y = (fix_y - vh * 0.5) * (1.0 - re_fac) / pvh;
+
+            // Scroll: dx / pvw (same as C++ deltaX / pvw)
+            state.rel_x += fix_corr_x + dx / pvw;
+            state.rel_y += fix_corr_y + dy / pvh;
+
+            // Zoom: rel_a = 1/ra, ra_new = ra * reFac^2
+            // => rel_a_new = rel_a / reFac^2
+            let new_a = (state.rel_a / (re_fac * re_fac)).clamp(0.001, MAX_SVP_SIZE);
+            state.rel_a = new_a;
+
+            self.viewport_changed = true;
+            self.viewing_dirty = true;
         }
         self.update_viewing(tree);
         self.viewing_dirty = false;
@@ -517,12 +543,7 @@ impl View {
     }
 
     pub fn raw_zoom_out(&mut self, tree: &mut PanelTree) {
-        let root_h = tree.get_height(self.root);
-        let rel_a = {
-            let a1 = self.viewport_width * root_h / self.home_pixel_tallness / self.viewport_height;
-            let a2 = self.viewport_height / root_h * self.home_pixel_tallness / self.viewport_width;
-            a1.max(a2)
-        };
+        let rel_a = self.zoom_out_rel_a(tree);
         if let Some(state) = self.visit_stack.last_mut() {
             state.rel_x = 0.0;
             state.rel_y = 0.0;
@@ -535,11 +556,16 @@ impl View {
     }
 
     /// Compute the rel_a that makes the viewport fully contain the root panel.
+    ///
+    /// C++ `RawZoomOut` computes `ra = max(W*H_root/pt/H, H/H_root*pt/W)`.
+    /// Rust rel_a uses the INVERSE convention: `rel_a = 1/ra`, so larger
+    /// rel_a means more zoomed in (panel viewed area > viewport area).
     fn zoom_out_rel_a(&self, tree: &PanelTree) -> f64 {
         let root_h = tree.get_height(self.root);
         let a1 = self.viewport_width * root_h / self.home_pixel_tallness / self.viewport_height;
         let a2 = self.viewport_height / root_h * self.home_pixel_tallness / self.viewport_width;
-        a1.max(a2)
+        // C++ ra = max(a1, a2). Rust convention: rel_a = 1/ra.
+        1.0 / a1.max(a2)
     }
 
     pub fn is_zoomed_out(&self, tree: &PanelTree) -> bool {
@@ -862,6 +888,18 @@ impl View {
             None => return,
         };
 
+        // C++ ZoomedOutBeforeSG: on the first update after construction,
+        // compute the zoom-out relA so the root panel fits in the viewport.
+        // This mirrors C++ emView::SetGeometry which always calls RawZoomOut
+        // when ZoomedOutBeforeSG is true (no threshold).
+        if self.zoomed_out_before_sg {
+            self.zoomed_out_before_sg = false;
+            let rel_a = self.zoom_out_rel_a(tree);
+            if let Some(state) = self.visit_stack.last_mut() {
+                state.rel_a = rel_a;
+            }
+        }
+
         let vw = self.viewport_width.max(1.0);
         let vh = self.viewport_height.max(1.0);
 
@@ -953,19 +991,26 @@ impl View {
         self.visited_vh = visited_vh.max(1.0);
 
         let root_vw = visited_vw / vnw_safe;
-        let root_vh = visited_vh / vnh_safe;
+        // For centering: visited_vh / vnh_safe gives the coordinate-scale
+        // factor used to place the visited panel center. This equals root_vw
+        // algebraically, but we keep the derivation clear.
+        let root_vh_center = visited_vh / vnh_safe;
 
         // Visited center in viewport
         let vcx = vw * (0.5 + visit.rel_x);
         let vcy = vh * (0.5 + visit.rel_y);
 
-        // Root position
+        // Root position (centering uses root_vh_center)
         let root_vx = vcx - (vnx + vnw_safe * 0.5) * root_vw;
-        let root_vy = vcy - (vny + vnh_safe * 0.5) * root_vh;
+        let root_vy = vcy - (vny + vnh_safe * 0.5) * root_vh_center;
+
+        // C++ ViewedHeight = ViewedWidth * Height / PixelTallness (emPanel.cpp:615).
+        // The root rect height is its actual pixel extent, not the centering scale.
+        let root_actual_h = root_vw * root_norm_h;
 
         // Now recursively set viewed coords for all panels starting from root
         let viewport = Rect::new(0.0, 0.0, vw, vh);
-        let root_abs = Rect::new(root_vx, root_vy, root_vw, root_vh);
+        let root_abs = Rect::new(root_vx, root_vy, root_vw, root_actual_h);
         self.compute_viewed_recursive(tree, root, root_abs, &viewport);
 
         // NOTE: C++ RawVisitAbs fires viewing notices on all visible children
