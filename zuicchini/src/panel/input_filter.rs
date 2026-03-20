@@ -1555,13 +1555,67 @@ impl TouchTracker {
                 }
             }
 
+            GestureState::FirstDownUp => {
+                if self.touch_count > 1 {
+                    // New touch arrived — remove old, transition to DoubleDown
+                    self.remove_touch(0);
+                    self.gesture_state = GestureState::DoubleDown;
+                } else if self.touch_count > 0 && self.touches[0].ms_total > 250 {
+                    // Single-tap timeout
+                    self.gesture_state = GestureState::Finish;
+                }
+            }
+
+            GestureState::DoubleDown => {
+                if self.touch_count > 0 && !self.touches[0].down {
+                    self.gesture_state = GestureState::DoubleDownUp;
+                } else if self.touch_count > 0 && self.touches[0].ms_total > 250 {
+                    self.gesture_state = GestureState::ZoomOut;
+                }
+            }
+
+            GestureState::DoubleDownUp => {
+                if self.touch_count > 1 {
+                    self.remove_touch(0);
+                    self.gesture_state = GestureState::TripleDown;
+                } else if self.touch_count > 0 && self.touches[0].ms_total > 250 {
+                    // Double-tap action: visit_fullsized(panel, animated=true, fill=false)
+                    let x = self.touches[0].down_x;
+                    let y = self.touches[0].down_y;
+                    if let Some(panel) = view.get_focusable_panel_at(tree, x, y) {
+                        view.visit_fullsized(tree, panel);
+                    }
+                    self.gesture_state = GestureState::Finish;
+                }
+            }
+
+            GestureState::TripleDown => {
+                if self.touch_count > 0 && !self.touches[0].down {
+                    self.gesture_state = GestureState::TripleDownUp;
+                } else if self.touch_count > 0 && self.touches[0].ms_total > 250 {
+                    self.gesture_state = GestureState::ZoomIn;
+                }
+            }
+
+            GestureState::TripleDownUp => {
+                if self.touch_count > 1 {
+                    self.remove_touch(0);
+                    self.gesture_state = GestureState::DoubleDown;
+                } else if self.touch_count > 0 && self.touches[0].ms_total > 250 {
+                    // Triple-tap action: visit_fullsized(panel, animated=true, fill=true)
+                    let x = self.touches[0].down_x;
+                    let y = self.touches[0].down_y;
+                    if let Some(panel) = view.get_focusable_panel_at(tree, x, y) {
+                        let (rx, ry, ra) =
+                            view.calc_visit_fullsized_coords(tree, panel, true);
+                        view.visit(panel, rx, ry, ra);
+                    }
+                    self.gesture_state = GestureState::Finish;
+                }
+            }
+
             // States implemented in later features
-            GestureState::FirstDownUp
-            | GestureState::DoubleDown
-            | GestureState::DoubleDownUp
-            | GestureState::TripleDown
-            | GestureState::TripleDownUp
-            | GestureState::SecondDown
+            GestureState::SecondDown
             | GestureState::EmuMouse1
             | GestureState::EmuMouse2
             | GestureState::EmuMouse3
@@ -3027,6 +3081,76 @@ mod tests {
         assert!((tracker.get_touch_move_y(0) - 30.0).abs() < 1e-12);
         assert!((tracker.get_total_touch_move_x(0) - 20.0).abs() < 1e-12);
         assert!((tracker.get_total_touch_move_y(0) - 30.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn gesture_double_tap_visits_fullsized() {
+        let (mut tree, mut view) = setup();
+        let root = view.root();
+        tree.set_focusable(root, true);
+        view.update_viewing(&mut tree);
+        let mut tracker = TouchTracker::new();
+
+        // First down
+        tracker.touches[0] = Touch {
+            id: 1, down: true, x: 400.0, y: 300.0,
+            down_x: 400.0, down_y: 300.0, ..Touch::default()
+        };
+        tracker.touch_count = 1;
+        tracker.gesture_state = GestureState::FirstDown;
+
+        // First up (within 250ms)
+        tracker.touches[0].down = false;
+        tracker.touches[0].ms_total = 100;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+        assert_eq!(tracker.gesture_state, GestureState::FirstDownUp);
+
+        // Second down (new touch)
+        tracker.touches[1] = Touch {
+            id: 2, down: true, x: 400.0, y: 300.0,
+            down_x: 400.0, down_y: 300.0, ..Touch::default()
+        };
+        tracker.touch_count = 2;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+        assert_eq!(tracker.gesture_state, GestureState::DoubleDown);
+
+        // Second up
+        tracker.touches[0].down = false;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+        assert_eq!(tracker.gesture_state, GestureState::DoubleDownUp);
+
+        // Wait > 250ms — should trigger visit_fullsized and transition through Finish → Ready
+        tracker.touches[0].ms_total = 260;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+        // After the loop settles, gesture completes and returns to Ready
+        assert_eq!(tracker.gesture_state, GestureState::Ready);
+    }
+
+    #[test]
+    fn gesture_single_tap_timeout() {
+        let (mut tree, mut view) = setup();
+        view.update_viewing(&mut tree);
+        let mut tracker = TouchTracker::new();
+
+        // Touch down
+        tracker.touches[0] = Touch {
+            id: 1, down: true, x: 400.0, y: 300.0,
+            down_x: 400.0, down_y: 300.0, ..Touch::default()
+        };
+        tracker.touch_count = 1;
+        tracker.gesture_state = GestureState::FirstDown;
+
+        // Touch up quickly
+        tracker.touches[0].down = false;
+        tracker.touches[0].ms_total = 50;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+        assert_eq!(tracker.gesture_state, GestureState::FirstDownUp);
+
+        // Wait > 250ms — single tap timeout → Finish → Ready
+        tracker.touches[0].ms_total = 260;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+        // After loop settles, should be back at Ready (timeout, no action taken)
+        assert_eq!(tracker.gesture_state, GestureState::Ready);
     }
 
     #[test]
