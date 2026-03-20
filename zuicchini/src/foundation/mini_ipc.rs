@@ -133,7 +133,7 @@ mod platform {
         data.push(0);
         data.extend_from_slice(server_name.as_bytes());
 
-        let hash = crate::foundation::calc_hash_code(&data);
+        let hash = crate::foundation::calc_hash_code(&data, 0);
         format!("{hash:08x}")
     }
 

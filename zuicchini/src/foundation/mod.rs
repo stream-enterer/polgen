@@ -17,7 +17,7 @@ pub(crate) mod x11_colors;
 pub use alignment::ContentAlignment;
 pub use dlog::{is_dlog_enabled, set_dlog_enabled};
 pub use at_matrix::AffineMatrix;
-pub use checksum::{calc_adler32, calc_crc32, calc_hash_code};
+pub use checksum::{calc_adler32, calc_crc32, calc_crc64, calc_hash_code, calc_hash_name};
 pub use clip_rects::{ClipRect, ClipRects};
 pub use color::{Color, ColorParseError};
 pub use em_rec::{

@@ -1028,3 +1028,47 @@ Systematically probe boundary inputs (extreme aspect ratios, zero sizes, single 
 **All 12 items DONE.** 8 new golden tests + 1 behavioral test added. 1 composition bug found and fixed (content_rect_unobscured → content_rect). 1198 tests pass, clippy clean.
 
 Key finding: CT-6/CT-7/CT-8 required relaxed tolerances (28-75%) due to remaining layout differences between Rust LinearGroup/RasterGroup and C++ emLinearLayout child positioning. These are not pixel-arithmetic bugs — they're geometry-level layout differences that accumulate across nested widget hierarchies. The tests still verify that compositions render without crashes, corruption, or catastrophic divergence.
+
+## 2026-03-20 — Session 9b: Blocked Subsystem Implementations
+
+### pf7-egomode: EgoMode cursor override + scroll clamping
+**Status**: PASS
+**Files changed**: src/panel/view.rs, src/panel/input_filter.rs, src/window/zui_window.rs
+**Tests added**: 4
+
+### pf7-stresstest: Stress test frame rate ring buffer + overlay paint
+**Status**: PASS
+**Files changed**: src/panel/view.rs, src/panel/mod.rs, src/panel/input_filter.rs, src/window/app.rs
+**Tests added**: 3
+
+### pf7-dlog: Debug log AtomicBool toggle + dlog! macro + 10 call sites
+**Status**: PASS
+**Files changed**: src/foundation/dlog.rs (new), src/foundation/mod.rs, src/panel/view.rs, src/panel/animator.rs, src/panel/input_filter.rs, src/panel/tree.rs, src/render/thread_pool.rs, src/widget/file_selection_box.rs
+**Tests added**: 3
+
+### pf7-smwn: Stick mouse when navigating warp during drag
+**Status**: PASS
+**Files changed**: src/panel/input_filter.rs, src/window/zui_window.rs
+**Tests added**: 3
+
+### pf7-treedump: Tree dump recursive panel tree serializer in emRec format
+**Status**: PASS
+**Files changed**: src/panel/view.rs, src/panel/behavior.rs, src/panel/input_filter.rs, src/window/zui_window.rs
+**Tests added**: 2
+
+### pf7-screenshot: Screenshot shell out to xwd -root with numbered files
+**Status**: PASS
+**Files changed**: src/panel/input_filter.rs, src/window/zui_window.rs
+**Tests added**: 3
+
+## 2026-03-20 — Master Contract Audit
+
+### ext-foundation-alignment: Audit foundation/alignment.rs (3 methods from emStd1.h)
+**MATCHes**: 3 | **MISMATCHes**: 0 | **SUSPECTs**: 0 | **MISSINGs**: 0
+**Fixes applied**: none
+**Tests added**: 0
+
+### ext-foundation-checksum: Audit foundation/checksum.rs (5 methods from emStd2.h)
+**MATCHes**: 0 | **MISMATCHes**: 3 | **SUSPECTs**: 0 | **MISSINGs**: 2
+**Fixes applied**: calc_adler32 (add start param + C++ batching), calc_crc32 (add start param + C++ empty handling), calc_hash_code (fix multiplier 31→335171, add start param, stop-at-null, return i32), calc_crc64 (implement from scratch), calc_hash_name (implement from scratch)
+**Tests added**: 12
