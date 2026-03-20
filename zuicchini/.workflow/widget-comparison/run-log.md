@@ -1,5 +1,30 @@
 # Widget Comparison Run Log
 
+## 2026-03-19 — Session 8: Un-ignore All Behavioral Parity Tests
+
+### Summary
+
+All 17 `#[ignore]` tests from sessions 7a/7b un-ignored. 6 infrastructure features implemented. 307 pipeline tests pass, 0 ignored.
+
+### Implemented
+
+| # | Feature | Tests un-ignored | Files changed |
+|---|---------|-----------------|---------------|
+| 1 | Tab/Shift+Tab focus cycling | BP-15, BP-16, BP-18 (3) | zui_window.rs, pipeline.rs, tree.rs |
+| 2 | Arrow key sibling navigation | BP-19 (8) | zui_window.rs, pipeline.rs |
+| 3 | Injectable keywalk clock | listbox_keywalk_timeout (1) | list_box.rs, listbox.rs |
+| 4 | Home/End key handling | listbox_home/end (2) | list_box.rs, listbox.rs |
+| 5 | ColorField sync_from_children | 3 colorfield e2e tests (3) | color_field.rs, colorfield.rs |
+| 6 | Stale comment cleanup | — | focus.rs, colorfield.rs |
+
+### Final state
+
+- `grep -rn '#\[ignore\]' tests/pipeline/*.rs` → **0 results**
+- All 1505+ tests pass, clippy clean
+- 3 commits: e8993c4, b04e0ff, 6db064e
+
+---
+
 ## 2026-03-19 — Session 7b: Behavioral Parity Focus/Notice Tests
 
 ### Summary
@@ -10,11 +35,11 @@ All 10 items DONE or PARTIAL. 52 new tests added (1447 → 1488 passing, 1505 to
 
 | # | Behavior | Tests | Pass | Ignore | Status |
 |---|----------|-------|------|--------|--------|
-| BP-15 | Tab forward cycling | 1 | 0 | 1 | PARTIAL |
-| BP-16 | Tab backward cycling | 1 | 0 | 1 | PARTIAL |
+| BP-15 | Tab forward cycling | 1 | 1 | 0 | DONE |
+| BP-16 | Tab backward cycling | 1 | 1 | 0 | DONE |
 | BP-17 | Activation on click | 7 | 7 | 0 | DONE |
-| BP-18 | Tab skips unfocusable | 1 | 0 | 1 | PARTIAL |
-| BP-19 | Arrow key navigation | 8 | 0 | 8 | PARTIAL |
+| BP-18 | Tab skips unfocusable | 1 | 1 | 0 | DONE |
+| BP-19 | Arrow key navigation | 8 | 8 | 0 | DONE |
 | BP-20 | Layout change propagation | 4 | 4 | 0 | DONE |
 | BP-21 | Focus change notices | 6 | 6 | 0 | DONE |
 | BP-22 | Enable change propagation | 8 | 8 | 0 | DONE |
