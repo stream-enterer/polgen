@@ -1395,11 +1395,22 @@ pub enum GestureState {
 }
 
 /// Touch tracking infrastructure for the full C++ gesture state machine.
+/// Actions produced by the gesture state machine.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GestureAction {
+    /// Inject Menu key press+release.
+    InjectMenuKey,
+    /// Toggle soft keyboard.
+    ToggleSoftKeyboard,
+}
+
 pub struct TouchTracker {
     pub touches: [Touch; MAX_TOUCH_COUNT],
     pub touch_count: usize,
     pub touches_time: u64,
     pub gesture_state: GestureState,
+    /// Pending actions from the gesture state machine.
+    pub pending_actions: Vec<GestureAction>,
 }
 
 impl Default for TouchTracker {
@@ -1415,6 +1426,7 @@ impl TouchTracker {
             touch_count: 0,
             touches_time: 0,
             gesture_state: GestureState::Ready,
+            pending_actions: Vec::new(),
         }
     }
 
@@ -1653,7 +1665,8 @@ impl TouchTracker {
                 if self.touch_count > 3 {
                     self.gesture_state = GestureState::FourthDown;
                 } else if !self.is_any_touch_down() {
-                    // Three-finger release → inject Menu key (handled by caller)
+                    // Three-finger release → inject Menu key
+                    self.pending_actions.push(GestureAction::InjectMenuKey);
                     self.gesture_state = GestureState::Finish;
                 }
             }
@@ -1662,7 +1675,8 @@ impl TouchTracker {
                 if self.touch_count > 4 {
                     self.gesture_state = GestureState::Finish;
                 } else if !self.is_any_touch_down() {
-                    // Four-finger release → toggle soft keyboard (handled by caller)
+                    // Four-finger release → toggle soft keyboard
+                    self.pending_actions.push(GestureAction::ToggleSoftKeyboard);
                     self.gesture_state = GestureState::Finish;
                 }
             }
@@ -3125,6 +3139,80 @@ mod tests {
         assert!((tracker.get_touch_move_y(0) - 30.0).abs() < 1e-12);
         assert!((tracker.get_total_touch_move_x(0) - 20.0).abs() < 1e-12);
         assert!((tracker.get_total_touch_move_y(0) - 30.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn three_finger_release_injects_menu_key() {
+        let (mut tree, mut view) = setup();
+        view.update_viewing(&mut tree);
+        let mut tracker = TouchTracker::new();
+
+        // Three fingers down
+        for i in 0..3u64 {
+            tracker.touches[i as usize] = Touch {
+                id: i + 1, down: true, x: 100.0 + i as f64 * 50.0, y: 200.0,
+                down_x: 100.0 + i as f64 * 50.0, down_y: 200.0, ..Touch::default()
+            };
+        }
+        tracker.touch_count = 3;
+        tracker.gesture_state = GestureState::ThirdDown;
+
+        // Release all fingers
+        for i in 0..3 {
+            tracker.touches[i].down = false;
+        }
+        while tracker.do_gesture(&mut view, &mut tree) {}
+
+        assert!(
+            tracker.pending_actions.contains(&GestureAction::InjectMenuKey),
+            "three-finger release should inject Menu key"
+        );
+    }
+
+    #[test]
+    fn four_finger_release_toggles_soft_keyboard() {
+        let (mut tree, mut view) = setup();
+        view.update_viewing(&mut tree);
+        let mut tracker = TouchTracker::new();
+
+        // Four fingers down
+        for i in 0..4u64 {
+            tracker.touches[i as usize] = Touch {
+                id: i + 1, down: true, x: 100.0 + i as f64 * 50.0, y: 200.0,
+                down_x: 100.0 + i as f64 * 50.0, down_y: 200.0, ..Touch::default()
+            };
+        }
+        tracker.touch_count = 4;
+        tracker.gesture_state = GestureState::FourthDown;
+
+        // Release all
+        for i in 0..4 {
+            tracker.touches[i].down = false;
+        }
+        while tracker.do_gesture(&mut view, &mut tree) {}
+
+        assert!(
+            tracker.pending_actions.contains(&GestureAction::ToggleSoftKeyboard),
+            "four-finger release should toggle soft keyboard"
+        );
+    }
+
+    #[test]
+    fn gesture_finish_returns_to_ready() {
+        let (mut tree, mut view) = setup();
+        view.update_viewing(&mut tree);
+        let mut tracker = TouchTracker::new();
+
+        // Set up Finish state with no touches down
+        tracker.gesture_state = GestureState::Finish;
+        tracker.touch_count = 0;
+        while tracker.do_gesture(&mut view, &mut tree) {}
+
+        assert_eq!(
+            tracker.gesture_state,
+            GestureState::Ready,
+            "Finish should return to Ready when all fingers lifted"
+        );
     }
 
     fn setup_two_finger_tracker(
