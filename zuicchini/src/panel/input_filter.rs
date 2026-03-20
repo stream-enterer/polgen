@@ -150,12 +150,16 @@ impl MouseZoomScrollVIF {
         self.emulate_middle_button
     }
 
-    /// Translate Alt key presses into emulated middle mouse button events.
+    /// Translate Alt key presses into emulated middle mouse button events,
+    /// and propagate Alt-held state as middle-button-held in the input state.
     ///
     /// Mirrors C++ `emMouseZoomScrollVIF::EmulateMiddleButton`.
-    /// When emulation is enabled and the real middle button is not pressed,
-    /// an Alt key press generates a synthetic middle-button event. Tracks
-    /// timing for double/triple click emulation (330ms threshold).
+    /// When emulation is enabled and the real middle button is not pressed:
+    /// - An Alt key press generates a synthetic middle-button event with
+    ///   repeat tracking (330ms threshold), and sets middle-button in `state`.
+    /// - When Alt is already held (but the event is something else), the
+    ///   middle-button state is set in `state` so downstream consumers see
+    ///   the button as pressed.
     ///
     /// Returns `Some(synthetic_event)` if an emulated middle-button press
     /// should be generated, or `None` if no emulation occurred. The caller
@@ -163,7 +167,7 @@ impl MouseZoomScrollVIF {
     pub fn emulate_middle_button_event(
         &mut self,
         event: &InputEvent,
-        state: &InputState,
+        state: &mut InputState,
         clock_ms: u64,
     ) -> Option<InputEvent> {
         if !self.emulate_middle_button {
@@ -185,12 +189,20 @@ impl MouseZoomScrollVIF {
             }
             self.emu_mid_button_time = clock_ms;
 
+            // Set middle-button state (C++ sets state before synthesizing event)
+            state.press(InputKey::MouseMiddle);
+
             // Synthesize a middle button press event
             let mut synthetic = InputEvent::press(InputKey::MouseMiddle);
             synthetic.repeat = self.emu_mid_button_repeat as i32;
             synthetic.mouse_x = event.mouse_x;
             synthetic.mouse_y = event.mouse_y;
             return Some(synthetic);
+        } else if state.alt() {
+            // Alt is already held — propagate middle-button state so downstream
+            // consumers (e.g. grip pan) see it as pressed. C++ does:
+            //   state.Set(EM_KEY_MIDDLE_BUTTON, true);
+            state.press(InputKey::MouseMiddle);
         }
 
         None
@@ -618,8 +630,10 @@ impl ViewInputFilter for MouseZoomScrollVIF {
         }
 
         // Wheel zoom — route through spring physics (C++ SwipingViewAnimator)
+        // C++: only process wheel when no modifier or only Shift is held.
         if matches!(event.key, InputKey::WheelUp | InputKey::WheelDown)
             && event.variant == InputVariant::Press
+            && (state.is_no_mod() || state.is_shift_mod())
         {
             let down = event.key == InputKey::WheelDown;
             let clock_ms = self
@@ -1455,34 +1469,57 @@ mod tests {
     #[test]
     fn test_emulate_middle_button() {
         let mut vif = MouseZoomScrollVIF::new();
-        let state = InputState::new();
+        let mut state = InputState::new();
 
         // Disabled by default
         let event = InputEvent::press(InputKey::Alt);
         assert!(vif
-            .emulate_middle_button_event(&event, &state, 100)
+            .emulate_middle_button_event(&event, &mut state, 100)
             .is_none());
 
         // Enable and test — first press at 1000ms (well past initial time 0)
         vif.set_emulate_middle_button(true);
-        let result = vif.emulate_middle_button_event(&event, &state, 1000);
+        let result = vif.emulate_middle_button_event(&event, &mut state, 1000);
         assert!(result.is_some());
         let synth = result.unwrap();
         assert_eq!(synth.key, InputKey::MouseMiddle);
         assert_eq!(synth.variant, InputVariant::Press);
         assert_eq!(synth.repeat, 0);
+        // State should now have middle button set
+        assert!(state.is_pressed(InputKey::MouseMiddle));
+
+        // Reset state for next test (simulate release cycle)
+        state.release(InputKey::MouseMiddle);
 
         // Double-click within 330ms
         let event2 = InputEvent::press(InputKey::Alt);
-        let result2 = vif.emulate_middle_button_event(&event2, &state, 1200);
+        let result2 = vif.emulate_middle_button_event(&event2, &mut state, 1200);
         assert!(result2.is_some());
         assert!(result2.unwrap().repeat > 0);
+        state.release(InputKey::MouseMiddle);
 
         // After timeout, repeat resets
         let event3 = InputEvent::press(InputKey::Alt);
-        let result3 = vif.emulate_middle_button_event(&event3, &state, 2000);
+        let result3 = vif.emulate_middle_button_event(&event3, &mut state, 2000);
         assert!(result3.is_some());
         assert_eq!(result3.unwrap().repeat, 0);
+    }
+
+    #[test]
+    fn test_emulate_middle_button_alt_held_propagation() {
+        let mut vif = MouseZoomScrollVIF::new();
+        vif.set_emulate_middle_button(true);
+        let mut state = InputState::new();
+        state.press(InputKey::Alt);
+
+        // Non-Alt event while Alt is held — should set middle-button state
+        let move_event = InputEvent::press(InputKey::MouseLeft);
+        let result = vif.emulate_middle_button_event(&move_event, &mut state, 500);
+        assert!(result.is_none(), "No synthetic event for non-Alt press");
+        assert!(
+            state.is_pressed(InputKey::MouseMiddle),
+            "Middle button should be set when Alt is held"
+        );
     }
 
     #[test]
@@ -1999,5 +2036,93 @@ mod tests {
         // No events fed — animate should return false
         let active = ViewInputFilter::animate(&mut vif, &mut view, &mut tree, 1.0 / 60.0);
         assert!(!active, "animate() should return false when idle");
+    }
+
+    /// C++ emDefaultTouchVIF implements a 17-state gesture machine in DoGesture()
+    /// (~265 LOC in emViewInputFilter.cpp:946-1211). The Rust DefaultTouchVIF has
+    /// only 4 states (Idle, SingleTouch, PinchZoom, Fling) covering basic
+    /// pan/pinch/fling. The following C++ gestures are missing:
+    ///
+    /// **Hold-to-zoom (states ZOOM_IN, ZOOM_OUT):**
+    ///   Single finger held >250ms triggers continuous zoom-in at the touch point.
+    ///   Double-tap-and-hold triggers zoom-out. Uses `exp(0.002 * ms_since_prev)`
+    ///   for smooth time-based zoom speed. Rust has no hold timer or time-based zoom.
+    ///
+    /// **Multi-tap-to-visit (states FIRST_DOWN_UP, DOUBLE_DOWN, DOUBLE_DOWN_UP,
+    ///   TRIPLE_DOWN, TRIPLE_DOWN_UP):**
+    ///   Double-tap (tap-wait-tap-wait >250ms) calls VisitFullsized(panel, true, false).
+    ///   Triple-tap calls VisitFullsized(panel, true, true) (visits parent).
+    ///   Uses GetFocusablePanelAt() to find target. Rust has no tap counting or
+    ///   visit-fullsized integration.
+    ///
+    /// **Two-finger mouse emulation (states SECOND_DOWN, EMU_MOUSE_1..4):**
+    ///   Two fingers placed simultaneously: the relative direction of finger 2
+    ///   from finger 1 determines which mouse button/modifier to emulate:
+    ///     - Right of finger 1: left click (EMU_MOUSE_1)
+    ///     - Left of finger 1: right click (EMU_MOUSE_2)
+    ///     - Below finger 1: Shift+left click (EMU_MOUSE_3)
+    ///     - Above finger 1: Ctrl+left click (EMU_MOUSE_4)
+    ///   Emulated events are forwarded via ForwardInput with synthetic InputState.
+    ///   Rust has no mouse emulation from touch; two fingers always pinch-zoom.
+    ///
+    /// **Three-finger menu (state THIRD_DOWN):**
+    ///   Three fingers down then all up emits EM_KEY_MENU event. Rust ignores 3+ touches.
+    ///
+    /// **Four-finger soft keyboard toggle (state FOURTH_DOWN):**
+    ///   Four fingers down then all up toggles ShowSoftKeyboard(). Rust ignores 4+ touches.
+    ///
+    /// **Infrastructure needed:**
+    ///   - Touch event timing: C++ tracks MsTotal and MsSincePrev per touch via
+    ///     NextTouches()/InputClockMS. Rust TouchPoint has no timing fields.
+    ///   - DownX/DownY: C++ tracks initial touch-down position for total move
+    ///     calculation. Rust has prev_x/prev_y but not initial down position.
+    ///   - ForwardInput: C++ forwards synthetic mouse events through the filter
+    ///     chain. Rust VIF trait returns bool (consumed) but cannot inject events.
+    ///   - GetFocusablePanelAt: needed for visit-fullsized on double-tap.
+    ///   - ShowSoftKeyboard: view API for four-finger toggle.
+    ///   - Touch event priority: C++ GetTouchEventPriority negotiates whether the
+    ///     VIF or a panel handles touch. Rust has no priority system.
+    ///
+    /// **Scope estimate:**
+    ///   - Replace 4-state enum with 17-state enum: ~20 LOC
+    ///   - Add timing fields to TouchPoint + NextTouches equivalent: ~40 LOC
+    ///   - Rewrite state machine (DoGesture port): ~250 LOC
+    ///   - Add ForwardInput / event injection mechanism to VIF trait: ~50 LOC
+    ///   - Wire up VisitFullsized, GetFocusablePanelAt, ShowSoftKeyboard: ~30 LOC
+    ///   - Touch event priority system: ~40 LOC
+    ///   - Total: ~430 LOC new code. This is a substantial rewrite of
+    ///     DefaultTouchVIF, not a point fix. The existing pan/pinch/fling code
+    ///     would be subsumed by the C++ state machine's SCROLL state.
+    #[test]
+    #[ignore]
+    fn touch_vif_cpp_17_state_gesture_machine_not_ported() {
+        // Rust DefaultTouchVIF has 4 states; C++ has 17.
+        // Missing: hold-to-zoom, multi-tap-to-visit, two-finger mouse emulation,
+        // three-finger menu, four-finger soft keyboard toggle.
+        //
+        // The C++ state machine cannot be incrementally added as targeted changes
+        // because state transitions form a densely connected graph:
+        //   FIRST_DOWN -> SECOND_DOWN -> THIRD_DOWN -> FOURTH_DOWN (finger count)
+        //   FIRST_DOWN -> FIRST_DOWN_UP -> DOUBLE_DOWN -> DOUBLE_DOWN_UP -> TRIPLE_DOWN
+        //     (tap counting via up/down transitions with 250ms timeouts)
+        //   SECOND_DOWN -> EMU_MOUSE_1..4 (direction-based mouse emulation)
+        //
+        // The existing Rust code treats single-touch as immediate pan (no hold
+        // timer) and two-touch as immediate pinch-zoom (no directional mouse
+        // emulation). Porting requires replacing the entire state machine, not
+        // augmenting it.
+        //
+        // Existing Rust infrastructure that can be reused:
+        //   - TouchPoint tracking array (16 slots, find/add/remove)
+        //   - Fling velocity smoothing and friction
+        //   - View::scroll() and View::zoom() for scroll/zoom actions
+        //   - View::visit_fullsized() exists (called visit_full in Rust)
+        //
+        // Infrastructure that must be added:
+        //   - Per-touch timing (MsTotal, MsSincePrev) and initial down position
+        //   - Event injection (ForwardInput with synthetic mouse/modifier events)
+        //   - Touch event priority negotiation
+        //   - Soft keyboard toggle API on View
+        panic!("C++ emDefaultTouchVIF 17-state gesture machine not yet ported");
     }
 }
