@@ -2716,6 +2716,7 @@ mod tests {
             priority: 1.0,
             memory_limit: u64::MAX,
             pixel_tallness: 1.0,
+            height: 1.0,
         }
     }
 
