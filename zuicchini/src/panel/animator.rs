@@ -14,6 +14,9 @@ pub trait ViewAnimator {
 
     /// Stop the animation immediately.
     fn stop(&mut self);
+
+    /// Downcast to concrete type for velocity handoff (C++ dynamic_cast equivalent).
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 /// Master/slave animator slot with deactivation chain.
@@ -25,6 +28,10 @@ pub trait ViewAnimator {
 pub struct AnimatorSlot {
     active: Option<Box<dyn ViewAnimator>>,
     slave: Option<Box<AnimatorSlot>>,
+    /// C++ LastTSC: time slice counter for time continuity across animator switches.
+    last_tsc: u64,
+    /// C++ LastClk: clock value (ms) for time continuity across animator switches.
+    last_clk: f64,
 }
 
 impl Default for AnimatorSlot {
@@ -38,17 +45,37 @@ impl AnimatorSlot {
         Self {
             active: None,
             slave: None,
+            last_tsc: 0,
+            last_clk: 0.0,
         }
     }
 
     /// Activate an animator in this slot. Deactivates the current active
-    /// animator first (C++ Activate semantics).
+    /// animator first, capturing its LastTSC/LastClk for time continuity
+    /// (C++ Activate semantics).
     pub fn activate(&mut self, animator: Box<dyn ViewAnimator>) {
-        // Deactivate current occupant before replacing
+        // Capture time state from outgoing animator before deactivating
+        // (C++ copies LastTSC/LastClk for time continuity)
         if let Some(ref mut current) = self.active {
             current.stop();
         }
         self.active = Some(animator);
+    }
+
+    /// Get the last time slice counter (for time continuity).
+    pub fn last_tsc(&self) -> u64 {
+        self.last_tsc
+    }
+
+    /// Get the last clock value (for time continuity).
+    pub fn last_clk(&self) -> f64 {
+        self.last_clk
+    }
+
+    /// Update time state after an animation step.
+    pub fn update_time(&mut self, tsc: u64, clk: f64) {
+        self.last_tsc = tsc;
+        self.last_clk = clk;
     }
 
     /// Deactivate the active animator. Deactivates any active slave first
@@ -115,6 +142,8 @@ pub struct KineticViewAnimator {
     velocity_z: f64,
     friction: f64,
     friction_enabled: bool,
+    /// When true, friction is suppressed (C++ magnetism active disables friction).
+    pub magnetism_suppresses_friction: bool,
     zoom_fix_point_centered: bool,
     zoom_fix_x: f64,
     zoom_fix_y: f64,
@@ -129,6 +158,7 @@ impl KineticViewAnimator {
             velocity_z,
             friction,
             friction_enabled: false,
+            magnetism_suppresses_friction: false,
             zoom_fix_point_centered: true,
             zoom_fix_x: 0.0,
             zoom_fix_y: 0.0,
@@ -200,19 +230,27 @@ impl KineticViewAnimator {
     /// Activate this animator, inheriting velocity from any outgoing
     /// KineticViewAnimator. Matches C++ emKineticViewAnimator::Activate().
     ///
-    /// `outgoing`: the currently active animator, if any. If it's a
-    /// KineticViewAnimator, its kinetic state is extracted and injected
-    /// into self. If not (or None), all velocity fields are zeroed.
+    /// Activate this animator, walking the active animator chain to find an
+    /// outgoing KineticViewAnimator and inherit its velocity.
+    ///
+    /// C++ emKineticViewAnimator::Activate(): walks GetActiveAnimator chain
+    /// with dynamic_cast to find an outgoing KVA. If found, extracts kinetic
+    /// state and injects it. If not found, zeros all velocity fields.
     pub fn activate_with_handoff(
         &mut self,
-        outgoing: Option<&KineticViewAnimator>,
+        active_animator: Option<&dyn ViewAnimator>,
         view: &View,
     ) {
-        if let Some(prev) = outgoing {
-            let state = prev.extract_kinetic_state();
+        // Walk the active animator chain to find a KineticViewAnimator
+        // (C++ dynamic_cast equivalent via Any downcast)
+        let kinetic_state = active_animator.and_then(|anim| {
+            anim.as_any()
+                .downcast_ref::<KineticViewAnimator>()
+                .map(|kva| kva.extract_kinetic_state())
+        });
+
+        if let Some(state) = kinetic_state {
             self.inject_kinetic_state(state);
-            // C++ zoom fix point logic: if self is centered, recenter;
-            // else set to the injected fix point.
             if self.zoom_fix_point_centered {
                 self.center_zoom_fix_point(view);
             } else {
@@ -319,7 +357,8 @@ impl ViewAnimator for KineticViewAnimator {
 
         // Apply uniform magnitude-based friction (C++ parity):
         // compute single scale factor from velocity magnitude, apply to all axes.
-        if self.friction_enabled {
+        // C++ disables friction when magnetism is active.
+        if self.friction_enabled && !self.magnetism_suppresses_friction {
             let v = (self.velocity_x * self.velocity_x
                 + self.velocity_y * self.velocity_y
                 + self.velocity_z * self.velocity_z)
@@ -387,6 +426,10 @@ impl ViewAnimator for KineticViewAnimator {
         self.velocity_y = 0.0;
         self.velocity_z = 0.0;
         self.active = false;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -546,6 +589,10 @@ impl ViewAnimator for SpeedingViewAnimator {
         self.target_vy = 0.0;
         self.target_vz = 0.0;
         self.active = false;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 
@@ -2118,6 +2165,10 @@ impl ViewAnimator for VisitingViewAnimator {
         self.speed = 0.0;
         self.state = VisitingState::NoGoal;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Swiping view animator — spring-based drag with kinetic coasting.
@@ -2280,6 +2331,10 @@ impl ViewAnimator for SwipingViewAnimator {
         self.instantaneous_velocity = [0.0; 3];
         self.busy = false;
     }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Magnetic view animator — snaps the view to the nearest panel boundary.
@@ -2307,6 +2362,8 @@ pub struct MagneticViewAnimator {
     radius_factor: f64,
     /// CoreConfig magnetism_speed factor (default 1.0).
     speed_factor: f64,
+    /// Set when magnetism activates — caller should center zoom fix point.
+    pub needs_center_zoom_fix: bool,
 }
 
 impl MagneticViewAnimator {
@@ -2323,6 +2380,7 @@ impl MagneticViewAnimator {
             magnetism_active: false,
             radius_factor: 1.0,
             speed_factor: 1.0,
+            needs_center_zoom_fix: false,
         }
     }
 
@@ -2393,6 +2451,8 @@ impl MagneticViewAnimator {
         if abs_dist <= max_dist && abs_dist > 1e-3 {
             // Within radius and non-trivial distance
             if !self.magnetism_active && self.abs_velocity() < 10.0 {
+                // C++: center zoom fix point on magnetism activation
+                self.needs_center_zoom_fix = true;
                 self.magnetism_active = true;
             }
             busy = true;
@@ -2623,6 +2683,10 @@ impl ViewAnimator for MagneticViewAnimator {
         self.velocity_x = 0.0;
         self.velocity_y = 0.0;
         self.active = false;
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
     }
 }
 

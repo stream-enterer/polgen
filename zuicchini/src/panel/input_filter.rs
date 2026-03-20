@@ -1402,6 +1402,16 @@ pub enum GestureAction {
     InjectMenuKey,
     /// Toggle soft keyboard.
     ToggleSoftKeyboard,
+    /// Forward a synthetic mouse event (for two-finger emulation).
+    /// (key, variant, mouse_x, mouse_y, shift, ctrl)
+    ForwardInput {
+        key: InputKey,
+        variant: InputVariant,
+        mouse_x: f64,
+        mouse_y: f64,
+        shift: bool,
+        ctrl: bool,
+    },
 }
 
 pub struct TouchTracker {
@@ -1542,6 +1552,10 @@ impl TouchTracker {
                     let factor = (0.002 * ms).exp();
                     let x = self.touches[0].x;
                     let y = self.touches[0].y;
+                    // C++: scroll + zoom combined
+                    let mx = -self.get_touch_move_x(0);
+                    let my = -self.get_touch_move_y(0);
+                    view.scroll(mx, my);
                     view.zoom(factor, x, y);
                     view.update_viewing(tree);
                 }
@@ -1555,6 +1569,10 @@ impl TouchTracker {
                     let factor = (-0.002 * ms).exp();
                     let x = self.touches[0].x;
                     let y = self.touches[0].y;
+                    // C++: scroll + zoom combined
+                    let mx = -self.get_touch_move_x(0);
+                    let my = -self.get_touch_move_y(0);
+                    view.scroll(mx, my);
                     view.zoom(factor, x, y);
                     view.update_viewing(tree);
                 }
@@ -1635,17 +1653,29 @@ impl TouchTracker {
                     // Compute direction between two touch points
                     let dx = self.touches[1].down_x - self.touches[0].down_x;
                     let dy = self.touches[1].down_y - self.touches[0].down_y;
-                    if dx.abs() >= dy.abs() {
+                    let (new_state, key, shift, ctrl) = if dx.abs() >= dy.abs() {
                         if dx > 0.0 {
-                            self.gesture_state = GestureState::EmuMouse1; // left-click
+                            (GestureState::EmuMouse1, InputKey::MouseLeft, false, false)
                         } else {
-                            self.gesture_state = GestureState::EmuMouse2; // right-click
+                            (GestureState::EmuMouse2, InputKey::MouseRight, false, false)
                         }
                     } else if dy > 0.0 {
-                        self.gesture_state = GestureState::EmuMouse3; // shift+left-click
+                        (GestureState::EmuMouse3, InputKey::MouseLeft, true, false)
                     } else {
-                        self.gesture_state = GestureState::EmuMouse4; // ctrl+left-click
-                    }
+                        (GestureState::EmuMouse4, InputKey::MouseLeft, false, true)
+                    };
+                    // Inject initial press event at first finger position
+                    let mx = self.touches[0].x;
+                    let my = self.touches[0].y;
+                    self.pending_actions.push(GestureAction::ForwardInput {
+                        key,
+                        variant: InputVariant::Press,
+                        mouse_x: mx,
+                        mouse_y: my,
+                        shift,
+                        ctrl,
+                    });
+                    self.gesture_state = new_state;
                 }
             }
 
@@ -1653,10 +1683,42 @@ impl TouchTracker {
             | GestureState::EmuMouse2
             | GestureState::EmuMouse3
             | GestureState::EmuMouse4 => {
-                // While touch held: maintain emulated mouse state.
-                // On release: transition to Finish.
-                // ForwardInput of synthetic events is handled by the caller.
-                if !self.is_any_touch_down() {
+                // Determine which button/modifiers to emulate
+                let (key, shift, ctrl) = match self.gesture_state {
+                    GestureState::EmuMouse1 => (InputKey::MouseLeft, false, false),
+                    GestureState::EmuMouse2 => (InputKey::MouseRight, false, false),
+                    GestureState::EmuMouse3 => (InputKey::MouseLeft, true, false),
+                    GestureState::EmuMouse4 => (InputKey::MouseLeft, false, true),
+                    _ => unreachable!(),
+                };
+
+                if self.touch_count > 0 {
+                    let mx = self.touches[0].x;
+                    let my = self.touches[0].y;
+
+                    if !self.is_any_touch_down() {
+                        // Touch release: forward release event, clear state, go to Finish
+                        self.pending_actions.push(GestureAction::ForwardInput {
+                            key,
+                            variant: InputVariant::Release,
+                            mouse_x: mx,
+                            mouse_y: my,
+                            shift,
+                            ctrl,
+                        });
+                        self.gesture_state = GestureState::Finish;
+                    } else {
+                        // Touch held: forward move event with button+modifiers
+                        self.pending_actions.push(GestureAction::ForwardInput {
+                            key,
+                            variant: InputVariant::Move,
+                            mouse_x: mx,
+                            mouse_y: my,
+                            shift,
+                            ctrl,
+                        });
+                    }
+                } else {
                     self.gesture_state = GestureState::Finish;
                 }
             }
@@ -1717,6 +1779,8 @@ pub struct DefaultTouchVIF {
     /// Smoothed velocity for fling detection.
     smoothed_vx: f64,
     smoothed_vy: f64,
+    /// C++ parity gesture tracker with 17-state machine.
+    pub gesture_tracker: TouchTracker,
 }
 
 impl DefaultTouchVIF {
@@ -1732,6 +1796,7 @@ impl DefaultTouchVIF {
             fling_threshold: 0.5,
             smoothed_vx: 0.0,
             smoothed_vy: 0.0,
+            gesture_tracker: TouchTracker::new(),
         }
     }
 
@@ -1877,6 +1942,27 @@ impl DefaultTouchVIF {
                 // 3+ touches: remain in current state
             }
         }
+
+        // Sync gesture tracker: add new touch
+        let tc = self.gesture_tracker.touch_count;
+        if tc < MAX_TOUCH_COUNT {
+            self.gesture_tracker.touches[tc] = Touch {
+                id,
+                down: true,
+                x,
+                y,
+                down_x: x,
+                down_y: y,
+                prev_x: x,
+                prev_y: y,
+                ..Touch::default()
+            };
+            self.gesture_tracker.touch_count += 1;
+            if self.gesture_tracker.gesture_state == GestureState::Ready {
+                self.gesture_tracker.gesture_state = GestureState::FirstDown;
+            }
+        }
+
         true
     }
 
@@ -1955,6 +2041,15 @@ impl DefaultTouchVIF {
                 }
             }
         }
+
+        // Sync gesture tracker: mark touch as up
+        for i in 0..self.gesture_tracker.touch_count {
+            if self.gesture_tracker.touches[i].id == id {
+                self.gesture_tracker.touches[i].down = false;
+                break;
+            }
+        }
+
         true
     }
 
@@ -1990,6 +2085,24 @@ impl DefaultTouchVIF {
 impl Default for DefaultTouchVIF {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl DefaultTouchVIF {
+    /// Run the gesture state machine until stable (C++ DoGesture loop in Input/Cycle).
+    fn run_gesture_loop(&mut self, view: &mut View, tree: &mut PanelTree) {
+        for _ in 0..100 {
+            if !self.gesture_tracker.do_gesture(view, tree) {
+                break;
+            }
+        }
+    }
+
+    /// C++ Cycle(): advance touch timers and loop DoGesture for time-based
+    /// transitions (e.g. hold timeouts, tap chain timeouts).
+    pub fn cycle_gesture(&mut self, view: &mut View, tree: &mut PanelTree) {
+        self.gesture_tracker.next_touches(16); // ~60fps frame time
+        self.run_gesture_loop(view, tree);
     }
 }
 
@@ -3030,6 +3143,30 @@ mod tests {
         type_cheat(&mut vif, &mut view, "chEat:emb!");
         let actions = vif.drain_actions();
         assert_eq!(actions, vec![CheatAction::EmulateMiddleButton]);
+    }
+
+    #[test]
+    fn cheat_vif_egomode_toggle() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        assert!(!view.flags.contains(ViewFlags::EGO_MODE));
+        type_cheat(&mut vif, &mut view, "chEat:egomode!");
+        assert!(view.flags.contains(ViewFlags::EGO_MODE));
+        type_cheat(&mut vif, &mut view, "chEat:egomode!");
+        assert!(!view.flags.contains(ViewFlags::EGO_MODE));
+    }
+
+    #[test]
+    fn cheat_vif_stresstest_toggle() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        assert!(!view.flags.contains(ViewFlags::STRESS_TEST));
+        type_cheat(&mut vif, &mut view, "chEat:st!");
+        assert!(view.flags.contains(ViewFlags::STRESS_TEST));
+        type_cheat(&mut vif, &mut view, "chEat:st!");
+        assert!(!view.flags.contains(ViewFlags::STRESS_TEST));
     }
 
     #[test]

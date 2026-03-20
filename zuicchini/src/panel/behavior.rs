@@ -284,8 +284,8 @@ pub trait PanelBehavior: AsAny {
     }
 
     /// Return the type name for this behavior (used by tree dump).
-    /// Defaults to `std::any::type_name::<Self>()`.
+    /// Defaults to `std::any::type_name_of_val(self)`.
     fn type_name(&self) -> &str {
-        "(unknown)"
+        std::any::type_name_of_val(self)
     }
 }

@@ -2474,18 +2474,23 @@ impl View {
 
     // --- Tree dump ---
 
-    /// Dump the panel tree to `temp_dir()/zuicchini_tree_dump.emTreeDump` in
+    /// Dump the panel tree to `temp_dir()/debug.emTreeDump` in
     /// emRec format. Returns the path written.
     pub fn dump_tree(&self, tree: &mut PanelTree) -> std::path::PathBuf {
-        let path = std::env::temp_dir().join("zuicchini_tree_dump.emTreeDump");
+        let path = std::env::temp_dir().join("debug.emTreeDump");
 
-        // View-level data
+        // View-level data: flags, title, focused, home_rect
         let mut view_rec = RecStruct::new();
         view_rec.set_str("title", &self.title);
         view_rec.set_str("flags", &format!("{:?}", self.flags));
         view_rec.set_bool("focused", self.window_focused);
-        view_rec.set_double("viewport_width", self.viewport_width);
-        view_rec.set_double("viewport_height", self.viewport_height);
+        view_rec.set_str(
+            "home_rect",
+            &format!(
+                "({:.3}, {:.3}, {:.3}, {:.3})",
+                0.0, 0.0, self.viewport_width, self.viewport_height
+            ),
+        );
 
         // Panel tree
         let panels_rec = self.dump_panel_recursive(tree, self.root);
@@ -2518,6 +2523,7 @@ impl View {
 
         // Panel fields
         let height = tree.get_height(id);
+        let is_focused = self.focused == Some(id);
         if let Some(p) = tree.get(id) {
             let mut text = String::new();
             text.push_str(&format!("name = {}\n", p.name));
@@ -2531,6 +2537,7 @@ impl View {
             text.push_str(&format!("focusable = {}\n", p.focusable));
             text.push_str(&format!("is_active = {}\n", p.is_active));
             text.push_str(&format!("in_active_path = {}\n", p.in_active_path));
+            text.push_str(&format!("focused = {}\n", is_focused));
             rec.set_str("text", &text);
         }
 
