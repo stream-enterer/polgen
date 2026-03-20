@@ -1083,6 +1083,11 @@ Key finding: CT-6/CT-7/CT-8 required relaxed tolerances (28-75%) due to remainin
 **Fixes applied**: none
 **Tests added**: 0
 
+### ext-foundation-process: Audit foundation/process.rs (20 methods from emProcess.h)
+**MATCHes**: 18 | **MISMATCHes**: 0 | **SUSPECTs**: 0 | **MISSINGs**: 2
+**Fixes applied**: none (WaitFlags/WaitPipes not used in codebase)
+**Tests added**: 0
+
 ### ext-foundation-dlog: Audit foundation/dlog.rs (RUST-ONLY)
 **MATCHes**: 0 | **MISMATCHes**: 0 | **SUSPECTs**: 0 | **MISSINGs**: 0
 **Fixes applied**: none
