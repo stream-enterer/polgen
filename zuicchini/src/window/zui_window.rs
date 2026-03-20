@@ -634,7 +634,7 @@ impl ZuiWindow {
     }
 
     /// Dispatch an input event through VIF chain, then to panel behavior.
-    pub fn dispatch_input(&mut self, tree: &mut PanelTree, event: &InputEvent, state: &InputState) {
+    pub fn dispatch_input(&mut self, tree: &mut PanelTree, event: &InputEvent, state: &mut InputState) {
         // Track mouse position for cursor warping (skip wheel events).
         if !matches!(
             event.key,
@@ -714,6 +714,9 @@ impl ZuiWindow {
             let (wx, wy) = mouse_vif.drain_pending_warp();
             if wx.abs() > 0.1 || wy.abs() > 0.1 {
                 self.move_mouse_pointer(wx, wy);
+                // Adjust InputState to match new cursor position
+                state.mouse_x += wx;
+                state.mouse_y += wy;
             }
         }
 

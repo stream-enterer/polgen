@@ -218,7 +218,7 @@ impl ApplicationHandler for App {
                     }
 
                     if let Some(win) = self.windows.get_mut(&window_id) {
-                        win.dispatch_input(&mut self.tree, &input, &self.input_state);
+                        win.dispatch_input(&mut self.tree, &input, &mut self.input_state);
                     }
                 }
             }
