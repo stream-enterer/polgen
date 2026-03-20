@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::time::Instant;
 
 use crate::input::{InputEvent, InputKey, InputState, InputVariant};
@@ -14,6 +15,9 @@ pub trait ViewInputFilter {
     fn animate(&mut self, _view: &mut View, _tree: &mut super::tree::PanelTree, _dt: f64) -> bool {
         false
     }
+
+    /// Downcast support for concrete VIF access.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 /// Mouse wheel zoom and middle-button pan filter.
@@ -205,9 +209,13 @@ impl MouseZoomScrollVIF {
 
     /// Set the PanFunction flag. When true, mouse-drag scrolling reverses
     /// direction and uses 1x speed instead of 6x.
-    #[cfg(test)]
     pub(crate) fn set_pan_function(&mut self, enabled: bool) {
         self.pan_function = enabled;
+    }
+
+    /// Returns whether PanFunction is enabled.
+    pub(crate) fn pan_function(&self) -> bool {
+        self.pan_function
     }
 
     /// Translate Alt key presses into emulated middle mouse button events,
@@ -834,6 +842,10 @@ impl ViewInputFilter for MouseZoomScrollVIF {
         let grip = self.animate_grip(view, tree, dt);
         wheel || grip
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 bitflags::bitflags! {
@@ -1233,6 +1245,10 @@ impl ViewInputFilter for KeyboardZoomScrollVIF {
 
         false
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 /// Three-mode velocity step matching C++ SpeedingViewAnimator::CycleAnimation.
@@ -1598,6 +1614,222 @@ impl ViewInputFilter for DefaultTouchVIF {
             return true;
         }
         false
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CheatVIF — cheat code input filter
+// ---------------------------------------------------------------------------
+
+/// Actions produced by CheatVIF that the window must apply to other VIFs or
+/// global config. The caller drains these after each filter pass.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum CheatAction {
+    /// Toggle PanFunction on the MouseZoomScrollVIF.
+    TogglePanFunction,
+    /// Toggle EmulateMiddleButton on the MouseZoomScrollVIF.
+    ToggleEmulateMiddleButton,
+    /// Toggle StickMouseWhenNavigating config.
+    ToggleStickMouseWhenNavigating,
+}
+
+/// Cheat code input filter.
+///
+/// Port of C++ `emCheatVIF`. Maintains a rolling buffer of typed characters
+/// and recognizes `:command!` sequences to trigger debug/developer actions.
+/// Unless easy cheats are enabled, the prefix `chEat:` is required.
+///
+/// Always forwards events (never consumes them).
+pub(crate) struct CheatVIF {
+    /// Rolling buffer of recent typed characters (mirrors C++ `CheatBuffer[64]`).
+    buffer: [u8; 64],
+    /// Whether easy cheats are enabled (no `chEat:` prefix needed).
+    easy_cheats: bool,
+    /// Pending actions for the window to apply.
+    pending_actions: Vec<CheatAction>,
+}
+
+impl CheatVIF {
+    pub(crate) fn new() -> Self {
+        Self {
+            buffer: [0u8; 64],
+            easy_cheats: false,
+            pending_actions: Vec::new(),
+        }
+    }
+
+    /// Drain pending actions. The caller applies these to the appropriate
+    /// VIFs or config objects.
+    pub(crate) fn drain_actions(&mut self) -> Vec<CheatAction> {
+        std::mem::take(&mut self.pending_actions)
+    }
+
+    /// Execute a recognized cheat command.
+    fn execute_cheat(&mut self, func: &str, view: &mut View) {
+        match func {
+            // Enable easy cheats for the whole process: chEat:easy!
+            "easy" => {
+                self.easy_cheats = true;
+            }
+
+            // Stress test on/off: chEat:st!
+            "st" => {
+                let flags = view.flags ^ ViewFlags::STRESS_TEST;
+                // TODO: needs stress test rendering infrastructure
+                view.flags = flags;
+                eprintln!("[CheatVIF] stress test toggled");
+            }
+
+            // Popup-zoom on/off: chEat:pz!
+            "pz" => {
+                let flags = view.flags ^ ViewFlags::POPUP_ZOOM;
+                view.flags = flags;
+            }
+
+            // Ego mode on/off: chEat:egomode!
+            "egomode" => {
+                let flags = view.flags ^ ViewFlags::EGO_MODE;
+                // TODO: needs ego mode navigation infrastructure
+                view.flags = flags;
+                eprintln!("[CheatVIF] ego mode toggled");
+            }
+
+            // StickMouseWhenNavigating on/off: chEat:smwn!
+            "smwn" => {
+                self.pending_actions
+                    .push(CheatAction::ToggleStickMouseWhenNavigating);
+            }
+
+            // EmulateMiddleButton on/off: chEat:emb!
+            "emb" => {
+                self.pending_actions
+                    .push(CheatAction::ToggleEmulateMiddleButton);
+            }
+
+            // PanFunction on/off: chEat:pan!
+            "pan" => {
+                self.pending_actions
+                    .push(CheatAction::TogglePanFunction);
+            }
+
+            // Tree dump: chEat:td!
+            "td" => {
+                // TODO: needs tree dump infrastructure (C++ loads emTreeDump library)
+                eprintln!("[CheatVIF] tree dump requested (not implemented)");
+            }
+
+            // Debug log on/off: chEat:dlog!
+            "dlog" => {
+                // TODO: needs debug logging infrastructure (C++ emEnableDLog)
+                eprintln!("[CheatVIF] debug log toggled (not implemented)");
+            }
+
+            // Screenshot: chEat:ss!
+            "ss" => {
+                // TODO: needs screenshot infrastructure (C++ uses xwd)
+                eprintln!("[CheatVIF] screenshot requested (not implemented)");
+            }
+
+            // Crash by segfault: chEat:segfault!
+            "segfault" => {
+                // Deliberate crash for testing — port of C++ `*(volatile char*)NULL=0`
+                panic!("CheatVIF: deliberate segfault cheat code triggered");
+            }
+
+            // Crash by division by zero: chEat:divzero!
+            "divzero" => {
+                // Deliberate crash for testing — port of C++ `emSleepMS(255/func[strlen(func)])`
+                panic!("CheatVIF: deliberate divzero cheat code triggered");
+            }
+
+            // Fatal error: chEat:fatal!
+            "fatal" => {
+                panic!("CheatVIF: You entered that cheat code!");
+            }
+
+            // Unknown command — custom cheat fallthrough
+            _ => {
+                // C++ calls View::DoCustomCheat(func) here.
+                // TODO: needs custom cheat dispatch on View
+                eprintln!("[CheatVIF] unknown cheat command: {func}");
+            }
+        }
+    }
+}
+
+impl ViewInputFilter for CheatVIF {
+    fn filter(&mut self, event: &InputEvent, _state: &InputState, view: &mut View) -> bool {
+        // C++: skip if NO_USER_NAVIGATION
+        if view.flags.contains(ViewFlags::NO_USER_NAVIGATION) {
+            return false;
+        }
+
+        // Only process events that produce characters
+        let chars = &event.chars;
+        if chars.is_empty() {
+            return false;
+        }
+
+        // Shift buffer left and append new chars (C++ memmove + memcpy pattern)
+        let bytes = chars.as_bytes();
+        let sz = bytes.len().min(64);
+        self.buffer.rotate_left(sz);
+        self.buffer[64 - sz..].copy_from_slice(&bytes[..sz]);
+
+        // Check if the last character is '!'
+        if self.buffer[63] != b'!' {
+            return false;
+        }
+
+        // Clear the '!' so we don't re-trigger
+        self.buffer[63] = 0;
+
+        // Scan backward for ':' to extract the command
+        let mut colon_pos = None;
+        for i in (0..63).rev() {
+            if self.buffer[i] == b':' {
+                colon_pos = Some(i);
+                break;
+            }
+            if self.buffer[i] == 0 {
+                break;
+            }
+        }
+
+        let colon_pos = match colon_pos {
+            Some(p) => p,
+            None => return false,
+        };
+
+        let func_bytes = &self.buffer[colon_pos + 1..63];
+        let func = match std::str::from_utf8(func_bytes) {
+            Ok(s) => s.to_string(),
+            Err(_) => return false,
+        };
+
+        // Unless easy cheats are enabled, require "chEat" before the ':'
+        if !self.easy_cheats {
+            // Need at least 5 bytes before the ':' for "chEat"
+            if colon_pos < 5 {
+                return false;
+            }
+            if &self.buffer[colon_pos - 5..colon_pos] != b"chEat" {
+                return false;
+            }
+        }
+
+        self.execute_cheat(&func, view);
+
+        // C++ always forwards (never eats the event)
+        false
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -2274,36 +2506,140 @@ mod tests {
         panic!("C++ emDefaultTouchVIF 17-state gesture machine not yet ported");
     }
 
+    /// Helper: create a key event with characters for cheat code testing.
+    fn cheat_key_event(chars: &str) -> InputEvent {
+        let mut event = InputEvent::press(InputKey::Key('a'));
+        event.chars = chars.to_string();
+        event
+    }
+
+    /// Helper: type a sequence of characters into a CheatVIF one char at a time.
+    fn type_cheat(vif: &mut CheatVIF, view: &mut View, text: &str) {
+        let state = InputState::new();
+        for ch in text.chars() {
+            let event = cheat_key_event(&ch.to_string());
+            vif.filter(&event, &state, view);
+        }
+    }
+
     #[test]
-    #[ignore]
-    fn cheat_vif_not_ported() {
-        // C++ emCheatVIF (emViewInputFilter.cpp lines 661-816, ~156 LOC)
-        //
-        // A hidden "cheat code" input filter that buffers typed characters and
-        // triggers debug/developer commands when a ":command!" sequence is detected.
-        // Requires typing "chEat:" prefix unless EM_EASY_CHEATS env var is set.
-        //
-        // 13 cheat commands:
-        //   1. easy     — set EM_EASY_CHEATS env var (skip "chEat:" prefix)
-        //   2. st       — toggle VF_STRESS_TEST view flag
-        //   3. pz       — toggle VF_POPUP_ZOOM view flag
-        //   4. egomode  — toggle VF_EGO_MODE view flag
-        //   5. smwn     — toggle StickMouseWhenNavigating config + save
-        //   6. emb      — toggle EmulateMiddleButton config + save
-        //   7. pan      — toggle PanFunction config + save
-        //   8. td       — tree dump via dynamically loaded emTreeDump library
-        //   9. dlog     — toggle debug logging
-        //  10. ss       — screenshot via xwd (non-Windows only)
-        //  11. segfault — deliberate null-pointer crash
-        //  12. divzero  — deliberate division-by-zero crash
-        //  13. fatal    — deliberate emFatalError crash
-        //  Plus fallthrough to View::DoCustomCheat for app-defined codes.
-        //
-        // This is a developer/debug-only feature with no user-facing behavior
-        // and no golden test coverage. Low priority for porting.
-        //
-        // Estimated port: ~120 LOC Rust (no dynamic library loading or xwd).
-        panic!("C++ emCheatVIF not ported — developer debug cheat codes");
+    fn cheat_vif_pan_toggle() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        // Type "chEat:pan!" — should produce TogglePanFunction action
+        type_cheat(&mut vif, &mut view, "chEat:pan!");
+
+        let actions = vif.drain_actions();
+        assert_eq!(actions, vec![CheatAction::TogglePanFunction]);
+
+        // Typing it again should produce another action
+        type_cheat(&mut vif, &mut view, "chEat:pan!");
+        let actions = vif.drain_actions();
+        assert_eq!(actions, vec![CheatAction::TogglePanFunction]);
+    }
+
+    #[test]
+    fn cheat_vif_easy_mode() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        // Without easy cheats, ":pan!" alone should not work
+        type_cheat(&mut vif, &mut view, ":pan!");
+        let actions = vif.drain_actions();
+        assert!(actions.is_empty());
+
+        // Enable easy cheats
+        type_cheat(&mut vif, &mut view, "chEat:easy!");
+
+        // Now ":pan!" should work without "chEat" prefix
+        type_cheat(&mut vif, &mut view, ":pan!");
+        let actions = vif.drain_actions();
+        assert_eq!(actions, vec![CheatAction::TogglePanFunction]);
+    }
+
+    #[test]
+    fn cheat_vif_escape_cancels() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+        let state = InputState::new();
+
+        // Start typing a cheat code, then insert a non-char event (e.g. escape)
+        type_cheat(&mut vif, &mut view, "chEat:pa");
+
+        // An event with no chars (e.g. Escape press) doesn't affect the buffer
+        let escape_event = InputEvent::press(InputKey::Escape);
+        vif.filter(&escape_event, &state, &mut view);
+
+        // Continue typing — the buffer still has the previous chars
+        type_cheat(&mut vif, &mut view, "n!");
+        let actions = vif.drain_actions();
+        assert_eq!(actions, vec![CheatAction::TogglePanFunction]);
+    }
+
+    #[test]
+    fn cheat_vif_unknown_command_ignored() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        // Enable easy cheats for simpler testing
+        type_cheat(&mut vif, &mut view, "chEat:easy!");
+
+        // Unknown command produces no actions
+        type_cheat(&mut vif, &mut view, ":bogus!");
+        let actions = vif.drain_actions();
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn cheat_vif_view_flags_toggle() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        // Enable easy cheats
+        type_cheat(&mut vif, &mut view, "chEat:easy!");
+
+        // Toggle popup zoom
+        assert!(!view.flags.contains(ViewFlags::POPUP_ZOOM));
+        type_cheat(&mut vif, &mut view, ":pz!");
+        assert!(view.flags.contains(ViewFlags::POPUP_ZOOM));
+        type_cheat(&mut vif, &mut view, ":pz!");
+        assert!(!view.flags.contains(ViewFlags::POPUP_ZOOM));
+
+        // Toggle stress test
+        assert!(!view.flags.contains(ViewFlags::STRESS_TEST));
+        type_cheat(&mut vif, &mut view, ":st!");
+        assert!(view.flags.contains(ViewFlags::STRESS_TEST));
+
+        // Toggle ego mode
+        assert!(!view.flags.contains(ViewFlags::EGO_MODE));
+        type_cheat(&mut vif, &mut view, ":egomode!");
+        assert!(view.flags.contains(ViewFlags::EGO_MODE));
+    }
+
+    #[test]
+    fn cheat_vif_no_user_navigation_skips() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        // Set NO_USER_NAVIGATION — cheat codes should be skipped
+        view.flags |= ViewFlags::NO_USER_NAVIGATION;
+        type_cheat(&mut vif, &mut view, "chEat:easy!");
+
+        // easy should not have been activated
+        type_cheat(&mut vif, &mut view, ":pan!");
+        let actions = vif.drain_actions();
+        assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn cheat_vif_emb_toggle() {
+        let (_tree, mut view) = setup();
+        let mut vif = CheatVIF::new();
+
+        type_cheat(&mut vif, &mut view, "chEat:emb!");
+        let actions = vif.drain_actions();
+        assert_eq!(actions, vec![CheatAction::ToggleEmulateMiddleButton]);
     }
 
     #[test]

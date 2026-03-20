@@ -15,6 +15,7 @@ pub use ctx::PanelCtx;
 pub use input_filter::{
     DefaultTouchVIF, KeyboardZoomScrollVIF, MouseZoomScrollVIF, TouchState, ViewInputFilter,
 };
+pub(crate) use input_filter::{CheatAction, CheatVIF};
 pub use sub_view_panel::SubViewPanel;
 pub use tree::{
     decode_identity, encode_identity, AutoplayHandlingFlags, ChildIter, ChildRevIter, PanelId,

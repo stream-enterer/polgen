@@ -5,8 +5,8 @@ use bitflags::bitflags;
 use crate::foundation::Image;
 use crate::input::{InputEvent, InputKey, InputState, InputVariant};
 use crate::panel::{
-    KeyboardZoomScrollVIF, MouseZoomScrollVIF, PanelId, PanelTree, View, ViewAnimator,
-    ViewInputFilter,
+    CheatAction, CheatVIF, KeyboardZoomScrollVIF, MouseZoomScrollVIF, PanelId, PanelTree, View,
+    ViewAnimator, ViewInputFilter,
 };
 use crate::render::thread_pool::RenderThreadPool;
 use crate::render::{TileCache, WgpuCompositor};
@@ -48,6 +48,7 @@ pub struct ZuiWindow {
     pub flags_signal: SignalId,
     root_panel: PanelId,
     vif_chain: Vec<Box<dyn ViewInputFilter>>,
+    cheat_vif: CheatVIF,
     pub active_animator: Option<Box<dyn ViewAnimator>>,
     window_icon: Option<Image>,
     last_mouse_pos: (f64, f64),
@@ -160,6 +161,7 @@ impl ZuiWindow {
             flags_signal,
             root_panel,
             vif_chain,
+            cheat_vif: CheatVIF::new(),
             active_animator: None,
             window_icon: None,
             last_mouse_pos: (0.0, 0.0),
@@ -700,6 +702,34 @@ impl ZuiWindow {
         for vif in &mut self.vif_chain {
             if vif.filter(event, state, &mut self.view) {
                 return;
+            }
+        }
+
+        // Run cheat VIF (never consumes events, but may produce actions)
+        self.cheat_vif.filter(event, state, &mut self.view);
+        for action in self.cheat_vif.drain_actions() {
+            // Apply cheat actions to the MouseZoomScrollVIF (index 0 by construction)
+            if let Some(mouse_vif) = self
+                .vif_chain
+                .first_mut()
+                .and_then(|v| v.as_any_mut().downcast_mut::<MouseZoomScrollVIF>())
+            {
+                match action {
+                    CheatAction::TogglePanFunction => {
+                        let current = mouse_vif.pan_function();
+                        mouse_vif.set_pan_function(!current);
+                    }
+                    CheatAction::ToggleEmulateMiddleButton => {
+                        let current = mouse_vif.emulate_middle_button();
+                        mouse_vif.set_emulate_middle_button(!current);
+                    }
+                    CheatAction::ToggleStickMouseWhenNavigating => {
+                        // TODO: needs StickMouseWhenNavigating wiring to screen/cursor
+                        eprintln!(
+                            "[CheatVIF] StickMouseWhenNavigating toggled (not fully wired)"
+                        );
+                    }
+                }
             }
         }
 

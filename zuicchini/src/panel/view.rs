@@ -19,6 +19,8 @@ bitflags! {
         const NO_USER_NAVIGATION   = 0b0100_0000;
         const NO_FOCUS_HIGHLIGHT   = 0b1000_0000;
         const NO_ACTIVE_HIGHLIGHT  = 0b0001_0000_0000;
+        const STRESS_TEST          = 0b0010_0000_0000;
+        const EGO_MODE             = 0b0100_0000_0000;
     }
 }
 
