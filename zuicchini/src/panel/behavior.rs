@@ -9,6 +9,25 @@ use crate::render::Painter;
 use super::ctx::PanelCtx;
 use super::tree::{PanelId, PlaybackState};
 
+/// Invalidation signals that a panel behavior wants to propagate to the parent
+/// view. Used by [`SubViewPanel`](super::SubViewPanel) to forward its sub-view's
+/// dirty rects, title changes, and cursor changes to the enclosing view.
+///
+/// Corresponds to the C++ invalidation chain:
+/// - `SubViewClass::InvalidateTitle()` → `SuperPanel.InvalidateTitle()`
+/// - `SubViewPortClass::InvalidateCursor()` → `SuperPanel.InvalidateCursor()`
+/// - `SubViewPortClass::InvalidatePainting(x,y,w,h)` → `SuperPanel.InvalidatePaintingOnView(x,y,w,h)`
+#[derive(Clone, Debug, Default)]
+pub struct ParentInvalidation {
+    /// Dirty rectangles in absolute view (pixel) coordinates to push to the
+    /// parent view.
+    pub dirty_rects: Vec<Rect>,
+    /// Whether the parent view's title should be marked invalid.
+    pub title_invalid: bool,
+    /// Whether the parent view's cursor should be marked invalid.
+    pub cursor_invalid: bool,
+}
+
 /// Provides downcasting for trait objects. Automatically implemented
 /// for all `'static` types via blanket impl — no per-widget boilerplate.
 pub trait AsAny: 'static {
@@ -57,6 +76,10 @@ pub struct PanelState {
     /// Corresponds to `emPanel::GetViewedPixelTallness` /
     /// `emView::CurrentPixelTallness`.
     pub pixel_tallness: f64,
+    /// Panel height in its own coordinate system: `layout_h / layout_w`.
+    ///
+    /// Corresponds to C++ `emPanel::GetHeight()`.
+    pub height: f64,
 }
 
 impl PanelState {
@@ -89,6 +112,7 @@ impl PanelState {
             priority: 1.0,
             memory_limit: u64::MAX,
             pixel_tallness: 1.0,
+            height: 1.0,
         }
     }
 }
@@ -245,5 +269,17 @@ pub trait PanelBehavior: AsAny {
     /// `false`.
     fn cycle(&mut self, _ctx: &mut PanelCtx) -> bool {
         false
+    }
+
+    /// Drain any invalidation signals that this behavior wants to propagate to
+    /// the parent view. Called by the framework after notice delivery and
+    /// viewing updates.
+    ///
+    /// The default returns `None` (no propagation). Override in behaviors that
+    /// manage a sub-view (e.g. [`SubViewPanel`](super::SubViewPanel)) to
+    /// forward dirty rects, title, and cursor invalidation from the embedded
+    /// view to the enclosing view.
+    fn drain_parent_invalidation(&mut self) -> Option<ParentInvalidation> {
+        None
     }
 }

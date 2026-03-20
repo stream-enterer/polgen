@@ -290,6 +290,11 @@ impl ApplicationHandler for App {
             // Update view (recompute viewing coords, auto-select active)
             win.view_mut().update(tree);
 
+            // Collect invalidation from sub-view panels (C++ invalidation chain:
+            // SubViewClass::InvalidateTitle, SubViewPortClass::InvalidateCursor,
+            // SubViewPortClass::InvalidatePainting → SuperPanel → parent view).
+            win.view_mut().collect_parent_invalidation(tree);
+
             // Control panel lifecycle
             if win.view().is_control_panel_invalid() {
                 // Destroy old control panel

@@ -1697,6 +1697,35 @@ impl View {
         cr
     }
 
+    /// Collect invalidation signals from panel behaviors that manage sub-views
+    /// (e.g. [`SubViewPanel`](super::SubViewPanel)). Drains each behavior's
+    /// pending parent invalidation and merges the dirty rects, title, and
+    /// cursor flags into this view.
+    ///
+    /// This implements the C++ invalidation chain where
+    /// `SubViewClass::InvalidateTitle`, `SubViewPortClass::InvalidateCursor`,
+    /// and `SubViewPortClass::InvalidatePainting` propagate from the sub-view
+    /// to the enclosing panel/view.
+    pub fn collect_parent_invalidation(&mut self, tree: &mut PanelTree) {
+        let ids: Vec<PanelId> = tree.all_ids();
+        for id in ids {
+            if let Some(mut behavior) = tree.take_behavior(id) {
+                if let Some(inv) = behavior.drain_parent_invalidation() {
+                    for r in inv.dirty_rects {
+                        self.dirty_rects.push(r);
+                    }
+                    if inv.title_invalid {
+                        self.title_invalid = true;
+                    }
+                    if inv.cursor_invalid {
+                        self.cursor_invalid = true;
+                    }
+                }
+                tree.put_behavior(id, behavior);
+            }
+        }
+    }
+
     /// Whether the viewport has changed (scroll/zoom/visit) since last reset.
     pub fn viewport_changed(&self) -> bool {
         self.viewport_changed

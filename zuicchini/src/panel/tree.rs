@@ -978,6 +978,7 @@ impl PanelTree {
             priority: 0.0,
             memory_limit: 0,
             pixel_tallness,
+            height: p.layout_rect.h / p.layout_rect.w,
         }
     }
 

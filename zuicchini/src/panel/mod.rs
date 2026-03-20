@@ -10,7 +10,7 @@ pub use animator::{
     KineticViewAnimator, MagneticViewAnimator, SpeedingViewAnimator, SwipingViewAnimator,
     ViewAnimator, VisitingViewAnimator,
 };
-pub use behavior::{NoticeFlags, PanelBehavior, PanelState};
+pub use behavior::{NoticeFlags, PanelBehavior, PanelState, ParentInvalidation};
 pub use ctx::PanelCtx;
 pub use input_filter::{
     DefaultTouchVIF, KeyboardZoomScrollVIF, MouseZoomScrollVIF, TouchState, ViewInputFilter,

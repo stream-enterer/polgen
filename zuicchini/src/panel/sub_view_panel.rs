@@ -1,7 +1,7 @@
-use crate::input::Cursor;
+use crate::input::{Cursor, InputEvent, InputState};
 use crate::render::Painter;
 
-use super::behavior::{NoticeFlags, PanelBehavior, PanelState};
+use super::behavior::{NoticeFlags, PanelBehavior, PanelState, ParentInvalidation};
 use super::tree::{PanelId, PanelTree};
 use super::view::{View, ViewFlags};
 
@@ -101,8 +101,9 @@ impl SubViewPanel {
             self.viewed_x = 0.0;
             self.viewed_y = 0.0;
             self.viewed_width = 1.0;
-            self.viewed_height = 1.0;
-            self.sub_view.set_viewport(&mut self.sub_tree, 1.0, 1.0);
+            self.viewed_height = state.height;
+            self.sub_view
+                .set_viewport(&mut self.sub_tree, 1.0, state.height);
         }
     }
 }
@@ -110,6 +111,81 @@ impl SubViewPanel {
 impl PanelBehavior for SubViewPanel {
     fn is_opaque(&self) -> bool {
         true
+    }
+
+    fn input(
+        &mut self,
+        event: &InputEvent,
+        state: &PanelState,
+        input_state: &InputState,
+    ) -> bool {
+        // C++ emSubViewPanel::Input:
+        //   if (IsFocusable() && (event.IsMouseEvent() || event.IsTouchEvent())) {
+        //       Focus();
+        //       SubViewPort->SetViewFocused(IsFocused());
+        //   }
+        //   SubViewPort->InputToView(event, state);
+        //
+        // Focus() on mouse/touch is already handled by the parent window's
+        // dispatch loop (zui_window.rs hit-test + set_active_panel). We still
+        // propagate focus state to the sub-view here, matching C++.
+        if event.is_mouse_event() || event.is_touch_event() {
+            self.sub_view
+                .set_window_focused(&mut self.sub_tree, state.is_focused());
+        }
+
+        // Forward input to the sub-view's panels (C++ InputToView).
+        // The event mouse coords are in panel-local space (x: 0..1, y: 0..h).
+        // Convert to sub-view viewport pixel coords for the sub-tree dispatch.
+        let sub_vx = event.mouse_x * self.viewed_width;
+        let sub_vy = event.mouse_y * self.viewed_width / state.pixel_tallness;
+
+        // Hit-test and set active panel on mouse press (mirrors parent window logic).
+        if event.is_mouse_event()
+            && event.variant == crate::input::InputVariant::Press
+        {
+            let panel = self
+                .sub_view
+                .get_focusable_panel_at(&self.sub_tree, sub_vx, sub_vy)
+                .unwrap_or_else(|| self.sub_view.root());
+            self.sub_view
+                .set_active_panel(&mut self.sub_tree, panel, false);
+        }
+
+        // Ensure sub-view viewing state is current for coordinate transforms.
+        self.sub_view.update_viewing(&mut self.sub_tree);
+
+        // Dispatch to sub-tree panels (DFS order, matching C++ RecurseInput).
+        let wf = self.sub_view.window_focused();
+        let viewed = self.sub_tree.viewed_panels_dfs();
+        for panel_id in viewed {
+            let mut panel_ev = event.clone();
+            panel_ev.mouse_x = self.sub_tree.view_to_panel_x(panel_id, sub_vx);
+            panel_ev.mouse_y = self.sub_tree.view_to_panel_y(
+                panel_id,
+                sub_vy,
+                self.sub_view.pixel_tallness(),
+            );
+            if let Some(mut behavior) = self.sub_tree.take_behavior(panel_id) {
+                let panel_state = self
+                    .sub_tree
+                    .build_panel_state(panel_id, wf, self.sub_view.pixel_tallness());
+                // Suppress keyboard events for panels not in the active path.
+                if panel_ev.is_keyboard_event() && !panel_state.in_active_path {
+                    self.sub_tree.put_behavior(panel_id, behavior);
+                    continue;
+                }
+                let consumed = behavior.input(&panel_ev, &panel_state, input_state);
+                self.sub_tree.put_behavior(panel_id, behavior);
+                if consumed {
+                    self.sub_view
+                        .invalidate_painting(&self.sub_tree, panel_id);
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     fn notice(&mut self, flags: NoticeFlags, state: &PanelState) {
@@ -156,5 +232,39 @@ impl PanelBehavior for SubViewPanel {
         // panel tree for a title.
         let root = self.sub_root();
         Some(self.sub_tree.get_title(root))
+    }
+
+    fn drain_parent_invalidation(&mut self) -> Option<ParentInvalidation> {
+        let title = self.sub_view.is_title_invalid();
+        let cursor = self.sub_view.is_cursor_invalid();
+        let has_dirty = self.sub_view.has_dirty_rects();
+
+        if !title && !cursor && !has_dirty {
+            return None;
+        }
+
+        if title {
+            self.sub_view.clear_title_invalid();
+        }
+        if cursor {
+            self.sub_view.clear_cursor_invalid();
+        }
+
+        // C++ SubViewPortClass::InvalidatePainting calls
+        // SuperPanel.InvalidatePaintingOnView(x,y,w,h) which forwards
+        // directly to GetView().InvalidatePainting(x,y,w,h). The dirty
+        // rects are already in absolute view (pixel) coordinates, so we
+        // pass them through unchanged.
+        let dirty_rects = if has_dirty {
+            self.sub_view.take_dirty_rects()
+        } else {
+            Vec::new()
+        };
+
+        Some(ParentInvalidation {
+            dirty_rects,
+            title_invalid: title,
+            cursor_invalid: cursor,
+        })
     }
 }
