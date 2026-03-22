@@ -1187,3 +1187,18 @@ Defects found and fixed:
 4. `colorfield.rs:210-213` — `sf_val > 0` tightened to `7000..8500` (expected ~7843 for rgb(100,150,200))
 5. `colorfield.rs:466-468` — `sf_val > 0` tightened to `4000..6000` (expected ~4980 for red=50%)
 6. `colorfield.rs:606-609` — `sf_hue > 0` tightened to `13000..17000` (expected ~15000 for #00FF80)
+
+### review-golden: Review tests/golden/ for anti-patterns
+**Tests reviewed**: 233 | **Defective**: 8 | **Strengthened**: 8
+**Bugs found via strengthening**: none
+**Production fixes**: 0
+
+Defects found and fixed:
+1. `widget_interaction.rs:widget_button_click` — AP-2/AP-3: only checked is_pressed() (always false); added on_click callback counter verification
+2. `widget_interaction.rs:composition_click_through_tree` — AP-1: boolean clicked.get() replaced with exact click_count == 1
+3. `widget_interaction.rs:widget_listbox_select` — AP-1: weak `>= 4` guard tightened to exact `== 8`
+4. `widget_interaction.rs:widget_listbox_multi` — AP-1: weak `>= 4` guard tightened to exact `== 12`
+5. `widget_interaction.rs:widget_listbox_toggle` — AP-1: weak `>= 8` guard tightened to exact `== 12`
+6. `parallel.rs:parallel_benchmark` — AP-5: no assertions; added byte-identical output verification
+7. `animator.rs:animator_visiting_square_panel` — AP-5: silent skip removed; now fails if golden absent
+8. `animator.rs:animator_magnetic_approach` — AP-5: silent skip removed; now fails if golden absent

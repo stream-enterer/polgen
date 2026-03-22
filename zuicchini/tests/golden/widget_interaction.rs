@@ -142,7 +142,8 @@ fn widget_radiobutton_switch() {
 fn widget_listbox_select() {
     require_golden!();
     let golden = load_widget_state_golden("widget_listbox_select");
-    assert!(golden.len() >= 4, "golden file too short");
+    // Golden format: [u32 count][u32 * count indices]. Single mode → count=1, 1 index = 8 bytes.
+    assert_eq!(golden.len(), 8, "golden file size mismatch (expected count + 1 index = 8 bytes)");
 
     let look = Look::new();
     let mut lb = ListBox::new(look);
@@ -366,12 +367,20 @@ fn widget_button_click() {
     let look = Look::new();
     let mut btn = Button::new("Click Me", look);
 
-    // Initial state: not pressed
+    // Track on_click callback invocations to verify side effects.
+    let click_count = std::rc::Rc::new(std::cell::Cell::new(0u32));
+    let cc = click_count.clone();
+    btn.on_click = Some(Box::new(move || {
+        cc.set(cc.get() + 1);
+    }));
+
+    // Initial state: not pressed, callback not fired
     assert_eq!(
         btn.is_pressed() as u8,
         golden[0],
         "initial pressed state mismatch"
     );
+    assert_eq!(click_count.get(), 0, "on_click should not fire before any click");
 
     // After programmatic click(): pressed state unchanged (click is instantaneous)
     btn.click();
@@ -380,6 +389,7 @@ fn widget_button_click() {
         golden[1],
         "after 1st click pressed mismatch"
     );
+    assert_eq!(click_count.get(), 1, "on_click should fire exactly once after 1st click");
 
     // After second click
     btn.click();
@@ -388,6 +398,7 @@ fn widget_button_click() {
         golden[2],
         "after 2nd click pressed mismatch"
     );
+    assert_eq!(click_count.get(), 2, "on_click should fire exactly twice after 2nd click");
 }
 
 // ─── Test 10: widget_listbox_multi ──────────────────────────────
@@ -396,7 +407,8 @@ fn widget_button_click() {
 fn widget_listbox_multi() {
     require_golden!();
     let golden = load_widget_state_golden("widget_listbox_multi");
-    assert!(golden.len() >= 4, "golden file too short");
+    // Golden format: [u32 count][u32 * count indices]. Multi select 2 items → count=2, 2 indices = 12 bytes.
+    assert_eq!(golden.len(), 12, "golden file size mismatch (expected count + 2 indices = 12 bytes)");
 
     let look = Look::new();
     let mut lb = ListBox::new(look);
@@ -433,7 +445,8 @@ fn widget_listbox_multi() {
 fn widget_listbox_toggle() {
     require_golden!();
     let golden = load_widget_state_golden("widget_listbox_toggle");
-    assert!(golden.len() >= 8, "golden file too short");
+    // Golden format: two snapshots. Snap 1: [count=1][1 index] = 8 bytes. Snap 2: [count=0] = 4 bytes. Total = 12.
+    assert_eq!(golden.len(), 12, "golden file size mismatch (expected 2 snapshots = 12 bytes)");
 
     let look = Look::new();
     let mut lb = ListBox::new(look);
@@ -754,8 +767,8 @@ fn dispatch_event(
 ///       Grandchild: Button ("Click Me")
 #[test]
 fn composition_click_through_tree() {
-    let clicked = Rc::new(Cell::new(false));
-    let clicked_clone = clicked.clone();
+    let click_count = Rc::new(Cell::new(0u32));
+    let clicked_clone = click_count.clone();
 
     let look = Look::new();
 
@@ -783,7 +796,7 @@ fn composition_click_through_tree() {
     let button_id = tree.create_child(container_id, "button");
     let mut btn = Button::new("Click Me", look);
     btn.on_click = Some(Box::new(move || {
-        clicked_clone.set(true);
+        clicked_clone.set(clicked_clone.get() + 1);
     }));
     tree.set_behavior(button_id, Box::new(ClickableButtonPanel { widget: btn }));
 
@@ -817,8 +830,9 @@ fn composition_click_through_tree() {
     let release = InputEvent::release(InputKey::MouseLeft).with_mouse(click_x, click_y);
     dispatch_event(&mut tree, &mut view, &release, &input_state);
 
-    assert!(
-        clicked.get(),
-        "Button on_click callback was not fired — click did not reach the button through the nested border tree"
+    assert_eq!(
+        click_count.get(),
+        1,
+        "Button on_click callback should fire exactly once — click did not reach the button through the nested border tree"
     );
 }

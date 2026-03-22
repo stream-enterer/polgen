@@ -346,4 +346,52 @@ fn parallel_benchmark() {
         multi_elapsed.as_secs_f64() * 1000.0 / iterations as f64,
         single_elapsed.as_secs_f64() / multi_elapsed.as_secs_f64(),
     );
+
+    // Verify correctness: single-threaded and multi-threaded outputs must be
+    // byte-identical (same scene, same tile size, only thread count differs).
+    let single_pixels = {
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("verify");
+        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+        tree.set_behavior(
+            root,
+            Box::new(BorderBehavior {
+                border: Border::new(OuterBorderType::Group)
+                    .with_inner(InnerBorderType::None)
+                    .with_caption("Benchmark"),
+                look: Rc::clone(&look),
+            }),
+        );
+        let mut view = View::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+        settle(&mut tree, &mut view);
+        let mut comp = SoftwareCompositor::new(800, 600);
+        comp.render(&mut tree, &view);
+        comp.pixels().to_vec()
+    };
+    let multi_pixels = {
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("verify");
+        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+        tree.set_behavior(
+            root,
+            Box::new(BorderBehavior {
+                border: Border::new(OuterBorderType::Group)
+                    .with_inner(InnerBorderType::None)
+                    .with_caption("Benchmark"),
+                look,
+            }),
+        );
+        let mut view = View::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
+        settle(&mut tree, &mut view);
+        let pool = zuicchini::render::thread_pool::RenderThreadPool::new(4);
+        let mut comp = SoftwareCompositor::new(800, 600);
+        comp.render_parallel(&mut tree, &view, &pool, 128);
+        comp.pixels().to_vec()
+    };
+    assert_eq!(
+        single_pixels, multi_pixels,
+        "Single-threaded and multi-threaded renders must produce byte-identical output"
+    );
 }

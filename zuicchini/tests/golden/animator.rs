@@ -341,18 +341,13 @@ fn animator_visiting_square_panel() {
     let actual = run_visiting_trajectory(&mut tree, &mut view, 0.1, 0.1, 2.0, 60);
 
     // Rust-native golden: no C++ reference for non-matching-aspect geometry.
-    // On first run, generate with DUMP_GOLDEN=1; thereafter compare.
+    // Generate with DUMP_GOLDEN=1; thereafter compare.
     if dump_golden_enabled() {
         save_trajectory_golden("animator_visiting_square_panel", &actual);
     }
-    if let Ok(golden) =
-        std::panic::catch_unwind(|| load_trajectory_golden("animator_visiting_square_panel"))
-    {
-        compare_trajectory(&actual, &golden, 1e-4)
-            .unwrap_or_else(|e| panic!("animator_visiting_square_panel: {e}"));
-    } else {
-        eprintln!("SKIP: animator_visiting_square_panel golden not found — run with DUMP_GOLDEN=1");
-    }
+    let golden = load_trajectory_golden("animator_visiting_square_panel");
+    compare_trajectory(&actual, &golden, 1e-4)
+        .unwrap_or_else(|e| panic!("animator_visiting_square_panel: {e}"));
 }
 
 #[test]
@@ -418,17 +413,6 @@ fn run_magnetic_trajectory(steps: usize) -> Vec<TrajectoryStep> {
 #[test]
 fn animator_magnetic_approach() {
     require_golden!();
-    // Golden data requires re-running the C++ generator with magnetic
-    // animator support. Skip gracefully if the specific file is missing.
-    let golden_path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/golden/data/trajectory/animator_magnetic_approach.trajectory.golden");
-    if !golden_path.exists() {
-        eprintln!(
-            "SKIP: {} not found — run `make -C tests/golden/gen run` to generate",
-            golden_path.display()
-        );
-        return;
-    }
     let golden = load_trajectory_golden("animator_magnetic_approach");
     let actual = run_magnetic_trajectory(60);
 
