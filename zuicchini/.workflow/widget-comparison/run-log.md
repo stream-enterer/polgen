@@ -1132,3 +1132,21 @@ Key finding: CT-6/CT-7/CT-8 required relaxed tolerances (28-75%) due to remainin
 **MATCHes**: 0 | **MISMATCHes**: 0 | **SUSPECTs**: 0 | **MISSINGs**: 0
 **Fixes applied**: none
 **Tests added**: 0
+
+### Phase 1 Render batch (9 features, PIXEL layer)
+- **bitmap_font.rs** (RUST-ONLY): clean, 4 tests, no dead code
+- **draw_list.rs** (RUST-ONLY): clean, Send/Sync justified
+- **interpolation.rs** (13 methods): ~11 MATCH, 1 SUSPECT (f64 area fallback)
+- **scanline.rs** (6 methods): 4 MATCH, 2 SUSPECT (AET sort stability, single-pixel coverage)
+- **scanline_avx2.rs** (7 methods): 7/7 MATCH, Blinn div255 exact, ±1 tolerance documented
+- **scanline_tool.rs** (6 methods): 5 MATCH, 1 SUSPECT (canvas blend alpha)
+- **software_compositor.rs** (6 methods): 6/6 MATCH, architectural wrapper
+- **thread_pool.rs** (7 methods): 7/7 MATCH, lock-free work stealing
+- **tile_cache.rs** (RUST-ONLY): clean, 1 dead code (active_tile_count)
+
+### Phase 1 Widget/Window batch (5 features, STATE layer)
+- **core_config_panel.rs** (40 methods): 39 MATCH, 1 SUSPECT (upscale_quality UI vs model range)
+- **field_panel.rs** (RUST-ONLY): clean, no issues
+- **image_file_panel.rs** (8 methods): 5 MATCH, 2 SUSPECT, 2 MISSING (GetIconFileName, CreateControlPanel)
+- **toolkit_images.rs** (3 methods): 3/3 MATCH
+- **platform.rs** (18 methods): 16 MATCH, 1 SUSPECT (MoveMousePointer no-op), 1 MISSING (GetWindows)
