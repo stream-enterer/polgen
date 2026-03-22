@@ -1156,8 +1156,8 @@ Key finding: CT-6/CT-7/CT-8 required relaxed tolerances (28-75%) due to remainin
 - **18 IMPLEMENTED** — found under different Rust names (emATMatrix→AffineMatrix, emProcess→Process, emFileDialog→FileDialog, emFileSelectionBox→FileSelectionBox, emFpPlugin→FpPlugin, emScheduler→EngineScheduler, emBorder→Border, emDialog→Dialog, etc.)
 - **5 NOT_NEEDED** — C++ patterns superseded by Rust idioms (emTmpFile→tempfile crate, emSigModel/emVarModel/emVarSigModel→Context generics, emFileModelClient→direct ownership)
 
-**4/27 NOT PASSING (genuinely absent items found):**
-- **gap-emconfigmodel** (3): auto-save timer replaced by synchronous saves (defensible design choice, but undocumented)
-- **gap-emimage** (33): 23 implemented, 4 not needed, **6 genuinely absent** — emGetResImage/emTryGetResImage/emGetInsResImage/emTryGetInsResImage (ResourceCache exists but has zero callers = dead code), emResModelBase/emResModel::LookupInherited
-- **gap-emstd2** (3): checksums implemented, emGetCPUTSC + emLibHandle API not needed (defensible)
-- **gap-emview** (14): ~8 implemented, ~3 replaced by bool dirty flags, **3 genuinely absent** — GetFirstVIF/GetLastVIF (VIF list not exposed), IsSoftKeyboardShown/ShowSoftKeyboard (action queued but never consumed)
+**4/27 initially held for verification — all resolved as NOT_NEEDED after C++ source review:**
+- **gap-emconfigmodel** (3): auto-save timer replaced by synchronous saves (Rust saves immediately on every UI change, 19 callsites)
+- **gap-emimage** (33): 23 implemented, 10 NOT_NEEDED — emGetResImage/emTryGetResImage replaced by include_bytes!+load_tga (compile-time embedding), ResourceCache dead code, emResModelBase/emResModel backing infra for the replaced pattern
+- **gap-emstd2** (3): checksums implemented, emGetCPUTSC→std::time::Instant, emLibHandle→libloading crate
+- **gap-emview** (14): ~8 implemented, ~3 replaced by bool dirty flags, 3 NOT_NEEDED — GetFirstVIF/GetLastVIF (VIF dispatch internal to ZuiWindow::vif_chain, no external consumer), IsSoftKeyboardShown/ShowSoftKeyboard (C++ base impl is also no-op, behavioral contract preserved)
