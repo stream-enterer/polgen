@@ -262,7 +262,7 @@ impl EngineScheduler {
     /// 4. Run engines from highest to lowest priority
     /// 5. After each engine, process any signals it fired (instant chaining)
     /// 6. Priority re-ascent: higher-priority engines woken mid-slice run in the same slice
-    pub fn do_time_slice(&mut self) {
+    pub fn DoTimeSlice(&mut self) {
         self.inner.time_slice_counter += 1;
         self.inner.deadline = Instant::now() + TIME_SLICE_DURATION;
         let next_parity = self.inner.time_slice ^ 1;
@@ -369,12 +369,12 @@ impl EngineScheduler {
     }
 
     /// Check if the current time slice has exceeded its deadline.
-    pub fn is_time_slice_at_end(&self) -> bool {
+    pub fn IsTimeSliceAtEnd(&self) -> bool {
         Instant::now() >= self.inner.deadline
     }
 
     /// Current time slice counter (incremented once per `do_time_slice` call).
-    pub fn time_slice_counter(&self) -> u64 {
+    pub fn GetTimeSliceCounter(&self) -> u64 {
         self.inner.time_slice_counter
     }
 
@@ -385,14 +385,14 @@ impl EngineScheduler {
     pub fn run(&mut self) {
         self.terminated = false;
         while !self.terminated {
-            self.do_time_slice();
+            self.DoTimeSlice();
         }
     }
 
     /// Signal the scheduler to stop after the current time slice.
     ///
     /// Port of C++ `emScheduler::InitiateTermination`.
-    pub fn initiate_termination(&mut self) {
+    pub fn InitiateTermination(&mut self) {
         self.terminated = true;
     }
 

@@ -245,7 +245,7 @@ impl ApplicationHandler for App {
         }
 
         // Run one scheduler time slice
-        self.scheduler.do_time_slice();
+        self.scheduler.DoTimeSlice();
 
         // Run per-frame panel cycles
         self.tree.run_panel_cycles();
