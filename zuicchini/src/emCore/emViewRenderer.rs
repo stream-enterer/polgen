@@ -63,7 +63,7 @@ impl SoftwareCompositor {
         let results_ref = &results;
         let draw_list_ref = &draw_list;
 
-        pool.call_parallel(
+        pool.CallParallel(
             |idx| {
                 let col = (idx as u32) % cols;
                 let row = (idx as u32) / cols;

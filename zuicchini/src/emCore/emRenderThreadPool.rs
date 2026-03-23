@@ -44,12 +44,12 @@ impl emRenderThreadPool {
     }
 
     /// Number of threads (including the calling thread).
-    pub fn thread_count(&self) -> usize {
+    pub fn GetThreadCount(&self) -> usize {
         self.thread_count
     }
 
     /// Update the thread count from a new config value.
-    pub fn update_thread_count(&mut self, max_render_threads: i32) {
+    pub fn UpdateThreadCount(&mut self, max_render_threads: i32) {
         self.thread_count = Self::compute_count(max_render_threads);
     }
 
@@ -57,7 +57,7 @@ impl emRenderThreadPool {
     ///
     /// The calling thread participates in the work (matching C++ behavior).
     /// If `thread_count == 1`, runs everything on the calling thread.
-    pub fn call_parallel<F>(&self, f: F, count: usize)
+    pub fn CallParallel<F>(&self, f: F, count: usize)
     where
         F: Fn(usize) + Send + Sync,
     {

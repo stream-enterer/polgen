@@ -244,7 +244,7 @@ impl ZuiWindow {
 
     /// Update the render thread pool from emCoreConfig.
     pub fn set_max_render_threads(&mut self, max_render_threads: i32) {
-        self.render_pool.update_thread_count(max_render_threads);
+        self.render_pool.UpdateThreadCount(max_render_threads);
     }
 
     /// Render a frame: paint dirty tiles on CPU, upload to GPU, composite.
@@ -303,7 +303,7 @@ impl ZuiWindow {
                     }
                 }
             }
-        } else if self.render_pool.thread_count() > 1 && dirty_count > 1 {
+        } else if self.render_pool.GetThreadCount() > 1 && dirty_count > 1 {
             // Multi-threaded rendering via display list.
             // Phase 1: Record all draw operations single-threaded.
             self.render_parallel(tree, gpu, cols, rows, tile_size);
@@ -429,7 +429,7 @@ impl ZuiWindow {
         let results_ref = &results;
         let dirty_ref = &dirty_tiles;
 
-        self.render_pool.call_parallel(
+        self.render_pool.CallParallel(
             |idx| {
                 let (col, row) = dirty_ref[idx];
                 let mut buffer = crate::emCore::emImage::emImage::new(tile_size, tile_size, 4);
