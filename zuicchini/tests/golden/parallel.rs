@@ -239,7 +239,7 @@ fn parallel_checkbox() {
     require_golden!();
     let look = emLook::new();
     let mut cb = emCheckBox::new("Check Option", look);
-    cb.set_checked(true);
+    cb.SetChecked(true);
     assert_parallel_identical(
         "widget_checkbox_checked",
         Box::new(CheckBoxBehavior { check_box: cb }),

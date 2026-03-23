@@ -301,7 +301,7 @@ impl MouseMiscGroup {
         // C++ emCoreConfigPanel.cpp:295: StickBox->SetEnableSwitch(StickPossible)
         // Disabled when the screen cannot move the mouse pointer.
         let mut stick = emCheckBox::new("Stick mouse\nwhen navigating", self.look.clone());
-        stick.set_checked(c.stick_mouse_when_navigating);
+        stick.SetChecked(c.stick_mouse_when_navigating);
         let config: Rc<RefCell<emConfigModel<emCoreConfig>>> = Rc::clone(&self.config);
         stick.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
@@ -314,7 +314,7 @@ impl MouseMiscGroup {
         }
 
         let mut emu = emCheckBox::new("Emulate\nmiddle button", self.look.clone());
-        emu.set_checked(c.emulate_middle_button);
+        emu.SetChecked(c.emulate_middle_button);
         let config: Rc<RefCell<emConfigModel<emCoreConfig>>> = Rc::clone(&self.config);
         emu.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
@@ -324,7 +324,7 @@ impl MouseMiscGroup {
         ctx.create_child_with("emu", Box::new(CheckBoxPanel { check_box: emu }));
 
         let mut pan = emCheckBox::new("Pan\nfunction", self.look.clone());
-        pan.set_checked(c.pan_function);
+        pan.SetChecked(c.pan_function);
         let config: Rc<RefCell<emConfigModel<emCoreConfig>>> = Rc::clone(&self.config);
         pan.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
@@ -904,7 +904,7 @@ impl CpuGroup {
 
         // AllowSIMD checkbox
         let mut cb = emCheckBox::new("Allow SIMD", self.look.clone());
-        cb.set_checked(c.allow_simd);
+        cb.SetChecked(c.allow_simd);
         let config: Rc<RefCell<emConfigModel<emCoreConfig>>> = Rc::clone(&self.config);
         cb.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();

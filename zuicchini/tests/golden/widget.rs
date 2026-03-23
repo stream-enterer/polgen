@@ -325,7 +325,7 @@ fn widget_checkbox_checked() {
     require_golden!();
     let look = emLook::new();
     let mut cb = emCheckBox::new("Check Option", look);
-    cb.set_checked(true);
+    cb.SetChecked(true);
     // Residual from checkbox image + text rendering diffs (~5.1%)
     render_and_compare_tol(
         "widget_checkbox_checked",

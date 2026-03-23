@@ -29,6 +29,8 @@ pub struct emCheckBox {
     enabled: bool,
     last_w: f64,
     last_h: f64,
+    // DIVERGED: GetCheckSignal — replaced by callback field `on_check` (inherited from emCheckButton)
+    // DIVERGED: CheckChanged — folded into `on_check` callback invocation
     pub on_check: Option<Box<dyn FnMut(bool)>>,
 }
 
@@ -51,11 +53,11 @@ impl emCheckBox {
         }
     }
 
-    pub fn is_checked(&self) -> bool {
+    pub fn IsChecked(&self) -> bool {
         self.checked
     }
 
-    pub fn set_checked(&mut self, checked: bool) {
+    pub fn SetChecked(&mut self, checked: bool) {
         if self.checked != checked {
             self.checked = checked;
             if let Some(cb) = &mut self.on_check {
@@ -334,6 +336,7 @@ impl emCheckBox {
         self.border.preferred_size_for_content(tw + 8.0, th + 4.0)
     }
 
+    // DIVERGED: Clicked — renamed to toggle (private); C++ Clicked is protected virtual
     fn toggle(&mut self) {
         self.checked = !self.checked;
         if let Some(cb) = &mut self.on_check {
@@ -376,12 +379,12 @@ mod tests {
         let mut cb = emCheckBox::new("Enable", look);
         let ps = default_panel_state();
         let is = default_input_state();
-        assert!(!cb.is_checked());
+        assert!(!cb.IsChecked());
         // Enter is instant: toggles on press, no release needed.
         cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-        assert!(cb.is_checked()); // Toggled immediately on press
+        assert!(cb.IsChecked()); // Toggled immediately on press
         cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-        assert!(!cb.is_checked());
+        assert!(!cb.IsChecked());
     }
 
     #[test]
@@ -394,7 +397,7 @@ mod tests {
         assert!(!cb.pressed);
         cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
         assert!(!cb.pressed); // Enter toggles instantly, no press state
-        assert!(cb.is_checked()); // But the toggle did happen
+        assert!(cb.IsChecked()); // But the toggle did happen
     }
 
     #[test]

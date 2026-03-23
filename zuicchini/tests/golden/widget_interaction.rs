@@ -79,18 +79,18 @@ fn widget_checkbox_toggle() {
 
     // Initial state
     assert_eq!(
-        cb.is_checked() as u8,
+        cb.IsChecked() as u8,
         golden[0],
         "initial checked state mismatch"
     );
 
     // After first activation (Enter is instant — no release needed)
     cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-    assert_eq!(cb.is_checked() as u8, golden[1], "after 1st click mismatch");
+    assert_eq!(cb.IsChecked() as u8, golden[1], "after 1st click mismatch");
 
     // After second activation
     cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-    assert_eq!(cb.is_checked() as u8, golden[2], "after 2nd click mismatch");
+    assert_eq!(cb.IsChecked() as u8, golden[2], "after 2nd click mismatch");
 }
 
 // ─── Test 1b: widget_checkbutton_toggle ──────────────────────────
@@ -108,18 +108,18 @@ fn widget_checkbutton_toggle() {
 
     // Initial state
     assert_eq!(
-        cb.is_checked() as u8,
+        cb.IsChecked() as u8,
         golden[0],
         "initial checked state mismatch"
     );
 
     // After first activation (Enter is instant — no release needed)
     cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-    assert_eq!(cb.is_checked() as u8, golden[1], "after 1st click mismatch");
+    assert_eq!(cb.IsChecked() as u8, golden[1], "after 1st click mismatch");
 
     // After second activation
     cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-    assert_eq!(cb.is_checked() as u8, golden[2], "after 2nd click mismatch");
+    assert_eq!(cb.IsChecked() as u8, golden[2], "after 2nd click mismatch");
 }
 
 // ─── Test 2: widget_radiobutton_switch ───────────────────────────

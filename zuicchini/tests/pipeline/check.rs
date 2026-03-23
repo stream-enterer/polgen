@@ -111,21 +111,21 @@ fn checkbutton_toggle_1x_and_2x() {
 
     // Verify initial state.
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "CheckButton should start unchecked"
     );
 
     // 4. At 1x: click center -> assert checked() == true.
     h.click(400.0, 300.0);
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "CheckButton should be checked after first click at 1x"
     );
 
     // 5. Click again -> assert checked() == false (toggle back).
     h.click(400.0, 300.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "CheckButton should be unchecked after second click at 1x"
     );
 
@@ -136,14 +136,14 @@ fn checkbutton_toggle_1x_and_2x() {
 
     h.click(400.0, 300.0);
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "CheckButton should be checked after first click at 2x"
     );
 
     // 7. Click again -> assert checked() == false.
     h.click(400.0, 300.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "CheckButton should be unchecked after second click at 2x"
     );
 }
@@ -177,21 +177,21 @@ fn checkbox_toggle_1x_and_2x() {
 
     // Verify initial state.
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "CheckBox should start unchecked"
     );
 
     // 4. At 1x: click center -> assert is_checked() == true.
     h.click(400.0, 300.0);
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "CheckBox should be checked after first click at 1x"
     );
 
     // 5. Click again -> assert is_checked() == false (toggle back).
     h.click(400.0, 300.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "CheckBox should be unchecked after second click at 1x"
     );
 
@@ -202,14 +202,14 @@ fn checkbox_toggle_1x_and_2x() {
 
     h.click(400.0, 300.0);
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "CheckBox should be checked after first click at 2x"
     );
 
     // 7. Click again -> assert is_checked() == false.
     h.click(400.0, 300.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "CheckBox should be unchecked after second click at 2x"
     );
 }
@@ -306,11 +306,11 @@ fn checkbutton_set_checked_fires_callback() {
     }));
 
     // set_checked(true) from false -> fires callback with true
-    cb.set_checked(true);
+    cb.SetChecked(true);
     assert_eq!(*states.borrow(), vec![true]);
 
     // set_checked(false) from true -> fires callback with false
-    cb.set_checked(false);
+    cb.SetChecked(false);
     assert_eq!(*states.borrow(), vec![true, false]);
 }
 
@@ -331,14 +331,14 @@ fn checkbutton_set_checked_noop_same_value() {
     }));
 
     // Setting to false when already false -> no callback
-    cb.set_checked(false);
+    cb.SetChecked(false);
     assert!(states.borrow().is_empty(), "no callback for same value");
 
-    cb.set_checked(true);
+    cb.SetChecked(true);
     assert_eq!(states.borrow().len(), 1);
 
     // Setting to true when already true -> no callback
-    cb.set_checked(true);
+    cb.SetChecked(true);
     assert_eq!(
         states.borrow().len(),
         1,
@@ -360,7 +360,7 @@ fn checkbutton_double_click_toggles_twice() {
     h.click(400.0, 300.0);
 
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "two clicks should toggle on then off"
     );
     assert_eq!(
@@ -381,13 +381,13 @@ fn checkbutton_enter_key_toggles() {
 
     // First click to activate the panel (put it in active path for keyboard dispatch)
     h.click(400.0, 300.0);
-    assert!(cb_ref.borrow().is_checked());
+    assert!(cb_ref.borrow().IsChecked());
     states.borrow_mut().clear();
 
     // Now Enter should toggle checked -> unchecked
     h.press_key(zuicchini::emCore::emInput::InputKey::Enter);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Enter should toggle checked -> unchecked"
     );
     assert_eq!(*states.borrow(), vec![false]);
@@ -395,7 +395,7 @@ fn checkbutton_enter_key_toggles() {
     // Enter again toggles back
     h.press_key(zuicchini::emCore::emInput::InputKey::Enter);
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "Second Enter should toggle unchecked -> checked"
     );
     assert_eq!(*states.borrow(), vec![false, true]);
@@ -416,7 +416,7 @@ fn checkbutton_shift_click_accepted() {
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Shift);
 
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "Shift+Click should be accepted and toggle"
     );
 }
@@ -432,7 +432,7 @@ fn checkbutton_shift_enter_accepted() {
 
     // First click to activate the panel (keyboard dispatch requires active path)
     h.click(400.0, 300.0);
-    assert!(cb_ref.borrow().is_checked());
+    assert!(cb_ref.borrow().IsChecked());
 
     // Now Shift+Enter should toggle back
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Shift);
@@ -440,7 +440,7 @@ fn checkbutton_shift_enter_accepted() {
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Shift);
 
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Shift+Enter should be accepted and toggle"
     );
 }
@@ -459,7 +459,7 @@ fn checkbutton_ctrl_click_rejected() {
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Ctrl);
 
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Ctrl+Click should be rejected"
     );
 }
@@ -478,7 +478,7 @@ fn checkbutton_alt_click_rejected() {
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Alt);
 
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Alt+Click should be rejected"
     );
 }
@@ -497,7 +497,7 @@ fn checkbutton_meta_click_rejected() {
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Meta);
 
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Meta+Click should be rejected"
     );
 }
@@ -513,14 +513,14 @@ fn checkbutton_ctrl_enter_rejected() {
 
     // Activate via click first
     h.click(400.0, 300.0);
-    assert!(cb_ref.borrow().is_checked());
+    assert!(cb_ref.borrow().IsChecked());
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Ctrl);
     h.press_key(zuicchini::emCore::emInput::InputKey::Enter);
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Ctrl);
 
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "Ctrl+Enter should be rejected (state unchanged from checked)"
     );
 }
@@ -536,14 +536,14 @@ fn checkbutton_alt_enter_rejected() {
 
     // Activate via click first
     h.click(400.0, 300.0);
-    assert!(cb_ref.borrow().is_checked());
+    assert!(cb_ref.borrow().IsChecked());
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Alt);
     h.press_key(zuicchini::emCore::emInput::InputKey::Enter);
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Alt);
 
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "Alt+Enter should be rejected (state unchanged from checked)"
     );
 }
@@ -567,7 +567,7 @@ fn checkbutton_disabled_rejects_click() {
 
     h.click(400.0, 300.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Disabled CheckButton should reject click"
     );
 }
@@ -588,7 +588,7 @@ fn checkbutton_disabled_rejects_enter() {
 
     h.press_key(zuicchini::emCore::emInput::InputKey::Enter);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Disabled CheckButton should reject Enter"
     );
 }
@@ -609,7 +609,7 @@ fn checkbutton_reenable_accepts_input() {
     compositor.render(&mut h.tree, &h.view);
 
     h.click(400.0, 300.0);
-    assert!(!cb_ref.borrow().is_checked(), "disabled: click rejected");
+    assert!(!cb_ref.borrow().IsChecked(), "disabled: click rejected");
 
     // Re-enable
     h.tree.set_enable_switch(panel_id, true);
@@ -618,7 +618,7 @@ fn checkbutton_reenable_accepts_input() {
 
     h.click(400.0, 300.0);
     assert!(
-        cb_ref.borrow().is_checked(),
+        cb_ref.borrow().IsChecked(),
         "re-enabled: click should toggle"
     );
 }
@@ -635,7 +635,7 @@ fn checkbutton_click_outside_no_toggle() {
     // Click far outside (top-left corner, well outside content area)
     h.click(1.0, 1.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Click outside button face should not toggle"
     );
 }
@@ -652,7 +652,7 @@ fn checkbutton_press_inside_release_outside_no_toggle() {
     // Press inside, drag to far outside, release outside
     h.drag(400.0, 300.0, 1.0, 1.0);
     assert!(
-        !cb_ref.borrow().is_checked(),
+        !cb_ref.borrow().IsChecked(),
         "Press inside + release outside should not toggle"
     );
 }
@@ -667,7 +667,7 @@ fn checkbutton_initial_state_unchecked() {
     let look = emLook::new();
     let cb = emCheckButton::new("Test", look);
     assert!(
-        !cb.is_checked(),
+        !cb.IsChecked(),
         "CheckButton should be unchecked on construction"
     );
 }

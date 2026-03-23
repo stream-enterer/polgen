@@ -671,7 +671,7 @@ impl emFileSelectionBox {
         // 2. HiddenCheckBox
         if !self.hidden_check_box_hidden {
             let mut cb = emCheckBox::new("Show\nHidden\nFiles", self.look.clone());
-            cb.set_checked(self.hidden_files_shown);
+            cb.SetChecked(self.hidden_files_shown);
             let events = self.events.clone();
             cb.on_check = Some(Box::new(move |checked: bool| {
                 let mut e = events.borrow_mut();

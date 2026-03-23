@@ -23,6 +23,8 @@ pub struct emCheckButton {
     enabled: bool,
     last_w: f64,
     last_h: f64,
+    // DIVERGED: GetCheckSignal — replaced by callback field `on_check`
+    // DIVERGED: CheckChanged — folded into `on_check` callback invocation
     pub on_check: Option<Box<dyn FnMut(bool)>>,
 }
 
@@ -43,11 +45,11 @@ impl emCheckButton {
         }
     }
 
-    pub fn is_checked(&self) -> bool {
+    pub fn IsChecked(&self) -> bool {
         self.checked
     }
 
-    pub fn set_checked(&mut self, checked: bool) {
+    pub fn SetChecked(&mut self, checked: bool) {
         if self.checked != checked {
             self.checked = checked;
             if let Some(cb) = &mut self.on_check {
@@ -291,7 +293,7 @@ impl emCheckButton {
     ///
     /// Chains the border's base how-to with button + check-button specific
     /// sections. Matches C++ `emCheckButton::GetHowTo`.
-    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+    pub fn GetHowTo(&self, enabled: bool, focusable: bool) -> String {
         let mut text = self.border.get_howto(enabled, focusable);
         text.push_str(HOWTO_BUTTON);
         text.push_str(HOWTO_CHECK_BUTTON);
@@ -303,6 +305,7 @@ impl emCheckButton {
         text
     }
 
+    // DIVERGED: Clicked — renamed to toggle (private); C++ Clicked is protected virtual
     fn toggle(&mut self) {
         self.checked = !self.checked;
         if let Some(cb) = &mut self.on_check {
@@ -362,12 +365,12 @@ mod tests {
         let mut btn = emCheckButton::new("Toggle", look);
         let ps = default_panel_state();
         let is = default_input_state();
-        assert!(!btn.is_checked());
+        assert!(!btn.IsChecked());
         // Enter is instant: toggles on press, no release needed.
         btn.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-        assert!(btn.is_checked()); // Toggled immediately on press
+        assert!(btn.IsChecked()); // Toggled immediately on press
         btn.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
-        assert!(!btn.is_checked());
+        assert!(!btn.IsChecked());
     }
 
     #[test]
@@ -380,7 +383,7 @@ mod tests {
         assert!(!btn.pressed);
         btn.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
         assert!(!btn.pressed); // Enter toggles instantly, no press state
-        assert!(btn.is_checked()); // But the toggle did happen
+        assert!(btn.IsChecked()); // But the toggle did happen
     }
 
     #[test]

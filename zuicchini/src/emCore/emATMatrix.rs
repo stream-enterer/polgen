@@ -284,6 +284,7 @@ impl AffineMatrix {
         )
     }
 
+    // DIVERGED: TransX, TransY — merged into single method returning (tx, ty) tuple
     /// Transform source coordinates to target coordinates.
     pub fn transform_point(&self, sx: f64, sy: f64) -> (f64, f64) {
         (
@@ -292,6 +293,7 @@ impl AffineMatrix {
         )
     }
 
+    // DIVERGED: InverseTransX, InverseTransY — merged into single method returning Option<(sx, sy)>
     /// Transform target coordinates back to source coordinates.
     ///
     /// For inverse-transforming more than about 4 points, use `inverse()`
@@ -312,12 +314,12 @@ impl AffineMatrix {
     }
 
     /// Get an element. Row index i is 0..3, column index j is 0..2.
-    pub fn get(&self, i: usize, j: usize) -> f64 {
+    pub fn Get(&self, i: usize, j: usize) -> f64 {
         self.a[i][j]
     }
 
     /// Set an element. Row index i is 0..3, column index j is 0..2.
-    pub fn set(&mut self, i: usize, j: usize, val: f64) {
+    pub fn Set(&mut self, i: usize, j: usize, val: f64) {
         self.a[i][j] = val;
     }
 
@@ -370,7 +372,7 @@ mod tests {
     fn matrices_approx_eq(a: &AffineMatrix, b: &AffineMatrix) -> bool {
         for i in 0..3 {
             for j in 0..2 {
-                if !approx_eq(a.get(i, j), b.get(i, j)) {
+                if !approx_eq(a.Get(i, j), b.Get(i, j)) {
                     return false;
                 }
             }
