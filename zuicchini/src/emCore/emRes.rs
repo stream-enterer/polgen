@@ -15,7 +15,7 @@ impl<V> ResourceCache<V> {
         }
     }
 
-    pub fn get_or_insert_with<F>(&mut self, name: &str, f: F) -> Rc<V>
+    pub fn GetOrInsertWith<F>(&mut self, name: &str, f: F) -> Rc<V>
     where
         F: FnOnce() -> V,
     {
@@ -34,7 +34,7 @@ impl<V> ResourceCache<V> {
     }
 
     /// Remove entries that have no external references (strong count == 1).
-    pub fn purge_unused(&mut self) {
+    pub fn PurgeUnused(&mut self) {
         self.entries.retain(|_, v| Rc::strong_count(v) > 1);
     }
 
