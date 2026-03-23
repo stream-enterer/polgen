@@ -108,22 +108,22 @@ impl emColorField {
         }
     }
 
-    pub fn set_caption(&mut self, caption: &str) {
+    pub fn SetCaption(&mut self, caption: &str) {
         self.border.caption = caption.to_string();
     }
 
-    pub fn color(&self) -> emColor {
+    pub fn GetColor(&self) -> emColor {
         self.color
     }
 
-    pub fn set_color(&mut self, color: emColor) {
+    pub fn SetColor(&mut self, color: emColor) {
         if self.color != color {
             self.color = color;
             // Sync expansion if present.
             if self.expansion.is_some() {
-                self.update_rgba_output();
-                self.update_hsv_output(false);
-                self.update_name_output();
+                self.UpdateRGBAOutput();
+                self.UpdateHSVOutput(false);
+                self.UpdateNameOutput();
             }
             if let Some(cb) = &mut self.on_color {
                 cb(color);
@@ -131,11 +131,11 @@ impl emColorField {
         }
     }
 
-    pub fn is_editable(&self) -> bool {
+    pub fn IsEditable(&self) -> bool {
         self.editable
     }
 
-    pub fn set_editable(&mut self, editable: bool) {
+    pub fn SetEditable(&mut self, editable: bool) {
         if self.editable != editable {
             self.editable = editable;
             if editable {
@@ -148,11 +148,11 @@ impl emColorField {
         }
     }
 
-    pub fn is_alpha_enabled(&self) -> bool {
+    pub fn IsAlphaEnabled(&self) -> bool {
         self.alpha_enabled
     }
 
-    pub fn set_alpha_enabled(&mut self, alpha_enabled: bool) {
+    pub fn SetAlphaEnabled(&mut self, alpha_enabled: bool) {
         if self.alpha_enabled != alpha_enabled {
             self.alpha_enabled = alpha_enabled;
             if !alpha_enabled && self.color.GetAlpha() != 255 {
@@ -272,13 +272,13 @@ impl emColorField {
 
         // Synchronize sibling fields.
         if hsv_changed || text_changed {
-            self.update_rgba_output();
+            self.UpdateRGBAOutput();
         }
         if rgba_changed || text_changed {
-            self.update_hsv_output(false);
+            self.UpdateHSVOutput(false);
         }
         if rgba_changed || hsv_changed {
-            self.update_name_output();
+            self.UpdateNameOutput();
         }
 
         if let Some(cb) = &mut self.on_color {
@@ -338,7 +338,7 @@ impl emColorField {
 
     /// Sync RGBA scalar fields from current color.
     /// Port of C++ `emColorField::UpdateRGBAOutput()`.
-    pub fn update_rgba_output(&mut self) {
+    pub fn UpdateRGBAOutput(&mut self) {
         let exp = match &mut self.expansion {
             Some(exp) => exp,
             None => return,
@@ -360,7 +360,7 @@ impl emColorField {
     /// When `initial` is false, hue is only updated if saturation > 0 and
     /// value > 0, and saturation is only updated if value > 0. This prevents
     /// hue/sat from jumping to 0 when the color is black.
-    pub fn update_hsv_output(&mut self, initial: bool) {
+    pub fn UpdateHSVOutput(&mut self, initial: bool) {
         let exp = match &mut self.expansion {
             Some(exp) => exp,
             None => return,
@@ -380,7 +380,7 @@ impl emColorField {
 
     /// Sync name/hex text field from current color.
     /// Port of C++ `emColorField::UpdateNameOutput()`.
-    pub fn update_name_output(&mut self) {
+    pub fn UpdateNameOutput(&mut self) {
         let exp = match &mut self.expansion {
             Some(exp) => exp,
             None => return,
@@ -683,7 +683,7 @@ impl emColorField {
 
     /// Whether this color field provides how-to help text.
     /// Matches C++ `emColorField::HasHowTo` (always true).
-    pub fn has_how_to(&self) -> bool {
+    pub fn HasHowTo(&self) -> bool {
         true
     }
 
@@ -691,7 +691,7 @@ impl emColorField {
     ///
     /// Chains the border's base how-to with color-field-specific sections.
     /// Matches C++ `emColorField::GetHowTo`.
-    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+    pub fn GetHowTo(&self, enabled: bool, focusable: bool) -> String {
         let mut text = self.border.get_howto(enabled, focusable);
         text.push_str(HOWTO_COLOR_FIELD);
         if !self.editable {
