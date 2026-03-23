@@ -71,7 +71,7 @@ impl emSubViewPanel {
     }
 
     /// Get a reference to the sub-view.
-    pub fn sub_view(&self) -> &emView {
+    pub fn GetSubView(&self) -> &emView {
         &self.sub_view
     }
 
