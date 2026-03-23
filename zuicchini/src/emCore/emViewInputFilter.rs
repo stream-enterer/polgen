@@ -2228,8 +2228,8 @@ impl emCheatVIF {
 
             // Debug log on/off: chEat:dlog!
             "dlog" => {
-                let enabled = !crate::emCore::emStd1::is_dlog_enabled();
-                crate::emCore::emStd1::set_dlog_enabled(enabled);
+                let enabled = !crate::emCore::emStd1::emIsDLogEnabled();
+                crate::emCore::emStd1::emEnableDLog(enabled);
                 eprintln!("[CheatVIF] debug log {}", if enabled { "enabled" } else { "disabled" });
             }
 

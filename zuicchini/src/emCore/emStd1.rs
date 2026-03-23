@@ -14,12 +14,12 @@ static DLOG_ENABLED: AtomicBool = AtomicBool::new(false);
 static DLOG_CAPTURE: Mutex<Option<Vec<String>>> = Mutex::new(None);
 
 /// Check whether debug logging is enabled.
-pub fn is_dlog_enabled() -> bool {
+pub fn emIsDLogEnabled() -> bool {
     DLOG_ENABLED.load(Ordering::Relaxed)
 }
 
 /// Enable or disable debug logging.
-pub fn set_dlog_enabled(enable: bool) {
+pub fn emEnableDLog(enable: bool) {
     DLOG_ENABLED.store(enable, Ordering::Relaxed);
 }
 
@@ -54,7 +54,7 @@ pub fn _capture_line(line: &str) {
 #[macro_export]
 macro_rules! dlog {
     ($($arg:tt)*) => {
-        if $crate::emCore::emStd1::is_dlog_enabled() {
+        if $crate::emCore::emStd1::emIsDLogEnabled() {
             let path = module_path!();
             // Strip crate prefix for readability
             let short = path.strip_prefix("zuicchini::").unwrap_or(path);
@@ -113,7 +113,7 @@ static FATAL_ERROR_GRAPHICAL: AtomicBool = AtomicBool::new(false);
 /// Matches C++ emSetFatalErrorGraphical. When enabled, a future fatal-error
 /// handler could show a dialog instead of just logging to stderr.
 /// Currently only stores the flag; no graphical dialog is implemented yet.
-pub fn set_fatal_error_graphical(enable: bool) {
+pub fn emSetFatalErrorGraphical(enable: bool) {
     FATAL_ERROR_GRAPHICAL.store(enable, Ordering::Relaxed);
 }
 
