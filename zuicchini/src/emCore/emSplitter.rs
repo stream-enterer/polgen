@@ -53,15 +53,15 @@ impl emSplitter {
         }
     }
 
-    pub fn position(&self) -> f64 {
+    pub fn GetPos(&self) -> f64 {
         self.position
     }
 
-    pub fn min_position(&self) -> f64 {
+    pub fn GetMinPos(&self) -> f64 {
         self.min_position
     }
 
-    pub fn max_position(&self) -> f64 {
+    pub fn GetMaxPos(&self) -> f64 {
         self.max_position
     }
 
@@ -85,7 +85,7 @@ impl emSplitter {
         self.orientation = orientation;
     }
 
-    pub fn set_position(&mut self, pos: f64) {
+    pub fn SetPos(&mut self, pos: f64) {
         let clamped = pos.clamp(self.min_position, self.max_position);
         if (self.position - clamped).abs() > f64::EPSILON {
             self.position = clamped;
@@ -99,7 +99,7 @@ impl emSplitter {
     ///
     /// Clamps both to [0,1]. If min > max, averages them.
     /// Matches C++ `emSplitter::SetMinMaxPos`.
-    pub fn set_limits(&mut self, min: f64, max: f64) {
+    pub fn SetMinMaxPos(&mut self, min: f64, max: f64) {
         let mut min = min.clamp(0.0, 1.0);
         let mut max = max.clamp(0.0, 1.0);
         if min > max {
@@ -109,10 +109,10 @@ impl emSplitter {
         }
         self.min_position = min;
         self.max_position = max;
-        self.set_position(self.position);
+        self.SetPos(self.position);
     }
 
-    pub fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, enabled: bool) {
+    pub fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, enabled: bool) {
         self.last_w = w;
         self.last_h = h;
         self.enabled = enabled;
@@ -181,7 +181,7 @@ impl emSplitter {
         }
     }
 
-    pub fn input(&mut self, event: &emInputEvent, _state: &PanelState, _input_state: &emInputState) -> bool {
+    pub fn Input(&mut self, event: &emInputEvent, _state: &PanelState, _input_state: &emInputState) -> bool {
         if self.last_w <= 0.0 || self.last_h <= 0.0 {
             return false;
         }
@@ -239,7 +239,7 @@ impl emSplitter {
                         let travel = size - gs;
                         if travel > 0.0 {
                             let new_pos = (pos - self.drag_offset - gs * 0.5) / travel;
-                            self.set_position(new_pos);
+                            self.SetPos(new_pos);
                         }
                         return true;
                     }
@@ -250,7 +250,7 @@ impl emSplitter {
         }
     }
 
-    pub fn get_cursor(&self) -> emCursor {
+    pub fn GetCursor(&self) -> emCursor {
         // C++ emSplitter.cpp:158: only resize cursor when mouse over grip AND enabled.
         if (!self.mouse_in_grip && !self.dragging) || !self.enabled {
             return emCursor::Normal;
@@ -262,7 +262,7 @@ impl emSplitter {
     }
 
     /// Layout two child panels based on the splitter position.
-    pub fn layout_children(&self, ctx: &mut PanelCtx, w: f64, h: f64) {
+    pub fn LayoutChildren(&self, ctx: &mut PanelCtx, w: f64, h: f64) {
         let children = ctx.children();
         if children.len() < 2 {
             return;
