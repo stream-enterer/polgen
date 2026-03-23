@@ -352,7 +352,7 @@ impl emFileSelectionBox {
         }
     }
 
-    pub fn parent_directory(&self) -> &Path {
+    pub fn GetParentDirectory(&self) -> &Path {
         &self.parent_dir
     }
 
@@ -371,11 +371,11 @@ impl emFileSelectionBox {
         }
     }
 
-    pub fn selected_name(&self) -> Option<&str> {
+    pub fn GetSelectedName(&self) -> Option<&str> {
         self.selected_names.first().map(|s| s.as_str())
     }
 
-    pub fn selected_names(&self) -> &[String] {
+    pub fn GetSelectedNames(&self) -> &[String] {
         &self.selected_names
     }
 
@@ -402,7 +402,7 @@ impl emFileSelectionBox {
         self.set_selected_name("");
     }
 
-    pub fn selected_path(&self) -> PathBuf {
+    pub fn GetSelectedPath(&self) -> PathBuf {
         if let Some(name) = self.selected_names.first() {
             self.parent_dir.join(name)
         } else {
@@ -430,7 +430,7 @@ impl emFileSelectionBox {
         }
     }
 
-    pub fn filters(&self) -> &[String] {
+    pub fn GetFilters(&self) -> &[String] {
         &self.filters
     }
 
@@ -450,7 +450,7 @@ impl emFileSelectionBox {
         self.invalidate_listing();
     }
 
-    pub fn selected_filter_index(&self) -> i32 {
+    pub fn GetSelectedFilterIndex(&self) -> i32 {
         self.selected_filter_index
     }
 
@@ -477,7 +477,7 @@ impl emFileSelectionBox {
         }
     }
 
-    pub fn triggered_file_name(&self) -> &str {
+    pub fn GetTriggeredFileName(&self) -> &str {
         &self.triggered_file_name
     }
 

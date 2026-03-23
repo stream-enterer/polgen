@@ -94,7 +94,7 @@ impl emFileDialog {
     }
 
     pub fn parent_directory(&self) -> &Path {
-        self.fsb.parent_directory()
+        self.fsb.GetParentDirectory()
     }
 
     pub fn set_parent_directory(&mut self, dir: &Path) {
@@ -102,11 +102,11 @@ impl emFileDialog {
     }
 
     pub fn selected_name(&self) -> Option<&str> {
-        self.fsb.selected_name()
+        self.fsb.GetSelectedName()
     }
 
     pub fn selected_names(&self) -> &[String] {
-        self.fsb.selected_names()
+        self.fsb.GetSelectedNames()
     }
 
     pub fn set_selected_name(&mut self, name: &str) {
@@ -122,7 +122,7 @@ impl emFileDialog {
     }
 
     pub fn selected_path(&self) -> PathBuf {
-        self.fsb.selected_path()
+        self.fsb.GetSelectedPath()
     }
 
     pub fn set_selected_path(&mut self, path: &Path) {
@@ -130,7 +130,7 @@ impl emFileDialog {
     }
 
     pub fn filters(&self) -> &[String] {
-        self.fsb.filters()
+        self.fsb.GetFilters()
     }
 
     pub fn set_filters(&mut self, filters: &[String]) {
@@ -138,7 +138,7 @@ impl emFileDialog {
     }
 
     pub fn selected_filter_index(&self) -> i32 {
-        self.fsb.selected_filter_index()
+        self.fsb.GetSelectedFilterIndex()
     }
 
     pub fn set_selected_filter_index(&mut self, index: i32) {
@@ -187,8 +187,8 @@ impl emFileDialog {
             return FileDialogCheckResult::Allow;
         }
 
-        let names = self.fsb.selected_names().to_vec();
-        let parent = self.fsb.parent_directory().to_path_buf();
+        let names = self.fsb.GetSelectedNames().to_vec();
+        let parent = self.fsb.GetParentDirectory().to_path_buf();
 
         // Check for directory selection when not allowed.
         if !self.dir_allowed {
