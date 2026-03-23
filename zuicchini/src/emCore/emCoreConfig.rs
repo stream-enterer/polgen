@@ -225,7 +225,7 @@ impl emCoreConfig {
 
             let mut model = emConfigModel::new(Self::default(), path, SignalId::null());
 
-            if let Err(e) = model.load_or_install() {
+            if let Err(e) = model.TryLoadOrInstall() {
                 log::warn!("CoreConfig: failed to load or install config: {e}");
             }
 

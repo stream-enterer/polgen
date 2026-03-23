@@ -125,7 +125,7 @@ impl emWindowStateSaver {
 
     /// Get the stored geometry for restoring.
     pub fn Restore(&self) -> &WindowGeometry {
-        self.model.get()
+        self.model.GetRec()
     }
 
     pub fn Cycle(&mut self, window: &super::emWindow::ZuiWindow, focused: bool) {
@@ -161,7 +161,7 @@ impl emWindowStateSaver {
             fullscreen,
         };
 
-        if focused && current != *self.model.get() {
+        if focused && current != *self.model.GetRec() {
             self.Save(window);
         }
     }

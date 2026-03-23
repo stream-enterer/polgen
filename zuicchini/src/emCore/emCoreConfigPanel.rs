@@ -184,7 +184,7 @@ impl KBGroup {
 
     fn create_children(&self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         let mut zoom = make_factor_field(
             "Keyboard zoom speed",
@@ -200,7 +200,7 @@ impl KBGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.keyboard_zoom_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("zoom", Box::new(zoom));
 
@@ -218,7 +218,7 @@ impl KBGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.keyboard_scroll_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("scroll", Box::new(scroll));
     }
@@ -296,7 +296,7 @@ impl MouseMiscGroup {
 
     fn create_children(&self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         // C++ emCoreConfigPanel.cpp:295: StickBox->SetEnableSwitch(StickPossible)
         // Disabled when the screen cannot move the mouse pointer.
@@ -306,7 +306,7 @@ impl MouseMiscGroup {
         stick.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.stick_mouse_when_navigating = checked);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         let stick_id = ctx.create_child_with("stick", Box::new(CheckBoxPanel { check_box: stick }));
         if !self.stick_possible {
@@ -319,7 +319,7 @@ impl MouseMiscGroup {
         emu.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.emulate_middle_button = checked);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("emu", Box::new(CheckBoxPanel { check_box: emu }));
 
@@ -329,7 +329,7 @@ impl MouseMiscGroup {
         pan.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.pan_function = checked);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("pan", Box::new(CheckBoxPanel { check_box: pan }));
     }
@@ -412,7 +412,7 @@ impl KineticGroup {
 
     fn create_children(&self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         // KineticZoomingAndScrolling
         let mut kinetic = make_factor_field(
@@ -429,7 +429,7 @@ impl KineticGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 2.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.kinetic_zooming_and_scrolling = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("KineticZoomingAndScrolling", Box::new(kinetic));
 
@@ -448,7 +448,7 @@ impl KineticGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.magnetism_radius = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("MagnetismRadius", Box::new(mag_radius));
 
@@ -467,7 +467,7 @@ impl KineticGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.magnetism_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("MagnetismSpeed", Box::new(mag_speed));
 
@@ -486,7 +486,7 @@ impl KineticGroup {
             let cfg_val = factor_val_to_cfg(val, 0.1, 10.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.visit_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("VisitSpeed", Box::new(visit));
     }
@@ -670,7 +670,7 @@ impl MemFieldLayoutPanel {
 
     fn create_children(&self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         // Memory field: log2 space, range 8..16384 → ~300..1400 in val space
         let min_val = mem_cfg_to_val(8);
@@ -687,7 +687,7 @@ impl MemFieldLayoutPanel {
             let mb = mem_val_to_cfg(val);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.max_megabytes_per_view = mb.clamp(8, 16384));
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("mem", Box::new(ScalarFieldPanel { scalar_field: sf }));
     }
@@ -873,7 +873,7 @@ impl CpuGroup {
 
     fn create_children(&mut self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         // MaxRenderThreads: range 1-32
         let mut sf = emScalarField::new(1.0, 32.0, self.look.clone());
@@ -888,7 +888,7 @@ impl CpuGroup {
             let threads = (val + 0.5) as i32;
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.max_render_threads = threads.clamp(1, 32));
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         let threads_id = ctx.create_child_with(
             "MaxRenderThreads",
@@ -909,7 +909,7 @@ impl CpuGroup {
         cb.on_check = Some(Box::new(move |checked| {
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.allow_simd = checked);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("allowSIMD", Box::new(CheckBoxPanel { check_box: cb }));
     }
@@ -992,7 +992,7 @@ impl PerformanceGroup {
 
     fn create_children(&self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         // MaxMem tunnel
         ctx.create_child_with(
@@ -1029,7 +1029,7 @@ impl PerformanceGroup {
             let q = (val + 0.5) as i32;
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.downscale_quality = q.clamp(2, 6));
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with(
             "downscaleQuality",
@@ -1052,7 +1052,7 @@ impl PerformanceGroup {
             let q = (val + 0.5) as i32;
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.upscale_quality = q.clamp(0, 5));
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with(
             "upscaleQuality",
@@ -1143,7 +1143,7 @@ impl MouseGroup {
 
     fn create_children(&self, ctx: &mut PanelCtx) {
         let cfg = self.config.borrow();
-        let c = cfg.get();
+        let c = cfg.GetRec();
 
         // wheelzoom
         let mut wz = make_factor_field(
@@ -1160,7 +1160,7 @@ impl MouseGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.mouse_wheel_zoom_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("wheelzoom", Box::new(wz));
 
@@ -1179,7 +1179,7 @@ impl MouseGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 2.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.mouse_wheel_zoom_acceleration = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("wheelaccel", Box::new(wa));
 
@@ -1198,7 +1198,7 @@ impl MouseGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.mouse_zoom_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("zoom", Box::new(zoom));
 
@@ -1217,7 +1217,7 @@ impl MouseGroup {
             let cfg_val = factor_val_to_cfg(val, 0.25, 4.0);
             let mut cm = config.borrow_mut();
             cm.modify(|c| c.mouse_scroll_speed = cfg_val);
-            let _ = cm.save();
+            let _ = cm.Save();
         }));
         ctx.create_child_with("scroll", Box::new(scroll));
 
@@ -1306,8 +1306,8 @@ impl ButtonsPanel {
         let generation = Rc::clone(&self.generation);
         btn.on_click = Some(Box::new(move || {
             let mut cm = config.borrow_mut();
-            cm.reset_to_default();
-            let _ = cm.save();
+            cm.SetToDefault();
+            let _ = cm.Save();
             generation.set(generation.get() + 1);
         }));
         ctx.create_child_with("reset", Box::new(ButtonPanel { button: btn }));

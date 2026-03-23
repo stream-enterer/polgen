@@ -27,7 +27,7 @@ impl<T: Record> emConfigModel<T> {
         }
     }
 
-    pub fn get(&self) -> &T {
+    pub fn GetRec(&self) -> &T {
         &self.value
     }
 
@@ -46,27 +46,27 @@ impl<T: Record> emConfigModel<T> {
         true
     }
 
-    pub fn change_signal(&self) -> SignalId {
+    pub fn GetChangeSignal(&self) -> SignalId {
         self.change_signal
     }
 
-    pub fn path(&self) -> &Path {
+    pub fn GetInstallPath(&self) -> &Path {
         &self.path
     }
 
-    pub fn is_dirty(&self) -> bool {
+    pub fn IsUnsaved(&self) -> bool {
         self.dirty
     }
 
     /// Reset the value to its default. Returns `true` if dirty flag was set.
-    pub fn reset_to_default(&mut self) -> bool {
+    pub fn SetToDefault(&mut self) -> bool {
         self.value.set_to_default();
         self.dirty = true;
         true
     }
 
     /// Load the configuration from disk. Parses emRec and deserializes.
-    pub fn load(&mut self) -> Result<(), RecError> {
+    pub fn TryLoad(&mut self) -> Result<(), RecError> {
         let contents = std::fs::read_to_string(&self.path).map_err(RecError::Io)?;
         let rec = parse_rec(&contents)?;
         self.value = T::from_rec(&rec)?;
@@ -75,7 +75,7 @@ impl<T: Record> emConfigModel<T> {
     }
 
     /// Save the configuration to disk as emRec.
-    pub fn save(&mut self) -> Result<(), RecError> {
+    pub fn Save(&mut self) -> Result<(), RecError> {
         let rec = self.value.to_rec();
         let contents = write_rec(&rec);
 
@@ -89,13 +89,13 @@ impl<T: Record> emConfigModel<T> {
     }
 
     /// Load from disk, or create a default config file if none exists.
-    pub fn load_or_install(&mut self) -> Result<(), RecError> {
+    pub fn TryLoadOrInstall(&mut self) -> Result<(), RecError> {
         if self.path.exists() {
-            self.load()
+            self.TryLoad()
         } else {
             self.value.set_to_default();
             self.dirty = true;
-            self.save()
+            self.Save()
         }
     }
 }
