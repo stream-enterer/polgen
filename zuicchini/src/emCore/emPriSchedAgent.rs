@@ -109,7 +109,7 @@ impl PriSchedModel {
     }
 
     /// Set the access priority for an agent.
-    pub fn set_access_priority(&self, agent: PriSchedAgentId, priority: f64) {
+    pub fn SetAccessPriority(&self, agent: PriSchedAgentId, priority: f64) {
         let mut model = self.inner.borrow_mut();
         if let Some(entry) = model.agents.get_mut(agent.0) {
             entry.priority = priority;
@@ -117,7 +117,7 @@ impl PriSchedModel {
     }
 
     /// Start waiting for access. Wakes the scheduling engine.
-    pub fn request_access(&self, agent: PriSchedAgentId, scheduler: &mut EngineScheduler) {
+    pub fn RequestAccess(&self, agent: PriSchedAgentId, scheduler: &mut EngineScheduler) {
         let mut model = self.inner.borrow_mut();
         if let Some(entry) = model.agents.get_mut(agent.0) {
             entry.waiting = true;
@@ -136,19 +136,19 @@ impl PriSchedModel {
     }
 
     /// Whether the agent is currently waiting for access.
-    pub fn is_waiting_for_access(&self, agent: PriSchedAgentId) -> bool {
+    pub fn IsWaitingForAccess(&self, agent: PriSchedAgentId) -> bool {
         let model = self.inner.borrow();
         model.agents.get(agent.0).is_some_and(|entry| entry.waiting)
     }
 
     /// Whether the agent currently has access.
-    pub fn has_access(&self, agent: PriSchedAgentId) -> bool {
+    pub fn HasAccess(&self, agent: PriSchedAgentId) -> bool {
         let model = self.inner.borrow();
         model.active == Some(agent)
     }
 
     /// Release access (or stop waiting).
-    pub fn release_access(&self, agent: PriSchedAgentId, scheduler: &mut EngineScheduler) {
+    pub fn ReleaseAccess(&self, agent: PriSchedAgentId, scheduler: &mut EngineScheduler) {
         let mut model = self.inner.borrow_mut();
         if let Some(entry) = model.agents.get_mut(agent.0) {
             entry.waiting = false;
