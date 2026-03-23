@@ -686,7 +686,7 @@ impl emFileSelectionBox {
         {
             let mut lb = emListBox::new(self.look.clone());
             lb.set_caption("Files");
-            lb.set_selection_mode(if self.multi_selection_enabled {
+            lb.SetSelectionType(if self.multi_selection_enabled {
                 SelectionMode::Multi
             } else {
                 SelectionMode::Single
@@ -754,10 +754,10 @@ impl emFileSelectionBox {
             let mut lb = emListBox::new(self.look.clone());
             lb.set_caption("Filter");
             for (i, filter) in self.filters.iter().enumerate() {
-                lb.add_item(format!("{}", i), filter.clone());
+                lb.AddItem(format!("{}", i), filter.clone());
             }
             if self.selected_filter_index >= 0 {
-                lb.set_selected_index(self.selected_filter_index as usize);
+                lb.SetSelectedIndex(self.selected_filter_index as usize);
             }
             let events = self.events.clone();
             lb.on_selection = Some(Box::new(move |indices: &[usize]| {
@@ -800,11 +800,11 @@ impl emFileSelectionBox {
                 .collect();
 
             ctx.tree.with_behavior_as::<ListBoxPanel, _>(lb_id, |lbp| {
-                lbp.list_box.clear_items();
+                lbp.list_box.ClearItems();
                 for (key, text) in &items {
-                    lbp.list_box.add_item(key.clone(), text.clone());
+                    lbp.list_box.AddItem(key.clone(), text.clone());
                 }
-                lbp.list_box.set_selected_indices(&selected_indices);
+                lbp.list_box.SetSelectedIndices(&selected_indices);
             });
         }
     }

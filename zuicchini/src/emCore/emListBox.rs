@@ -64,7 +64,7 @@ pub trait ItemPanelInterface {
     fn text(&self) -> &str;
 
     /// Whether selected.
-    fn is_selected(&self) -> bool;
+    fn IsSelected(&self) -> bool;
 }
 
 /// Default item panel that displays item text with selection highlight.
@@ -90,7 +90,7 @@ impl DefaultItemPanel {
     }
 
     /// Whether selected.
-    pub fn is_selected(&self) -> bool {
+    pub fn IsSelected(&self) -> bool {
         self.selected
     }
 }
@@ -120,7 +120,7 @@ impl ItemPanelInterface for DefaultItemPanel {
         &self.text
     }
 
-    fn is_selected(&self) -> bool {
+    fn IsSelected(&self) -> bool {
         self.selected
     }
 }
@@ -338,13 +338,13 @@ impl emListBox {
 
     // ── Selection mode ──────────────────────────────────────────────
 
-    pub fn selection_mode(&self) -> SelectionMode {
+    pub fn GetSelectionType(&self) -> SelectionMode {
         self.selection_mode
     }
 
     /// Set the selection type. Updates the inner border type to match:
     /// ReadOnly uses OutputField, all others use InputField.
-    pub fn set_selection_mode(&mut self, mode: SelectionMode) {
+    pub fn SetSelectionType(&mut self, mode: SelectionMode) {
         if self.selection_mode == mode {
             return;
         }
@@ -365,9 +365,9 @@ impl emListBox {
     /// Replace all items with plain strings. Names are auto-generated as the
     /// string values themselves. Selection and scroll position are reset.
     pub fn set_items(&mut self, items: Vec<String>) {
-        self.clear_items();
+        self.ClearItems();
         for text in items {
-            self.add_item(text.clone(), text);
+            self.AddItem(text.clone(), text);
         }
         self.focus_index = 0;
         self.scroll_y = 0.0;
@@ -376,12 +376,12 @@ impl emListBox {
     // ── Item manipulation APIs ──────────────────────────────────────
 
     /// Number of items in the list.
-    pub fn item_count(&self) -> usize {
+    pub fn GetItemCount(&self) -> usize {
         self.items.len()
     }
 
     /// Add an item at the end. Panics if `name` is not unique.
-    pub fn add_item(&mut self, name: String, text: String) {
+    pub fn AddItem(&mut self, name: String, text: String) {
         self.add_item_with_data(name, text, None);
     }
 
@@ -399,7 +399,7 @@ impl emListBox {
 
     /// Insert an item at `index`. Index is clamped to `[0, item_count()]`.
     /// Panics if `name` is not unique.
-    pub fn insert_item(&mut self, index: usize, name: String, text: String) {
+    pub fn InsertItem(&mut self, index: usize, name: String, text: String) {
         self.insert_item_with_data(index, name, text, None);
     }
 
@@ -450,7 +450,7 @@ impl emListBox {
     }
 
     /// Remove an item at `index`. No-op if out of range.
-    pub fn remove_item(&mut self, index: usize) {
+    pub fn RemoveItem(&mut self, index: usize) {
         if index >= self.items.len() {
             return;
         }
@@ -502,7 +502,7 @@ impl emListBox {
 
     /// Move an item from `from` to `to`. No-op if `from` is out of range or
     /// equals `to`. `to` is clamped to valid range.
-    pub fn move_item(&mut self, from: usize, to: usize) {
+    pub fn MoveItem(&mut self, from: usize, to: usize) {
         if from >= self.items.len() {
             return;
         }
@@ -558,7 +558,7 @@ impl emListBox {
 
     /// Sort items using a custom comparison function. Returns `true` if the
     /// order changed.
-    pub fn sort_items<F>(&mut self, mut compare: F) -> bool
+    pub fn SortItems<F>(&mut self, mut compare: F) -> bool
     where
         F: FnMut(&str, &str, &str, &str) -> std::cmp::Ordering,
     {
@@ -613,7 +613,7 @@ impl emListBox {
     }
 
     /// Remove all items.
-    pub fn clear_items(&mut self) {
+    pub fn ClearItems(&mut self) {
         if self.items.is_empty() {
             return;
         }
@@ -634,18 +634,18 @@ impl emListBox {
     // ── Item accessors ──────────────────────────────────────────────
 
     /// Get the name of the item at `index`, or `""` if out of range.
-    pub fn get_item_name(&self, index: usize) -> &str {
+    pub fn GetItemName(&self, index: usize) -> &str {
         self.items.get(index).map_or("", |it| &it.name)
     }
 
     /// Get the display text of the item at `index`, or `""` if out of range.
-    pub fn get_item_text(&self, index: usize) -> &str {
+    pub fn GetItemText(&self, index: usize) -> &str {
         self.items.get(index).map_or("", |it| &it.text)
     }
 
     /// Set the display text of the item at `index`. No-op if out of range or
     /// text unchanged.
-    pub fn set_item_text(&mut self, index: usize, text: String) {
+    pub fn SetItemText(&mut self, index: usize, text: String) {
         if let Some(item) = self.items.get_mut(index) {
             if item.text != text {
                 item.text = text.clone();
@@ -658,12 +658,12 @@ impl emListBox {
     }
 
     /// Get the item data at `index`, or `None` if out of range or no data set.
-    pub fn get_item_data(&self, index: usize) -> Option<&dyn Any> {
+    pub fn GetItemData(&self, index: usize) -> Option<&dyn Any> {
         self.items.get(index).and_then(|it| it.data.as_deref())
     }
 
     /// Set the item data at `index`. No-op if out of range.
-    pub fn set_item_data(&mut self, index: usize, data: Option<Box<dyn Any>>) {
+    pub fn SetItemData(&mut self, index: usize, data: Option<Box<dyn Any>>) {
         if let Some(item) = self.items.get_mut(index) {
             item.data = data;
             if let Some(iface) = &mut item.interface {
@@ -674,7 +674,7 @@ impl emListBox {
     }
 
     /// Find an item's index by name. Returns `None` if not found.
-    pub fn get_item_index(&self, name: &str) -> Option<usize> {
+    pub fn GetItemIndex(&self, name: &str) -> Option<usize> {
         self.name_index.get(name).copied()
     }
 
@@ -697,23 +697,23 @@ impl emListBox {
     // ── Selection APIs ──────────────────────────────────────────────
 
     /// Index of the first selected item, or `None` if nothing is selected.
-    pub fn selected_index(&self) -> Option<usize> {
+    pub fn GetSelectedIndex(&self) -> Option<usize> {
         self.selected_indices.first().copied()
     }
 
     /// Select a single item solely (deselecting all others).
-    pub fn set_selected_index(&mut self, index: usize) {
-        self.select(index, true);
+    pub fn SetSelectedIndex(&mut self, index: usize) {
+        self.Select(index, true);
     }
 
     /// Check whether an item is selected. Returns `false` for out-of-range.
-    pub fn is_selected(&self, index: usize) -> bool {
+    pub fn IsSelected(&self, index: usize) -> bool {
         self.items.get(index).is_some_and(|it| it.selected)
     }
 
     /// Select an item. If `solely` is true, deselects all others first.
     /// Out-of-range `index` with `solely` clears the selection.
-    pub fn select(&mut self, index: usize, solely: bool) {
+    pub fn Select(&mut self, index: usize, solely: bool) {
         if index < self.items.len() {
             if solely {
                 // Deselect all others.
@@ -724,7 +724,7 @@ impl emListBox {
                     .filter(|&i| i != index)
                     .collect();
                 for i in indices {
-                    self.deselect(i);
+                    self.Deselect(i);
                 }
             }
             if !self.items[index].selected {
@@ -742,12 +742,12 @@ impl emListBox {
                 self.fire_selection();
             }
         } else if solely {
-            self.clear_selection();
+            self.ClearSelection();
         }
     }
 
     /// Deselect an item. No-op if out of range or not selected.
-    pub fn deselect(&mut self, index: usize) {
+    pub fn Deselect(&mut self, index: usize) {
         if index < self.items.len() && self.items[index].selected {
             self.items[index].selected = false;
             if let Some(iface) = &mut self.items[index].interface {
@@ -762,30 +762,30 @@ impl emListBox {
     }
 
     /// Toggle the selection state of an item.
-    pub fn toggle_selection(&mut self, index: usize) {
-        if self.is_selected(index) {
-            self.deselect(index);
+    pub fn ToggleSelection(&mut self, index: usize) {
+        if self.IsSelected(index) {
+            self.Deselect(index);
         } else {
-            self.select(index, false);
+            self.Select(index, false);
         }
     }
 
     /// Select all items.
-    pub fn select_all(&mut self) {
+    pub fn SelectAll(&mut self) {
         for i in 0..self.items.len() {
-            self.select(i, false);
+            self.Select(i, false);
         }
     }
 
     /// Deselect all items.
-    pub fn clear_selection(&mut self) {
+    pub fn ClearSelection(&mut self) {
         while let Some(&idx) = self.selected_indices.first() {
-            self.deselect(idx);
+            self.Deselect(idx);
         }
     }
 
     /// Get the sorted list of selected indices.
-    pub fn selected_indices(&self) -> &[usize] {
+    pub fn GetSelectedIndices(&self) -> &[usize] {
         &self.selected_indices
     }
 
@@ -794,7 +794,7 @@ impl emListBox {
     /// Replaces the current selection with exactly the given indices.
     /// Out-of-range indices are silently ignored. The resulting selection
     /// is always sorted. Matches C++ `emListBox::SetSelectedIndices`.
-    pub fn set_selected_indices(&mut self, indices: &[usize]) {
+    pub fn SetSelectedIndices(&mut self, indices: &[usize]) {
         // Clear current selection state on items.
         for &idx in &self.selected_indices {
             if idx < self.items.len() {
@@ -827,7 +827,7 @@ impl emListBox {
     // ── Trigger ─────────────────────────────────────────────────────
 
     /// Trigger an item (fires the on_trigger callback). No-op if out of range.
-    pub fn trigger_item(&mut self, index: usize) {
+    pub fn TriggerItem(&mut self, index: usize) {
         if index < self.items.len() {
             self.triggered_index = Some(index);
             if let Some(cb) = &mut self.on_trigger {
@@ -837,7 +837,7 @@ impl emListBox {
     }
 
     /// Index of the last triggered item, or `None`.
-    pub fn triggered_index(&self) -> Option<usize> {
+    pub fn GetTriggeredItemIndex(&self) -> Option<usize> {
         self.triggered_index
     }
 
@@ -845,7 +845,7 @@ impl emListBox {
 
     /// Get the item panel interface at the given index.
     /// Port of C++ emListBox::GetItemPanelInterface(int).
-    pub fn get_item_panel_interface(&self, index: usize) -> Option<&dyn ItemPanelInterface> {
+    pub fn GetItemPanelInterface(&self, index: usize) -> Option<&dyn ItemPanelInterface> {
         self.items
             .get(index)
             .and_then(|item| item.interface.as_deref())
@@ -867,8 +867,8 @@ impl emListBox {
 
     /// Get the item panel at the given index (returns the interface).
     /// Port of C++ emListBox::GetItemPanel(int).
-    pub fn get_item_panel(&self, index: usize) -> Option<&dyn ItemPanelInterface> {
-        self.get_item_panel_interface(index)
+    pub fn GetItemPanel(&self, index: usize) -> Option<&dyn ItemPanelInterface> {
+        self.GetItemPanelInterface(index)
     }
 
     /// Create an item panel for the item at the given index.
@@ -877,7 +877,7 @@ impl emListBox {
     /// Override point: the default creates a DefaultItemPanel.
     /// Custom emListBox implementations can override this by setting
     /// a factory function.
-    pub fn create_item_panel(&mut self, index: usize) {
+    pub fn CreateItemPanel(&mut self, index: usize) {
         if let Some(item) = self.items.get_mut(index) {
             let panel = if let Some(factory) = &self.item_panel_factory {
                 factory(index, item.text.clone(), item.selected)
@@ -919,7 +919,7 @@ impl emListBox {
         self.expanded = true;
         for i in 0..self.items.len() {
             if self.items[i].interface.is_none() {
-                self.create_item_panel(i);
+                self.CreateItemPanel(i);
             }
         }
     }
@@ -1146,7 +1146,7 @@ impl emListBox {
                 if self.focus_index + 1 < self.items.len() {
                     self.focus_index += 1;
                     if self.selection_mode == SelectionMode::Single {
-                        self.select(self.focus_index, true);
+                        self.Select(self.focus_index, true);
                     }
                 }
                 true
@@ -1155,7 +1155,7 @@ impl emListBox {
                 if self.focus_index > 0 {
                     self.focus_index -= 1;
                     if self.selection_mode == SelectionMode::Single {
-                        self.select(self.focus_index, true);
+                        self.Select(self.focus_index, true);
                     }
                 }
                 true
@@ -1163,14 +1163,14 @@ impl emListBox {
             InputKey::Home if event.variant == InputVariant::Press => {
                 self.focus_index = 0;
                 if self.selection_mode == SelectionMode::Single {
-                    self.select(self.focus_index, true);
+                    self.Select(self.focus_index, true);
                 }
                 true
             }
             InputKey::End if event.variant == InputVariant::Press => {
                 self.focus_index = self.items.len() - 1;
                 if self.selection_mode == SelectionMode::Single {
-                    self.select(self.focus_index, true);
+                    self.Select(self.focus_index, true);
                 }
                 true
             }
@@ -1234,9 +1234,9 @@ impl emListBox {
                         || self.selection_mode == SelectionMode::Toggle
                     {
                         if event.shift {
-                            self.clear_selection();
+                            self.ClearSelection();
                         } else {
-                            self.select_all();
+                            self.SelectAll();
                         }
                     }
                     return true;
@@ -1318,9 +1318,9 @@ impl emListBox {
                 // No selection action.
             }
             SelectionMode::Single => {
-                self.select(item_index, true);
+                self.Select(item_index, true);
                 if trigger {
-                    self.trigger_item(item_index);
+                    self.TriggerItem(item_index);
                 }
             }
             SelectionMode::Multi => {
@@ -1335,34 +1335,34 @@ impl emListBox {
                             };
                             for i in i1..=i2 {
                                 if ctrl {
-                                    self.toggle_selection(i);
+                                    self.ToggleSelection(i);
                                 } else {
-                                    self.select(i, false);
+                                    self.Select(i, false);
                                 }
                             }
                         } else {
                             // prev == item_index: just select/toggle self
                             if ctrl {
-                                self.toggle_selection(item_index);
+                                self.ToggleSelection(item_index);
                             } else {
-                                self.select(item_index, false);
+                                self.Select(item_index, false);
                             }
                         }
                     } else {
                         // No prev: just select/toggle self
                         if ctrl {
-                            self.toggle_selection(item_index);
+                            self.ToggleSelection(item_index);
                         } else {
-                            self.select(item_index, false);
+                            self.Select(item_index, false);
                         }
                     }
                 } else if ctrl {
-                    self.toggle_selection(item_index);
+                    self.ToggleSelection(item_index);
                 } else {
-                    self.select(item_index, true);
+                    self.Select(item_index, true);
                 }
                 if trigger {
-                    self.trigger_item(item_index);
+                    self.TriggerItem(item_index);
                 }
             }
             SelectionMode::Toggle => {
@@ -1376,19 +1376,19 @@ impl emListBox {
                                 (item_index, prev - 1)
                             };
                             for i in i1..=i2 {
-                                self.toggle_selection(i);
+                                self.ToggleSelection(i);
                             }
                         } else {
-                            self.toggle_selection(item_index);
+                            self.ToggleSelection(item_index);
                         }
                     } else {
-                        self.toggle_selection(item_index);
+                        self.ToggleSelection(item_index);
                     }
                 } else {
-                    self.toggle_selection(item_index);
+                    self.ToggleSelection(item_index);
                 }
                 if trigger {
-                    self.trigger_item(item_index);
+                    self.TriggerItem(item_index);
                 }
             }
         }
@@ -1432,7 +1432,7 @@ impl emListBox {
         if let Some(idx) = matched_index {
             // Select the matched item if not read-only.
             if self.selection_mode != SelectionMode::ReadOnly {
-                self.select(idx, true);
+                self.Select(idx, true);
             }
             self.focus_index = idx;
             // Scroll to make the item visible.
