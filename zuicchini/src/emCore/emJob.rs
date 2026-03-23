@@ -58,22 +58,22 @@ impl emJob {
     }
 
     /// Get the job's priority.
-    pub fn priority(&self) -> f64 {
+    pub fn GetPriority(&self) -> f64 {
         self.priority
     }
 
     /// Get the current state.
-    pub fn state(&self) -> JobState {
+    pub fn GetState(&self) -> JobState {
         self.state
     }
 
     /// Get the signal that is fired on state transitions.
-    pub fn state_signal(&self) -> SignalId {
+    pub fn GetStateSignal(&self) -> SignalId {
         self.state_signal
     }
 
     /// Get the error text (only meaningful when state is `Error`).
-    pub fn error_text(&self) -> &str {
+    pub fn GetErrorText(&self) -> &str {
         &self.error_text
     }
 
@@ -123,7 +123,7 @@ impl emJobQueue {
 
     /// Add a job to the queue and return its handle. The job transitions to
     /// `Waiting` state and its state signal is fired.
-    pub fn enqueue(&mut self, mut job: emJob, scheduler: &mut EngineScheduler) -> JobId {
+    pub fn EnqueueJob(&mut self, mut job: emJob, scheduler: &mut EngineScheduler) -> JobId {
         let idx = self.jobs.len();
         let id = JobId(idx);
 
@@ -141,7 +141,7 @@ impl emJobQueue {
     }
 
     /// Whether the queue has no waiting or running jobs.
-    pub fn is_empty(&self) -> bool {
+    pub fn IsEmpty(&self) -> bool {
         self.waiting.is_empty() && self.running.is_empty()
     }
 
@@ -156,7 +156,7 @@ impl emJobQueue {
     }
 
     /// Set a job's priority. If the job is waiting, the sorting is invalidated.
-    pub fn set_priority(&mut self, id: JobId, priority: f64) {
+    pub fn SetPriority(&mut self, id: JobId, priority: f64) {
         if let Some(job) = self.get_mut(id) {
             if (job.priority - priority).abs() > f64::EPSILON {
                 job.priority = priority;
@@ -168,23 +168,23 @@ impl emJobQueue {
     }
 
     /// Get the first (highest-priority) waiting job's ID, or `None`.
-    pub fn first_waiting_job(&mut self) -> Option<JobId> {
-        self.update_sorting();
+    pub fn GetFirstWaitingJob(&mut self) -> Option<JobId> {
+        self.UpdateSortingOfWaitingJobs();
         self.waiting.first().map(|&idx| JobId(idx))
     }
 
     /// Get the first running job's ID, or `None`.
-    pub fn first_running_job(&self) -> Option<JobId> {
+    pub fn GetFirstRunningJob(&self) -> Option<JobId> {
         self.running.first().map(|&idx| JobId(idx))
     }
 
     /// Mark the waiting list as needing re-sort.
-    pub fn invalidate_sorting(&mut self) {
+    pub fn InvalidateSortingOfWaitingJobs(&mut self) {
         self.sorting_invalid = true;
     }
 
     /// Re-sort the waiting list by priority (highest first) if needed.
-    pub fn update_sorting(&mut self) {
+    pub fn UpdateSortingOfWaitingJobs(&mut self) {
         if !self.sorting_invalid {
             return;
         }
@@ -206,14 +206,14 @@ impl emJobQueue {
 
     /// Start the next highest-priority waiting job. Returns its ID, or `None`
     /// if no jobs are waiting.
-    pub fn start_next(&mut self, scheduler: &mut EngineScheduler) -> Option<JobId> {
-        let id = self.first_waiting_job()?;
-        self.start_job(id, scheduler);
+    pub fn StartNextJob(&mut self, scheduler: &mut EngineScheduler) -> Option<JobId> {
+        let id = self.GetFirstWaitingJob()?;
+        self.StartJob(id, scheduler);
         Some(id)
     }
 
     /// Move a job from waiting to running.
-    pub fn start_job(&mut self, id: JobId, scheduler: &mut EngineScheduler) {
+    pub fn StartJob(&mut self, id: JobId, scheduler: &mut EngineScheduler) {
         let Some(job) = self.jobs.get(id.0).and_then(|s| s.as_ref()) else {
             return;
         };
@@ -235,22 +235,22 @@ impl emJobQueue {
     }
 
     /// Abort a job, removing it from the queue.
-    pub fn abort_job(&mut self, id: JobId, scheduler: &mut EngineScheduler) {
+    pub fn AbortJob(&mut self, id: JobId, scheduler: &mut EngineScheduler) {
         self.finish_job(id, JobState::Aborted, String::new(), scheduler);
     }
 
     /// Mark a job as successfully completed, removing it from the queue.
-    pub fn succeed_job(&mut self, id: JobId, scheduler: &mut EngineScheduler) {
+    pub fn SucceedJob(&mut self, id: JobId, scheduler: &mut EngineScheduler) {
         self.finish_job(id, JobState::Success, String::new(), scheduler);
     }
 
     /// Mark a job as failed with an error message, removing it from the queue.
-    pub fn fail_job(&mut self, id: JobId, error_text: String, scheduler: &mut EngineScheduler) {
+    pub fn FailJob(&mut self, id: JobId, error_text: String, scheduler: &mut EngineScheduler) {
         self.finish_job(id, JobState::Error, error_text, scheduler);
     }
 
     /// Fail all running jobs with the given error.
-    pub fn fail_all_running(&mut self, error_text: &str, scheduler: &mut EngineScheduler) {
+    pub fn FailAllRunningJobs(&mut self, error_text: &str, scheduler: &mut EngineScheduler) {
         let running_ids: Vec<JobId> = self.running.iter().map(|&idx| JobId(idx)).collect();
         for id in running_ids {
             self.finish_job(id, JobState::Error, error_text.to_string(), scheduler);
@@ -258,8 +258,8 @@ impl emJobQueue {
     }
 
     /// Fail all jobs (running and waiting) with the given error.
-    pub fn fail_all(&mut self, error_text: &str, scheduler: &mut EngineScheduler) {
-        self.fail_all_running(error_text, scheduler);
+    pub fn FailAllJobs(&mut self, error_text: &str, scheduler: &mut EngineScheduler) {
+        self.FailAllRunningJobs(error_text, scheduler);
         let waiting_ids: Vec<JobId> = self.waiting.iter().map(|&idx| JobId(idx)).collect();
         for id in waiting_ids {
             self.finish_job(id, JobState::Error, error_text.to_string(), scheduler);
@@ -270,17 +270,17 @@ impl emJobQueue {
     pub fn clear(&mut self, scheduler: &mut EngineScheduler) {
         let running_ids: Vec<JobId> = self.running.iter().map(|&idx| JobId(idx)).collect();
         for id in running_ids {
-            self.abort_job(id, scheduler);
+            self.AbortJob(id, scheduler);
         }
         let waiting_ids: Vec<JobId> = self.waiting.iter().map(|&idx| JobId(idx)).collect();
         for id in waiting_ids {
-            self.abort_job(id, scheduler);
+            self.AbortJob(id, scheduler);
         }
     }
 
     /// Iterate over waiting job IDs.
     pub fn waiting_jobs(&mut self) -> Vec<JobId> {
-        self.update_sorting();
+        self.UpdateSortingOfWaitingJobs();
         self.waiting.iter().map(|&idx| JobId(idx)).collect()
     }
 
@@ -447,7 +447,7 @@ mod tests {
     }
 
     #[test]
-    fn abort_job() {
+    fn AbortJob() {
         let mut sched = EngineScheduler::new();
         let mut queue = emJobQueue::new();
 
