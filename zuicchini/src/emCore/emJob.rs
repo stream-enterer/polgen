@@ -363,18 +363,18 @@ mod tests {
         let mut queue = emJobQueue::new();
 
         let job = emJob::new(1.0, &mut sched);
-        let sig = job.state_signal();
-        let id = queue.enqueue(job, &mut sched);
+        let sig = job.GetStateSignal();
+        let id = queue.EnqueueJob(job, &mut sched);
 
         assert_eq!(queue.get(id).unwrap().state(), JobState::Waiting);
-        assert!(!queue.is_empty());
+        assert!(!queue.IsEmpty());
 
-        queue.start_job(id, &mut sched);
+        queue.StartJob(id, &mut sched);
         assert_eq!(queue.get(id).unwrap().state(), JobState::Running);
 
-        queue.succeed_job(id, &mut sched);
+        queue.SucceedJob(id, &mut sched);
         assert_eq!(queue.get(id).unwrap().state(), JobState::Success);
-        assert!(queue.is_empty());
+        assert!(queue.IsEmpty());
 
         sched.remove_signal(sig);
     }
@@ -385,21 +385,21 @@ mod tests {
         let mut queue = emJobQueue::new();
 
         let job_low = emJob::new(1.0, &mut sched);
-        let sig_low = job_low.state_signal();
-        let id_low = queue.enqueue(job_low, &mut sched);
+        let sig_low = job_low.GetStateSignal();
+        let id_low = queue.EnqueueJob(job_low, &mut sched);
 
         let job_high = emJob::new(10.0, &mut sched);
-        let sig_high = job_high.state_signal();
-        let id_high = queue.enqueue(job_high, &mut sched);
+        let sig_high = job_high.GetStateSignal();
+        let id_high = queue.EnqueueJob(job_high, &mut sched);
 
         // start_next should pick the highest priority job.
-        let started = queue.start_next(&mut sched);
+        let started = queue.StartNextJob(&mut sched);
         assert_eq!(started, Some(id_high));
         assert_eq!(queue.get(id_high).unwrap().state(), JobState::Running);
         assert_eq!(queue.get(id_low).unwrap().state(), JobState::Waiting);
 
-        queue.abort_job(id_high, &mut sched);
-        queue.abort_job(id_low, &mut sched);
+        queue.AbortJob(id_high, &mut sched);
+        queue.AbortJob(id_low, &mut sched);
         sched.remove_signal(sig_low);
         sched.remove_signal(sig_high);
     }
@@ -410,14 +410,14 @@ mod tests {
         let mut queue = emJobQueue::new();
 
         let job = emJob::new(1.0, &mut sched);
-        let sig = job.state_signal();
-        let id = queue.enqueue(job, &mut sched);
-        queue.start_job(id, &mut sched);
+        let sig = job.GetStateSignal();
+        let id = queue.EnqueueJob(job, &mut sched);
+        queue.StartJob(id, &mut sched);
 
-        queue.fail_job(id, "disk full".to_string(), &mut sched);
+        queue.FailJob(id, "disk full".to_string(), &mut sched);
         let j = queue.get(id).unwrap();
         assert_eq!(j.state(), JobState::Error);
-        assert_eq!(j.error_text(), "disk full");
+        assert_eq!(j.GetErrorText(), "disk full");
 
         sched.remove_signal(sig);
     }
@@ -428,19 +428,19 @@ mod tests {
         let mut queue = emJobQueue::new();
 
         let job1 = emJob::new(1.0, &mut sched);
-        let sig1 = job1.state_signal();
-        let id1 = queue.enqueue(job1, &mut sched);
-        queue.start_job(id1, &mut sched);
+        let sig1 = job1.GetStateSignal();
+        let id1 = queue.EnqueueJob(job1, &mut sched);
+        queue.StartJob(id1, &mut sched);
 
         let job2 = emJob::new(2.0, &mut sched);
-        let sig2 = job2.state_signal();
-        let id2 = queue.enqueue(job2, &mut sched);
+        let sig2 = job2.GetStateSignal();
+        let id2 = queue.EnqueueJob(job2, &mut sched);
 
-        queue.fail_all("shutdown", &mut sched);
+        queue.FailAllJobs("shutdown", &mut sched);
 
         assert_eq!(queue.get(id1).unwrap().state(), JobState::Error);
         assert_eq!(queue.get(id2).unwrap().state(), JobState::Error);
-        assert!(queue.is_empty());
+        assert!(queue.IsEmpty());
 
         sched.remove_signal(sig1);
         sched.remove_signal(sig2);
@@ -452,12 +452,12 @@ mod tests {
         let mut queue = emJobQueue::new();
 
         let job = emJob::new(1.0, &mut sched);
-        let sig = job.state_signal();
-        let id = queue.enqueue(job, &mut sched);
-        queue.abort_job(id, &mut sched);
+        let sig = job.GetStateSignal();
+        let id = queue.EnqueueJob(job, &mut sched);
+        queue.AbortJob(id, &mut sched);
 
         assert_eq!(queue.get(id).unwrap().state(), JobState::Aborted);
-        assert!(queue.is_empty());
+        assert!(queue.IsEmpty());
 
         sched.remove_signal(sig);
     }

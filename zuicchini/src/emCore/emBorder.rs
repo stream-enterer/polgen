@@ -391,8 +391,8 @@ impl emBorder {
         // Step 2: icon
         let icon_h_for_desc: f64; // iconH after icon processing (needed for desc-only-icon case)
         if let Some(ref img) = self.icon {
-            let raw_w = img.width().max(1) as f64;
-            let raw_h = img.height().max(1) as f64;
+            let raw_w = img.GetWidth().max(1) as f64;
+            let raw_h = img.GetHeight().max(1) as f64;
             let mut icon_w = raw_w;
             let mut icon_h = raw_h;
             if icon_h > icon_w * self.max_icon_area_tallness {
@@ -654,10 +654,10 @@ impl emBorder {
             let total_w = {
                 use crate::emCore::emPainter::emPainter;
                 let cap_tw = if has_cap {
-                    let (tw, _) = emPainter::get_text_size(&self.caption, 1.0, true, 0.0);
+                    let (tw, _) = emPainter::GetTextSize(&self.caption, 1.0, true, 0.0);
                     tw
                 } else if has_desc {
-                    let (tw, _) = emPainter::get_text_size(&self.description, 1.0, true, 0.0);
+                    let (tw, _) = emPainter::GetTextSize(&self.description, 1.0, true, 0.0);
                     tw
                 } else {
                     1.0
@@ -714,8 +714,8 @@ impl emBorder {
         }
 
         let img = icon.expect("checked above");
-        let img_w = img.width().max(1) as f64;
-        let img_h = img.height().max(1) as f64;
+        let img_w = img.GetWidth().max(1) as f64;
+        let img_h = img.GetHeight().max(1) as f64;
         let icon_tallness = (img_h / img_w).min(self.max_icon_area_tallness);
 
         if self.icon_above_caption {
@@ -1584,8 +1584,8 @@ How to move or set the focus:\n\
         if let Some(ref icon_rect) = label.icon_rect {
             if let Some(ref img) = self.icon {
                 if !img.is_empty() {
-                    if img.channel_count() == 1 {
-                        painter.paint_image_colored(
+                    if img.GetChannelCount() == 1 {
+                        painter.PaintImageColored(
                             icon_rect.x,
                             icon_rect.y,
                             icon_rect.w,
@@ -1593,8 +1593,8 @@ How to move or set the focus:\n\
                             img,
                             0,
                             0,
-                            img.width(),
-                            img.height(),
+                            img.GetWidth(),
+                            img.GetHeight(),
                             emColor::TRANSPARENT,
                             dim_color(look.fg_color),
                             emColor::TRANSPARENT,
@@ -1618,7 +1618,7 @@ How to move or set the focus:\n\
         // Caption — C++ DoLabel proportional scaling: compute a uniform scale
         // factor `f` that fits both width and height, maintaining aspect ratio.
         if let Some(ref cr) = label.caption_rect {
-            let (natural_tw, natural_th) = emPainter::get_text_size(&self.caption, 1.0, false, 0.0);
+            let (natural_tw, natural_th) = emPainter::GetTextSize(&self.caption, 1.0, false, 0.0);
             let cap_font = if natural_tw > 0.0 && natural_th > 0.0 {
                 let mut f = cr.h / natural_th;
                 let w2 = f * natural_tw;
@@ -1635,7 +1635,7 @@ How to move or set the focus:\n\
             };
             // C++ DoLabel passes EM_ALIGN_CENTER as boxAlignment and
             // CaptionAlignment as textAlignment (emBorder.cpp:1393-1394).
-            painter.paint_text_boxed(
+            painter.PaintTextBoxed(
                 cr.x,
                 cr.y,
                 cr.w,
@@ -1656,7 +1656,7 @@ How to move or set the focus:\n\
         // Description — C++ uses same `color` for both caption and description
         // (emBorder.cpp:1406), and EM_ALIGN_CENTER as boxAlignment (line 1408).
         if let Some(ref dr) = label.description_rect {
-            painter.paint_text_boxed(
+            painter.PaintTextBoxed(
                 dr.x,
                 dr.y,
                 dr.w,
@@ -1700,18 +1700,18 @@ How to move or set the focus:\n\
         match self.outer {
             OuterBorderType::None => {}
             OuterBorderType::Filled => {
-                painter.paint_rect(0.0, 0.0, w, h, look.bg_color, emColor::TRANSPARENT);
+                painter.PaintRect(0.0, 0.0, w, h, look.bg_color, emColor::TRANSPARENT);
                 // C++ DoBorder: canvasColor=color after fill.
                 if !look.bg_color.IsTotallyTransparent() {
-                    painter.set_canvas_color(look.bg_color);
+                    painter.SetCanvasColor(look.bg_color);
                 }
             }
             OuterBorderType::Margin => {}
             OuterBorderType::MarginFilled => {
                 // C++ DoBorder: Clear fills the ENTIRE panel, not the inset rect.
                 if !look.bg_color.IsTotallyTransparent() {
-                    painter.paint_rect(0.0, 0.0, w, h, look.bg_color, emColor::TRANSPARENT);
-                    painter.set_canvas_color(look.bg_color);
+                    painter.PaintRect(0.0, 0.0, w, h, look.bg_color, emColor::TRANSPARENT);
+                    painter.SetCanvasColor(look.bg_color);
                 }
             }
             OuterBorderType::Rect => {
@@ -1720,7 +1720,7 @@ How to move or set the focus:\n\
                 let d = s * 0.023;
                 let e = s * 0.02;
                 if !look.bg_color.IsTotallyTransparent() {
-                    painter.paint_rect(
+                    painter.PaintRect(
                         d,
                         d,
                         w - 2.0 * d,
@@ -1729,11 +1729,11 @@ How to move or set the focus:\n\
                         emColor::TRANSPARENT,
                     );
                     // C++ updates canvasColor to bg_color after fill.
-                    painter.set_canvas_color(look.bg_color);
+                    painter.SetCanvasColor(look.bg_color);
                 }
                 let color = dim_color(look.fg_color);
                 let sd = d + e * 0.5;
-                painter.paint_rect_outlined(
+                painter.PaintRectOutline(
                     sd,
                     sd,
                     w - 2.0 * sd,
@@ -1749,13 +1749,13 @@ How to move or set the focus:\n\
                 let e = s * 0.02;
                 let r = s * 0.22;
                 if !look.bg_color.IsTotallyTransparent() {
-                    painter.paint_round_rect(d, d, w - 2.0 * d, h - 2.0 * d, r, look.bg_color);
-                    painter.set_canvas_color(look.bg_color);
+                    painter.PaintRoundRect(d, d, w - 2.0 * d, h - 2.0 * d, r, look.bg_color);
+                    painter.SetCanvasColor(look.bg_color);
                 }
                 let color = dim_color(look.fg_color);
                 let sd = d + e * 0.5;
                 let sr = r - e * 0.5;
-                painter.paint_round_rect_outlined(
+                painter.PaintRoundRectOutline(
                     sd,
                     sd,
                     w - 2.0 * sd,
@@ -1773,11 +1773,11 @@ How to move or set the focus:\n\
                 let rnd_w = w - 2.0 * d;
                 let rnd_h = h - 2.0 * d;
                 let color = look.bg_color;
-                let mut color2 = painter.canvas_color();
+                let mut color2 = painter.GetCanvasColor();
                 if !color.IsTotallyTransparent() && (!color2.IsOpaque() || color2 != color) {
                     let r = rnd_r * (280.0 / 209.0);
                     let e = r - rnd_r;
-                    painter.paint_round_rect(
+                    painter.PaintRoundRect(
                         rnd_x - e,
                         rnd_y - e,
                         rnd_w + 2.0 * e,
@@ -1790,7 +1790,7 @@ How to move or set the focus:\n\
                 let r = rnd_r * (286.0 / 209.0);
                 let e = r - rnd_r;
                 super::toolkit_images::with_toolkit_images(|img| {
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         rnd_x - e,
                         rnd_y - e,
                         rnd_w + 2.0 * e,
@@ -1810,7 +1810,7 @@ How to move or set the focus:\n\
                     );
                 });
                 if !color.IsTotallyTransparent() {
-                    painter.set_canvas_color(color);
+                    painter.SetCanvasColor(color);
                 }
             }
             OuterBorderType::Instrument => {
@@ -1822,11 +1822,11 @@ How to move or set the focus:\n\
                 let rnd_w = w - 2.0 * d;
                 let rnd_h = h - 2.0 * d;
                 let color = look.bg_color;
-                let mut color2 = painter.canvas_color();
+                let mut color2 = painter.GetCanvasColor();
                 if !color.IsTotallyTransparent() && (!color2.IsOpaque() || color2 != color) {
                     let r = rnd_r * (280.0 / 209.0);
                     let e = r - rnd_r;
-                    painter.paint_round_rect(
+                    painter.PaintRoundRect(
                         rnd_x - e,
                         rnd_y - e,
                         rnd_w + 2.0 * e,
@@ -1839,7 +1839,7 @@ How to move or set the focus:\n\
                 let r = rnd_r * (286.0 / 209.0);
                 let e = r - rnd_r;
                 super::toolkit_images::with_toolkit_images(|img| {
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         rnd_x - e,
                         rnd_y - e,
                         rnd_w + 2.0 * e,
@@ -1859,7 +1859,7 @@ How to move or set the focus:\n\
                     );
                 });
                 if !color.IsTotallyTransparent() {
-                    painter.set_canvas_color(color);
+                    painter.SetCanvasColor(color);
                 }
             }
             OuterBorderType::InstrumentMoreRound => {
@@ -1871,11 +1871,11 @@ How to move or set the focus:\n\
                 let rnd_w = w - 2.0 * d;
                 let rnd_h = h - 2.0 * d;
                 let color = look.bg_color;
-                let mut color2 = painter.canvas_color();
+                let mut color2 = painter.GetCanvasColor();
                 if !color.IsTotallyTransparent() && (!color2.IsOpaque() || color2 != color) {
                     let r = rnd_r * (336.0 / 293.4);
                     let e = r - rnd_r;
-                    painter.paint_round_rect(
+                    painter.PaintRoundRect(
                         rnd_x - e,
                         rnd_y - e,
                         rnd_w + 2.0 * e,
@@ -1888,7 +1888,7 @@ How to move or set the focus:\n\
                 let r = rnd_r * (340.0 / 293.4);
                 let e = r - rnd_r;
                 super::toolkit_images::with_toolkit_images(|img| {
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         rnd_x - e,
                         rnd_y - e,
                         rnd_w + 2.0 * e,
@@ -1908,17 +1908,17 @@ How to move or set the focus:\n\
                     );
                 });
                 if !color.IsTotallyTransparent() {
-                    painter.set_canvas_color(color);
+                    painter.SetCanvasColor(color);
                 }
             }
             OuterBorderType::PopupRoot => {
                 let s = self.base_unit(w, h);
                 let d = s * 0.006;
                 let color = look.bg_color;
-                let canvas = painter.canvas_color();
+                let canvas = painter.GetCanvasColor();
                 if !color.IsTotallyTransparent() {
-                    painter.paint_rect(0.0, 0.0, w, h, color, emColor::TRANSPARENT);
-                    painter.set_canvas_color(color);
+                    painter.PaintRect(0.0, 0.0, w, h, color, emColor::TRANSPARENT);
+                    painter.SetCanvasColor(color);
                 }
                 let r = d; // C++ ratio 159.0/159.0 = 1.0
                 let cc = if !color.IsTotallyTransparent() {
@@ -1927,7 +1927,7 @@ How to move or set the focus:\n\
                     canvas
                 };
                 super::toolkit_images::with_toolkit_images(|img| {
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         0.0,
                         0.0,
                         w,
@@ -1969,7 +1969,7 @@ How to move or set the focus:\n\
             let tx = rnd_x + (hts - tw) * 0.5;
             let ty = oy + (rnd_h - th) * 0.5;
             // C++ GetTransparented(90) = alpha * 0.10 + 0.5
-            painter.paint_round_rect(
+            painter.PaintRoundRect(
                 tx,
                 ty,
                 tw,
@@ -1983,7 +1983,7 @@ How to move or set the focus:\n\
                 let d = tw * 0.01;
                 // C++ GetTransparented(35) = alpha * 0.65 + 0.5
                 let text_alpha = (look.fg_color.GetAlpha() as f64 * 0.65 + 0.5) as u8;
-                painter.paint_text_boxed(
+                painter.PaintTextBoxed(
                     tx + d,
                     ty + d,
                     tw - d * 2.0,
@@ -2066,9 +2066,9 @@ How to move or set the focus:\n\
         match self.inner {
             InnerBorderType::None => {}
             InnerBorderType::Group => {
-                let canvas = painter.canvas_color();
+                let canvas = painter.GetCanvasColor();
                 super::toolkit_images::with_toolkit_images(|img| {
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         inner_x,
                         inner_y,
                         inner_w,
@@ -2098,7 +2098,7 @@ How to move or set the focus:\n\
                 // border image at the full substance rect (rndX,rndY,rndW,rndH).
                 let d = (16.0 / 216.0) * inner_r;
                 let tr = inner_r - d;
-                painter.paint_round_rect(
+                painter.PaintRoundRect(
                     inner_x + d,
                     inner_y + d,
                     inner_w - 2.0 * d,
@@ -2106,7 +2106,7 @@ How to move or set the focus:\n\
                     tr,
                     bg,
                 );
-                painter.set_canvas_color(bg);
+                painter.SetCanvasColor(bg);
                 // C++ paints content HERE (PaintContent), then the IO field
                 // overlay on top. Widgets must call paint_inner_overlay() after
                 // painting their content to match this ordering.
@@ -2119,7 +2119,7 @@ How to move or set the focus:\n\
                 };
                 let d = (16.0 / 216.0) * inner_r;
                 let tr = inner_r - d;
-                painter.paint_round_rect(
+                painter.PaintRoundRect(
                     inner_x + d,
                     inner_y + d,
                     inner_w - 2.0 * d,
@@ -2127,7 +2127,7 @@ How to move or set the focus:\n\
                     tr,
                     bg,
                 );
-                painter.set_canvas_color(bg);
+                painter.SetCanvasColor(bg);
                 // Overlay painted by paint_inner_overlay() after content.
             }
             InnerBorderType::CustomRect => {
@@ -2148,9 +2148,9 @@ How to move or set the focus:\n\
                 if cr_r < r {
                     cr_r = r;
                 }
-                let canvas = painter.canvas_color();
+                let canvas = painter.GetCanvasColor();
                 super::toolkit_images::with_toolkit_images(|img| {
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         cr_x,
                         cr_y,
                         cr_w,
@@ -2223,7 +2223,7 @@ How to move or set the focus:\n\
         }
 
         super::toolkit_images::with_toolkit_images(|img| {
-            painter.paint_border_image(
+            painter.PaintBorderImage(
                 inner_x,
                 inner_y,
                 inner_w,
@@ -2256,7 +2256,7 @@ mod tests {
     #[test]
     fn content_rect_none_border() {
         let border = emBorder::new(OuterBorderType::None);
-        let Rect { x, y, w: cw, h: ch } = border.content_rect(100.0, 50.0, &test_look());
+        let Rect { x, y, w: cw, h: ch } = border.GetContentRect(100.0, 50.0, &test_look());
         assert!((x - 0.0).abs() < 0.01);
         assert!((y - 0.0).abs() < 0.01);
         assert!((cw - 100.0).abs() < 0.01);
@@ -2266,7 +2266,7 @@ mod tests {
     #[test]
     fn content_rect_rect_border() {
         let border = emBorder::new(OuterBorderType::Rect);
-        let Rect { x, y, w: cw, h: ch } = border.content_rect(100.0, 50.0, &test_look());
+        let Rect { x, y, w: cw, h: ch } = border.GetContentRect(100.0, 50.0, &test_look());
         // s = 50 * 1.0 = 50
         // outer_inset d = s * (0.023 + 0.02) = s * 0.043 = 2.15
         // After outer: rnd_w = 100 - 2*2.15 = 95.7, rnd_h = 50 - 2*2.15 = 45.7
@@ -2284,7 +2284,7 @@ mod tests {
     #[test]
     fn content_rect_with_caption() {
         let border = emBorder::new(OuterBorderType::Rect).with_caption("Test");
-        let Rect { x, y, w: cw, h: ch } = border.content_rect(100.0, 50.0, &test_look());
+        let Rect { x, y, w: cw, h: ch } = border.GetContentRect(100.0, 50.0, &test_look());
         let d = 50.0 * 0.043;
         let rnd_w = 100.0 - 2.0 * d;
         let rnd_h = 50.0 - 2.0 * d;
@@ -2302,7 +2302,7 @@ mod tests {
     #[test]
     fn content_rect_with_inner_input_field() {
         let border = emBorder::new(OuterBorderType::None).with_inner(InnerBorderType::InputField);
-        let Rect { x, y, w: cw, h: ch } = border.content_rect(100.0, 50.0, &test_look());
+        let Rect { x, y, w: cw, h: ch } = border.GetContentRect(100.0, 50.0, &test_look());
         // OBT_NONE: outer_inset=0, minSpace=0, rndR=0
         // No-label: all ms=0, rndR=0-0=0, so rec = rndX/rndW (no inscribed rect)
         // Inner IO: rndR = max(0, min(100,50)*1.0*0.094) = 4.7
@@ -2321,7 +2321,7 @@ mod tests {
         let border = emBorder::new(OuterBorderType::Instrument)
             .with_caption("Cap")
             .with_inner(InnerBorderType::InputField);
-        let r = border.content_rect(100.0, 80.0, &test_look());
+        let r = border.GetContentRect(100.0, 80.0, &test_look());
         // Just verify it produces a sane rect inside the panel.
         // The exact values depend on the inscribed-rect chain
         // (outer inscribed + inner IO inscribed) which matches C++ DoBorder.
@@ -2337,7 +2337,7 @@ mod tests {
             .with_caption("Title")
             .with_inner(InnerBorderType::Group);
         let (pw, ph) = border.preferred_size_for_content(50.0, 30.0);
-        let Rect { w: cw, h: ch, .. } = border.content_rect(pw, ph, &test_look());
+        let Rect { w: cw, h: ch, .. } = border.GetContentRect(pw, ph, &test_look());
         // Approximate round-trip: preferred_size_for_content uses simple additive
         // insets while content_rect uses the full inscribed-rect conversion, so
         // the round-trip is lossy. Allow broad tolerance.
@@ -2359,7 +2359,7 @@ mod tests {
         let border = emBorder::new(OuterBorderType::Instrument)
             .with_caption("Cap")
             .with_inner(InnerBorderType::InputField);
-        let r = border.content_rect(1.0, 1.0, &test_look());
+        let r = border.GetContentRect(1.0, 1.0, &test_look());
         assert!(r.w >= 0.0);
         assert!(r.h >= 0.0);
     }
@@ -2390,7 +2390,7 @@ mod tests {
     fn has_label_with_icon_only() {
         let img = emImage::new(16, 16, 4);
         let border = emBorder::new(OuterBorderType::None).with_icon(img);
-        assert!(border.has_label());
+        assert!(border.HasLabel());
     }
 
     #[test]
@@ -2399,7 +2399,7 @@ mod tests {
         let mut border = emBorder::new(OuterBorderType::None)
             .with_caption("Cap")
             .with_icon(img);
-        border.set_icon_above_caption(true);
+        border.SetIconAboveCaption(true);
         let area_h = 100.0;
         let layout = border.label_layout(0.0, 0.0, 200.0, area_h);
         // icon_above: total_units = 3.0 + 0.1 + 1.0 = 4.1, total = area_h
@@ -2415,8 +2415,8 @@ mod tests {
         let mut border = emBorder::new(OuterBorderType::None)
             .with_caption("Cap")
             .with_icon(img);
-        border.set_icon_above_caption(true);
-        let r = border.content_rect(200.0, 200.0, &test_look());
+        border.SetIconAboveCaption(true);
+        let r = border.GetContentRect(200.0, 200.0, &test_look());
         // OuterBorderType::None has zero insets, so rnd = full dims.
         // Content rect offset = label_space (includes padding around text).
         let ls = border.label_space(200.0, 200.0);
@@ -2441,19 +2441,19 @@ mod tests {
             "default look bg should be opaque"
         );
         let border = emBorder::new(OuterBorderType::Filled);
-        assert!(border.is_opaque(&look));
+        assert!(border.IsOpaque(&look));
     }
 
     #[test]
     fn is_opaque_margin_filled() {
         let border = emBorder::new(OuterBorderType::MarginFilled);
-        assert!(border.is_opaque(&test_look()));
+        assert!(border.IsOpaque(&test_look()));
     }
 
     #[test]
     fn is_opaque_popup_root() {
         let border = emBorder::new(OuterBorderType::PopupRoot);
-        assert!(border.is_opaque(&test_look()));
+        assert!(border.IsOpaque(&test_look()));
     }
 
     #[test]
@@ -2469,7 +2469,7 @@ mod tests {
             OuterBorderType::InstrumentMoreRound,
         ] {
             let border = emBorder::new(outer);
-            assert!(!border.is_opaque(&look), "expected false for {outer:?}");
+            assert!(!border.IsOpaque(&look), "expected false for {outer:?}");
         }
     }
 
@@ -2479,7 +2479,7 @@ mod tests {
         let mut look = test_look();
         look.bg_color = emColor::rgba(100, 100, 100, 128);
         let border = emBorder::new(OuterBorderType::Filled);
-        assert!(!border.is_opaque(&look));
+        assert!(!border.IsOpaque(&look));
     }
 
     // --- substance_round_rect tests ---
@@ -2487,7 +2487,7 @@ mod tests {
     #[test]
     fn substance_none_is_full_rect() {
         let border = emBorder::new(OuterBorderType::None);
-        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        let (rect, r) = border.GetSubstanceRect(200.0, 100.0);
         assert!(rect.x.abs() < 0.001);
         assert!(rect.y.abs() < 0.001);
         assert!((rect.w - 200.0).abs() < 0.001);
@@ -2498,7 +2498,7 @@ mod tests {
     #[test]
     fn substance_filled_is_full_rect() {
         let border = emBorder::new(OuterBorderType::Filled);
-        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        let (rect, r) = border.GetSubstanceRect(200.0, 100.0);
         assert!((rect.w - 200.0).abs() < 0.001);
         assert!((rect.h - 100.0).abs() < 0.001);
         assert!(r.abs() < 0.001);
@@ -2507,7 +2507,7 @@ mod tests {
     #[test]
     fn substance_margin_is_inset() {
         let border = emBorder::new(OuterBorderType::Margin);
-        let (rect, r) = border.substance_round_rect(100.0, 100.0);
+        let (rect, r) = border.GetSubstanceRect(100.0, 100.0);
         let d = 100.0 * 0.04;
         assert!((rect.x - d).abs() < 0.01);
         assert!((rect.y - d).abs() < 0.01);
@@ -2519,7 +2519,7 @@ mod tests {
     #[test]
     fn substance_round_rect_has_radius() {
         let border = emBorder::new(OuterBorderType::RoundRect);
-        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        let (rect, r) = border.GetSubstanceRect(200.0, 100.0);
         assert!(r > 0.0, "round rect substance should have positive radius");
         assert!(rect.w < 200.0, "should be inset from full width");
     }
@@ -2527,7 +2527,7 @@ mod tests {
     #[test]
     fn substance_group_expanded_from_rnd() {
         let border = emBorder::new(OuterBorderType::Group);
-        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        let (rect, r) = border.GetSubstanceRect(200.0, 100.0);
         let s = 100.0; // min(200,100) * 1.0
         let d = s * 0.0104; // outer inset
         let rnd_r = s * 0.0188;
@@ -2540,7 +2540,7 @@ mod tests {
     #[test]
     fn substance_popup_root_is_full_rect() {
         let border = emBorder::new(OuterBorderType::PopupRoot);
-        let (rect, r) = border.substance_round_rect(200.0, 100.0);
+        let (rect, r) = border.GetSubstanceRect(200.0, 100.0);
         assert!(rect.x.abs() < 0.001);
         assert!((rect.w - 200.0).abs() < 0.001);
         assert!(r.abs() < 0.001);
@@ -2552,7 +2552,7 @@ mod tests {
     fn content_round_rect_none_border() {
         let border = emBorder::new(OuterBorderType::None);
         let look = test_look();
-        let (rect, r) = border.content_round_rect(100.0, 50.0, &look);
+        let (rect, r) = border.GetContentRoundRect(100.0, 50.0, &look);
         assert!(rect.x.abs() < 0.01);
         assert!(rect.y.abs() < 0.01);
         assert!((rect.w - 100.0).abs() < 0.01);
@@ -2564,7 +2564,7 @@ mod tests {
     fn content_round_rect_with_inner_input_field() {
         let border = emBorder::new(OuterBorderType::None).with_inner(InnerBorderType::InputField);
         let look = test_look();
-        let (rect, r) = border.content_round_rect(100.0, 50.0, &look);
+        let (rect, r) = border.GetContentRoundRect(100.0, 50.0, &look);
         // OBT_NONE: outer_inset=0, minSpace=0
         // inner inset d = s * 0.094 * (16/216), s = min(100,50) * 1.0 = 50
         let d = 50.0 * 0.094 * (16.0 / 216.0);
@@ -2580,8 +2580,8 @@ mod tests {
         // So content_rect should be inset by ~radius*0.5 from the round rect.
         let border = emBorder::new(OuterBorderType::Rect).with_inner(InnerBorderType::Group);
         let look = test_look();
-        let (rr, radius) = border.content_round_rect(100.0, 60.0, &look);
-        let cr = border.content_rect(100.0, 60.0, &look);
+        let (rr, radius) = border.GetContentRoundRect(100.0, 60.0, &look);
+        let cr = border.GetContentRect(100.0, 60.0, &look);
         if radius > 0.0 {
             assert!(cr.x >= rr.x, "cr.x={} < rr.x={}", cr.x, rr.x);
             assert!(cr.w <= rr.w, "cr.w={} > rr.w={}", cr.w, rr.w);
@@ -2596,8 +2596,8 @@ mod tests {
     fn content_rect_unobscured_equals_content_rect_for_none() {
         let border = emBorder::new(OuterBorderType::Rect);
         let look = test_look();
-        let cr = border.content_rect(100.0, 50.0, &look);
-        let cu = border.content_rect_unobscured(100.0, 50.0, &look);
+        let cr = border.GetContentRect(100.0, 50.0, &look);
+        let cu = border.GetContentRectUnobscured(100.0, 50.0, &look);
         assert!((cr.x - cu.x).abs() < 0.001);
         assert!((cr.y - cu.y).abs() < 0.001);
         assert!((cr.w - cu.w).abs() < 0.001);
@@ -2608,8 +2608,8 @@ mod tests {
     fn content_rect_unobscured_smaller_for_input_field() {
         let border = emBorder::new(OuterBorderType::None).with_inner(InnerBorderType::InputField);
         let look = test_look();
-        let cr = border.content_rect(200.0, 100.0, &look);
-        let cu = border.content_rect_unobscured(200.0, 100.0, &look);
+        let cr = border.GetContentRect(200.0, 100.0, &look);
+        let cu = border.GetContentRectUnobscured(200.0, 100.0, &look);
         // Unobscured should be strictly inset from content rect.
         assert!(
             cu.x > cr.x,
@@ -2641,8 +2641,8 @@ mod tests {
     fn content_rect_unobscured_equals_content_rect_for_group_inner() {
         let border = emBorder::new(OuterBorderType::None).with_inner(InnerBorderType::Group);
         let look = test_look();
-        let cr = border.content_rect(200.0, 100.0, &look);
-        let cu = border.content_rect_unobscured(200.0, 100.0, &look);
+        let cr = border.GetContentRect(200.0, 100.0, &look);
+        let cu = border.GetContentRectUnobscured(200.0, 100.0, &look);
         assert!((cr.x - cu.x).abs() < 0.001);
         assert!((cr.w - cu.w).abs() < 0.001);
     }
@@ -2652,61 +2652,61 @@ mod tests {
     #[test]
     fn aux_defaults_absent() {
         let border = emBorder::new(OuterBorderType::None);
-        assert_eq!(border.get_aux_panel_name(), "");
-        assert!((border.get_aux_tallness() - 1.0).abs() < f64::EPSILON);
-        assert!(!border.has_aux_panel());
-        assert!(border.get_aux_rect(200.0, 100.0).is_none());
+        assert_eq!(border.GetAuxPanelName(), "");
+        assert!((border.GetAuxTallness() - 1.0).abs() < f64::EPSILON);
+        assert!(!border.HasAux());
+        assert!(border.GetAuxRect(200.0, 100.0).is_none());
     }
 
     #[test]
     fn have_aux_creates_aux() {
         let mut border = emBorder::new(OuterBorderType::None);
-        border.have_aux("my_panel", 2.0);
-        assert_eq!(border.get_aux_panel_name(), "my_panel");
-        assert!((border.get_aux_tallness() - 2.0).abs() < f64::EPSILON);
-        assert!(border.has_aux_panel());
+        border.HaveAux("my_panel", 2.0);
+        assert_eq!(border.GetAuxPanelName(), "my_panel");
+        assert!((border.GetAuxTallness() - 2.0).abs() < f64::EPSILON);
+        assert!(border.HasAux());
     }
 
     #[test]
     fn have_aux_updates_name() {
         let mut border = emBorder::new(OuterBorderType::None);
-        border.have_aux("p1", 1.0);
-        border.have_aux("p2", 1.0);
-        assert_eq!(border.get_aux_panel_name(), "p2");
+        border.HaveAux("p1", 1.0);
+        border.HaveAux("p2", 1.0);
+        assert_eq!(border.GetAuxPanelName(), "p2");
     }
 
     #[test]
     fn have_aux_updates_tallness() {
         let mut border = emBorder::new(OuterBorderType::None);
-        border.have_aux("p1", 1.0);
-        border.have_aux("p1", 3.5);
-        assert!((border.get_aux_tallness() - 3.5).abs() < f64::EPSILON);
+        border.HaveAux("p1", 1.0);
+        border.HaveAux("p1", 3.5);
+        assert!((border.GetAuxTallness() - 3.5).abs() < f64::EPSILON);
     }
 
     #[test]
     fn remove_aux_clears() {
         let mut border = emBorder::new(OuterBorderType::None);
-        border.have_aux("p1", 2.0);
-        border.remove_aux();
-        assert_eq!(border.get_aux_panel_name(), "");
-        assert!((border.get_aux_tallness() - 1.0).abs() < f64::EPSILON);
-        assert!(!border.has_aux_panel());
-        assert!(border.get_aux_rect(200.0, 100.0).is_none());
+        border.HaveAux("p1", 2.0);
+        border.RemoveAux();
+        assert_eq!(border.GetAuxPanelName(), "");
+        assert!((border.GetAuxTallness() - 1.0).abs() < f64::EPSILON);
+        assert!(!border.HasAux());
+        assert!(border.GetAuxRect(200.0, 100.0).is_none());
     }
 
     #[test]
     fn remove_aux_noop_when_absent() {
         let mut border = emBorder::new(OuterBorderType::None);
-        border.remove_aux(); // should not panic
-        assert!(!border.has_aux_panel());
+        border.RemoveAux(); // should not panic
+        assert!(!border.HasAux());
     }
 
     #[test]
     fn aux_rect_no_label_positive_dimensions() {
         let mut border = emBorder::new(OuterBorderType::Rect);
-        border.have_aux("aux", 1.0);
+        border.HaveAux("aux", 1.0);
         let rect = border
-            .get_aux_rect(200.0, 100.0)
+            .GetAuxRect(200.0, 100.0)
             .expect("aux should be present");
         assert!(rect.w > 0.0, "aux width should be positive");
         assert!(rect.h > 0.0, "aux height should be positive");
@@ -2722,9 +2722,9 @@ mod tests {
     #[test]
     fn aux_rect_with_label_positive_dimensions() {
         let mut border = emBorder::new(OuterBorderType::Rect).with_caption("Caption");
-        border.have_aux("aux", 1.5);
+        border.HaveAux("aux", 1.5);
         let rect = border
-            .get_aux_rect(200.0, 100.0)
+            .GetAuxRect(200.0, 100.0)
             .expect("aux should be present");
         assert!(rect.w > 0.0, "aux width should be positive");
         assert!(rect.h > 0.0, "aux height should be positive");
@@ -2738,12 +2738,12 @@ mod tests {
     #[test]
     fn aux_rect_tallness_affects_shape() {
         let mut b1 = emBorder::new(OuterBorderType::None);
-        b1.have_aux("aux", 1.0);
-        let r1 = b1.get_aux_rect(200.0, 200.0).unwrap();
+        b1.HaveAux("aux", 1.0);
+        let r1 = b1.GetAuxRect(200.0, 200.0).unwrap();
 
         let mut b2 = emBorder::new(OuterBorderType::None);
-        b2.have_aux("aux", 2.0);
-        let r2 = b2.get_aux_rect(200.0, 200.0).unwrap();
+        b2.HaveAux("aux", 2.0);
+        let r2 = b2.GetAuxRect(200.0, 200.0).unwrap();
 
         // Higher tallness means taller relative to width.
         assert!(
@@ -2763,7 +2763,7 @@ mod tests {
         let border = emBorder::new(OuterBorderType::Rect);
         let w = 1000.0_f64;
         let h = 100.0_f64;
-        let (rect, radius) = border.substance_round_rect(w, h);
+        let (rect, radius) = border.GetSubstanceRect(w, h);
 
         // s = min(1000, 100) * 1.0 = 100.0
         // d = 100.0 * 0.023 = 2.3
@@ -2813,7 +2813,7 @@ mod tests {
         let border = emBorder::new(OuterBorderType::RoundRect);
         let w = 1000.0_f64;
         let h = 100.0_f64;
-        let (rect, radius) = border.substance_round_rect(w, h);
+        let (rect, radius) = border.GetSubstanceRect(w, h);
 
         let s = w.min(h) * border.border_scaling;
         let expected_d = s * 0.023;
@@ -2869,7 +2869,7 @@ mod tests {
         let border = emBorder::new(OuterBorderType::None)
             .with_caption("Hi")
             .with_description("A short description");
-        let t = border.best_label_tallness();
+        let t = border.GetBestLabelTallness();
         assert!(t > 0.0, "tallness should be positive, got {t}");
     }
 
@@ -2881,15 +2881,15 @@ mod tests {
         let no_icon = emBorder::new(OuterBorderType::None)
             .with_caption("Hi")
             .with_description("A short description");
-        let t_no_icon = no_icon.best_label_tallness();
+        let t_no_icon = no_icon.GetBestLabelTallness();
 
         let icon = emImage::new(16, 16, 4);
         let mut with_icon = emBorder::new(OuterBorderType::None)
             .with_caption("Hi")
             .with_description("A short description")
             .with_icon(icon);
-        with_icon.set_icon_above_caption(true);
-        let t_with_icon = with_icon.best_label_tallness();
+        with_icon.SetIconAboveCaption(true);
+        let t_with_icon = with_icon.GetBestLabelTallness();
 
         assert!(
             t_with_icon > t_no_icon,
@@ -2904,14 +2904,14 @@ mod tests {
         let no_icon = emBorder::new(OuterBorderType::None)
             .with_caption("Hi")
             .with_description("A short description");
-        let t_no_icon = no_icon.best_label_tallness();
+        let t_no_icon = no_icon.GetBestLabelTallness();
 
         let icon = emImage::new(32, 32, 4);
         let with_icon = emBorder::new(OuterBorderType::None)
             .with_caption("Hi")
             .with_description("A short description")
             .with_icon(icon);
-        let t_with_icon = with_icon.best_label_tallness();
+        let t_with_icon = with_icon.GetBestLabelTallness();
 
         assert!(
             (t_with_icon - t_no_icon).abs() > 1e-6,
@@ -2931,16 +2931,16 @@ mod tests {
             .with_caption("Hi")
             .with_description("A short description")
             .with_icon(icon);
-        above.set_icon_above_caption(true);
-        let t_above = above.best_label_tallness();
+        above.SetIconAboveCaption(true);
+        let t_above = above.GetBestLabelTallness();
 
         let icon2 = emImage::new(16, 64, 4);
         let mut beside = emBorder::new(OuterBorderType::None)
             .with_caption("Hi")
             .with_description("A short description")
             .with_icon(icon2);
-        beside.set_icon_above_caption(false);
-        let t_beside = beside.best_label_tallness();
+        beside.SetIconAboveCaption(false);
+        let t_beside = beside.GetBestLabelTallness();
 
         assert!(
             (t_above - t_beside).abs() > 1e-6,
@@ -2959,17 +2959,17 @@ mod tests {
         // (clamped by max_icon_area_tallness).
         let icon = emImage::new(16, 64, 4);
         let with_icon = emBorder::new(OuterBorderType::None).with_icon(icon);
-        let t = with_icon.best_label_tallness();
+        let t = with_icon.GetBestLabelTallness();
 
         let no_label = emBorder::new(OuterBorderType::None);
-        let t_empty = no_label.best_label_tallness();
+        let t_empty = no_label.GetBestLabelTallness();
 
         // The icon (16x64 → raw tallness 4.0, clamped to max_icon_area_tallness=1.0)
         // should still produce tallness = 1.0, same as the no-label default.
         // But with a wider icon the tallness should differ from default.
         let wide_icon = emImage::new(64, 16, 4);
         let with_wide = emBorder::new(OuterBorderType::None).with_icon(wide_icon);
-        let t_wide = with_wide.best_label_tallness();
+        let t_wide = with_wide.GetBestLabelTallness();
 
         // wide icon (64x16) → tallness = 16/64 = 0.25, less than default 1.0
         assert!(
@@ -3043,13 +3043,13 @@ mod tests {
 
         // content_rect: the label_h used should match the pre-HowTo value.
         let look = test_look();
-        let r_howto = border_howto.content_rect(w, h, &look);
+        let r_howto = border_howto.GetContentRect(w, h, &look);
 
         // Without HowTo, same caption — label_h should be identical because
         // both use s = min(rnd_w, rnd_h) before any HowTo shift.
         let border_no_howto = emBorder::new(OuterBorderType::None)
             .with_caption("Test");
-        let r_no_howto = border_no_howto.content_rect(w, h, &look);
+        let r_no_howto = border_no_howto.GetContentRect(w, h, &look);
 
         // With the fix, the label contribution to `y` is the same in both
         // cases (label_h = s * factor, s computed pre-HowTo).
@@ -3084,8 +3084,8 @@ mod tests {
         let h = 200.0;
         let look = test_look();
 
-        let (rr_howto, _) = border_howto.content_round_rect(w, h, &look);
-        let (rr_no_howto, _) = border_no_howto.content_round_rect(w, h, &look);
+        let (rr_howto, _) = border_howto.GetContentRoundRect(w, h, &look);
+        let (rr_no_howto, _) = border_no_howto.GetContentRoundRect(w, h, &look);
 
         // label_h determines the y offset — it must be the same whether or not
         // HowTo is enabled, because s is computed pre-HowTo.
@@ -3116,8 +3116,8 @@ mod tests {
         let h = 200.0;
         let look = test_look();
 
-        let cu_cap = border_cap.content_rect_unobscured(w, h, &look);
-        let cu_nocap = border_nocap.content_rect_unobscured(w, h, &look);
+        let cu_cap = border_cap.GetContentRectUnobscured(w, h, &look);
+        let cu_nocap = border_nocap.GetContentRectUnobscured(w, h, &look);
 
         // The y difference is label_h (plus downstream effects through rnd_h
         // on the IO radius bump). For OuterBorderType::None with ms=0:
@@ -3185,14 +3185,14 @@ mod tests {
         drop(painter);
 
         // Corner pixels must be bg_color, not canvas color.
-        let tl = img.pixel(0, 0);
+        let tl = img.GetPixel(0, 0);
         assert_eq!(
             [tl[0], tl[1], tl[2], tl[3]],
             [bg.GetRed(), bg.GetGreen(), bg.GetBlue(), bg.GetAlpha()],
             "top-left corner (0,0) should be bg_color, not canvas"
         );
 
-        let br = img.pixel(99, 99);
+        let br = img.GetPixel(99, 99);
         assert_eq!(
             [br[0], br[1], br[2], br[3]],
             [bg.GetRed(), bg.GetGreen(), bg.GetBlue(), bg.GetAlpha()],
@@ -3200,7 +3200,7 @@ mod tests {
         );
 
         // Also check a pixel inside the old inset area to confirm it's still filled.
-        let mid = img.pixel(50, 50);
+        let mid = img.GetPixel(50, 50);
         assert_eq!(
             [mid[0], mid[1], mid[2], mid[3]],
             [bg.GetRed(), bg.GetGreen(), bg.GetBlue(), bg.GetAlpha()],
@@ -3318,8 +3318,8 @@ mod tests {
         // The two buffers must differ — the large-scale render includes text
         // that the small-scale render omits.
         assert_ne!(
-            img_large.data(),
-            img_small.data(),
+            img_large.GetMap(),
+            img_small.GetMap(),
             "HowTo pill text should be visible at pixel_scale=100.0 but hidden \
              at pixel_scale=0.01; buffers must differ"
         );

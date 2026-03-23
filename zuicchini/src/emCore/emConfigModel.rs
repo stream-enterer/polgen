@@ -60,7 +60,7 @@ impl<T: Record> emConfigModel<T> {
 
     /// Reset the value to its default. Returns `true` if dirty flag was set.
     pub fn SetToDefault(&mut self) -> bool {
-        self.value.set_to_default();
+        self.value.SetToDefault();
         self.dirty = true;
         true
     }
@@ -93,7 +93,7 @@ impl<T: Record> emConfigModel<T> {
         if self.path.exists() {
             self.TryLoad()
         } else {
-            self.value.set_to_default();
+            self.value.SetToDefault();
             self.dirty = true;
             self.Save()
         }

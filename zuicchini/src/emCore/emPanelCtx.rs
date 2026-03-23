@@ -45,7 +45,7 @@ impl<'a> PanelCtx<'a> {
 
     /// Set layout rect for a child panel.
     pub fn layout_child(&mut self, child: PanelId, x: f64, y: f64, w: f64, h: f64) {
-        self.tree.set_layout_rect(child, x, y, w, h);
+        self.tree.Layout(child, x, y, w, h);
     }
 
     /// Set layout rect and canvas color for a child panel.
@@ -62,7 +62,7 @@ impl<'a> PanelCtx<'a> {
         h: f64,
         canvas_color: emColor,
     ) {
-        self.tree.set_layout_rect(child, x, y, w, h);
+        self.tree.Layout(child, x, y, w, h);
         self.tree.set_canvas_color(child, canvas_color);
     }
 
@@ -154,7 +154,7 @@ impl<'a> PanelCtx<'a> {
 
     /// Remove all children of the current panel.
     pub fn delete_all_children(&mut self) {
-        self.tree.delete_all_children(self.id);
+        self.tree.DeleteAllChildren(self.id);
     }
 
     /// Find a child by name.
@@ -177,7 +177,7 @@ impl<'a> PanelCtx<'a> {
 
     /// Set the enable switch for the current panel.
     pub fn set_enable_switch(&mut self, enable: bool) {
-        self.tree.set_enable_switch(self.id, enable);
+        self.tree.SetEnableSwitch(self.id, enable);
     }
 
     /// Get the number of children.

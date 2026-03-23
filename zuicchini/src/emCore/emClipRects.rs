@@ -34,12 +34,12 @@ impl ClipRects {
     }
 
     /// Whether the set is empty.
-    pub fn is_empty(&self) -> bool {
+    pub fn IsEmpty(&self) -> bool {
         self.rects.is_empty()
     }
 
     /// Number of rectangles.
-    pub fn count(&self) -> usize {
+    pub fn GetCount(&self) -> usize {
         self.rects.len()
     }
 
@@ -106,7 +106,7 @@ impl ClipRects {
 
     /// Compute the bounding box of all rectangles.
     /// Returns `(0, 0, 0, 0)` if empty.
-    pub fn get_min_max(&self) -> (f64, f64, f64, f64) {
+    pub fn GetMinMax(&self) -> (f64, f64, f64, f64) {
         if self.rects.is_empty() {
             return (0.0, 0.0, 0.0, 0.0);
         }
@@ -247,12 +247,12 @@ impl ClipRects {
     }
 
     /// Clear all rectangles.
-    pub fn clear(&mut self) {
+    pub fn Clear(&mut self) {
         self.rects.clear();
     }
 
     /// Set to a single rectangle, replacing all existing contents.
-    pub fn set(&mut self, x1: f64, y1: f64, x2: f64, y2: f64) {
+    pub fn Set(&mut self, x1: f64, y1: f64, x2: f64, y2: f64) {
         self.rects.clear();
         if x1 < x2 && y1 < y2 {
             self.rects.push(ClipRect { x1, y1, x2, y2 });
@@ -260,47 +260,47 @@ impl ClipRects {
     }
 
     /// Replace contents with the bounding box of the current set.
-    pub fn set_to_min_max(&mut self) {
+    pub fn SetToMinMax(&mut self) {
         if self.rects.len() <= 1 {
             return;
         }
-        let (x1, y1, x2, y2) = self.get_min_max();
-        self.set(x1, y1, x2, y2);
+        let (x1, y1, x2, y2) = self.GetMinMax();
+        self.Set(x1, y1, x2, y2);
     }
 
     /// Set this set to the bounding box of another set.
     ///
     /// Port of C++ `emClipRects::SetToMinMaxOf`.
-    pub fn set_to_min_max_of(&mut self, other: &ClipRects) {
+    pub fn SetToMinMaxOf(&mut self, other: &ClipRects) {
         if other.rects.len() <= 1 {
             self.rects.clone_from(&other.rects);
         } else {
-            let (x1, y1, x2, y2) = other.get_min_max();
-            self.set(x1, y1, x2, y2);
+            let (x1, y1, x2, y2) = other.GetMinMax();
+            self.Set(x1, y1, x2, y2);
         }
     }
 
     /// Check whether this set contains all of another set.
     ///
     /// Port of C++ `emClipRects::IsSupersetOf(const emClipRects&)`.
-    pub fn is_superset_of(&self, other: &ClipRects) -> bool {
-        other.is_subset_of(self)
+    pub fn IsSupersetOf(&self, other: &ClipRects) -> bool {
+        other.IsSubsetOf(self)
     }
 
     /// Add all rectangles from another set (union).
-    pub fn unite(&mut self, other: &ClipRects) {
+    pub fn Unite(&mut self, other: &ClipRects) {
         for r in &other.rects {
             Self::priv_unite(&mut self.rects, r.x1, r.y1, r.x2, r.y2);
         }
     }
 
     /// Intersect with another set of clip rects.
-    pub fn intersect(&mut self, other: &ClipRects) {
+    pub fn Intersect(&mut self, other: &ClipRects) {
         if self.rects.is_empty() {
             return;
         }
         if other.rects.is_empty() {
-            self.clear();
+            self.Clear();
             return;
         }
         if other.rects.len() == 1 {
@@ -316,14 +316,14 @@ impl ClipRects {
             return;
         }
         let mut complement = Self::new();
-        let (x1, y1, x2, y2) = self.get_min_max();
-        complement.set(x1, y1, x2, y2);
-        complement.subtract(other);
-        self.subtract(&complement);
+        let (x1, y1, x2, y2) = self.GetMinMax();
+        complement.Set(x1, y1, x2, y2);
+        complement.Subtract(other);
+        self.Subtract(&complement);
     }
 
     /// Subtract all rectangles of another set.
-    pub fn subtract(&mut self, other: &ClipRects) {
+    pub fn Subtract(&mut self, other: &ClipRects) {
         for r in &other.rects {
             if self.rects.is_empty() {
                 break;
@@ -333,7 +333,7 @@ impl ClipRects {
     }
 
     /// Sort rectangles by Y1 then X1.
-    pub fn sort(&mut self) {
+    pub fn Sort(&mut self) {
         self.rects.sort_by(|a, b| {
             a.y1.partial_cmp(&b.y1)
                 .unwrap()
@@ -352,7 +352,7 @@ impl ClipRects {
     }
 
     /// Check whether this set is a subset of another set.
-    pub fn is_subset_of(&self, other: &ClipRects) -> bool {
+    pub fn IsSubsetOf(&self, other: &ClipRects) -> bool {
         if self.rects.is_empty() {
             return true;
         }
@@ -364,19 +364,19 @@ impl ClipRects {
             return self.is_subset_of_rect(r.x1, r.y1, r.x2, r.y2);
         }
         let mut diff = self.clone();
-        diff.subtract(other);
-        diff.is_empty()
+        diff.Subtract(other);
+        diff.IsEmpty()
     }
 
     /// Check whether this set contains the given rectangle.
     pub fn is_superset_of_rect(&self, x1: f64, y1: f64, x2: f64, y2: f64) -> bool {
-        ClipRects::from_rect(x1, y1, x2, y2).is_subset_of(self)
+        ClipRects::from_rect(x1, y1, x2, y2).IsSubsetOf(self)
     }
 }
 
 impl PartialEq for ClipRects {
     fn eq(&self, other: &Self) -> bool {
-        self.is_subset_of(other) && other.is_subset_of(self)
+        self.IsSubsetOf(other) && other.IsSubsetOf(self)
     }
 }
 
@@ -387,16 +387,16 @@ mod tests {
     #[test]
     fn empty_set() {
         let cr = ClipRects::new();
-        assert!(cr.is_empty());
+        assert!(cr.IsEmpty());
         assert_eq!(cr.count(), 0);
-        assert_eq!(cr.get_min_max(), (0.0, 0.0, 0.0, 0.0));
+        assert_eq!(cr.GetMinMax(), (0.0, 0.0, 0.0, 0.0));
     }
 
     #[test]
     fn single_rect() {
         let cr = ClipRects::from_rect(10.0, 20.0, 30.0, 40.0);
         assert_eq!(cr.count(), 1);
-        assert_eq!(cr.get_min_max(), (10.0, 20.0, 30.0, 40.0));
+        assert_eq!(cr.GetMinMax(), (10.0, 20.0, 30.0, 40.0));
     }
 
     #[test]
@@ -404,14 +404,14 @@ mod tests {
         let mut cr = ClipRects::from_rect(0.0, 0.0, 10.0, 10.0);
         cr.unite_rect(20.0, 20.0, 30.0, 30.0);
         assert_eq!(cr.count(), 2);
-        assert_eq!(cr.get_min_max(), (0.0, 0.0, 30.0, 30.0));
+        assert_eq!(cr.GetMinMax(), (0.0, 0.0, 30.0, 30.0));
     }
 
     #[test]
     fn unite_overlapping_merges() {
         let mut cr = ClipRects::from_rect(0.0, 0.0, 10.0, 10.0);
         cr.unite_rect(5.0, 0.0, 15.0, 10.0);
-        let (x1, y1, x2, y2) = cr.get_min_max();
+        let (x1, y1, x2, y2) = cr.GetMinMax();
         assert!(x1 <= 0.0);
         assert!(y1 <= 0.0);
         assert!(x2 >= 15.0);
@@ -456,14 +456,14 @@ mod tests {
     fn intersect_rect_no_overlap() {
         let mut cr = ClipRects::from_rect(0.0, 0.0, 5.0, 5.0);
         cr.intersect_rect(10.0, 10.0, 20.0, 20.0);
-        assert!(cr.is_empty());
+        assert!(cr.IsEmpty());
     }
 
     #[test]
     fn subtract_rect_splits() {
         let mut cr = ClipRects::from_rect(0.0, 0.0, 10.0, 10.0);
         cr.subtract_rect(3.0, 3.0, 7.0, 7.0);
-        assert!(!cr.is_empty());
+        assert!(!cr.IsEmpty());
         assert!(!cr.is_superset_of_rect(3.0, 3.0, 7.0, 7.0));
         assert!(cr.is_superset_of_rect(0.0, 0.0, 3.0, 3.0));
     }
@@ -472,7 +472,7 @@ mod tests {
     fn subtract_rect_full_removal() {
         let mut cr = ClipRects::from_rect(0.0, 0.0, 10.0, 10.0);
         cr.subtract_rect(-1.0, -1.0, 11.0, 11.0);
-        assert!(cr.is_empty());
+        assert!(cr.IsEmpty());
     }
 
     #[test]
@@ -486,7 +486,7 @@ mod tests {
     fn intersect_two_sets() {
         let mut a = ClipRects::from_rect(0.0, 0.0, 10.0, 10.0);
         let b = ClipRects::from_rect(5.0, 5.0, 15.0, 15.0);
-        a.intersect(&b);
+        a.Intersect(&b);
         assert!(a.is_subset_of_rect(5.0, 5.0, 10.0, 10.0));
     }
 
@@ -495,7 +495,7 @@ mod tests {
         let mut cr = ClipRects::from_rect(0.0, 0.0, 5.0, 5.0);
         cr.unite_rect(10.0, 10.0, 15.0, 15.0);
         assert_eq!(cr.count(), 2);
-        cr.set_to_min_max();
+        cr.SetToMinMax();
         assert_eq!(cr.count(), 1);
         let r = cr.iter().next().unwrap();
         assert_eq!((r.x1, r.y1, r.x2, r.y2), (0.0, 0.0, 15.0, 15.0));
@@ -507,7 +507,7 @@ mod tests {
         cr.unite_rect(10.0, 10.0, 20.0, 20.0);
         cr.unite_rect(0.0, 0.0, 5.0, 5.0);
         cr.unite_rect(5.0, 0.0, 8.0, 5.0);
-        cr.sort();
+        cr.Sort();
         let rects: Vec<_> = cr.iter().collect();
         for i in 1..rects.len() {
             assert!(
@@ -537,14 +537,14 @@ mod tests {
     fn subtract_from_empty_noop() {
         let mut cr = ClipRects::new();
         cr.subtract_rect(0.0, 0.0, 10.0, 10.0);
-        assert!(cr.is_empty());
+        assert!(cr.IsEmpty());
     }
 
     #[test]
     fn is_subset_of_check() {
         let a = ClipRects::from_rect(2.0, 2.0, 8.0, 8.0);
         let b = ClipRects::from_rect(0.0, 0.0, 10.0, 10.0);
-        assert!(a.is_subset_of(&b));
-        assert!(!b.is_subset_of(&a));
+        assert!(a.IsSubsetOf(&b));
+        assert!(!b.IsSubsetOf(&a));
     }
 }

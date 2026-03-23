@@ -5,8 +5,8 @@ use crate::emCore::emRec::RecStruct;
 pub trait Record: Sized {
     fn from_rec(rec: &RecStruct) -> Result<Self, RecError>;
     fn to_rec(&self) -> RecStruct;
-    fn set_to_default(&mut self);
-    fn is_default(&self) -> bool;
+    fn SetToDefault(&mut self);
+    fn IsSetToDefault(&self) -> bool;
 }
 
 #[cfg(test)]
@@ -38,11 +38,11 @@ pub(crate) mod tests {
             s
         }
 
-        fn set_to_default(&mut self) {
+        fn SetToDefault(&mut self) {
             *self = Self::default();
         }
 
-        fn is_default(&self) -> bool {
+        fn IsSetToDefault(&self) -> bool {
             *self == Self::default()
         }
     }

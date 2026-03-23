@@ -143,12 +143,12 @@ impl StressTest {
 
         // Purple background (matches C++: 255,0,255,128)
         let bg = emColor::rgba(255, 0, 255, 128);
-        painter.paint_rect(0.0, 0.0, box_w, box_h, bg, emColor::TRANSPARENT);
+        painter.PaintRect(0.0, 0.0, box_w, box_h, bg, emColor::TRANSPARENT);
 
         // Yellow text (matches C++: 255,255,0,192)
         let fg = emColor::rgba(255, 255, 0, 192);
         let label = format!("Stress Test\n{:.1} Hz", self.frame_rate);
-        painter.paint_text_boxed(
+        painter.PaintTextBoxed(
             0.0,
             0.0,
             box_w,
@@ -295,19 +295,19 @@ impl emView {
 
     // --- Accessors ---
 
-    pub fn root(&self) -> PanelId {
+    pub fn GetRootPanel(&self) -> PanelId {
         self.root
     }
 
-    pub fn active(&self) -> Option<PanelId> {
+    pub fn GetActivePanel(&self) -> Option<PanelId> {
         self.active
     }
 
-    pub fn set_active(&mut self, id: PanelId) {
+    pub fn SetActivePanel(&mut self, id: PanelId) {
         self.active = Some(id);
     }
 
-    pub fn focused(&self) -> Option<PanelId> {
+    pub fn GetFocusedPanel(&self) -> Option<PanelId> {
         self.focused
     }
 
@@ -315,15 +315,15 @@ impl emView {
         self.focused = id;
     }
 
-    pub fn svp(&self) -> Option<PanelId> {
+    pub fn GetSupremeViewedPanel(&self) -> Option<PanelId> {
         self.svp
     }
 
-    pub fn window_focused(&self) -> bool {
+    pub fn IsFocused(&self) -> bool {
         self.window_focused
     }
 
-    pub fn set_window_focused(&mut self, tree: &mut PanelTree, focused: bool) {
+    pub fn SetFocused(&mut self, tree: &mut PanelTree, focused: bool) {
         if self.window_focused == focused {
             return;
         }
@@ -345,7 +345,7 @@ impl emView {
         tree.mark_notices_pending();
     }
 
-    pub fn is_activation_adherent(&self) -> bool {
+    pub fn IsActivationAdherent(&self) -> bool {
         self.activation_adherent
     }
 
@@ -356,7 +356,7 @@ impl emView {
     /// When the visiting animator is navigating to a panel that doesn't yet
     /// exist, this records which panel to watch and which child name is being
     /// sought, so the animator can monitor creation progress.
-    pub fn set_seek_pos(&mut self, tree: &mut PanelTree, panel: Option<PanelId>, child_name: &str) {
+    pub fn SetSeekPos(&mut self, tree: &mut PanelTree, panel: Option<PanelId>, child_name: &str) {
         let child_name = if panel.is_some() { child_name } else { "" };
 
         if self.seek_pos_panel != panel {
@@ -392,7 +392,7 @@ impl emView {
 
     /// Returns true if seeking can still succeed — the seek panel exists in
     /// the tree and has the potential to create the sought child.
-    pub fn is_hope_for_seeking(&self, tree: &PanelTree) -> bool {
+    pub fn IsHopeForSeeking(&self, tree: &PanelTree) -> bool {
         if let Some(id) = self.seek_pos_panel {
             if let Some(panel) = tree.get(id) {
                 if self.seek_pos_child_name.is_empty() {
@@ -426,7 +426,7 @@ impl emView {
 
     // --- Navigation primitives ---
 
-    pub fn visit(&mut self, panel: PanelId, rel_x: f64, rel_y: f64, rel_a: f64) {
+    pub fn Visit(&mut self, panel: PanelId, rel_x: f64, rel_y: f64, rel_a: f64) {
         self.visit_stack.push(VisitState {
             panel,
             rel_x,
@@ -438,9 +438,9 @@ impl emView {
         self.viewing_dirty = true;
     }
 
-    pub fn visit_fullsized(&mut self, tree: &PanelTree, panel: PanelId) {
-        let (x, y, a) = self.calc_visit_fullsized_coords(tree, panel, false);
-        self.visit(panel, x, y, a);
+    pub fn VisitFullsized(&mut self, tree: &PanelTree, panel: PanelId) {
+        let (x, y, a) = self.CalcVisitFullsizedCoords(tree, panel, false);
+        self.Visit(panel, x, y, a);
     }
 
     /// D-PANEL-02: Request an animated visit to a panel. Sets a pending goal
@@ -466,7 +466,7 @@ impl emView {
 
     /// D-PANEL-02: Request an animated visit to a panel at its natural size.
     pub fn animated_visit_panel(&mut self, tree: &mut PanelTree, panel: PanelId, adherent: bool) {
-        let (x, y, a) = self.calc_visit_coords(tree, panel);
+        let (x, y, a) = self.CalcVisitCoords(tree, panel);
         self.animated_visit(tree, panel, x, y, a, adherent);
     }
 
@@ -492,7 +492,7 @@ impl emView {
     // --- Viewport ---
 
     /// D-PANEL-05: Clamp dimensions, preserve zoom state on resize (C++ SetGeometry parity).
-    pub fn set_viewport(&mut self, tree: &mut PanelTree, width: f64, height: f64) {
+    pub fn SetGeometry(&mut self, tree: &mut PanelTree, width: f64, height: f64) {
         let width = width.max(MIN_DIMENSION);
         let height = height.max(MIN_DIMENSION);
 
@@ -502,7 +502,7 @@ impl emView {
             return;
         }
 
-        let was_zoomed_out = self.is_zoomed_out(tree);
+        let was_zoomed_out = self.IsZoomedOut(tree);
 
         self.viewport_width = width;
         self.viewport_height = height;
@@ -511,13 +511,13 @@ impl emView {
         // C++ SetGeometry parity: inline-update root panel layout when
         // VF_ROOT_SAME_TALLNESS is set (mirrors RootPanel->Layout(0,0,1,GetHomeTallness())).
         if self.flags.contains(ViewFlags::ROOT_SAME_TALLNESS) {
-            tree.set_layout_rect(self.root, 0.0, 0.0, 1.0, self.pixel_tallness);
+            tree.Layout(self.root, 0.0, 0.0, 1.0, self.pixel_tallness);
         }
 
         // Preserve zoom state: if was zoomed out, re-apply zoom-out with
         // the new viewport dimensions (computes the correct fit ratio).
         if was_zoomed_out {
-            self.raw_zoom_out(tree);
+            self.RawZoomOut(tree);
         }
 
         self.viewport_changed = true;
@@ -537,7 +537,7 @@ impl emView {
 
     /// Fix-point zoom: keeps the viewport point (center_x, center_y) mapped to the
     /// same panel-space point before and after zoom.
-    pub fn zoom(&mut self, factor: f64, center_x: f64, center_y: f64) {
+    pub fn Zoom(&mut self, factor: f64, center_x: f64, center_y: f64) {
         if self.flags.contains(ViewFlags::NO_ZOOM) {
             return;
         }
@@ -576,7 +576,7 @@ impl emView {
         }
     }
 
-    pub fn scroll(&mut self, dx: f64, dy: f64) {
+    pub fn Scroll(&mut self, dx: f64, dy: f64) {
         if self.flags.contains(ViewFlags::NO_SCROLL) {
             return;
         }
@@ -594,7 +594,7 @@ impl emView {
     }
 
     /// Atomic scroll+zoom with done-distance feedback.
-    pub fn raw_scroll_and_zoom(
+    pub fn RawScrollAndZoom(
         &mut self,
         tree: &mut PanelTree,
         fix_x: f64,
@@ -619,7 +619,7 @@ impl emView {
         // scroll-then-zoom which would multiply rel_x by the zoom ratio).
         let vw = self.viewport_width.max(1.0);
         let vh = self.viewport_height.max(1.0);
-        let zflpp = self.get_zoom_factor_log_per_pixel();
+        let zflpp = self.GetZoomFactorLogarithmPerPixel();
         let re_fac = (-dz * zflpp).exp();
         let pvw = self.visited_vw;
         let pvh = self.visited_vh;
@@ -645,7 +645,7 @@ impl emView {
             self.viewport_changed = true;
             self.viewing_dirty = true;
         }
-        self.update_viewing(tree);
+        self.Update(tree);
         self.viewing_dirty = false;
         let after = self.visit_stack.last().cloned();
         match (before, after) {
@@ -655,7 +655,7 @@ impl emView {
                 let done_x = (a.rel_x - b.rel_x) * pre_vw;
                 let done_y = (a.rel_y - b.rel_y) * pre_vh;
                 // C++: done_z = -ln(reFac)/zflpp = 0.5 * ln(rel_a_new/rel_a_old) / zflpp
-                let zflpp = self.get_zoom_factor_log_per_pixel();
+                let zflpp = self.GetZoomFactorLogarithmPerPixel();
                 let done_z = if b.rel_a > 0.0 && zflpp > 1e-15 {
                     0.5 * (a.rel_a / b.rel_a).ln() / zflpp
                 } else {
@@ -668,17 +668,17 @@ impl emView {
     }
 
     /// Zoom sensitivity for VIFs/animators.
-    pub fn get_zoom_factor_log_per_pixel(&self) -> f64 {
+    pub fn GetZoomFactorLogarithmPerPixel(&self) -> f64 {
         1.33 / ((self.viewport_width + self.viewport_height) * 0.25).max(1.0)
     }
 
     // --- Zoom out ---
 
-    pub fn zoom_out(&mut self, tree: &mut PanelTree) {
-        self.raw_zoom_out(tree);
+    pub fn ZoomOut(&mut self, tree: &mut PanelTree) {
+        self.RawZoomOut(tree);
     }
 
-    pub fn raw_zoom_out(&mut self, tree: &mut PanelTree) {
+    pub fn RawZoomOut(&mut self, tree: &mut PanelTree) {
         let rel_a = self.zoom_out_rel_a(tree);
         if let Some(state) = self.visit_stack.last_mut() {
             state.rel_x = 0.0;
@@ -687,7 +687,7 @@ impl emView {
             self.viewport_changed = true;
             self.viewing_dirty = true;
         }
-        self.update_viewing(tree);
+        self.Update(tree);
         self.viewing_dirty = false;
     }
 
@@ -704,7 +704,7 @@ impl emView {
         1.0 / a1.max(a2)
     }
 
-    pub fn is_zoomed_out(&self, tree: &PanelTree) -> bool {
+    pub fn IsZoomedOut(&self, tree: &PanelTree) -> bool {
         if self.flags.contains(ViewFlags::POPUP_ZOOM) {
             return !self.popped_up;
         }
@@ -721,7 +721,7 @@ impl emView {
     // --- CalcVisitCoords ---
 
     /// Compute optimal (rel_x, rel_y, rel_a) to view `panel` well.
-    pub fn calc_visit_coords(&self, tree: &PanelTree, panel: PanelId) -> (f64, f64, f64) {
+    pub fn CalcVisitCoords(&self, tree: &PanelTree, panel: PanelId) -> (f64, f64, f64) {
         let vw = self.viewport_width.max(1.0);
         let vh = self.viewport_height.max(1.0);
         let v_aspect = vw / vh;
@@ -783,7 +783,7 @@ impl emView {
     }
 
     /// Compute coords to show panel at its natural aspect (fullsized).
-    pub fn calc_visit_fullsized_coords(
+    pub fn CalcVisitFullsizedCoords(
         &self,
         tree: &PanelTree,
         panel: PanelId,
@@ -845,7 +845,7 @@ impl emView {
 
     // --- ViewFlags with side effects ---
 
-    pub fn set_view_flags(&mut self, flags: ViewFlags, tree: &mut PanelTree) {
+    pub fn SetViewFlags(&mut self, flags: ViewFlags, tree: &mut PanelTree) {
         let old = self.flags;
         let mut new_flags = flags;
 
@@ -861,18 +861,18 @@ impl emView {
         self.flags = new_flags;
 
         if new_flags.contains(ViewFlags::POPUP_ZOOM) && !old.contains(ViewFlags::POPUP_ZOOM) {
-            self.raw_zoom_out(tree);
+            self.RawZoomOut(tree);
         }
 
         if new_flags.contains(ViewFlags::NO_ZOOM) && !old.contains(ViewFlags::NO_ZOOM) {
-            self.raw_zoom_out(tree);
+            self.RawZoomOut(tree);
         }
 
         if new_flags.contains(ViewFlags::ROOT_SAME_TALLNESS)
             && !old.contains(ViewFlags::ROOT_SAME_TALLNESS)
         {
-            tree.set_layout_rect(self.root, 0.0, 0.0, 1.0, self.pixel_tallness);
-            self.raw_zoom_out(tree);
+            tree.Layout(self.root, 0.0, 0.0, 1.0, self.pixel_tallness);
+            self.RawZoomOut(tree);
         }
     }
 
@@ -883,7 +883,7 @@ impl emView {
         let target = if tree.get(panel).map(|p| p.focusable).unwrap_or(false) {
             panel
         } else {
-            tree.focusable_ancestor(panel).unwrap_or(panel)
+            tree.GetFocusableParent(panel).unwrap_or(panel)
         };
 
         if self.active == Some(target) {
@@ -935,7 +935,7 @@ impl emView {
     /// max-area. Starts at SVP and descends into the deepest focusable child
     /// whose clip rect contains the viewport center, stopping when children
     /// are too small (< 99% view width AND height, AND < 33% view area).
-    pub fn set_active_panel_best_possible(&mut self, tree: &mut PanelTree) {
+    pub fn SetActivePanelBestPossible(&mut self, tree: &mut PanelTree) {
         let svp = match self.svp {
             Some(id) => id,
             None => return,
@@ -986,7 +986,7 @@ impl emView {
 
         // Ensure best is focusable (ascend if needed)
         if !tree.get(best).map(|p| p.focusable).unwrap_or(false) {
-            if let Some(anc) = tree.focusable_ancestor(best) {
+            if let Some(anc) = tree.GetFocusableParent(best) {
                 best = anc;
             } else {
                 return;
@@ -1018,7 +1018,7 @@ impl emView {
     // --- Coordinate transform: update_viewing ---
 
     /// Compute absolute viewport coordinates for all panels. Called once per frame.
-    pub fn update_viewing(&mut self, tree: &mut PanelTree) {
+    pub fn Update(&mut self, tree: &mut PanelTree) {
         tree.clear_viewing_flags();
 
         let root = match tree.root() {
@@ -1282,7 +1282,7 @@ impl emView {
                 continue;
             }
 
-            let vc = tree.get_view_condition(id, threshold_type);
+            let vc = tree.GetViewCondition(id, threshold_type);
             let should_expand = vc >= threshold_value;
 
             if should_expand && !currently_expanded {
@@ -1296,7 +1296,7 @@ impl emView {
                 }
                 if let Some(mut behavior) = tree.take_behavior(id) {
                     let mut ctx = PanelCtx::new(tree, id);
-                    behavior.layout_children(&mut ctx);
+                    behavior.LayoutChildren(&mut ctx);
                     if tree.contains(id) {
                         tree.put_behavior(id, behavior);
                     }
@@ -1305,7 +1305,7 @@ impl emView {
                 tree.queue_notice(id, super::emPanel::NoticeFlags::LAYOUT_CHANGED);
             } else if !should_expand && currently_expanded {
                 // Shrink: delete children and clear flag
-                tree.delete_all_children(id);
+                tree.DeleteAllChildren(id);
                 if let Some(panel) = tree.get_mut(id) {
                     panel.ae_expanded = false;
                     panel.ae_decision_invalid = false;
@@ -1328,7 +1328,7 @@ impl emView {
     ///
     /// Tries next focusable sibling; if at end, ascends to focusable parent
     /// and wraps to its first focusable child.
-    pub fn visit_next(&mut self, tree: &mut PanelTree) {
+    pub fn VisitNext(&mut self, tree: &mut PanelTree) {
         if self
             .flags
             .intersects(ViewFlags::NO_NAVIGATE | ViewFlags::NO_USER_NAVIGATION)
@@ -1341,24 +1341,24 @@ impl emView {
         };
 
         // Try next focusable sibling (no wrap)
-        if let Some(next) = tree.focusable_next(active) {
+        if let Some(next) = tree.GetFocusableNext(active) {
             self.animated_visit_panel(tree, next, false);
             return;
         }
 
         // No next sibling: go to focusable parent's first focusable child
         let parent = tree
-            .focusable_ancestor(active)
+            .GetFocusableParent(active)
             .unwrap_or_else(|| tree.root().unwrap_or(active));
         if parent != active {
-            if let Some(first) = tree.focusable_first_child(parent) {
+            if let Some(first) = tree.GetFocusableFirstChild(parent) {
                 self.animated_visit_panel(tree, first, false);
             }
         }
     }
 
     /// D-PANEL-01: Navigate to previous focusable panel (C++ VisitPrev parity).
-    pub fn visit_prev(&mut self, tree: &mut PanelTree) {
+    pub fn VisitPrev(&mut self, tree: &mut PanelTree) {
         if self
             .flags
             .intersects(ViewFlags::NO_NAVIGATE | ViewFlags::NO_USER_NAVIGATION)
@@ -1371,23 +1371,23 @@ impl emView {
         };
 
         // Try previous focusable sibling (no wrap)
-        if let Some(prev) = tree.focusable_prev(active) {
+        if let Some(prev) = tree.GetFocusablePrev(active) {
             self.animated_visit_panel(tree, prev, false);
             return;
         }
 
         // No previous sibling: go to focusable parent's last focusable child
         let parent = tree
-            .focusable_ancestor(active)
+            .GetFocusableParent(active)
             .unwrap_or_else(|| tree.root().unwrap_or(active));
         if parent != active {
-            if let Some(last) = tree.focusable_last_child(parent) {
+            if let Some(last) = tree.GetFocusableLastChild(parent) {
                 self.animated_visit_panel(tree, last, false);
             }
         }
     }
 
-    pub fn visit_first(&mut self, tree: &mut PanelTree) {
+    pub fn VisitFirst(&mut self, tree: &mut PanelTree) {
         if self
             .flags
             .intersects(ViewFlags::NO_NAVIGATE | ViewFlags::NO_USER_NAVIGATION)
@@ -1410,7 +1410,7 @@ impl emView {
         }
     }
 
-    pub fn visit_last(&mut self, tree: &mut PanelTree) {
+    pub fn VisitLast(&mut self, tree: &mut PanelTree) {
         if self
             .flags
             .intersects(ViewFlags::NO_NAVIGATE | ViewFlags::NO_USER_NAVIGATION)
@@ -1433,23 +1433,23 @@ impl emView {
         }
     }
 
-    pub fn visit_left(&mut self, tree: &mut PanelTree) {
+    pub fn VisitLeft(&mut self, tree: &mut PanelTree) {
         self.visit_neighbour(tree, Direction::Left);
     }
 
-    pub fn visit_right(&mut self, tree: &mut PanelTree) {
+    pub fn VisitRight(&mut self, tree: &mut PanelTree) {
         self.visit_neighbour(tree, Direction::Right);
     }
 
-    pub fn visit_up(&mut self, tree: &mut PanelTree) {
+    pub fn VisitUp(&mut self, tree: &mut PanelTree) {
         self.visit_neighbour(tree, Direction::Up);
     }
 
-    pub fn visit_down(&mut self, tree: &mut PanelTree) {
+    pub fn VisitDown(&mut self, tree: &mut PanelTree) {
         self.visit_neighbour(tree, Direction::Down);
     }
 
-    pub fn visit_in(&mut self, tree: &mut PanelTree) {
+    pub fn VisitIn(&mut self, tree: &mut PanelTree) {
         if self
             .flags
             .intersects(ViewFlags::NO_NAVIGATE | ViewFlags::NO_USER_NAVIGATION)
@@ -1468,10 +1468,10 @@ impl emView {
             }
         }
         // No focusable child — visit active fullsized
-        self.visit_fullsized(tree, active);
+        self.VisitFullsized(tree, active);
     }
 
-    pub fn visit_out(&mut self, tree: &mut PanelTree) {
+    pub fn VisitOut(&mut self, tree: &mut PanelTree) {
         if self
             .flags
             .intersects(ViewFlags::NO_NAVIGATE | ViewFlags::NO_USER_NAVIGATION)
@@ -1488,13 +1488,13 @@ impl emView {
                 self.animated_visit_panel(tree, parent, false);
                 return;
             }
-            if let Some(focusable) = tree.focusable_ancestor(parent) {
+            if let Some(focusable) = tree.GetFocusableParent(parent) {
                 self.animated_visit_panel(tree, focusable, false);
                 return;
             }
         }
         // At root — zoom out
-        self.zoom_out(tree);
+        self.ZoomOut(tree);
     }
 
     fn visit_neighbour(&mut self, tree: &mut PanelTree, direction: Direction) {
@@ -1569,12 +1569,12 @@ impl emView {
 
     // --- Hit testing ---
 
-    pub fn get_panel_at(&self, tree: &PanelTree, x: f64, y: f64) -> Option<PanelId> {
+    pub fn GetPanelAt(&self, tree: &PanelTree, x: f64, y: f64) -> Option<PanelId> {
         let svp = self.svp?;
         self.hit_test_recursive(tree, svp, x, y, false)
     }
 
-    pub fn get_focusable_panel_at(&self, tree: &PanelTree, x: f64, y: f64) -> Option<PanelId> {
+    pub fn GetFocusablePanelAt(&self, tree: &PanelTree, x: f64, y: f64) -> Option<PanelId> {
         let svp = self.svp?;
         self.hit_test_recursive(tree, svp, x, y, true)
     }
@@ -1636,7 +1636,7 @@ impl emView {
 
     /// Focus the view and activate a panel.
     pub fn focus_panel(&mut self, tree: &mut PanelTree, panel: PanelId) {
-        self.set_window_focused(tree, true);
+        self.SetFocused(tree, true);
         self.set_active_panel(tree, panel, false);
     }
 
@@ -1665,7 +1665,7 @@ impl emView {
     }
 
     /// Return wall-clock milliseconds (since Unix epoch).
-    pub fn get_input_clock_ms(&self) -> u64 {
+    pub fn GetInputClockMS(&self) -> u64 {
         std::time::SystemTime::now()
             .duration_since(std::time::SystemTime::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
@@ -1674,7 +1674,7 @@ impl emView {
 
     /// Panel-level delegate for `get_input_clock_ms` (mirrors `emPanel::GetInputClockMS`).
     pub fn get_panel_input_clock_ms(&self) -> u64 {
-        self.get_input_clock_ms()
+        self.GetInputClockMS()
     }
 
     // --- Pixel tallness ---
@@ -1683,7 +1683,7 @@ impl emView {
     ///
     /// Corresponds to `emPanel::GetViewedPixelTallness` (delegates to
     /// `emView.CurrentPixelTallness`).
-    pub fn pixel_tallness(&self) -> f64 {
+    pub fn GetCurrentPixelTallness(&self) -> f64 {
         self.pixel_tallness
     }
 
@@ -1693,7 +1693,7 @@ impl emView {
     /// the panel is in the active path.
     ///
     /// Corresponds to `emPanel::InvalidateTitle`.
-    pub fn invalidate_title(&mut self, tree: &PanelTree, panel: PanelId) {
+    pub fn InvalidateTitle(&mut self, tree: &PanelTree, panel: PanelId) {
         let in_active_path = tree.get(panel).map(|p| p.in_active_path).unwrap_or(false);
         if in_active_path {
             self.title_invalid = true;
@@ -1704,7 +1704,7 @@ impl emView {
     /// the panel is in the viewed path.
     ///
     /// Corresponds to `emPanel::InvalidateCursor`.
-    pub fn invalidate_cursor(&mut self, tree: &PanelTree, panel: PanelId) {
+    pub fn InvalidateCursor(&mut self, tree: &PanelTree, panel: PanelId) {
         let in_viewed_path = tree.get(panel).map(|p| p.in_viewed_path).unwrap_or(false);
         if in_viewed_path {
             self.cursor_invalid = true;
@@ -1714,7 +1714,7 @@ impl emView {
     /// Mark the entire panel clip rect as needing repaint.
     ///
     /// Corresponds to `emPanel::InvalidatePainting()` (no-arg overload).
-    pub fn invalidate_painting(&mut self, tree: &PanelTree, panel: PanelId) {
+    pub fn InvalidatePainting(&mut self, tree: &PanelTree, panel: PanelId) {
         let p = match tree.get(panel) {
             Some(p) if p.viewed => p,
             _ => return,
@@ -1776,7 +1776,7 @@ impl emView {
     /// when the panel is in the active path.
     ///
     /// Corresponds to `emPanel::InvalidateControlPanel`.
-    pub fn invalidate_control_panel(&mut self, tree: &PanelTree, panel: PanelId) {
+    pub fn InvalidateControlPanel(&mut self, tree: &PanelTree, panel: PanelId) {
         let in_active_path = tree.get(panel).map(|p| p.in_active_path).unwrap_or(false);
         if in_active_path {
             self.control_panel_invalid = true;
@@ -1908,13 +1908,13 @@ impl emView {
 
     /// Get the background color of this view. Used for areas not covered by
     /// panels or where panels are transparent. Matches C++ `emView::GetBackgroundColor`.
-    pub fn background_color(&self) -> emColor {
+    pub fn GetBackgroundColor(&self) -> emColor {
         self.background_color
     }
 
     /// Set the background color of this view. If changed, the view is
     /// invalidated for repainting. Matches C++ `emView::SetBackgroundColor`.
-    pub fn set_background_color(&mut self, color: emColor) {
+    pub fn SetBackgroundColor(&mut self, color: emColor) {
         if self.background_color != color {
             self.background_color = color;
             self.viewport_changed = true;
@@ -1926,10 +1926,10 @@ impl emView {
 
     /// Search for a panel by its colon-delimited identity string.
     /// Returns `None` if not found. Matches C++ `emView::GetPanelByIdentity`.
-    pub fn get_panel_by_identity(&self, tree: &PanelTree, identity: &str) -> Option<PanelId> {
-        use crate::emCore::emPanelTree::decode_identity;
+    pub fn GetPanelByIdentity(&self, tree: &PanelTree, identity: &str) -> Option<PanelId> {
+        use crate::emCore::emPanelTree::DecodeIdentity;
 
-        let names = decode_identity(identity);
+        let names = DecodeIdentity(identity);
         if names.is_empty() {
             return None;
         }
@@ -1955,7 +1955,7 @@ impl emView {
     /// Request a delayed End-Of-Interaction signal. The window loop should
     /// check `eoi_delayed()` and count down before signaling EOI.
     /// Matches C++ `emView::SignalEOIDelayed`.
-    pub fn signal_eoi_delayed(&mut self) {
+    pub fn SignalEOIDelayed(&mut self) {
         self.eoi_countdown = Some(3);
     }
 
@@ -2033,7 +2033,7 @@ impl emView {
             // scroll() divides by visited_vw/visited_vh (screen-pixel
             // ViewedWidth/Height). dx/dy are already in screen pixels,
             // so pass them directly.
-            self.scroll(dx, dy);
+            self.Scroll(dx, dy);
         }
     }
 
@@ -2042,7 +2042,7 @@ impl emView {
     /// Get the view title. In C++, GetTitle() is virtual and defaults to the
     /// active panel's title. Here we store a cached title string that is
     /// refreshed when `title_invalid` is set.
-    pub fn title(&self) -> &str {
+    pub fn GetTitle(&self) -> &str {
         &self.title
     }
 
@@ -2063,7 +2063,7 @@ impl emView {
     /// Whether the view is in popped-up state. In C++ this checks
     /// `PopupWindow != NULL`. The Rust equivalent tracks a bool flag that
     /// is set when a popup window is created for this view.
-    pub fn is_popped_up(&self) -> bool {
+    pub fn IsPoppedUp(&self) -> bool {
         self.popped_up
     }
 
@@ -2092,7 +2092,7 @@ impl emView {
 
     /// Get the current mouse cursor for this view. In C++, GetCursor() is
     /// virtual and defaults to the cursor of the panel under the mouse.
-    pub fn cursor(&self) -> emCursor {
+    pub fn GetCursor(&self) -> emCursor {
         // C++ emView.cpp ~1358: when EGO_MODE active and cursor is Normal,
         // override to Crosshair.
         if self.flags.contains(ViewFlags::EGO_MODE) && self.cursor == emCursor::Normal {
@@ -2115,7 +2115,7 @@ impl emView {
     /// a behavior that creates a control panel, but creates the panel in
     /// `control_tree` as a child of `parent`. Matches C++
     /// `emView::CreateControlPanel`.
-    pub fn create_control_panel(
+    pub fn CreateControlPanel(
         &self,
         content_tree: &mut PanelTree,
         control_tree: &mut PanelTree,
@@ -2148,7 +2148,7 @@ impl emView {
 
     pub fn update(&mut self, tree: &mut PanelTree) {
         if self.viewing_dirty {
-            self.update_viewing(tree);
+            self.Update(tree);
             self.viewing_dirty = false;
         }
 
@@ -2159,7 +2159,7 @@ impl emView {
             Some(id) => !tree.contains(id) || !tree.get(id).map(|p| p.focusable).unwrap_or(false),
         };
         if need_reselect || self.viewport_changed {
-            self.set_active_panel_best_possible(tree);
+            self.SetActivePanelBestPossible(tree);
         }
     }
 
@@ -2202,10 +2202,10 @@ impl emView {
 
     // --- Paint ---
 
-    pub fn paint(&self, tree: &mut PanelTree, painter: &mut emPainter) {
+    pub fn Paint(&self, tree: &mut PanelTree, painter: &mut emPainter) {
         // Fill background
         painter.push_state();
-        painter.paint_rect(
+        painter.PaintRect(
             0.0,
             0.0,
             self.viewport_width,
@@ -2250,7 +2250,7 @@ impl emView {
         };
 
         // Get the panel's substance rect in viewport coords
-        let (sx, sy, sw, sh, _sr) = tree.get_substance_rect(active_id);
+        let (sx, sy, sw, sh, _sr) = tree.GetSubstanceRect(active_id);
         let hx = panel.viewed_x + sx * panel.viewed_width;
         let hy = panel.viewed_y + sy * panel.viewed_width;
         let hw = sw * panel.viewed_width;
@@ -2296,7 +2296,7 @@ impl emView {
         let arrow_distance = 55.0;
 
         // Corner radius — C++ uses substance_rect rounding scaled to viewport
-        let (_sx2, _sy2, _sw2, _sh2, sr) = tree.get_substance_rect(active_id);
+        let (_sx2, _sy2, _sw2, _sh2, sr) = tree.GetSubstanceRect(active_id);
         let corner_r = (sr * panel.viewed_width).max(0.0);
 
         // Goal point: center of the highlight rect
@@ -2418,11 +2418,11 @@ impl emView {
         // absolute viewport pixels, so each panel computes its offset
         // from the base (tile) offset independently.
         painter.set_offset(base_offset.0 + vx, base_offset.1 + vy);
-        painter.clip_rect(clip_x - vx, clip_y - vy, clip_w, clip_h);
+        painter.SetClipping(clip_x - vx, clip_y - vy, clip_w, clip_h);
 
         // Skip this panel and its entire subtree if it doesn't intersect
         // the current tile's clip region.
-        if painter.clip_is_empty() {
+        if painter.GetClipX1() {
             painter.pop_state();
             return;
         }
@@ -2435,11 +2435,11 @@ impl emView {
         } else {
             parent_canvas
         };
-        painter.set_canvas_color(effective_canvas);
+        painter.SetCanvasColor(effective_canvas);
 
         if let Some(mut behavior) = tree.take_behavior(id) {
             let mut state = tree.build_panel_state(id, self.window_focused, self.pixel_tallness);
-            state.priority = tree.get_update_priority(
+            state.priority = tree.GetUpdatePriority(
                 id,
                 self.viewport_width,
                 self.viewport_height,
@@ -2447,7 +2447,7 @@ impl emView {
             );
             // C++ default: MaxMegabytesPerView = 2048 → 2048 * 1_000_000.
             const DEFAULT_MEMORY_LIMIT: u64 = 2_048_000_000;
-            state.memory_limit = tree.get_memory_limit(
+            state.memory_limit = tree.GetMemoryLimit(
                 id,
                 self.viewport_width,
                 self.viewport_height,
@@ -2463,7 +2463,7 @@ impl emView {
             } else {
                 vh
             };
-            behavior.paint(painter, vw, paint_h, &state);
+            behavior.Paint(painter, vw, paint_h, &state);
             tree.put_behavior(id, behavior);
         }
 
@@ -2621,11 +2621,11 @@ fn paint_highlight_arrow(
 
     // Shadow polygon (offset toward bottom-right)
     let shadow_verts = compute_arrow_vertices(x + sd, y + sd, goal_x, goal_y, arrow_size);
-    painter.paint_polygon(&shadow_verts, shadow_color, emColor::TRANSPARENT);
+    painter.PaintPolygon(&shadow_verts, shadow_color, emColor::TRANSPARENT);
 
     // Arrow polygon
     let verts = compute_arrow_vertices(x, y, goal_x, goal_y, arrow_size);
-    painter.paint_polygon(&verts, color, emColor::TRANSPARENT);
+    painter.PaintPolygon(&verts, color, emColor::TRANSPARENT);
 }
 
 /// Paint arrows along a straight line segment.
@@ -2751,15 +2751,15 @@ mod tests {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
         tree.get_mut(root).unwrap().focusable = true;
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let child1 = tree.create_child(root, "child1");
         tree.get_mut(child1).unwrap().focusable = true;
-        tree.set_layout_rect(child1, 0.0, 0.0, 0.5, 1.0);
+        tree.Layout(child1, 0.0, 0.0, 0.5, 1.0);
 
         let child2 = tree.create_child(root, "child2");
         tree.get_mut(child2).unwrap().focusable = true;
-        tree.set_layout_rect(child2, 0.5, 0.0, 0.5, 1.0);
+        tree.Layout(child2, 0.5, 0.0, 0.5, 1.0);
 
         (tree, root, child1, child2)
     }
@@ -2768,7 +2768,7 @@ mod tests {
     fn test_update_viewing_sets_coords() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Root should be viewed
         let rp = tree.get(root).unwrap();
@@ -2785,23 +2785,23 @@ mod tests {
     fn test_svp_selection() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // SVP should be set
-        assert!(view.svp().is_some());
+        assert!(view.GetSupremeViewedPanel().is_some());
     }
 
     #[test]
     fn test_viewed_false_outside_viewport() {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let offscreen = tree.create_child(root, "offscreen");
-        tree.set_layout_rect(offscreen, 5.0, 5.0, 0.1, 0.1);
+        tree.Layout(offscreen, 5.0, 5.0, 0.1, 0.1);
 
         let mut view = emView::new(root, 100.0, 100.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         assert!(!tree.get(offscreen).unwrap().viewed);
     }
@@ -2811,7 +2811,7 @@ mod tests {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
         view.set_active_panel(&mut tree, child1, false);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         assert!(tree.get(child1).unwrap().is_active);
         assert!(tree.get(child1).unwrap().in_active_path);
@@ -2825,7 +2825,7 @@ mod tests {
 
         // Zoom around center — should keep center stable
         let before = view.current_visit().clone();
-        view.zoom(2.0, 400.0, 300.0);
+        view.Zoom(2.0, 400.0, 300.0);
         let after = view.current_visit().clone();
 
         // rel_a should have doubled
@@ -2836,14 +2836,14 @@ mod tests {
     fn test_visit_next_prev() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
-        view.visit_next(&mut tree);
-        assert_eq!(view.active(), Some(child2));
+        view.VisitNext(&mut tree);
+        assert_eq!(view.GetActivePanel(), Some(child2));
 
-        view.visit_prev(&mut tree);
-        assert_eq!(view.active(), Some(child1));
+        view.VisitPrev(&mut tree);
+        assert_eq!(view.GetActivePanel(), Some(child1));
     }
 
     #[test]
@@ -2851,28 +2851,28 @@ mod tests {
         let (mut tree, root, child1, _child2) = setup_tree();
         let grandchild = tree.create_child(child1, "gc");
         tree.get_mut(grandchild).unwrap().focusable = true;
-        tree.set_layout_rect(grandchild, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(grandchild, 0.0, 0.0, 1.0, 1.0);
 
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
-        view.visit_in(&mut tree);
-        assert_eq!(view.active(), Some(grandchild));
+        view.VisitIn(&mut tree);
+        assert_eq!(view.GetActivePanel(), Some(grandchild));
 
-        view.visit_out(&mut tree);
-        assert_eq!(view.active(), Some(child1));
+        view.VisitOut(&mut tree);
+        assert_eq!(view.GetActivePanel(), Some(child1));
     }
 
     #[test]
     fn test_hit_testing() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Hit test in left half should find child1, right half child2
-        let left_hit = view.get_focusable_panel_at(&tree, 100.0, 300.0);
-        let right_hit = view.get_focusable_panel_at(&tree, 600.0, 300.0);
+        let left_hit = view.GetFocusablePanelAt(&tree, 100.0, 300.0);
+        let right_hit = view.GetFocusablePanelAt(&tree, 600.0, 300.0);
 
         assert_eq!(left_hit, Some(child1));
         assert_eq!(right_hit, Some(child2));
@@ -2882,39 +2882,39 @@ mod tests {
     fn test_directional_navigation() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
         // child2 is to the right of child1
-        view.visit_right(&mut tree);
-        assert_eq!(view.active(), Some(child2));
+        view.VisitRight(&mut tree);
+        assert_eq!(view.GetActivePanel(), Some(child2));
 
-        view.visit_left(&mut tree);
-        assert_eq!(view.active(), Some(child1));
+        view.VisitLeft(&mut tree);
+        assert_eq!(view.GetActivePanel(), Some(child1));
     }
 
     #[test]
     fn test_focus_panel() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.set_window_focused(&mut tree, false);
+        view.SetFocused(&mut tree, false);
 
         view.focus_panel(&mut tree, child1);
-        assert!(view.window_focused());
-        assert_eq!(view.active(), Some(child1));
+        assert!(view.IsFocused());
+        assert_eq!(view.GetActivePanel(), Some(child1));
     }
 
     #[test]
     fn test_is_panel_focused() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
         assert!(view.is_panel_focused(&tree, child1));
         assert!(!view.is_panel_focused(&tree, root));
 
-        view.set_window_focused(&mut tree, false);
+        view.SetFocused(&mut tree, false);
         assert!(!view.is_panel_focused(&tree, child1));
     }
 
@@ -2922,14 +2922,14 @@ mod tests {
     fn test_is_panel_in_focused_path() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
         assert!(view.is_panel_in_focused_path(&tree, child1));
         assert!(view.is_panel_in_focused_path(&tree, root));
         assert!(!view.is_panel_in_focused_path(&tree, child2));
 
-        view.set_window_focused(&mut tree, false);
+        view.SetFocused(&mut tree, false);
         assert!(!view.is_panel_in_focused_path(&tree, child1));
     }
 
@@ -2938,7 +2938,7 @@ mod tests {
         let (mut tree, root, _c1, _c2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
         assert!(view.is_view_focused());
-        view.set_window_focused(&mut tree, false);
+        view.SetFocused(&mut tree, false);
         assert!(!view.is_view_focused());
     }
 
@@ -2948,10 +2948,10 @@ mod tests {
     fn test_invalidate_painting_whole() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // child1 should be viewed after update_viewing
-        view.invalidate_painting(&tree, child1);
+        view.InvalidatePainting(&tree, child1);
         let rects = view.take_dirty_rects();
         assert_eq!(rects.len(), 1);
         // The dirty rect should be the child's clip rect
@@ -2964,7 +2964,7 @@ mod tests {
     fn test_invalidate_painting_rect() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Invalidate a sub-rect of child1 in panel coordinates
         view.invalidate_painting_rect(&tree, child1, 0.0, 0.0, 0.5, 0.5);
@@ -2984,24 +2984,24 @@ mod tests {
     fn test_invalidate_title_and_cursor() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
         // child1 is active, thus in_active_path
         assert!(!view.is_title_invalid());
-        view.invalidate_title(&tree, child1);
+        view.InvalidateTitle(&tree, child1);
         assert!(view.is_title_invalid());
         view.clear_title_invalid();
         assert!(!view.is_title_invalid());
 
         // root is in_viewed_path (it's an ancestor of the SVP)
         assert!(!view.is_cursor_invalid());
-        view.invalidate_cursor(&tree, root);
+        view.InvalidateCursor(&tree, root);
         assert!(view.is_cursor_invalid());
         view.clear_cursor_invalid();
 
         // child1 is viewed AND in_viewed_path (all viewed panels are)
-        view.invalidate_cursor(&tree, child1);
+        view.InvalidateCursor(&tree, child1);
         assert!(view.is_cursor_invalid());
     }
 
@@ -3009,7 +3009,7 @@ mod tests {
     fn test_invalidate_control_panel() {
         let (mut tree, root, child1, child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         view.set_active_panel(&mut tree, child1, false);
 
         // set_active_panel unconditionally invalidates the control panel
@@ -3017,12 +3017,12 @@ mod tests {
         view.clear_control_panel_invalid();
 
         // child1 is in active path — invalidate_control_panel sets flag
-        view.invalidate_control_panel(&tree, child1);
+        view.InvalidateControlPanel(&tree, child1);
         assert!(view.is_control_panel_invalid());
         view.clear_control_panel_invalid();
 
         // child2 is NOT in active path — flag stays clear
-        view.invalidate_control_panel(&tree, child2);
+        view.InvalidateControlPanel(&tree, child2);
         assert!(!view.is_control_panel_invalid());
     }
 
@@ -3030,60 +3030,60 @@ mod tests {
     fn test_pixel_tallness() {
         let (mut tree, root, _c1, _c2) = setup_tree();
         let view = emView::new(root, 800.0, 600.0);
-        assert!((view.pixel_tallness() - 0.75).abs() < 1e-6);
+        assert!((view.GetCurrentPixelTallness() - 0.75).abs() < 1e-6);
 
         let mut view2 = emView::new(root, 1920.0, 1080.0);
-        assert!((view2.pixel_tallness() - 1080.0 / 1920.0).abs() < 1e-6);
+        assert!((view2.GetCurrentPixelTallness() - 1080.0 / 1920.0).abs() < 1e-6);
 
-        view2.set_viewport(&mut tree, 100.0, 200.0);
-        assert!((view2.pixel_tallness() - 2.0).abs() < 1e-6);
+        view2.SetGeometry(&mut tree, 100.0, 200.0);
+        assert!((view2.GetCurrentPixelTallness() - 2.0).abs() < 1e-6);
     }
 
     #[test]
     fn test_activation_adherent() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Direct activation is not adherent
         view.set_active_panel(&mut tree, child1, false);
-        assert!(!view.is_activation_adherent());
+        assert!(!view.IsActivationAdherent());
         assert!(!view.is_panel_activated_adherent(&tree, child1));
 
         // Explicit adherent activation
         view.set_active_panel(&mut tree, child1, true);
-        assert!(view.is_activation_adherent());
+        assert!(view.IsActivationAdherent());
         assert!(view.is_panel_activated_adherent(&tree, child1));
 
         // Switching to a different panel clears adherent
         view.set_active_panel(&mut tree, root, false);
-        assert!(!view.is_activation_adherent());
+        assert!(!view.IsActivationAdherent());
     }
 
     #[test]
     fn test_activation_adherent_early_return_update() {
         let (mut tree, root, child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Set active non-adherent
         view.set_active_panel(&mut tree, child1, false);
-        assert!(!view.is_activation_adherent());
+        assert!(!view.IsActivationAdherent());
 
         // Re-set same panel as adherent — hits early-return path, updates flag
         view.set_active_panel(&mut tree, child1, true);
-        assert!(view.is_activation_adherent());
+        assert!(view.IsActivationAdherent());
 
         // Re-set same panel as non-adherent — hits early-return path again
         view.set_active_panel(&mut tree, child1, false);
-        assert!(!view.is_activation_adherent());
+        assert!(!view.IsActivationAdherent());
     }
 
     #[test]
     fn test_get_input_clock_ms() {
         let (_tree, root, _c1, _c2) = setup_tree();
         let view = emView::new(root, 800.0, 600.0);
-        let ms = view.get_input_clock_ms();
+        let ms = view.GetInputClockMS();
         // Should be a reasonable epoch-based timestamp (after year 2020)
         assert!(ms > 1_577_836_800_000);
     }
@@ -3096,16 +3096,16 @@ mod tests {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
         tree.get_mut(root).unwrap().focusable = true;
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let child = tree.create_child(root, "child");
         tree.get_mut(child).unwrap().focusable = true;
         // Non-square child: w=0.5, h=0.25 → tallness = 0.5
-        tree.set_layout_rect(child, 0.1, 0.1, 0.5, 0.25);
+        tree.Layout(child, 0.1, 0.1, 0.5, 0.25);
 
         let mut view = emView::new(root, 800.0, 600.0);
         view.set_active_panel(&mut tree, child, false);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let panel = tree.get(child).unwrap();
         assert!(panel.viewed, "child should be viewed");
@@ -3119,7 +3119,7 @@ mod tests {
 
         // Substance rect components are in width-relative units.
         // Y and H must multiply by viewed_width, not viewed_height.
-        let (_sx, sy, _sw, sh, _sr) = tree.get_substance_rect(child);
+        let (_sx, sy, _sw, sh, _sr) = tree.GetSubstanceRect(child);
         let correct_hy = panel.viewed_y + sy * panel.viewed_width;
         let correct_hh = sh * panel.viewed_width;
         let wrong_hh = sh * panel.viewed_height;
@@ -3135,10 +3135,10 @@ mod tests {
     fn test_raw_zoom_out_computes_fit_ratio() {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+        tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
 
         let mut view = emView::new(root, 800.0, 600.0);
-        view.raw_zoom_out(&mut tree);
+        view.RawZoomOut(&mut tree);
 
         let state = view.current_visit();
         // C++ formula: max(W*H_root/hpt/H, H/H_root*hpt/W)
@@ -3158,27 +3158,27 @@ mod tests {
     fn test_is_zoomed_out_after_raw_zoom_out() {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 0.75);
+        tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
 
         let mut view = emView::new(root, 800.0, 600.0);
-        view.raw_zoom_out(&mut tree);
-        assert!(view.is_zoomed_out(&tree));
+        view.RawZoomOut(&mut tree);
+        assert!(view.IsZoomedOut(&tree));
 
         // After zooming in, should not be zoomed out
-        view.zoom(2.0, 400.0, 300.0);
-        assert!(!view.is_zoomed_out(&tree));
+        view.Zoom(2.0, 400.0, 300.0);
+        assert!(!view.IsZoomedOut(&tree));
     }
 
     #[test]
     fn test_set_view_flags_root_same_tallness_updates_layout() {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0); // starts square
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0); // starts square
 
         let mut view = emView::new(root, 800.0, 600.0);
         // pixel_tallness = 600/800 = 0.75
         let flags = view.flags | ViewFlags::ROOT_SAME_TALLNESS;
-        view.set_view_flags(flags, &mut tree);
+        view.SetViewFlags(flags, &mut tree);
 
         let rect = tree.layout_rect(root).unwrap();
         assert!(
@@ -3223,38 +3223,38 @@ mod tests {
     fn ego_mode_cursor_override() {
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Default cursor is Normal
         view.set_cursor(emCursor::Normal);
-        assert_eq!(view.cursor(), emCursor::Normal);
+        assert_eq!(view.GetCursor(), emCursor::Normal);
 
         // With EGO_MODE, Normal cursor becomes Crosshair
         view.flags |= ViewFlags::EGO_MODE;
-        assert_eq!(view.cursor(), emCursor::Crosshair);
+        assert_eq!(view.GetCursor(), emCursor::Crosshair);
 
         // Non-Normal cursors are NOT overridden
         view.set_cursor(emCursor::Text);
-        assert_eq!(view.cursor(), emCursor::Text);
+        assert_eq!(view.GetCursor(), emCursor::Text);
 
         // Turning off EGO_MODE restores Normal
         view.set_cursor(emCursor::Normal);
         view.flags -= ViewFlags::EGO_MODE;
-        assert_eq!(view.cursor(), emCursor::Normal);
+        assert_eq!(view.GetCursor(), emCursor::Normal);
     }
 
     #[test]
     fn ego_mode_scroll_locked() {
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Record initial center position
         let visit_before = view.current_visit().clone();
 
         // Enable EGO_MODE and attempt to scroll
         view.flags |= ViewFlags::EGO_MODE;
-        let done = view.raw_scroll_and_zoom(&mut tree, 400.0, 300.0, 50.0, 50.0, 0.0);
+        let done = view.RawScrollAndZoom(&mut tree, 400.0, 300.0, 50.0, 50.0, 0.0);
 
         // Scroll delta should be zero — viewport center locked
         let visit_after = view.current_visit().clone();
@@ -3278,13 +3278,13 @@ mod tests {
     fn ego_mode_zoom_still_works() {
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let rel_a_before = view.current_visit().rel_a;
 
         // Enable EGO_MODE and zoom
         view.flags |= ViewFlags::EGO_MODE;
-        view.raw_scroll_and_zoom(&mut tree, 400.0, 300.0, 0.0, 0.0, 50.0);
+        view.RawScrollAndZoom(&mut tree, 400.0, 300.0, 0.0, 0.0, 50.0);
 
         let rel_a_after = view.current_visit().rel_a;
         assert!(
@@ -3297,7 +3297,7 @@ mod tests {
     fn ego_mode_toggle_invalidates_cursor() {
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         assert!(!view.is_cursor_invalid());
         view.flags ^= ViewFlags::EGO_MODE;
@@ -3309,7 +3309,7 @@ mod tests {
     fn stress_test_sync_creates_and_destroys() {
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Initially no stress test
         assert!(!view.is_stress_test_active());
@@ -3332,7 +3332,7 @@ mod tests {
     fn stress_test_ring_buffer_accumulates() {
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         view.flags |= ViewFlags::STRESS_TEST;
         // Sync multiple times to accumulate entries
@@ -3349,7 +3349,7 @@ mod tests {
 
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         view.flags |= ViewFlags::STRESS_TEST;
         view.sync_stress_test();
@@ -3357,11 +3357,11 @@ mod tests {
         // Paint into a real image and verify the overlay renders without panic
         let mut img = emImage::new(800, 600, 4);
         let mut painter = emPainter::new(&mut img);
-        view.paint(&mut tree, &mut painter);
+        view.Paint(&mut tree, &mut painter);
 
         // Check that the top-left corner has non-zero (overlay painted) pixels.
         // The purple background (255,0,255,128) should have been blended there.
-        let px = img.data();
+        let px = img.GetMap();
         // pixel at (5, 5): offset = (5 * 800 + 5) * 4
         let off = (5 * 800 + 5) * 4;
         let has_overlay = px[off] > 0 || px[off + 1] > 0 || px[off + 2] > 0;

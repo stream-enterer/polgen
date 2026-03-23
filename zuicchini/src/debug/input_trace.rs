@@ -42,13 +42,13 @@ mod tests {
         widget: emButton,
     }
     impl PanelBehavior for ButtonPanel {
-        fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
             self.widget.paint(p, w, h, _s.enabled);
         }
-        fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
             self.widget.input(e, _s, _is)
         }
-        fn is_opaque(&self) -> bool {
+        fn IsOpaque(&self) -> bool {
             true
         }
     }
@@ -57,13 +57,13 @@ mod tests {
         widget: emCheckButton,
     }
     impl PanelBehavior for CheckButtonPanel {
-        fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
             self.widget.paint(p, w, h, _s.enabled);
         }
-        fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
             self.widget.input(e, _s, _is)
         }
-        fn is_opaque(&self) -> bool {
+        fn IsOpaque(&self) -> bool {
             true
         }
     }
@@ -72,14 +72,14 @@ mod tests {
         look: Rc<emLook>,
     }
     impl PanelBehavior for TestRoot {
-        fn is_opaque(&self) -> bool {
+        fn IsOpaque(&self) -> bool {
             true
         }
         fn auto_expand(&self) -> bool {
             true
         }
-        fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-            p.paint_rect(
+        fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+            p.PaintRect(
                 0.0,
                 0.0,
                 w,
@@ -88,7 +88,7 @@ mod tests {
                 emColor::TRANSPARENT,
             );
         }
-        fn layout_children(&mut self, ctx: &mut PanelCtx) {
+        fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
             if ctx.children().is_empty() {
                 let look = self.look.clone();
                 ctx.create_child_with(
@@ -126,8 +126,8 @@ mod tests {
 
     fn settle(tree: &mut PanelTree, view: &mut emView) {
         for _ in 0..5 {
-            tree.deliver_notices(view.window_focused(), view.pixel_tallness());
-            view.update_viewing(tree);
+            tree.HandleNotice(view.IsFocused(), view.GetCurrentPixelTallness());
+            view.Update(tree);
         }
     }
 
@@ -147,7 +147,7 @@ mod tests {
             crate::emCore::emBorder::emBorder::new(crate::emCore::emBorder::OuterBorderType::InstrumentMoreRound)
                 .with_caption("Test")
                 .with_label_in_border(false);
-        let (rect, r) = border.content_round_rect(1.0, 0.4, &look);
+        let (rect, r) = border.GetContentRoundRect(1.0, 0.4, &look);
         eprintln!("\n=== STANDALONE BUTTON (w=1.0, h=0.4) ===");
         eprintln!(
             "  content_round_rect: x={:.6} y={:.6} w={:.6} h={:.6} r={:.6}",
@@ -181,11 +181,11 @@ mod tests {
 
         let root = tree.create_root("root");
         tree.set_behavior(root, Box::new(TestRoot { look: look.clone() }));
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
-        tree.set_auto_expansion_threshold(root, 900.0, ViewConditionType::Area);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
+        tree.SetAutoExpansionThreshold(root, 900.0, ViewConditionType::Area);
 
         let mut view = emView::new(root, 800.0, 600.0);
-        view.set_view_flags(view.flags | ViewFlags::ROOT_SAME_TALLNESS, &mut tree);
+        view.SetViewFlags(view.flags | ViewFlags::ROOT_SAME_TALLNESS, &mut tree);
         settle(&mut tree, &mut view);
 
         // Dump tree
@@ -211,9 +211,9 @@ mod tests {
                 if let Some(mut beh) = tree.take_behavior(pid) {
                     let lr = tree.get(pid).unwrap().layout_rect;
                     let tallness = if lr.w > 1e-100 { lr.h / lr.w } else { 1.0 };
-                    let state = tree.build_panel_state(pid, true, view.pixel_tallness());
+                    let state = tree.build_panel_state(pid, true, view.GetCurrentPixelTallness());
                     let mut painter = emPainter::new(&mut img);
-                    beh.paint(&mut painter, 1.0, tallness, &state);
+                    beh.Paint(&mut painter, 1.0, tallness, &state);
                     tree.put_behavior(pid, beh);
                 }
             }
@@ -249,13 +249,13 @@ mod tests {
             let order = tree.viewed_panels_dfs();
             for &dpid in &order {
                 let dname = tree.get(dpid).map(|p| p.name.clone()).unwrap_or_default();
-                let lx = tree.view_to_panel_x(dpid, cx);
-                let ly = tree.view_to_panel_y(dpid, cy, view.pixel_tallness());
+                let lx = tree.ViewToPanelX(dpid, cx);
+                let ly = tree.ViewToPanelY(dpid, cy, view.GetCurrentPixelTallness());
                 let ev = emInputEvent::press(InputKey::MouseLeft).with_mouse(lx, ly);
 
                 if let Some(mut beh) = tree.take_behavior(dpid) {
-                    let state = tree.build_panel_state(dpid, true, view.pixel_tallness());
-                    let consumed = beh.input(&ev, &state, &input_state);
+                    let state = tree.build_panel_state(dpid, true, view.GetCurrentPixelTallness());
+                    let consumed = beh.Input(&ev, &state, &input_state);
                     tree.put_behavior(dpid, beh);
                     eprintln!(
                         "  {:?} local=({:.4},{:.4}) consumed={}",

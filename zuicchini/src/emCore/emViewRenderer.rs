@@ -25,7 +25,7 @@ impl SoftwareCompositor {
     pub fn render(&mut self, tree: &mut PanelTree, view: &emView) {
         self.framebuffer.fill(emColor::BLACK);
         let mut painter = emPainter::new(&mut self.framebuffer);
-        view.paint(tree, &mut painter);
+        view.Paint(tree, &mut painter);
     }
 
     /// Render using the display-list + parallel-replay pipeline.
@@ -41,14 +41,14 @@ impl SoftwareCompositor {
         pool: &emRenderThreadPool,
         tile_size: u32,
     ) {
-        let w = self.framebuffer.width();
-        let h = self.framebuffer.height();
+        let w = self.framebuffer.GetWidth();
+        let h = self.framebuffer.GetHeight();
 
         // Phase 1: record.
         let mut draw_list = DrawList::new();
         {
             let mut rec = emPainter::new_recording(w, h, draw_list.ops_mut());
-            view.paint(tree, &mut rec);
+            view.Paint(tree, &mut rec);
         }
 
         // Phase 2: split into tiles and replay in parallel.
@@ -90,7 +90,7 @@ impl SoftwareCompositor {
                     col * tile_size,
                     row * tile_size,
                     &buf,
-                    (0, 0, buf.width(), buf.height()),
+                    (0, 0, buf.GetWidth(), buf.GetHeight()),
                 );
             }
         }

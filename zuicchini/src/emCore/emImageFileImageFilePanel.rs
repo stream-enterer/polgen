@@ -54,8 +54,8 @@ impl emImageFilePanel {
     /// within panel width 1.0 and proportional height.
     pub fn get_essence_rect(&self, panel_w: f64, panel_h: f64) -> Option<(f64, f64, f64, f64)> {
         let image = self.current_image.as_ref()?;
-        let iw = image.width() as f64;
-        let ih = image.height() as f64;
+        let iw = image.GetWidth() as f64;
+        let ih = image.GetHeight() as f64;
         if iw <= 0.0 || ih <= 0.0 || panel_w <= 0.0 || panel_h <= 0.0 {
             return None;
         }
@@ -82,27 +82,27 @@ impl emImageFilePanel {
 }
 
 impl PanelBehavior for emImageFilePanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         if self.file_panel.GetVirFileState().is_good() {
             false
         } else {
-            self.file_panel.is_opaque()
+            self.file_panel.IsOpaque()
         }
     }
 
-    fn canvas_color(&self) -> emColor {
-        self.file_panel.canvas_color()
+    fn GetCanvasColor(&self) -> emColor {
+        self.file_panel.GetCanvasColor()
     }
 
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         if !self.file_panel.GetVirFileState().is_good() {
-            self.file_panel.paint(painter, w, h, state);
+            self.file_panel.Paint(painter, w, h, state);
             return;
         }
 
         if let Some(ref image) = self.current_image {
             if let Some((ix, iy, iw, ih)) = self.get_essence_rect(w, h) {
-                let canvas_color = painter.canvas_color();
+                let canvas_color = painter.GetCanvasColor();
                 painter.paint_image_full(ix, iy, iw, ih, image, 255, canvas_color);
             }
         }

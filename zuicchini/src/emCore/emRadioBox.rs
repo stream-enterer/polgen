@@ -151,8 +151,8 @@ impl emRadioBox {
 
         // Paint face (InputBgColor) — circular for radio.
         let face_color = self.look.input_bg_color;
-        painter.paint_round_rect(fx, fy, fw, fh, fr, face_color);
-        painter.set_canvas_color(face_color);
+        painter.PaintRoundRect(fx, fy, fw, fh, fr, face_color);
+        painter.SetCanvasColor(face_color);
 
         // Paint radio dot if selected (C++ PaintBoxSymbol, lines 161-167).
         // C++ PaintEllipse takes bounding rect (x, y, w, h).
@@ -161,7 +161,7 @@ impl emRadioBox {
             let dot_d = fw * 0.25;
             let dot_w = fw - 2.0 * dot_d;
             let dot_h = fh - 2.0 * dot_d;
-            painter.paint_ellipse(
+            painter.PaintEllipse(
                 fx + dot_d + dot_w * 0.5,
                 fy + dot_d + dot_h * 0.5,
                 dot_w * 0.5,
@@ -186,7 +186,7 @@ impl emRadioBox {
         if self.pressed && !self.box_pressed {
             let r = cr.h * 0.2;
             with_toolkit_images(|img| {
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -210,7 +210,7 @@ impl emRadioBox {
         // C++ DoButton: disabled gray overlay for boxed+radioed path.
         // PaintRoundRect(fx, fy, fw, fh, fr, fr, 0x888888E0).
         if !enabled {
-            painter.paint_round_rect(fx, fy, fw, fh, fr, emColor::rgba(0x88, 0x88, 0x88, 0xE0));
+            painter.PaintRoundRect(fx, fy, fw, fh, fr, emColor::rgba(0x88, 0x88, 0x88, 0xE0));
         }
     }
 

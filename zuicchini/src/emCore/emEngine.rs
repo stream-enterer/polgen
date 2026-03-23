@@ -16,7 +16,7 @@ pub trait emEngine {
     ///
     /// The `ctx` parameter provides access to the scheduler for firing signals,
     /// checking `is_signaled`, querying `is_time_slice_at_end`, etc.
-    fn cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool;
+    fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool;
 }
 
 /// emEngine execution priority. Higher priority engines run first within a time slice.

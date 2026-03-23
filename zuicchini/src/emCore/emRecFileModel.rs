@@ -128,7 +128,7 @@ impl<T: Record + Default> emRecFileModel<T> {
         self.memory_need = memory_need;
         if memory_need > self.memory_limit {
             self.protect_file_state += 1;
-            self.data.set_to_default();
+            self.data.SetToDefault();
             self.protect_file_state -= 1;
             self.state = FileState::TooCostly;
         }
@@ -153,7 +153,7 @@ impl<T: Record + Default> emRecFileModel<T> {
             self.read_buffer = None;
         }
         self.protect_file_state += 1;
-        self.data.set_to_default();
+        self.data.SetToDefault();
         self.protect_file_state -= 1;
         self.state = FileState::Waiting;
         self.error_text.clear();
@@ -187,7 +187,7 @@ impl<T: Record + Default> emRecFileModel<T> {
                 return;
             }
             self.protect_file_state += 1;
-            self.data.set_to_default();
+            self.data.SetToDefault();
             self.protect_file_state -= 1;
 
             match std::fs::read_to_string(&self.path) {
@@ -218,7 +218,7 @@ impl<T: Record + Default> emRecFileModel<T> {
             match result {
                 Err(e) => {
                     self.protect_file_state += 1;
-                    self.data.set_to_default();
+                    self.data.SetToDefault();
                     self.protect_file_state -= 1;
                     self.state = FileState::LoadError(e);
                 }
@@ -261,7 +261,7 @@ impl<T: Record + Default> emRecFileModel<T> {
 
     fn hard_reset_data(&mut self) {
         self.protect_file_state += 1;
-        self.data.set_to_default();
+        self.data.SetToDefault();
         self.protect_file_state -= 1;
     }
 }

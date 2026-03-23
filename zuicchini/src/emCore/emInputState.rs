@@ -36,133 +36,133 @@ impl emInputState {
     }
 
     /// Check if a key is currently pressed.
-    pub fn is_pressed(&self, key: InputKey) -> bool {
+    pub fn Get(&self, key: InputKey) -> bool {
         self.pressed.contains(&key)
     }
 
     /// Check if Shift is held.
-    pub fn shift(&self) -> bool {
-        self.is_pressed(InputKey::Shift)
+    pub fn GetShift(&self) -> bool {
+        self.Get(InputKey::Shift)
     }
 
     /// Check if Ctrl is held.
-    pub fn ctrl(&self) -> bool {
-        self.is_pressed(InputKey::Ctrl)
+    pub fn GetCtrl(&self) -> bool {
+        self.Get(InputKey::Ctrl)
     }
 
     /// Check if Alt is held.
-    pub fn alt(&self) -> bool {
-        self.is_pressed(InputKey::Alt)
+    pub fn GetAlt(&self) -> bool {
+        self.Get(InputKey::Alt)
     }
 
     /// Check if Meta (Cmd/Win) is held.
-    pub fn meta(&self) -> bool {
-        self.is_pressed(InputKey::Meta)
+    pub fn GetMeta(&self) -> bool {
+        self.Get(InputKey::Meta)
     }
 
     /// Whether the left mouse button is pressed.
     /// (C++ emInputState::GetLeftButton parity.)
-    pub fn left_button(&self) -> bool {
-        self.is_pressed(InputKey::MouseLeft)
+    pub fn GetLeftButton(&self) -> bool {
+        self.Get(InputKey::MouseLeft)
     }
 
     /// Whether the middle mouse button is pressed.
     /// (C++ emInputState::GetMiddleButton parity.)
-    pub fn middle_button(&self) -> bool {
-        self.is_pressed(InputKey::MouseMiddle)
+    pub fn GetMiddleButton(&self) -> bool {
+        self.Get(InputKey::MouseMiddle)
     }
 
     /// Whether the right mouse button is pressed.
     /// (C++ emInputState::GetRightButton parity.)
-    pub fn right_button(&self) -> bool {
-        self.is_pressed(InputKey::MouseRight)
+    pub fn GetRightButton(&self) -> bool {
+        self.Get(InputKey::MouseRight)
     }
 
     // ── Modifier combo tests (C++ emInputState parity) ────────────────
     // Each tests that *exactly* the named modifiers are held, nothing more.
 
     /// No modifier keys held.
-    pub fn is_no_mod(&self) -> bool {
-        !self.shift() && !self.ctrl() && !self.alt() && !self.meta()
+    pub fn IsNoMod(&self) -> bool {
+        !self.GetShift() && !self.GetCtrl() && !self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Shift held.
-    pub fn is_shift_mod(&self) -> bool {
-        self.shift() && !self.ctrl() && !self.alt() && !self.meta()
+    pub fn IsShiftMod(&self) -> bool {
+        self.GetShift() && !self.GetCtrl() && !self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Ctrl held.
-    pub fn is_ctrl_mod(&self) -> bool {
-        !self.shift() && self.ctrl() && !self.alt() && !self.meta()
+    pub fn IsCtrlMod(&self) -> bool {
+        !self.GetShift() && self.GetCtrl() && !self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Alt held.
-    pub fn is_alt_mod(&self) -> bool {
-        !self.shift() && !self.ctrl() && self.alt() && !self.meta()
+    pub fn IsAltMod(&self) -> bool {
+        !self.GetShift() && !self.GetCtrl() && self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Meta held.
-    pub fn is_meta_mod(&self) -> bool {
-        !self.shift() && !self.ctrl() && !self.alt() && self.meta()
+    pub fn IsMetaMod(&self) -> bool {
+        !self.GetShift() && !self.GetCtrl() && !self.GetAlt() && self.GetMeta()
     }
 
     /// Exactly Shift+Ctrl held.
-    pub fn is_shift_ctrl_mod(&self) -> bool {
-        self.shift() && self.ctrl() && !self.alt() && !self.meta()
+    pub fn IsShiftCtrlMod(&self) -> bool {
+        self.GetShift() && self.GetCtrl() && !self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Shift+Alt held.
-    pub fn is_shift_alt_mod(&self) -> bool {
-        self.shift() && !self.ctrl() && self.alt() && !self.meta()
+    pub fn IsShiftAltMod(&self) -> bool {
+        self.GetShift() && !self.GetCtrl() && self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Shift+Meta held.
-    pub fn is_shift_meta_mod(&self) -> bool {
-        self.shift() && !self.ctrl() && !self.alt() && self.meta()
+    pub fn IsShiftMetaMod(&self) -> bool {
+        self.GetShift() && !self.GetCtrl() && !self.GetAlt() && self.GetMeta()
     }
 
     /// Exactly Ctrl+Alt held.
-    pub fn is_ctrl_alt_mod(&self) -> bool {
-        !self.shift() && self.ctrl() && self.alt() && !self.meta()
+    pub fn IsCtrlAltMod(&self) -> bool {
+        !self.GetShift() && self.GetCtrl() && self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Ctrl+Meta held.
-    pub fn is_ctrl_meta_mod(&self) -> bool {
-        !self.shift() && self.ctrl() && !self.alt() && self.meta()
+    pub fn IsCtrlMetaMod(&self) -> bool {
+        !self.GetShift() && self.GetCtrl() && !self.GetAlt() && self.GetMeta()
     }
 
     /// Exactly Alt+Meta held.
-    pub fn is_alt_meta_mod(&self) -> bool {
-        !self.shift() && !self.ctrl() && self.alt() && self.meta()
+    pub fn IsAltMetaMod(&self) -> bool {
+        !self.GetShift() && !self.GetCtrl() && self.GetAlt() && self.GetMeta()
     }
 
     /// Exactly Shift+Ctrl+Alt held.
-    pub fn is_shift_ctrl_alt_mod(&self) -> bool {
-        self.shift() && self.ctrl() && self.alt() && !self.meta()
+    pub fn IsShiftCtrlAltMod(&self) -> bool {
+        self.GetShift() && self.GetCtrl() && self.GetAlt() && !self.GetMeta()
     }
 
     /// Exactly Shift+Ctrl+Meta held.
-    pub fn is_shift_ctrl_meta_mod(&self) -> bool {
-        self.shift() && self.ctrl() && !self.alt() && self.meta()
+    pub fn IsShiftCtrlMetaMod(&self) -> bool {
+        self.GetShift() && self.GetCtrl() && !self.GetAlt() && self.GetMeta()
     }
 
     /// Exactly Shift+Alt+Meta held.
-    pub fn is_shift_alt_meta_mod(&self) -> bool {
-        self.shift() && !self.ctrl() && self.alt() && self.meta()
+    pub fn IsShiftAltMetaMod(&self) -> bool {
+        self.GetShift() && !self.GetCtrl() && self.GetAlt() && self.GetMeta()
     }
 
     /// Exactly Ctrl+Alt+Meta held.
-    pub fn is_ctrl_alt_meta_mod(&self) -> bool {
-        !self.shift() && self.ctrl() && self.alt() && self.meta()
+    pub fn IsCtrlAltMetaMod(&self) -> bool {
+        !self.GetShift() && self.GetCtrl() && self.GetAlt() && self.GetMeta()
     }
 
     /// All four modifiers held.
-    pub fn is_shift_ctrl_alt_meta_mod(&self) -> bool {
-        self.shift() && self.ctrl() && self.alt() && self.meta()
+    pub fn IsShiftCtrlAltMetaMod(&self) -> bool {
+        self.GetShift() && self.GetCtrl() && self.GetAlt() && self.GetMeta()
     }
 
     /// Clear all pressed keys. Returns true if any key was pressed.
-    pub fn clear_key_states(&mut self) -> bool {
+    pub fn ClearKeyStates(&mut self) -> bool {
         let had_keys = !self.pressed.is_empty();
         self.pressed.clear();
         had_keys
@@ -175,7 +175,7 @@ impl emInputState {
     }
 
     /// Update a touch point. Inserts if new, updates if existing.
-    pub fn set_touch(&mut self, id: u64, x: f64, y: f64) {
+    pub fn SetTouch(&mut self, id: u64, x: f64, y: f64) {
         if let Some(touch) = self.touches.iter_mut().find(|t| t.0 == id) {
             touch.1 = x;
             touch.2 = y;
@@ -185,22 +185,22 @@ impl emInputState {
     }
 
     /// Remove a touch point.
-    pub fn remove_touch(&mut self, id: u64) {
+    pub fn RemoveTouch(&mut self, id: u64) {
         self.touches.retain(|t| t.0 != id);
     }
 
     /// Get all active touch points.
-    pub fn touches(&self) -> &[(u64, f64, f64)] {
+    pub fn GetTouchCount(&self) -> &[(u64, f64, f64)] {
         &self.touches
     }
 
     /// Get the set of currently pressed keys.
-    pub fn pressed_keys(&self) -> &HashSet<InputKey> {
+    pub fn GetKeyStates(&self) -> &HashSet<InputKey> {
         &self.pressed
     }
 
     /// Clear all active touch points.
-    pub fn clear_touches(&mut self) {
+    pub fn ClearTouches(&mut self) {
         self.touches.clear();
     }
 }
@@ -218,19 +218,19 @@ mod tests {
     #[test]
     fn modifier_combo_no_mod() {
         let s = emInputState::new();
-        assert!(s.is_no_mod());
-        assert!(!s.is_shift_mod());
-        assert!(!s.is_ctrl_mod());
+        assert!(s.IsNoMod());
+        assert!(!s.IsShiftMod());
+        assert!(!s.IsCtrlMod());
     }
 
     #[test]
     fn modifier_combo_single() {
         let mut s = emInputState::new();
         s.press(InputKey::Shift);
-        assert!(s.is_shift_mod());
-        assert!(!s.is_no_mod());
-        assert!(!s.is_ctrl_mod());
-        assert!(!s.is_shift_ctrl_mod());
+        assert!(s.IsShiftMod());
+        assert!(!s.IsNoMod());
+        assert!(!s.IsCtrlMod());
+        assert!(!s.IsShiftCtrlMod());
     }
 
     #[test]
@@ -238,14 +238,14 @@ mod tests {
         let mut s = emInputState::new();
         s.press(InputKey::Shift);
         s.press(InputKey::Ctrl);
-        assert!(s.is_shift_ctrl_mod());
-        assert!(!s.is_shift_mod());
-        assert!(!s.is_ctrl_mod());
+        assert!(s.IsShiftCtrlMod());
+        assert!(!s.IsShiftMod());
+        assert!(!s.IsCtrlMod());
 
         let mut s2 = emInputState::new();
         s2.press(InputKey::Alt);
         s2.press(InputKey::Meta);
-        assert!(s2.is_alt_meta_mod());
+        assert!(s2.IsAltMetaMod());
     }
 
     #[test]
@@ -254,9 +254,9 @@ mod tests {
         s.press(InputKey::Shift);
         s.press(InputKey::Ctrl);
         s.press(InputKey::Alt);
-        assert!(s.is_shift_ctrl_alt_mod());
-        assert!(!s.is_shift_ctrl_mod());
-        assert!(!s.is_shift_ctrl_alt_meta_mod());
+        assert!(s.IsShiftCtrlAltMod());
+        assert!(!s.IsShiftCtrlMod());
+        assert!(!s.IsShiftCtrlAltMetaMod());
     }
 
     #[test]
@@ -266,105 +266,105 @@ mod tests {
         s.press(InputKey::Ctrl);
         s.press(InputKey::Alt);
         s.press(InputKey::Meta);
-        assert!(s.is_shift_ctrl_alt_meta_mod());
-        assert!(!s.is_shift_ctrl_alt_mod());
+        assert!(s.IsShiftCtrlAltMetaMod());
+        assert!(!s.IsShiftCtrlAltMod());
     }
 
     #[test]
     fn modifier_remaining_combos() {
         let mut s = emInputState::new();
         s.press(InputKey::Alt);
-        assert!(s.is_alt_mod());
+        assert!(s.IsAltMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Meta);
-        assert!(s.is_meta_mod());
+        assert!(s.IsMetaMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Shift);
         s.press(InputKey::Alt);
-        assert!(s.is_shift_alt_mod());
+        assert!(s.IsShiftAltMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Shift);
         s.press(InputKey::Meta);
-        assert!(s.is_shift_meta_mod());
+        assert!(s.IsShiftMetaMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Ctrl);
         s.press(InputKey::Alt);
-        assert!(s.is_ctrl_alt_mod());
+        assert!(s.IsCtrlAltMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Ctrl);
         s.press(InputKey::Meta);
-        assert!(s.is_ctrl_meta_mod());
+        assert!(s.IsCtrlMetaMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Shift);
         s.press(InputKey::Ctrl);
         s.press(InputKey::Meta);
-        assert!(s.is_shift_ctrl_meta_mod());
+        assert!(s.IsShiftCtrlMetaMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Shift);
         s.press(InputKey::Alt);
         s.press(InputKey::Meta);
-        assert!(s.is_shift_alt_meta_mod());
+        assert!(s.IsShiftAltMetaMod());
 
         let mut s = emInputState::new();
         s.press(InputKey::Ctrl);
         s.press(InputKey::Alt);
         s.press(InputKey::Meta);
-        assert!(s.is_ctrl_alt_meta_mod());
+        assert!(s.IsCtrlAltMetaMod());
     }
 
     #[test]
-    fn clear_key_states() {
+    fn ClearKeyStates() {
         let mut s = emInputState::new();
-        assert!(!s.clear_key_states());
+        assert!(!s.ClearKeyStates());
         s.press(InputKey::Shift);
         s.press(InputKey::Key('A'));
-        assert!(s.clear_key_states());
-        assert!(s.is_no_mod());
-        assert!(!s.is_pressed(InputKey::Key('A')));
+        assert!(s.ClearKeyStates());
+        assert!(s.IsNoMod());
+        assert!(!s.Get(InputKey::Key('A')));
     }
 
     #[test]
     fn key_classifier_mouse() {
-        assert!(InputKey::MouseLeft.is_mouse());
-        assert!(InputKey::WheelUp.is_mouse());
-        assert!(InputKey::MouseX2.is_mouse());
-        assert!(!InputKey::Shift.is_mouse());
-        assert!(!InputKey::Touch.is_mouse());
+        assert!(InputKey::MouseLeft.emIsMouseInputKey());
+        assert!(InputKey::WheelUp.emIsMouseInputKey());
+        assert!(InputKey::MouseX2.emIsMouseInputKey());
+        assert!(!InputKey::Shift.emIsMouseInputKey());
+        assert!(!InputKey::Touch.emIsMouseInputKey());
     }
 
     #[test]
     fn key_classifier_touch() {
-        assert!(InputKey::Touch.is_touch());
-        assert!(!InputKey::MouseLeft.is_touch());
-        assert!(!InputKey::Key('A').is_touch());
+        assert!(InputKey::Touch.emIsTouchInputKey());
+        assert!(!InputKey::MouseLeft.emIsTouchInputKey());
+        assert!(!InputKey::Key('A').emIsTouchInputKey());
     }
 
     #[test]
     fn key_classifier_keyboard() {
-        assert!(InputKey::Key('A').is_keyboard());
-        assert!(InputKey::Shift.is_keyboard());
-        assert!(InputKey::F1.is_keyboard());
-        assert!(InputKey::Print.is_keyboard());
-        assert!(InputKey::AltGr.is_keyboard());
-        assert!(!InputKey::MouseLeft.is_keyboard());
-        assert!(!InputKey::Touch.is_keyboard());
+        assert!(InputKey::Key('A').emIsKeyboardInputKey());
+        assert!(InputKey::Shift.emIsKeyboardInputKey());
+        assert!(InputKey::F1.emIsKeyboardInputKey());
+        assert!(InputKey::Print.emIsKeyboardInputKey());
+        assert!(InputKey::AltGr.emIsKeyboardInputKey());
+        assert!(!InputKey::MouseLeft.emIsKeyboardInputKey());
+        assert!(!InputKey::Touch.emIsKeyboardInputKey());
     }
 
     #[test]
     fn key_classifier_modifier() {
-        assert!(InputKey::Shift.is_modifier());
-        assert!(InputKey::Ctrl.is_modifier());
-        assert!(InputKey::Alt.is_modifier());
-        assert!(InputKey::Meta.is_modifier());
-        assert!(!InputKey::AltGr.is_modifier());
-        assert!(!InputKey::Key('A').is_modifier());
+        assert!(InputKey::Shift.emIsModifierInputKey());
+        assert!(InputKey::Ctrl.emIsModifierInputKey());
+        assert!(InputKey::Alt.emIsModifierInputKey());
+        assert!(InputKey::Meta.emIsModifierInputKey());
+        assert!(!InputKey::AltGr.emIsModifierInputKey());
+        assert!(!InputKey::Key('A').emIsModifierInputKey());
     }
 
     #[test]
@@ -384,7 +384,7 @@ mod tests {
             InputKey::Space,
         ];
         for key in keys {
-            let s = key.as_str();
+            let s = key.emInputKeyToString();
             let parsed = InputKey::from_str_name(s);
             assert_eq!(parsed, Some(key), "roundtrip failed for {s}");
         }

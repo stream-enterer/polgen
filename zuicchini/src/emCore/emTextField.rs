@@ -192,11 +192,11 @@ impl emTextField {
 
     // ── Property accessors ──────────────────────────────────────────────
 
-    pub fn text(&self) -> &str {
+    pub fn GetText(&self) -> &str {
         &self.text
     }
 
-    pub fn set_text(&mut self, text: &str) {
+    pub fn SetText(&mut self, text: &str) {
         if self.text == text {
             return;
         }
@@ -209,26 +209,26 @@ impl emTextField {
         self.fire_change();
     }
 
-    pub fn cursor_pos(&self) -> usize {
+    pub fn GetCursorIndex(&self) -> usize {
         self.cursor
     }
 
-    pub fn set_cursor_index(&mut self, idx: usize) {
+    pub fn SetCursorIndex(&mut self, idx: usize) {
         self.cursor = self.clamp_to_boundary(idx);
     }
 
-    pub fn text_len(&self) -> usize {
+    pub fn GetTextLen(&self) -> usize {
         self.text.len()
     }
 
-    pub fn set_password_mode(&mut self, enabled: bool) {
+    pub fn SetPasswordMode(&mut self, enabled: bool) {
         if self.password_mode == enabled {
             return;
         }
         self.password_mode = enabled;
     }
 
-    pub fn password_mode(&self) -> bool {
+    pub fn GetPasswordMode(&self) -> bool {
         self.password_mode
     }
 
@@ -236,7 +236,7 @@ impl emTextField {
         self.max_length = max;
     }
 
-    pub fn set_editable(&mut self, editable: bool) {
+    pub fn SetEditable(&mut self, editable: bool) {
         if self.editable == editable {
             return;
         }
@@ -248,7 +248,7 @@ impl emTextField {
         };
     }
 
-    pub fn is_editable(&self) -> bool {
+    pub fn IsEditable(&self) -> bool {
         self.editable
     }
 
@@ -257,7 +257,7 @@ impl emTextField {
         self.focused = in_focused_path;
     }
 
-    pub fn set_multi_line(&mut self, multi_line: bool) {
+    pub fn SetMultiLineMode(&mut self, multi_line: bool) {
         if self.multi_line == multi_line {
             return;
         }
@@ -265,24 +265,24 @@ impl emTextField {
         self.scroll_y = 0.0;
     }
 
-    pub fn is_multi_line(&self) -> bool {
+    pub fn GetMultiLineMode(&self) -> bool {
         self.multi_line
     }
 
-    pub fn set_overwrite_mode(&mut self, mode: bool) {
+    pub fn SetOverwriteMode(&mut self, mode: bool) {
         if self.overwrite_mode == mode {
             return;
         }
         self.overwrite_mode = mode;
     }
 
-    pub fn is_overwrite_mode(&self) -> bool {
+    pub fn GetOverwriteMode(&self) -> bool {
         self.overwrite_mode
     }
 
     // ── Selection API ───────────────────────────────────────────────────
 
-    pub fn select(&mut self, start: usize, end: usize) {
+    pub fn Select(&mut self, start: usize, end: usize) {
         let start = self.clamp_to_boundary(start);
         let end = self.clamp_to_boundary(end);
         if start >= end {
@@ -295,11 +295,11 @@ impl emTextField {
         self.fire_selection_change();
     }
 
-    pub fn select_all(&mut self) {
-        self.select(0, self.text.len());
+    pub fn SelectAll(&mut self) {
+        self.Select(0, self.text.len());
     }
 
-    pub fn deselect(&mut self) {
+    pub fn EmptySelection(&mut self) {
         self.selection_anchor = None;
         // C++ EmptySelection() calls emClipboard->Clear(true, SelectionId).
         if let Some(cb) = &self.on_clipboard_clear {
@@ -308,27 +308,27 @@ impl emTextField {
         self.fire_selection_change();
     }
 
-    pub fn selection_start(&self) -> usize {
+    pub fn GetSelectionStartIndex(&self) -> usize {
         match self.selection_anchor {
             Some(anchor) => anchor.min(self.cursor),
             None => self.cursor,
         }
     }
 
-    pub fn selection_end(&self) -> usize {
+    pub fn GetSelectionEndIndex(&self) -> usize {
         match self.selection_anchor {
             Some(anchor) => anchor.max(self.cursor),
             None => self.cursor,
         }
     }
 
-    pub fn is_selection_empty(&self) -> bool {
-        self.selection_anchor.is_none() || self.selection_start() == self.selection_end()
+    pub fn IsSelectionEmpty(&self) -> bool {
+        self.selection_anchor.is_none() || self.GetSelectionStartIndex() == self.GetSelectionEndIndex()
     }
 
     pub fn selected_text(&self) -> &str {
-        let start = self.selection_start();
-        let end = self.selection_end();
+        let start = self.GetSelectionStartIndex();
+        let end = self.GetSelectionEndIndex();
         &self.text[start..end]
     }
 
@@ -336,8 +336,8 @@ impl emTextField {
     /// In password mode, publishes asterisks instead of actual text.
     /// No-op if selection is empty or already published.
     /// Matches C++ `PublishSelection`.
-    pub fn publish_selection(&mut self) {
-        if self.is_selection_empty() || self.selection_published {
+    pub fn PublishSelection(&mut self) {
+        if self.IsSelectionEmpty() || self.selection_published {
             return;
         }
         let text = if self.password_mode {
@@ -352,8 +352,8 @@ impl emTextField {
     }
 
     fn modify_selection(&mut self, new_cursor: usize, extend: bool) {
-        let old_start = self.selection_start();
-        let old_end = self.selection_end();
+        let old_start = self.GetSelectionStartIndex();
+        let old_end = self.GetSelectionEndIndex();
         if extend {
             // D-WIDGET-05: Use closest-endpoint anchor logic for selection
             // modification with Shift. When extending an existing non-empty
@@ -384,8 +384,8 @@ impl emTextField {
         // C++ Select() always fires SelectionSignal (line 171) unless state
         // is completely unchanged. Match by always firing when clearing or
         // when bounds changed — C++ EmptySelection() fires even on empty→empty.
-        let new_start = self.selection_start();
-        let new_end = self.selection_end();
+        let new_start = self.GetSelectionStartIndex();
+        let new_end = self.GetSelectionEndIndex();
         if old_start != new_start || old_end != new_end || !extend {
             self.fire_selection_change();
         }
@@ -394,8 +394,8 @@ impl emTextField {
     fn fire_selection_change(&mut self) {
         self.selection_published = false;
         if self.on_selection.is_some() {
-            let start = self.selection_start();
-            let end = self.selection_end();
+            let start = self.GetSelectionStartIndex();
+            let end = self.GetSelectionEndIndex();
             if let Some(cb) = &mut self.on_selection {
                 cb(start, end);
             }
@@ -403,25 +403,25 @@ impl emTextField {
         if let Some(cb) = &mut self.on_selection_signal {
             cb();
         }
-        self.selection_changed();
+        self.SelectionChanged();
     }
 
     // ── Undo/Redo ───────────────────────────────────────────────────────
 
-    pub fn can_undo(&self) -> bool {
+    pub fn CanUndo(&self) -> bool {
         !self.undo_stack.is_empty()
     }
 
-    pub fn can_redo(&self) -> bool {
+    pub fn CanRedo(&self) -> bool {
         !self.redo_stack.is_empty()
     }
 
-    pub fn clear_undo(&mut self) {
+    pub fn ClearUndo(&mut self) {
         self.undo_stack.clear();
         self.undo_merge = UndoMergeType::NoMerge;
     }
 
-    pub fn clear_redo(&mut self) {
+    pub fn ClearRedo(&mut self) {
         self.redo_stack.clear();
     }
 
@@ -435,8 +435,8 @@ impl emTextField {
     /// undo step). Otherwise a new entry is pushed.
     /// Returns `true` if the edit was merged with the previous undo entry.
     fn save_undo_with_merge(&mut self, merge_type: UndoMergeType) -> bool {
-        let had_undo = self.can_undo();
-        let had_redo = self.can_redo();
+        let had_undo = self.CanUndo();
+        let had_redo = self.CanRedo();
 
         // Check if we can merge with the previous undo entry.
         // C++ merges consecutive same-type edits: backspace with backspace,
@@ -493,13 +493,13 @@ impl emTextField {
 
         self.undo_merge = merge_type;
         self.redo_stack.clear();
-        if self.can_undo() != had_undo || self.can_redo() != had_redo {
+        if self.CanUndo() != had_undo || self.CanRedo() != had_redo {
             self.fire_can_undo_redo();
         }
         merged
     }
 
-    pub fn undo(&mut self) -> bool {
+    pub fn Undo(&mut self) -> bool {
         self.undo_merge = UndoMergeType::NoMerge;
         if let Some(entry) = self.undo_stack.pop() {
             // C++ MF_SELECT: compute the range to select after undo.
@@ -526,7 +526,7 @@ impl emTextField {
         }
     }
 
-    pub fn redo(&mut self) -> bool {
+    pub fn Redo(&mut self) -> bool {
         self.undo_merge = UndoMergeType::NoMerge;
         if let Some(entry) = self.redo_stack.pop() {
             let (sel_start, sel_end) = Self::diff_select_range(&self.text, &entry.text);
@@ -709,7 +709,7 @@ impl emTextField {
         (col, row)
     }
 
-    pub fn col_row_to_index(&self, col: usize, row: usize) -> usize {
+    pub fn ColRow2Index(&self, col: usize, row: usize) -> usize {
         let mut current_row = 0;
         let mut row_start = 0;
         for (i, ch) in self.text.char_indices() {
@@ -759,7 +759,7 @@ impl emTextField {
         idx
     }
 
-    pub fn total_rows(&self) -> usize {
+    pub fn CalcTotalColsRows(&self) -> usize {
         self.text.matches('\n').count() + 1
     }
 
@@ -857,7 +857,7 @@ impl emTextField {
     /// Advances past delimiter segments to find the start of the next word.
     /// Unlike `next_word_boundary` (ctrl+arrow: skips word then delimiters),
     /// this skips only delimiter runs. Matches C++ `GetNextWordIndex`.
-    pub fn next_word_index(&self, pos: usize) -> usize {
+    pub fn GetNextWordIndex(&self, pos: usize) -> usize {
         let len = self.text.len();
         if pos >= len {
             return len;
@@ -880,10 +880,10 @@ impl emTextField {
 
     /// Finds the previous word start by scanning from the beginning using
     /// `next_word_index`. O(n) matching C++ `GetPrevWordIndex`.
-    pub fn prev_word_index(&self, pos: usize) -> usize {
+    pub fn GetPrevWordIndex(&self, pos: usize) -> usize {
         let mut i = 0;
         loop {
-            let j = self.next_word_index(i);
+            let j = self.GetNextWordIndex(i);
             if j >= pos || j == i {
                 return i;
             }
@@ -1034,7 +1034,7 @@ impl emTextField {
     // ── emClipboard (Phase 4) ─────────────────────────────────────────────
 
     fn copy_to_clipboard(&self) {
-        if self.is_selection_empty() {
+        if self.IsSelectionEmpty() {
             return;
         }
         if let Some(cb) = &self.on_clipboard_copy {
@@ -1048,7 +1048,7 @@ impl emTextField {
     }
 
     fn cut_to_clipboard(&mut self) {
-        if !self.editable || self.is_selection_empty() {
+        if !self.editable || self.IsSelectionEmpty() {
             return;
         }
         self.copy_to_clipboard();
@@ -1067,10 +1067,10 @@ impl emTextField {
         } else {
             return;
         };
-        self.paste_text(&text);
+        self.PasteSelectedText(&text);
     }
 
-    pub fn paste_text(&mut self, text: &str) {
+    pub fn PasteSelectedText(&mut self, text: &str) {
         if !self.editable || text.is_empty() {
             return;
         }
@@ -1114,7 +1114,7 @@ impl emTextField {
         } = content;
 
         painter.push_state();
-        painter.clip_rect(cx, cy, cw, ch);
+        painter.SetClipping(cx, cy, cw, ch);
 
         if self.multi_line {
             self.paint_multi_line(painter, cx, cy, cw, ch, radius);
@@ -1137,7 +1137,7 @@ impl emTextField {
         ch: f64,
         radius: f64,
     ) {
-        let canvas_color = painter.canvas_color();
+        let canvas_color = painter.GetCanvasColor();
         let display_text = if self.password_mode {
             "*".repeat(self.text.chars().count())
         } else {
@@ -1255,7 +1255,7 @@ impl emTextField {
 
         // Selection highlight rect (C++ line 982-990: PaintPolygon with selColor)
         if let Some((_, _, sx_px, ex_px)) = sel_info {
-            painter.paint_rect(
+            painter.PaintRect(
                 tx + sx_px - self.scroll_x,
                 effective_ty,
                 ex_px - sx_px,
@@ -1288,13 +1288,13 @@ impl emTextField {
                 } else {
                     (fg, canvas_color)
                 };
-                painter.paint_text(char_x, text_y, "*", effective_ch, ws, fg_c, bg_c);
+                painter.PaintText(char_x, text_y, "*", effective_ch, ws, fg_c, bg_c);
             }
         } else if let Some((si, ei, _, _)) = sel_info.filter(|(si, ei, _, _)| si < ei) {
             let si_col = display_text[..si].chars().count();
             let ei_col = display_text[..ei].chars().count();
             if si > 0 {
-                painter.paint_text(
+                painter.PaintText(
                     text_x,
                     text_y,
                     &display_text[..si],
@@ -1304,7 +1304,7 @@ impl emTextField {
                     canvas_color,
                 );
             }
-            painter.paint_text(
+            painter.PaintText(
                 text_x + si_col as f64 * cell_w * ws,
                 text_y,
                 &display_text[si..ei],
@@ -1314,7 +1314,7 @@ impl emTextField {
                 sel_color,
             );
             if ei < display_text.len() {
-                painter.paint_text(
+                painter.PaintText(
                     text_x + ei_col as f64 * cell_w * ws,
                     text_y,
                     &display_text[ei..],
@@ -1325,7 +1325,7 @@ impl emTextField {
                 );
             }
         } else {
-            painter.paint_text(
+            painter.PaintText(
                 text_x,
                 text_y,
                 &display_text,
@@ -1375,7 +1375,7 @@ impl emTextField {
                 (cx + cw, cy),
                 (cx, cy),
             ];
-            painter.paint_polygon(&vertices, cur_color, canvas_color);
+            painter.PaintPolygon(&vertices, cur_color, canvas_color);
         } else {
             // Insert mode: 8-vertex I-beam with serifs
             let cx = cursor_x;
@@ -1394,7 +1394,7 @@ impl emTextField {
                 (cx - d1, cy + ch),
                 (cx - d1, cy),
             ];
-            painter.paint_polygon(&vertices, cur_color, canvas_color);
+            painter.PaintPolygon(&vertices, cur_color, canvas_color);
         }
     }
 
@@ -1407,7 +1407,7 @@ impl emTextField {
         ch: f64,
         radius: f64,
     ) {
-        let canvas_color = painter.canvas_color();
+        let canvas_color = painter.GetCanvasColor();
 
         // C++ DoTextField sizing: d = min(h,w)*0.1 + r*0.5; th = h-2*d; cell_h = th/rows
         let d = ch.min(cw) * 0.1 + radius * 0.5;
@@ -1503,9 +1503,9 @@ impl emTextField {
             self.scroll_y = 0.0;
         }
 
-        let sel_start = self.selection_start();
-        let sel_end = self.selection_end();
-        let has_selection = !self.is_selection_empty();
+        let sel_start = self.GetSelectionStartIndex();
+        let sel_end = self.GetSelectionEndIndex();
+        let has_selection = !self.IsSelectionEmpty();
 
         // Selection highlight — use polygon for multi-row selection (C++ emTextField.cpp:976-991)
         if has_selection {
@@ -1524,7 +1524,7 @@ impl emTextField {
             let scroll_ty = effective_ty - self.scroll_y;
 
             if row0 == row1 {
-                painter.paint_rect(
+                painter.PaintRect(
                     tx + x0,
                     scroll_ty + row0 as f64 * effective_ch,
                     x1 - x0,
@@ -1543,7 +1543,7 @@ impl emTextField {
                     (tx, scroll_ty + (row0 + 1) as f64 * effective_ch),
                     (tx + x0, scroll_ty + (row0 + 1) as f64 * effective_ch),
                 ];
-                painter.paint_polygon(&vertices, sel_color, canvas_color);
+                painter.PaintPolygon(&vertices, sel_color, canvas_color);
             }
         }
 
@@ -1600,7 +1600,7 @@ impl emTextField {
                     let seg_text = &row_text[seg_start_byte..current_byte];
                     if !seg_text.is_empty() {
                         let x = tx + seg_start_col as f64 * cell_w * ws;
-                        painter.paint_text(x, row_y, seg_text, effective_ch, ws, seg_fg, seg_bg);
+                        painter.PaintText(x, row_y, seg_text, effective_ch, ws, seg_fg, seg_bg);
                     }
                     seg_start_byte = current_byte;
                     seg_start_col = col;
@@ -1614,7 +1614,7 @@ impl emTextField {
                     let seg_text = &row_text[seg_start_byte..current_byte];
                     if !seg_text.is_empty() {
                         let x = tx + seg_start_col as f64 * cell_w * ws;
-                        painter.paint_text(x, row_y, seg_text, effective_ch, ws, seg_fg, seg_bg);
+                        painter.PaintText(x, row_y, seg_text, effective_ch, ws, seg_fg, seg_bg);
                     }
                     // Advance column to next 8-boundary (matching calc_total_cols_rows).
                     col = (col / 8 + 1) * 8;
@@ -1634,7 +1634,7 @@ impl emTextField {
             let seg_text = &row_text[seg_start_byte..current_byte];
             if !seg_text.is_empty() {
                 let x = tx + seg_start_col as f64 * cell_w * ws;
-                painter.paint_text(x, row_y, seg_text, effective_ch, ws, seg_fg, seg_bg);
+                painter.PaintText(x, row_y, seg_text, effective_ch, ws, seg_fg, seg_bg);
             }
         }
 
@@ -1677,7 +1677,7 @@ impl emTextField {
                 (cxp + ch_w, cyp),
                 (cxp, cyp),
             ];
-            painter.paint_polygon(&vertices, cur_color, canvas_color);
+            painter.PaintPolygon(&vertices, cur_color, canvas_color);
         } else {
             let cxp = cursor_x;
             let cyp = cursor_screen_y;
@@ -1695,7 +1695,7 @@ impl emTextField {
                 (cxp - d1, cyp + chp),
                 (cxp - d1, cyp),
             ];
-            painter.paint_polygon(&vertices, cur_color, canvas_color);
+            painter.PaintPolygon(&vertices, cur_color, canvas_color);
         }
     }
 
@@ -1707,7 +1707,7 @@ impl emTextField {
     /// The cursor rect is in the same coordinate space as `paint(w, h)`.
     /// The panel behavior or framework reads this via
     /// `take_pending_scroll_to_visible()` and applies it to the emView.
-    pub fn scroll_to_cursor(&mut self) {
+    pub fn ScrollToCursor(&mut self) {
         if self.last_w <= 0.0 || self.last_h <= 0.0 {
             return;
         }
@@ -1770,7 +1770,7 @@ impl emTextField {
         }
         // Handle mouse events
         if self.handle_mouse(event) {
-            self.scroll_to_cursor();
+            self.ScrollToCursor();
             return true;
         }
 
@@ -1789,7 +1789,7 @@ impl emTextField {
             InputKey::ArrowLeft if !alt && !meta => {
                 self.magic_col = None;
                 let new_pos = if ctrl {
-                    self.prev_word_index(self.cursor)
+                    self.GetPrevWordIndex(self.cursor)
                 } else if self.cursor > 0 {
                     self.prev_char_boundary(self.cursor)
                 } else {
@@ -1801,7 +1801,7 @@ impl emTextField {
             InputKey::ArrowRight if !alt && !meta => {
                 self.magic_col = None;
                 let new_pos = if ctrl {
-                    self.next_word_index(self.cursor)
+                    self.GetNextWordIndex(self.cursor)
                 } else if self.cursor < self.text.len() {
                     self.next_char_boundary(self.cursor)
                 } else {
@@ -1858,31 +1858,31 @@ impl emTextField {
             // ── Editing (guarded by editable && enabled) ─────────────
             InputKey::Key('z') if ctrl && !shift => {
                 if self.editable && self.enabled {
-                    self.undo();
+                    self.Undo();
                 }
                 true
             }
             InputKey::Key('y') if ctrl && !shift => {
                 if self.editable && self.enabled {
-                    self.redo();
+                    self.Redo();
                 }
                 true
             }
             InputKey::Key('z') if ctrl && shift => {
                 // Ctrl+Shift+Z = redo
                 if self.editable && self.enabled {
-                    self.redo();
+                    self.Redo();
                 }
                 true
             }
             InputKey::Key('a') if ctrl && !shift => {
-                self.select_all();
+                self.SelectAll();
                 // C++ SelectAll(true) publishes to clipboard.
-                self.publish_selection();
+                self.PublishSelection();
                 true
             }
             InputKey::Key('a') if ctrl && shift => {
-                self.deselect();
+                self.EmptySelection();
                 true
             }
 
@@ -1944,7 +1944,7 @@ impl emTextField {
                     let target = if ctrl && shift {
                         self.row_start(self.cursor)
                     } else if ctrl {
-                        self.prev_word_index(self.cursor)
+                        self.GetPrevWordIndex(self.cursor)
                     } else {
                         self.prev_char_boundary(self.cursor)
                     };
@@ -1982,7 +1982,7 @@ impl emTextField {
                     let target = if ctrl && shift {
                         self.row_end(self.cursor)
                     } else if ctrl {
-                        self.next_word_index(self.cursor)
+                        self.GetNextWordIndex(self.cursor)
                     } else {
                         self.next_char_boundary(self.cursor)
                     };
@@ -2069,15 +2069,15 @@ impl emTextField {
                     if self.validate_text_with_rollback(rollback) {
                         self.fire_change();
                     }
-                    self.scroll_to_cursor();
+                    self.ScrollToCursor();
                     return true;
                 }
                 false
             }
         };
         if consumed {
-            self.restart_cursor_blinking();
-            self.scroll_to_cursor();
+            self.RestartCursorBlinking();
+            self.ScrollToCursor();
         }
         consumed
     }
@@ -2139,17 +2139,17 @@ impl emTextField {
 
         if event.ctrl && self.editable {
             // Ctrl+click: insert or move mode
-            if !self.is_selection_empty()
-                && pos >= self.selection_start()
-                && pos < self.selection_end()
+            if !self.IsSelectionEmpty()
+                && pos >= self.GetSelectionStartIndex()
+                && pos < self.GetSelectionEndIndex()
             {
                 // D-WIDGET-04: Record drag offset from selection start.
-                self.drag_offset = Some(pos.saturating_sub(self.selection_start()));
+                self.drag_offset = Some(pos.saturating_sub(self.GetSelectionStartIndex()));
                 // Save pre-move snapshot for live feedback.
                 self.move_snapshot = Some((
                     self.text.clone(),
-                    self.selection_start(),
-                    self.selection_end(),
+                    self.GetSelectionStartIndex(),
+                    self.GetSelectionEndIndex(),
                     self.cursor,
                 ));
                 self.save_undo_with_merge(UndoMergeType::Move);
@@ -2218,7 +2218,7 @@ impl emTextField {
             }
             _ => {
                 // Quad+ click: select all
-                self.select_all();
+                self.SelectAll();
                 self.drag_mode = DragMode::SelectChars;
             }
         }
@@ -2233,12 +2233,12 @@ impl emTextField {
                 let pos = self.pos_from_event(event.mouse_x, event.mouse_y);
                 if self.selection_anchor.is_none() {
                     self.selection_anchor = Some(self.cursor);
-                } else if !self.is_selection_empty() {
+                } else if !self.IsSelectionEmpty() {
                     // C++ ModifySelection closest-endpoint re-anchor (lines 1497-1501):
                     // on each drag motion, anchor at whichever endpoint is farther
                     // from the old cursor, so extending reverses direction naturally.
-                    let ss = self.selection_start();
-                    let se = self.selection_end();
+                    let ss = self.GetSelectionStartIndex();
+                    let se = self.GetSelectionEndIndex();
                     let d1 = (self.cursor as isize - ss as isize).unsigned_abs();
                     let d2 = (self.cursor as isize - se as isize).unsigned_abs();
                     self.selection_anchor = Some(if d1 < d2 { se } else { ss });
@@ -2386,8 +2386,8 @@ impl emTextField {
 
         // C++ publishes selection to clipboard on mouse release after drag
         // (DM_SELECT line 450, DM_SELECT_BY_WORDS line 478, DM_SELECT_BY_ROWS line 506).
-        if was_dragging && !self.is_selection_empty() {
-            self.publish_selection();
+        if was_dragging && !self.IsSelectionEmpty() {
+            self.PublishSelection();
         }
 
         self.drag_mode = DragMode::None;
@@ -2398,7 +2398,7 @@ impl emTextField {
 
     /// Whether this text field provides how-to help text.
     /// Matches C++ `emTextField::HasHowTo` (always true).
-    pub fn has_how_to(&self) -> bool {
+    pub fn HasHowTo(&self) -> bool {
         true
     }
 
@@ -2406,7 +2406,7 @@ impl emTextField {
     ///
     /// Chains the border's base how-to with text-field-specific sections.
     /// Matches C++ `emTextField::GetHowTo`.
-    pub fn get_how_to(&self, enabled: bool, focusable: bool) -> String {
+    pub fn GetHowTo(&self, enabled: bool, focusable: bool) -> String {
         let mut text = self.border.GetHowTo(enabled, focusable);
         text.push_str(HOWTO_TEXT_FIELD);
         if self.multi_line {
@@ -2542,7 +2542,7 @@ impl emTextField {
 
     /// Returns whether the cursor blink is currently in the "on" (visible)
     /// state. Matches C++ `IsCursorBlinkOn`.
-    pub fn is_cursor_blink_on(&self) -> bool {
+    pub fn IsCursorBlinkOn(&self) -> bool {
         self.cursor_blink_on
     }
 
@@ -2571,14 +2571,14 @@ impl emTextField {
     /// Resets the blink timer and ensures the cursor is visible. Should be
     /// called after user actions that move the cursor. Matches C++
     /// `RestartCursorBlinking`.
-    pub fn restart_cursor_blinking(&mut self) {
+    pub fn RestartCursorBlinking(&mut self) {
         self.cursor_blink_time = std::time::Instant::now();
         self.cursor_blink_on = true;
     }
 
     /// Hook called when the selection changes.
     /// Matches C++ `SelectionChanged` — empty virtual hook.
-    pub fn selection_changed(&self) {
+    pub fn SelectionChanged(&self) {
         // Empty hook.
     }
 
@@ -2620,7 +2620,7 @@ impl emTextField {
     /// Mouse coordinates to text byte index.
     /// Returns `(index, hit)` where `hit` is true if within content area.
     /// Matches C++ `CheckMouse`.
-    pub fn check_mouse(&self, mx: f64, my: f64, w: f64, h: f64) -> (usize, bool) {
+    pub fn CheckMouse(&self, mx: f64, my: f64, w: f64, h: f64) -> (usize, bool) {
         let content = self.border.GetContentRect(w, h, &self.look);
         let hit = mx >= content.x
             && mx <= content.x + content.w
@@ -2628,7 +2628,7 @@ impl emTextField {
             && my <= content.y + content.h;
         if self.multi_line {
             let row_f = (my - content.y + self.scroll_y) / LINE_HEIGHT;
-            let row = (row_f as usize).min(self.total_rows().saturating_sub(1));
+            let row = (row_f as usize).min(self.CalcTotalColsRows().saturating_sub(1));
             let mut current_row = 0;
             let mut row_start_idx = 0;
             for (i, ch) in self.text.char_indices() {
@@ -2759,18 +2759,18 @@ mod tests {
 
         tf.input(&char_press('H'), &ps, &is);
         tf.input(&char_press('i'), &ps, &is);
-        assert_eq!(tf.text(), "Hi");
-        assert_eq!(tf.cursor_pos(), 2);
+        assert_eq!(tf.GetText(), "Hi");
+        assert_eq!(tf.GetCursorIndex(), 2);
 
         tf.input(&key_press(InputKey::Backspace), &ps, &is);
-        assert_eq!(tf.text(), "H");
-        assert_eq!(tf.cursor_pos(), 1);
+        assert_eq!(tf.GetText(), "H");
+        assert_eq!(tf.GetCursorIndex(), 1);
 
         tf.input(&key_press(InputKey::ArrowLeft), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 0);
+        assert_eq!(tf.GetCursorIndex(), 0);
 
         tf.input(&key_press(InputKey::Delete), &ps, &is);
-        assert_eq!(tf.text(), "");
+        assert_eq!(tf.GetText(), "");
     }
 
     #[test]
@@ -2779,20 +2779,20 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("ABCD");
-        assert_eq!(tf.cursor_pos(), 4);
+        tf.SetText("ABCD");
+        assert_eq!(tf.GetCursorIndex(), 4);
 
         tf.input(&key_press(InputKey::Home), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 0);
+        assert_eq!(tf.GetCursorIndex(), 0);
 
         tf.input(&key_press(InputKey::End), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 4);
+        assert_eq!(tf.GetCursorIndex(), 4);
 
         tf.input(&key_press(InputKey::ArrowLeft), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 3);
+        assert_eq!(tf.GetCursorIndex(), 3);
 
         tf.input(&key_press(InputKey::ArrowRight), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 4);
+        assert_eq!(tf.GetCursorIndex(), 4);
     }
 
     #[test]
@@ -2807,7 +2807,7 @@ mod tests {
         tf.input(&char_press('B'), &ps, &is);
         tf.input(&char_press('C'), &ps, &is);
         tf.input(&char_press('D'), &ps, &is);
-        assert_eq!(tf.text(), "ABC");
+        assert_eq!(tf.GetText(), "ABC");
     }
 
     #[test]
@@ -2830,13 +2830,13 @@ mod tests {
     }
 
     #[test]
-    fn password_mode() {
+    fn GetPasswordMode() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_password_mode(true);
-        tf.set_text("secret");
-        assert_eq!(tf.text(), "secret");
-        assert!(tf.password_mode());
+        tf.SetPasswordMode(true);
+        tf.SetText("secret");
+        assert_eq!(tf.GetText(), "secret");
+        assert!(tf.GetPasswordMode());
     }
 
     #[test]
@@ -2859,21 +2859,21 @@ mod tests {
         tf.input(&char_press('A'), &ps, &is);
         tf.input(&char_press('B'), &ps, &is);
         tf.input(&char_press('C'), &ps, &is);
-        assert_eq!(tf.text(), "ABC");
+        assert_eq!(tf.GetText(), "ABC");
 
         // Single undo reverts the entire merged group.
-        tf.undo();
-        assert_eq!(tf.text(), "");
+        tf.Undo();
+        assert_eq!(tf.GetText(), "");
 
         // Redo restores the full merged group.
-        tf.redo();
-        assert_eq!(tf.text(), "ABC");
+        tf.Redo();
+        assert_eq!(tf.GetText(), "ABC");
 
         // After redo, "ABC" is selected (MF_SELECT). Typing replaces selection.
         assert_eq!(tf.selected_text(), "ABC");
         tf.input(&char_press('X'), &ps, &is);
-        assert_eq!(tf.text(), "X"); // Selection replaced
-        assert!(!tf.redo()); // Redo stack cleared by new edit
+        assert_eq!(tf.GetText(), "X"); // Selection replaced
+        assert!(!tf.Redo()); // Redo stack cleared by new edit
     }
 
     #[test]
@@ -2886,18 +2886,18 @@ mod tests {
         // Type alphanumeric then delete — different edit kinds, no merge.
         tf.input(&char_press('A'), &ps, &is);
         tf.input(&char_press('B'), &ps, &is);
-        assert_eq!(tf.text(), "AB");
+        assert_eq!(tf.GetText(), "AB");
 
         tf.input(&key_press(InputKey::Backspace), &ps, &is);
-        assert_eq!(tf.text(), "A");
+        assert_eq!(tf.GetText(), "A");
 
         // Undo the backspace (separate entry).
-        tf.undo();
-        assert_eq!(tf.text(), "AB");
+        tf.Undo();
+        assert_eq!(tf.GetText(), "AB");
 
         // Undo the merged insert group.
-        tf.undo();
-        assert_eq!(tf.text(), "");
+        tf.Undo();
+        assert_eq!(tf.GetText(), "");
     }
 
     #[test]
@@ -2913,15 +2913,15 @@ mod tests {
         tf.input(&key_press(InputKey::ArrowLeft), &ps, &is);
         tf.input(&key_press(InputKey::End), &ps, &is);
         tf.input(&char_press('C'), &ps, &is);
-        assert_eq!(tf.text(), "ABC");
+        assert_eq!(tf.GetText(), "ABC");
 
         // Undo only reverts the 'C' (separate entry after cursor move).
-        tf.undo();
-        assert_eq!(tf.text(), "AB");
+        tf.Undo();
+        assert_eq!(tf.GetText(), "AB");
 
         // Undo reverts the merged 'A'+'B'.
-        tf.undo();
-        assert_eq!(tf.text(), "");
+        tf.Undo();
+        assert_eq!(tf.GetText(), "");
     }
 
     // ── Phase 1 tests ───────────────────────────────────────────────────
@@ -2930,18 +2930,18 @@ mod tests {
     fn select_deselect_select_all() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("Hello World");
+        tf.SetText("Hello World");
 
-        tf.select(0, 5);
+        tf.Select(0, 5);
         assert_eq!(tf.selected_text(), "Hello");
-        assert_eq!(tf.selection_start(), 0);
-        assert_eq!(tf.selection_end(), 5);
-        assert!(!tf.is_selection_empty());
+        assert_eq!(tf.GetSelectionStartIndex(), 0);
+        assert_eq!(tf.GetSelectionEndIndex(), 5);
+        assert!(!tf.IsSelectionEmpty());
 
-        tf.deselect();
-        assert!(tf.is_selection_empty());
+        tf.EmptySelection();
+        assert!(tf.IsSelectionEmpty());
 
-        tf.select_all();
+        tf.SelectAll();
         assert_eq!(tf.selected_text(), "Hello World");
     }
 
@@ -2949,8 +2949,8 @@ mod tests {
     fn modify_selection_extend() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("ABCDEF");
-        tf.set_cursor_index(2);
+        tf.SetText("ABCDEF");
+        tf.SetCursorIndex(2);
 
         // Extend right
         tf.modify_selection(4, true);
@@ -2962,8 +2962,8 @@ mod tests {
 
         // Without extend: clears selection
         tf.modify_selection(0, false);
-        assert!(tf.is_selection_empty());
-        assert_eq!(tf.cursor_pos(), 0);
+        assert!(tf.IsSelectionEmpty());
+        assert_eq!(tf.GetCursorIndex(), 0);
     }
 
     #[test]
@@ -2972,14 +2972,14 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        assert!(tf.is_editable());
+        assert!(tf.IsEditable());
 
-        tf.set_editable(false);
-        assert!(!tf.is_editable());
+        tf.SetEditable(false);
+        assert!(!tf.IsEditable());
 
-        tf.set_text("readonly");
+        tf.SetText("readonly");
         tf.input(&char_press('X'), &ps, &is);
-        assert_eq!(tf.text(), "readonly"); // no change
+        assert_eq!(tf.GetText(), "readonly"); // no change
     }
 
     #[test]
@@ -2988,16 +2988,16 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        assert!(!tf.can_undo());
-        assert!(!tf.can_redo());
+        assert!(!tf.CanUndo());
+        assert!(!tf.CanRedo());
 
         tf.input(&char_press('A'), &ps, &is);
-        assert!(tf.can_undo());
-        assert!(!tf.can_redo());
+        assert!(tf.CanUndo());
+        assert!(!tf.CanRedo());
 
-        tf.undo();
-        assert!(!tf.can_undo());
-        assert!(tf.can_redo());
+        tf.Undo();
+        assert!(!tf.CanUndo());
+        assert!(tf.CanRedo());
     }
 
     // ── Phase 2 tests ───────────────────────────────────────────────────
@@ -3006,17 +3006,17 @@ mod tests {
     fn word_boundary_navigation() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello world_test foo");
+        tf.SetText("hello world_test foo");
 
         // Forward from start
         let b1 = tf.next_word_boundary(0);
-        assert_eq!(&tf.text()[..b1], "hello ");
+        assert_eq!(&tf.GetText()[..b1], "hello ");
 
         let b2 = tf.next_word_boundary(b1);
-        assert_eq!(&tf.text()[..b2], "hello world_test ");
+        assert_eq!(&tf.GetText()[..b2], "hello world_test ");
 
         // Backward from end
-        let len = tf.text_len();
+        let len = tf.GetTextLen();
         let b3 = tf.prev_word_boundary(len);
         assert_eq!(b3, 17); // start of "foo"
     }
@@ -3027,12 +3027,12 @@ mod tests {
         let mut tf = emTextField::new(look);
 
         // Empty string
-        tf.set_text("");
+        tf.SetText("");
         assert_eq!(tf.next_word_boundary(0), 0);
         assert_eq!(tf.prev_word_boundary(0), 0);
 
         // Consecutive spaces
-        tf.set_text("a  b");
+        tf.SetText("a  b");
         let b = tf.next_word_boundary(0);
         assert_eq!(b, 3); // skip "a", then skip "  "
     }
@@ -3041,7 +3041,7 @@ mod tests {
     fn row_navigation_multi_line() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("abc\ndefgh\nij");
+        tf.SetText("abc\ndefgh\nij");
 
         assert_eq!(tf.row_start(5), 4); // 'd' is at 4
         assert_eq!(tf.row_end(5), 9); // end of "defgh"
@@ -3050,14 +3050,14 @@ mod tests {
         assert_eq!(row, 1);
         assert_eq!(col, 1);
 
-        assert_eq!(tf.col_row_to_index(1, 2), 11); // 'j'
+        assert_eq!(tf.ColRow2Index(1, 2), 11); // 'j'
     }
 
     #[test]
     fn row_nav_up_down() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("abc\ndefgh\nij");
+        tf.SetText("abc\ndefgh\nij");
 
         // From position 5 ("e" in row 1, col 1), go to row 0 col 1 = "b" at index 1
         let prev = tf.prev_row_index(5, 1);
@@ -3080,14 +3080,14 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("hello world");
-        tf.set_cursor_index(0);
+        tf.SetText("hello world");
+        tf.SetCursorIndex(0);
 
         tf.input(&ctrl_key(InputKey::ArrowRight), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 6); // after "hello "
+        assert_eq!(tf.GetCursorIndex(), 6); // after "hello "
 
         tf.input(&ctrl_key(InputKey::ArrowLeft), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 0);
+        assert_eq!(tf.GetCursorIndex(), 0);
     }
 
     #[test]
@@ -3096,8 +3096,8 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("ABCDEF");
-        tf.set_cursor_index(2);
+        tf.SetText("ABCDEF");
+        tf.SetCursorIndex(2);
 
         tf.input(&shift_key(InputKey::ArrowRight), &ps, &is);
         assert_eq!(tf.selected_text(), "C");
@@ -3107,7 +3107,7 @@ mod tests {
 
         // Without shift: clears selection
         tf.input(&key_press(InputKey::ArrowRight), &ps, &is);
-        assert!(tf.is_selection_empty());
+        assert!(tf.IsSelectionEmpty());
     }
 
     #[test]
@@ -3116,8 +3116,8 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("hello world");
-        tf.set_cursor_index(0);
+        tf.SetText("hello world");
+        tf.SetCursorIndex(0);
 
         tf.input(&shift_ctrl_key(InputKey::ArrowRight), &ps, &is);
         assert_eq!(tf.selected_text(), "hello ");
@@ -3129,22 +3129,22 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("test");
-        tf.set_editable(false);
+        tf.SetText("test");
+        tf.SetEditable(false);
 
         // Nav works
         tf.input(&key_press(InputKey::Home), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 0);
+        assert_eq!(tf.GetCursorIndex(), 0);
 
         tf.input(&key_press(InputKey::End), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 4);
+        assert_eq!(tf.GetCursorIndex(), 4);
 
         // Edit blocked
         tf.input(&key_press(InputKey::Backspace), &ps, &is);
-        assert_eq!(tf.text(), "test");
+        assert_eq!(tf.GetText(), "test");
 
         tf.input(&char_press('X'), &ps, &is);
-        assert_eq!(tf.text(), "test");
+        assert_eq!(tf.GetText(), "test");
     }
 
     #[test]
@@ -3153,16 +3153,16 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("ABC");
-        tf.set_cursor_index(0);
-        tf.set_overwrite_mode(true);
+        tf.SetText("ABC");
+        tf.SetCursorIndex(0);
+        tf.SetOverwriteMode(true);
 
         tf.input(&char_press('X'), &ps, &is);
-        assert_eq!(tf.text(), "XBC");
-        assert_eq!(tf.cursor_pos(), 1);
+        assert_eq!(tf.GetText(), "XBC");
+        assert_eq!(tf.GetCursorIndex(), 1);
 
         tf.input(&char_press('Y'), &ps, &is);
-        assert_eq!(tf.text(), "XYC");
+        assert_eq!(tf.GetText(), "XYC");
     }
 
     #[test]
@@ -3171,11 +3171,11 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("hello world");
-        tf.set_cursor_index(11);
+        tf.SetText("hello world");
+        tf.SetCursorIndex(11);
 
         tf.input(&ctrl_key(InputKey::Backspace), &ps, &is);
-        assert_eq!(tf.text(), "hello ");
+        assert_eq!(tf.GetText(), "hello ");
     }
 
     #[test]
@@ -3184,11 +3184,11 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("hello world");
-        tf.set_cursor_index(0);
+        tf.SetText("hello world");
+        tf.SetCursorIndex(0);
 
         tf.input(&ctrl_key(InputKey::Delete), &ps, &is);
-        assert_eq!(tf.text(), "world");
+        assert_eq!(tf.GetText(), "world");
     }
 
     #[test]
@@ -3197,14 +3197,14 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("test");
+        tf.SetText("test");
 
         tf.input(&ctrl_char('a'), &ps, &is);
         assert_eq!(tf.selected_text(), "test");
 
         // Ctrl+Shift+A = deselect
         tf.input(&emInputEvent::press(InputKey::Key('a')).with_shift_ctrl(), &ps, &is);
-        assert!(tf.is_selection_empty());
+        assert!(tf.IsSelectionEmpty());
     }
 
     #[test]
@@ -3213,16 +3213,16 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("123");
+        tf.SetText("123");
         tf.on_validate = Some(Box::new(|text| text.chars().all(|c| c.is_ascii_digit())));
 
         // Numeric input accepted
         tf.input(&char_press('4'), &ps, &is);
-        assert_eq!(tf.text(), "1234");
+        assert_eq!(tf.GetText(), "1234");
 
         // Non-numeric rejected
         tf.input(&char_press('x'), &ps, &is);
-        assert_eq!(tf.text(), "1234");
+        assert_eq!(tf.GetText(), "1234");
     }
 
     #[test]
@@ -3231,18 +3231,18 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_multi_line(true);
-        tf.set_text("abcde\nfg\nhijklm");
+        tf.SetMultiLineMode(true);
+        tf.SetText("abcde\nfg\nhijklm");
         // cursor at end of "abcde" (col 5, row 0)
-        tf.set_cursor_index(5);
+        tf.SetCursorIndex(5);
 
         // Down: col 5 but row 1 only has "fg" (len 2), so clamps to end of row 1 (idx 8)
         tf.input(&key_press(InputKey::ArrowDown), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 8);
+        assert_eq!(tf.GetCursorIndex(), 8);
 
         // Down again: col 5 in row 2 "hijklm" → index 9+5=14
         tf.input(&key_press(InputKey::ArrowDown), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 14);
+        assert_eq!(tf.GetCursorIndex(), 14);
     }
 
     #[test]
@@ -3251,13 +3251,13 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_multi_line(true);
-        tf.set_text("ab");
-        tf.set_cursor_index(1);
+        tf.SetMultiLineMode(true);
+        tf.SetText("ab");
+        tf.SetCursorIndex(1);
 
         tf.input(&key_press(InputKey::Enter), &ps, &is);
-        assert_eq!(tf.text(), "a\nb");
-        assert_eq!(tf.cursor_pos(), 2);
+        assert_eq!(tf.GetText(), "a\nb");
+        assert_eq!(tf.GetCursorIndex(), 2);
     }
 
     #[test]
@@ -3266,11 +3266,11 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("ab");
-        tf.set_cursor_index(1);
+        tf.SetText("ab");
+        tf.SetCursorIndex(1);
 
         tf.input(&key_press(InputKey::Enter), &ps, &is);
-        assert_eq!(tf.text(), "ab"); // unchanged
+        assert_eq!(tf.GetText(), "ab"); // unchanged
     }
 
     // ── Phase 4 tests ───────────────────────────────────────────────────
@@ -3291,8 +3291,8 @@ mod tests {
         let clip_r = clipboard.clone();
         tf.on_clipboard_paste = Some(Box::new(move || clip_r.borrow().clone()));
 
-        tf.set_text("Hello World");
-        tf.select(0, 5);
+        tf.SetText("Hello World");
+        tf.Select(0, 5);
 
         // Copy
         tf.input(&ctrl_char('c'), &ps, &is);
@@ -3301,7 +3301,7 @@ mod tests {
         // Move to end, paste
         tf.input(&key_press(InputKey::End), &ps, &is);
         tf.input(&ctrl_char('v'), &ps, &is);
-        assert_eq!(tf.text(), "Hello WorldHello");
+        assert_eq!(tf.GetText(), "Hello WorldHello");
     }
 
     #[test]
@@ -3317,12 +3317,12 @@ mod tests {
             *clip_w.borrow_mut() = text.to_string();
         }));
 
-        tf.set_text("ABCDEF");
-        tf.select(2, 4);
+        tf.SetText("ABCDEF");
+        tf.Select(2, 4);
 
         tf.input(&ctrl_char('x'), &ps, &is);
         assert_eq!(*clipboard.borrow(), "CD");
-        assert_eq!(tf.text(), "ABEF");
+        assert_eq!(tf.GetText(), "ABEF");
     }
 
     #[test]
@@ -3338,14 +3338,14 @@ mod tests {
         tf.on_clipboard_paste = Some(Box::new(move || clip_r.borrow().clone()));
 
         tf.input(&ctrl_char('v'), &ps, &is);
-        assert_eq!(tf.text(), "ABCDE");
+        assert_eq!(tf.GetText(), "ABCDE");
     }
 
     #[test]
     fn password_mode_copies_asterisks() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_password_mode(true);
+        tf.SetPasswordMode(true);
         let clipboard = Rc::new(RefCell::new(String::new()));
 
         let clip_w = clipboard.clone();
@@ -3353,8 +3353,8 @@ mod tests {
             *clip_w.borrow_mut() = text.to_string();
         }));
 
-        tf.set_text("secret");
-        tf.select_all();
+        tf.SetText("secret");
+        tf.SelectAll();
         tf.copy_to_clipboard();
         assert_eq!(*clipboard.borrow(), "******");
     }
@@ -3365,14 +3365,14 @@ mod tests {
     fn double_click_selects_word() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello world");
+        tf.SetText("hello world");
 
         // Test word selection logic directly (double-click selects word
         // boundaries around cursor). This tests the word_start/word_end
         // logic without requiring pixel-space mouse coordinate simulation.
         let ws = tf.word_start(2); // inside "hello"
         let we = tf.word_end(2);
-        tf.select(ws, we);
+        tf.Select(ws, we);
 
         assert_eq!(tf.selected_text(), "hello");
     }
@@ -3381,16 +3381,16 @@ mod tests {
     fn move_mode_relocates_text() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("ABCDEF");
-        tf.set_editable(true);
+        tf.SetText("ABCDEF");
+        tf.SetEditable(true);
 
         // Verify selection mechanics (the move-mode drag requires pixel-space
         // mouse coords that conflict with normalized-space hit_test; test the
         // selection + text manipulation logic directly).
-        tf.select(2, 4);
+        tf.Select(2, 4);
         assert_eq!(tf.selected_text(), "CD");
-        assert_eq!(tf.selection_start(), 2);
-        assert_eq!(tf.selection_end(), 4);
+        assert_eq!(tf.GetSelectionStartIndex(), 2);
+        assert_eq!(tf.GetSelectionEndIndex(), 4);
     }
 
     // ── Phase 6 tests ───────────────────────────────────────────────────
@@ -3402,21 +3402,21 @@ mod tests {
 
         let (_w1, h1) = tf.preferred_size();
 
-        tf.set_multi_line(true);
+        tf.SetMultiLineMode(true);
         let (_w2, h2) = tf.preferred_size();
 
         assert!(h2 > h1, "multi-line should be taller");
     }
 
     #[test]
-    fn total_rows() {
+    fn CalcTotalColsRows() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("a\nb\nc");
-        assert_eq!(tf.total_rows(), 3);
+        tf.SetText("a\nb\nc");
+        assert_eq!(tf.CalcTotalColsRows(), 3);
 
-        tf.set_text("");
-        assert_eq!(tf.total_rows(), 1);
+        tf.SetText("");
+        assert_eq!(tf.CalcTotalColsRows(), 1);
     }
 
     #[test]
@@ -3425,21 +3425,21 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        assert!(!tf.is_overwrite_mode());
+        assert!(!tf.GetOverwriteMode());
 
         tf.input(&key_press(InputKey::Insert), &ps, &is);
-        assert!(tf.is_overwrite_mode());
+        assert!(tf.GetOverwriteMode());
 
         tf.input(&key_press(InputKey::Insert), &ps, &is);
-        assert!(!tf.is_overwrite_mode());
+        assert!(!tf.GetOverwriteMode());
     }
 
     #[test]
-    fn text_len() {
+    fn GetTextLen() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello");
-        assert_eq!(tf.text_len(), 5);
+        tf.SetText("hello");
+        assert_eq!(tf.GetTextLen(), 5);
     }
 
     #[test]
@@ -3448,11 +3448,11 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("hello world");
-        tf.set_cursor_index(7); // at "o" in "world"
+        tf.SetText("hello world");
+        tf.SetCursorIndex(7); // at "o" in "world"
 
         tf.input(&shift_ctrl_key(InputKey::Backspace), &ps, &is);
-        assert_eq!(tf.text(), "orld");
+        assert_eq!(tf.GetText(), "orld");
     }
 
     #[test]
@@ -3461,11 +3461,11 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_text("hello world");
-        tf.set_cursor_index(5);
+        tf.SetText("hello world");
+        tf.SetCursorIndex(5);
 
         tf.input(&shift_ctrl_key(InputKey::Delete), &ps, &is);
-        assert_eq!(tf.text(), "hello");
+        assert_eq!(tf.GetText(), "hello");
     }
 
     #[test]
@@ -3474,25 +3474,25 @@ mod tests {
         let mut tf = emTextField::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        tf.set_multi_line(true);
-        tf.set_text("abc\ndef\nghi");
-        tf.set_cursor_index(5); // 'e' in row 1
+        tf.SetMultiLineMode(true);
+        tf.SetText("abc\ndef\nghi");
+        tf.SetCursorIndex(5); // 'e' in row 1
 
         // Home goes to row start
         tf.input(&key_press(InputKey::Home), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 4); // start of "def"
+        assert_eq!(tf.GetCursorIndex(), 4); // start of "def"
 
         // End goes to row end
         tf.input(&key_press(InputKey::End), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 7); // end of "def"
+        assert_eq!(tf.GetCursorIndex(), 7); // end of "def"
 
         // Ctrl+Home goes to text start
         tf.input(&ctrl_key(InputKey::Home), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 0);
+        assert_eq!(tf.GetCursorIndex(), 0);
 
         // Ctrl+End goes to text end
         tf.input(&ctrl_key(InputKey::End), &ps, &is);
-        assert_eq!(tf.cursor_pos(), 11);
+        assert_eq!(tf.GetCursorIndex(), 11);
     }
 
     // ── Port batch tests ───────────────────────────────────────────────
@@ -3501,7 +3501,7 @@ mod tests {
     fn next_paragraph_single_line_returns_len() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello world");
+        tf.SetText("hello world");
         // single-line: returns text len
         assert_eq!(tf.next_paragraph_index(0), 11);
     }
@@ -3510,8 +3510,8 @@ mod tests {
     fn next_paragraph_multi_line() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_multi_line(true);
-        tf.set_text("abc\n\ndef\nghi");
+        tf.SetMultiLineMode(true);
+        tf.SetText("abc\n\ndef\nghi");
         // From 0: skip "abc", find newline at 3, another at 4, then "def" at 5
         assert_eq!(tf.next_paragraph_index(0), 5);
         // From 5: skip "def", find \n at 8, then "ghi" at 9
@@ -3524,8 +3524,8 @@ mod tests {
     fn prev_paragraph_multi_line() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_multi_line(true);
-        tf.set_text("abc\n\ndef\nghi");
+        tf.SetMultiLineMode(true);
+        tf.SetText("abc\n\ndef\nghi");
         // From end: prev paragraph is "def" at 5 -> but actually our scan
         // says prev of 12 is 9 (ghi start), since next_paragraph_index(5)=9.
         assert_eq!(tf.prev_paragraph_index(12), 9);
@@ -3537,7 +3537,7 @@ mod tests {
     fn prev_paragraph_single_line_returns_zero() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello");
+        tf.SetText("hello");
         assert_eq!(tf.prev_paragraph_index(3), 0);
     }
 
@@ -3545,40 +3545,40 @@ mod tests {
     fn next_word_index_skips_delimiters() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello  world");
+        tf.SetText("hello  world");
         // From 0: skip word "hello", skip delimiters "  ", find word "world" at 7
-        assert_eq!(tf.next_word_index(0), 7);
+        assert_eq!(tf.GetNextWordIndex(0), 7);
         // From 7: skip word "world" -> end of text
-        assert_eq!(tf.next_word_index(7), 12);
+        assert_eq!(tf.GetNextWordIndex(7), 12);
         // From within delimiter space (pos 5): find next word at 7
-        assert_eq!(tf.next_word_index(5), 7);
+        assert_eq!(tf.GetNextWordIndex(5), 7);
     }
 
     #[test]
     fn prev_word_index_finds_word_start() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello  world");
+        tf.SetText("hello  world");
         // prev_word_index(12) should find start of "world" at 7
-        assert_eq!(tf.prev_word_index(12), 7);
+        assert_eq!(tf.GetPrevWordIndex(12), 7);
         // prev_word_index(7) should find start of "hello" at 0
-        assert_eq!(tf.prev_word_index(7), 0);
+        assert_eq!(tf.GetPrevWordIndex(7), 0);
     }
 
     #[test]
     fn next_word_index_at_end() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello");
-        assert_eq!(tf.next_word_index(5), 5);
+        tf.SetText("hello");
+        assert_eq!(tf.GetNextWordIndex(5), 5);
     }
 
     #[test]
     fn prev_word_index_at_start() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello world");
-        assert_eq!(tf.prev_word_index(0), 0);
+        tf.SetText("hello world");
+        assert_eq!(tf.GetPrevWordIndex(0), 0);
     }
 
     #[test]
@@ -3590,17 +3590,17 @@ mod tests {
         tf.on_clipboard_copy = Some(Box::new(move |text| {
             *clip_w.borrow_mut() = text.to_string();
         }));
-        tf.set_text("Hello World");
-        tf.select(0, 5);
-        tf.publish_selection();
+        tf.SetText("Hello World");
+        tf.Select(0, 5);
+        tf.PublishSelection();
         assert_eq!(*clipboard.borrow(), "Hello");
         // Second publish is no-op (already published)
         *clipboard.borrow_mut() = String::new();
-        tf.publish_selection();
+        tf.PublishSelection();
         assert_eq!(*clipboard.borrow(), "");
         // After selection change, can publish again
-        tf.select(6, 11);
-        tf.publish_selection();
+        tf.Select(6, 11);
+        tf.PublishSelection();
         assert_eq!(*clipboard.borrow(), "World");
     }
 
@@ -3613,10 +3613,10 @@ mod tests {
         tf.on_clipboard_copy = Some(Box::new(move |text| {
             *clip_w.borrow_mut() = text.to_string();
         }));
-        tf.set_password_mode(true);
-        tf.set_text("secret");
-        tf.select_all();
-        tf.publish_selection();
+        tf.SetPasswordMode(true);
+        tf.SetText("secret");
+        tf.SelectAll();
+        tf.PublishSelection();
         assert_eq!(*clipboard.borrow(), "******");
     }
 
@@ -3629,10 +3629,10 @@ mod tests {
         tf.on_selection_signal = Some(Box::new(move || {
             *count_c.borrow_mut() += 1;
         }));
-        tf.set_text("ABCDEF");
-        tf.select(1, 3);
+        tf.SetText("ABCDEF");
+        tf.Select(1, 3);
         assert_eq!(*count.borrow(), 1);
-        tf.select(2, 5);
+        tf.Select(2, 5);
         assert_eq!(*count.borrow(), 2);
     }
 
@@ -3651,10 +3651,10 @@ mod tests {
         tf.input(&char_press('A'), &ps, &is);
         assert_eq!(states.borrow().last(), Some(&(true, false)));
         // Undo -> redo becomes available, undo gone
-        tf.undo();
+        tf.Undo();
         assert_eq!(states.borrow().last(), Some(&(false, true)));
         // Redo -> undo available again
-        tf.redo();
+        tf.Redo();
         assert_eq!(states.borrow().last(), Some(&(true, false)));
     }
 
@@ -3662,15 +3662,15 @@ mod tests {
     fn cursor_blink_cycle() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        assert!(tf.is_cursor_blink_on());
+        assert!(tf.IsCursorBlinkOn());
         // Focused: returns busy=true
         let busy = tf.cycle_blink(true);
         assert!(busy);
-        assert!(tf.is_cursor_blink_on()); // just started, < 500ms
+        assert!(tf.IsCursorBlinkOn()); // just started, < 500ms
                                           // Not focused: resets blink, returns false
         let busy = tf.cycle_blink(false);
         assert!(!busy);
-        assert!(tf.is_cursor_blink_on());
+        assert!(tf.IsCursorBlinkOn());
     }
 
     #[test]
@@ -3678,17 +3678,17 @@ mod tests {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
         tf.cursor_blink_on = false; // simulate blink-off state
-        tf.restart_cursor_blinking();
-        assert!(tf.is_cursor_blink_on());
+        tf.RestartCursorBlinking();
+        assert!(tf.IsCursorBlinkOn());
     }
 
     #[test]
     fn calc_total_cols_rows_single_line() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello");
+        tf.SetText("hello");
         assert_eq!(tf.calc_total_cols_rows(), (5, 1));
-        tf.set_text("");
+        tf.SetText("");
         assert_eq!(tf.calc_total_cols_rows(), (1, 1)); // minimum
     }
 
@@ -3696,8 +3696,8 @@ mod tests {
     fn calc_total_cols_rows_multi_line() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_multi_line(true);
-        tf.set_text("ab\ncdef\ng");
+        tf.SetMultiLineMode(true);
+        tf.SetText("ab\ncdef\ng");
         // Row 0: "ab" (2 cols), Row 1: "cdef" (4 cols), Row 2: "g" (1 col)
         // Widest = 4, rows = 3
         assert_eq!(tf.calc_total_cols_rows(), (4, 3));
@@ -3707,8 +3707,8 @@ mod tests {
     fn calc_total_cols_rows_with_tabs() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_multi_line(true);
-        tf.set_text("a\tb");
+        tf.SetMultiLineMode(true);
+        tf.SetText("a\tb");
         // Tab at col 1 -> next tab stop at 8, then 'b' at col 9
         // total cols = 9, rows = 1
         assert_eq!(tf.calc_total_cols_rows(), (9, 1));
@@ -3718,12 +3718,12 @@ mod tests {
     fn check_mouse_single_line() {
         let look = emLook::new();
         let mut tf = emTextField::new(look);
-        tf.set_text("hello world");
+        tf.SetText("hello world");
         tf.char_positions = vec![
             0.0, 8.0, 16.0, 24.0, 32.0, 40.0, 48.0, 56.0, 64.0, 72.0, 80.0, 88.0,
         ];
-        let (idx, hit) = tf.check_mouse(10.0, 5.0, 200.0, 30.0);
-        assert!(idx <= tf.text_len());
+        let (idx, hit) = tf.CheckMouse(10.0, 5.0, 200.0, 30.0);
+        assert!(idx <= tf.GetTextLen());
         // hit depends on content rect
         let _ = hit;
     }

@@ -327,7 +327,7 @@ impl Record for emFpPlugin {
         s
     }
 
-    fn set_to_default(&mut self) {
+    fn SetToDefault(&mut self) {
         self.file_types.clear();
         self.file_format_name.clear();
         self.priority = 1.0;
@@ -339,7 +339,7 @@ impl Record for emFpPlugin {
         self.properties.clear();
     }
 
-    fn is_default(&self) -> bool {
+    fn IsSetToDefault(&self) -> bool {
         self.file_types.is_empty()
             && self.file_format_name.is_empty()
             && self.priority == 1.0

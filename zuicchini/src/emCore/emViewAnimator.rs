@@ -169,38 +169,38 @@ impl emKineticViewAnimator {
         }
     }
 
-    pub fn set_velocity(&mut self, vx: f64, vy: f64, vz: f64) {
+    pub fn SetVelocity(&mut self, vx: f64, vy: f64, vz: f64) {
         self.velocity_x = vx;
         self.velocity_y = vy;
         self.velocity_z = vz;
         self.active = (vx * vx + vy * vy + vz * vz).sqrt() > 0.01;
     }
 
-    pub fn velocity(&self) -> (f64, f64, f64) {
+    pub fn GetVelocity(&self) -> (f64, f64, f64) {
         (self.velocity_x, self.velocity_y, self.velocity_z)
     }
 
     /// Absolute velocity magnitude (sqrt of sum of squares).
-    pub fn abs_velocity(&self) -> f64 {
+    pub fn GetAbsVelocity(&self) -> f64 {
         (self.velocity_x * self.velocity_x
             + self.velocity_y * self.velocity_y
             + self.velocity_z * self.velocity_z)
             .sqrt()
     }
 
-    pub fn set_friction_enabled(&mut self, enabled: bool) {
+    pub fn SetFrictionEnabled(&mut self, enabled: bool) {
         self.friction_enabled = enabled;
     }
 
-    pub fn is_friction_enabled(&self) -> bool {
+    pub fn IsFrictionEnabled(&self) -> bool {
         self.friction_enabled
     }
 
-    pub fn set_friction(&mut self, friction: f64) {
+    pub fn SetFriction(&mut self, friction: f64) {
         self.friction = friction;
     }
 
-    pub fn friction(&self) -> f64 {
+    pub fn GetFriction(&self) -> f64 {
         self.friction
     }
 
@@ -253,9 +253,9 @@ impl emKineticViewAnimator {
         if let Some(state) = kinetic_state {
             self.inject_kinetic_state(state);
             if self.zoom_fix_point_centered {
-                self.center_zoom_fix_point(view);
+                self.CenterZoomFixPoint(view);
             } else {
-                self.set_zoom_fix_point(self.zoom_fix_x, self.zoom_fix_y, view);
+                self.SetZoomFixPoint(self.zoom_fix_x, self.zoom_fix_y, view);
             }
         } else {
             self.velocity_x = 0.0;
@@ -266,7 +266,7 @@ impl emKineticViewAnimator {
     }
 
     /// Switch zoom fix point to centered mode, compensating XY velocity.
-    pub fn center_zoom_fix_point(&mut self, view: &emView) {
+    pub fn CenterZoomFixPoint(&mut self, view: &emView) {
         if self.zoom_fix_point_centered {
             return;
         }
@@ -275,14 +275,14 @@ impl emKineticViewAnimator {
         self.zoom_fix_point_centered = true;
         self.update_zoom_fix_point(view);
         let dt = 0.01;
-        let zflpp = view.get_zoom_factor_log_per_pixel();
+        let zflpp = view.GetZoomFactorLogarithmPerPixel();
         let q = (1.0 - (-self.velocity_z * dt * zflpp).exp()) / dt;
         self.velocity_x += (old_fix_x - self.zoom_fix_x) * q;
         self.velocity_y += (old_fix_y - self.zoom_fix_y) * q;
     }
 
     /// Set an explicit (non-centered) zoom fix point, compensating XY velocity.
-    pub fn set_zoom_fix_point(&mut self, x: f64, y: f64, view: &emView) {
+    pub fn SetZoomFixPoint(&mut self, x: f64, y: f64, view: &emView) {
         if !self.zoom_fix_point_centered && self.zoom_fix_x == x && self.zoom_fix_y == y {
             return;
         }
@@ -293,7 +293,7 @@ impl emKineticViewAnimator {
         self.zoom_fix_x = x;
         self.zoom_fix_y = y;
         let dt = 0.01;
-        let zflpp = view.get_zoom_factor_log_per_pixel();
+        let zflpp = view.GetZoomFactorLogarithmPerPixel();
         let q = (1.0 - (-self.velocity_z * dt * zflpp).exp()) / dt;
         self.velocity_x += (old_fix_x - self.zoom_fix_x) * q;
         self.velocity_y += (old_fix_y - self.zoom_fix_y) * q;
@@ -308,7 +308,7 @@ impl emKineticViewAnimator {
             let mut y1 = 0.0;
             let mut x2 = vw;
             let mut y2 = vh;
-            if view.is_popped_up() {
+            if view.IsPoppedUp() {
                 if let Some(pr) = view.max_popup_rect() {
                     if x1 < pr.x {
                         x1 = pr.x;
@@ -392,7 +392,7 @@ impl emViewAnimator for emKineticViewAnimator {
 
         // Apply scroll and zoom
         self.update_zoom_fix_point(view);
-        let done = view.raw_scroll_and_zoom(
+        let done = view.RawScrollAndZoom(
             tree,
             self.zoom_fix_x,
             self.zoom_fix_y,
@@ -400,7 +400,7 @@ impl emViewAnimator for emKineticViewAnimator {
             dist[1],
             dist[2],
         );
-        view.set_active_panel_best_possible(tree);
+        view.SetActivePanelBestPossible(tree);
 
         // Blocked-motion feedback: zero velocity for blocked dimensions
         for i in 0..3 {
@@ -460,7 +460,7 @@ impl emSpeedingViewAnimator {
         }
     }
 
-    pub fn set_target(&mut self, vx: f64, vy: f64, vz: f64) {
+    pub fn SetTargetVelocity(&mut self, vx: f64, vy: f64, vz: f64) {
         self.target_vx = vx;
         self.target_vy = vy;
         self.target_vz = vz;
@@ -473,11 +473,11 @@ impl emSpeedingViewAnimator {
         self.target_vz = 0.0;
     }
 
-    pub fn set_acceleration(&mut self, accel: f64) {
+    pub fn SetAcceleration(&mut self, accel: f64) {
         self.acceleration = accel;
     }
 
-    pub fn set_reverse_acceleration(&mut self, accel: f64) {
+    pub fn SetReverseAcceleration(&mut self, accel: f64) {
         self.reverse_acceleration = accel;
     }
 
@@ -529,9 +529,9 @@ impl emViewAnimator for emSpeedingViewAnimator {
         }
 
         // 3-branch acceleration per dimension
-        let (vx, vy, vz) = self.inner.velocity();
-        let friction = self.inner.friction();
-        let friction_enabled = self.inner.is_friction_enabled();
+        let (vx, vy, vz) = self.inner.GetVelocity();
+        let friction = self.inner.GetFriction();
+        let friction_enabled = self.inner.IsFrictionEnabled();
 
         let new_vx = accelerate_dim(
             vx,
@@ -560,13 +560,13 @@ impl emViewAnimator for emSpeedingViewAnimator {
             friction_enabled,
             dt,
         );
-        self.inner.set_velocity(new_vx, new_vy, new_vz);
+        self.inner.SetVelocity(new_vx, new_vy, new_vz);
 
         // Temporarily disable friction on inner (speeding handles it via acceleration)
-        let saved_friction = self.inner.is_friction_enabled();
-        self.inner.set_friction_enabled(false);
+        let saved_friction = self.inner.IsFrictionEnabled();
+        self.inner.SetFrictionEnabled(false);
         self.inner.animate(view, tree, dt);
-        self.inner.set_friction_enabled(saved_friction);
+        self.inner.SetFrictionEnabled(saved_friction);
 
         // Idle check: target near zero and inner stopped
         if self.target_vx.abs() < 0.01
@@ -703,26 +703,26 @@ impl emVisitingViewAnimator {
     /// Configure animation parameters from a speed config value.
     ///
     /// Mirrors C++ `emVisitingViewAnimator::SetAnimParamsByCoreConfig`.
-    pub fn set_anim_params_by_speed_config(&mut self, speed_factor: f64, max_speed_factor: f64) {
+    pub fn SetAnimParamsByCoreConfig(&mut self, speed_factor: f64, max_speed_factor: f64) {
         self.animated = speed_factor < max_speed_factor * 0.99999;
         self.acceleration = 35.0 * speed_factor;
         self.max_absolute_speed = 35.0 * speed_factor;
         self.max_cusp_speed = self.max_absolute_speed * 0.5;
     }
 
-    pub fn set_animated(&mut self, animated: bool) {
+    pub fn SetAnimated(&mut self, animated: bool) {
         self.animated = animated;
     }
 
-    pub fn set_acceleration(&mut self, acceleration: f64) {
+    pub fn SetAcceleration(&mut self, acceleration: f64) {
         self.acceleration = acceleration;
     }
 
-    pub fn set_max_cusp_speed(&mut self, max_cusp_speed: f64) {
+    pub fn SetMaxCuspSpeed(&mut self, max_cusp_speed: f64) {
         self.max_cusp_speed = max_cusp_speed;
     }
 
-    pub fn set_max_absolute_speed(&mut self, max_absolute_speed: f64) {
+    pub fn SetMaxAbsoluteSpeed(&mut self, max_absolute_speed: f64) {
         self.max_absolute_speed = max_absolute_speed;
     }
 
@@ -737,7 +737,7 @@ impl emVisitingViewAnimator {
     }
 
     /// Set goal: visit panel by identity path with auto-positioning.
-    pub fn set_goal(&mut self, identity: &str, adherent: bool, subject: &str) {
+    pub fn SetGoal(&mut self, identity: &str, adherent: bool, subject: &str) {
         self.visit_type = VisitType::Visit;
         self.rel_x = 0.0;
         self.rel_y = 0.0;
@@ -769,7 +769,7 @@ impl emVisitingViewAnimator {
     }
 
     /// Set goal: visit panel fullsized.
-    pub fn set_goal_fullsized(
+    pub fn SetGoalFullsized(
         &mut self,
         identity: &str,
         adherent: bool,
@@ -791,7 +791,7 @@ impl emVisitingViewAnimator {
             dlog!("VisitingViewAnimator activate: identity={}", identity);
             self.state = VisitingState::Curve;
             self.identity = identity.to_string();
-            self.names = super::emPanelTree::decode_identity(&self.identity);
+            self.names = super::emPanelTree::DecodeIdentity(&self.identity);
             self.max_depth_seen = -1;
             self.time_slices_without_hope = 0;
             self.give_up_clock = 0.0;
@@ -799,7 +799,7 @@ impl emVisitingViewAnimator {
     }
 
     /// Clear the goal and stop animation.
-    pub fn clear_goal(&mut self) {
+    pub fn ClearGoal(&mut self) {
         if self.state != VisitingState::NoGoal {
             dlog!("VisitingViewAnimator deactivate");
             self.state = VisitingState::NoGoal;
@@ -822,7 +822,7 @@ impl emVisitingViewAnimator {
     pub fn set_identity(&mut self, identity: &str, subject: &str) {
         self.identity = identity.to_string();
         self.subject = subject.to_string();
-        self.names = super::emPanelTree::decode_identity(&self.identity);
+        self.names = super::emPanelTree::DecodeIdentity(&self.identity);
     }
 
     pub fn identity(&self) -> &str {
@@ -867,7 +867,7 @@ impl emVisitingViewAnimator {
         let y = (vh - h) * 0.5;
 
         let shadow_off = w * 0.03;
-        painter.paint_round_rect(
+        painter.PaintRoundRect(
             x + shadow_off,
             y + shadow_off,
             w,
@@ -875,7 +875,7 @@ impl emVisitingViewAnimator {
             h * 0.2,
             crate::emCore::emColor::emColor::rgba(0, 0, 0, 160),
         );
-        painter.paint_round_rect(
+        painter.PaintRoundRect(
             x,
             y,
             w,
@@ -886,7 +886,7 @@ impl emVisitingViewAnimator {
 
         let ch_size = h * 0.22;
         if self.state == VisitingState::GivingUp {
-            painter.paint_text_boxed(
+            painter.PaintTextBoxed(
                 x,
                 y,
                 w,
@@ -910,7 +910,7 @@ impl emVisitingViewAnimator {
             seeking_text.push_str(" for ");
             seeking_text.push_str(&self.subject);
         }
-        painter.paint_text_boxed(
+        painter.PaintTextBoxed(
             x,
             y,
             w,
@@ -949,7 +949,7 @@ impl emVisitingViewAnimator {
         let progress = found_len as f64 / total_len as f64;
 
         if progress > 0.0 {
-            painter.paint_rect(
+            painter.PaintRect(
                 bar_x,
                 bar_y,
                 bar_w * progress,
@@ -959,7 +959,7 @@ impl emVisitingViewAnimator {
             );
         }
         if progress < 1.0 {
-            painter.paint_rect(
+            painter.PaintRect(
                 bar_x + bar_w * progress,
                 bar_y,
                 bar_w * (1.0 - progress),
@@ -972,7 +972,7 @@ impl emVisitingViewAnimator {
         let id_y = bar_y + bar_h + h * 0.02;
         let id_h = h * 0.15;
         let id_ch = ch_size * 0.6;
-        painter.paint_text_boxed(
+        painter.PaintTextBoxed(
             x,
             id_y,
             w,
@@ -991,7 +991,7 @@ impl emVisitingViewAnimator {
 
         let abort_y = y + h * 0.8;
         let abort_h = h * 0.15;
-        painter.paint_text_boxed(
+        painter.PaintTextBoxed(
             x,
             abort_y,
             w,
@@ -1775,7 +1775,7 @@ impl emVisitingViewAnimator {
     /// Walk the panel tree identity path, returning the deepest existing panel,
     /// target coordinates, depth reached, and panels remaining.
     fn get_nearest_existing_panel(&self, view: &emView, tree: &PanelTree) -> Option<NearestPanel> {
-        let root = view.root();
+        let root = view.GetRootPanel();
         if self.names.is_empty() {
             return None;
         }
@@ -1801,7 +1801,7 @@ impl emVisitingViewAnimator {
         let (target_x, target_y, target_a, dist_final);
         if panels_after > 0 {
             // Didn't reach the goal — visit nearest existing panel fullsized
-            let coords = view.calc_visit_fullsized_coords(tree, panel, false);
+            let coords = view.CalcVisitFullsizedCoords(tree, panel, false);
             target_x = coords.0;
             target_y = coords.1;
             target_a = coords.2;
@@ -1815,7 +1815,7 @@ impl emVisitingViewAnimator {
             // Reached the goal panel
             match self.visit_type {
                 VisitType::Visit => {
-                    let coords = view.calc_visit_coords(tree, panel);
+                    let coords = view.CalcVisitCoords(tree, panel);
                     target_x = coords.0;
                     target_y = coords.1;
                     target_a = coords.2;
@@ -1823,7 +1823,7 @@ impl emVisitingViewAnimator {
                 VisitType::VisitRel => {
                     if self.rel_a <= 0.0 {
                         let coords =
-                            view.calc_visit_fullsized_coords(tree, panel, self.rel_a < -0.9);
+                            view.CalcVisitFullsizedCoords(tree, panel, self.rel_a < -0.9);
                         target_x = coords.0;
                         target_y = coords.1;
                         target_a = coords.2;
@@ -1834,7 +1834,7 @@ impl emVisitingViewAnimator {
                     }
                 }
                 VisitType::VisitFullsized => {
-                    let coords = view.calc_visit_fullsized_coords(tree, panel, self.utilize_view);
+                    let coords = view.CalcVisitFullsizedCoords(tree, panel, self.utilize_view);
                     target_x = coords.0;
                     target_y = coords.1;
                     target_a = coords.2;
@@ -1945,7 +1945,7 @@ impl emVisitingViewAnimator {
         }
 
         // Get SVP and rectangle "a" (current view position in SVP coords).
-        let svp_id = view.svp().unwrap_or(view.root());
+        let svp_id = view.GetSupremeViewedPanel().unwrap_or(view.GetRootPanel());
         let (svp_vx, svp_vy, svp_vw) = tree
             .get(svp_id)
             .map(|p| (p.viewed_x, p.viewed_y, p.viewed_width))
@@ -1987,7 +1987,7 @@ impl emVisitingViewAnimator {
             dy = 0.0;
             dz = -extreme_dist;
         } else {
-            let f = (sw + sh) * view.get_zoom_factor_log_per_pixel();
+            let f = (sw + sh) * view.GetZoomFactorLogarithmPerPixel();
             // Negate: the tree-walk computes displacement in C++ sign convention
             // (positive = view rect to the right), but Rust raw_scroll_and_zoom
             // uses opposite rel_x sign convention (positive delta = increase rel_x
@@ -2055,7 +2055,7 @@ impl emViewAnimator for emVisitingViewAnimator {
         if self.animated {
             if self.max_depth_seen < nep.depth as i32 {
                 if self.state == VisitingState::Seek {
-                    view.set_seek_pos(tree, None, "");
+                    view.SetSeekPos(tree, None, "");
                     self.state = VisitingState::Curve;
                 }
                 self.max_depth_seen = nep.depth as i32;
@@ -2097,7 +2097,7 @@ impl emViewAnimator for emVisitingViewAnimator {
             // Scroll: curve scroll distance → pixel scroll via /zflpp (matching C++).
             // Zoom: curve z-delta → deltaZ for raw_scroll_and_zoom (matching C++
             // convention: reFac = exp(-deltaZ * zflpp), ra *= reFac^2).
-            let zflpp = view.get_zoom_factor_log_per_pixel();
+            let zflpp = view.GetZoomFactorLogarithmPerPixel();
             let delta_xy_px = delta_xy / zflpp;
             let delta_z_view = delta_z / zflpp;
             let delta_x = dir_x * delta_xy_px;
@@ -2105,7 +2105,7 @@ impl emViewAnimator for emVisitingViewAnimator {
 
             let (vw, vh) = view.viewport_size();
             let done =
-                view.raw_scroll_and_zoom(tree, vw * 0.5, vh * 0.5, delta_x, delta_y, delta_z_view);
+                view.RawScrollAndZoom(tree, vw * 0.5, vh * 0.5, delta_x, delta_y, delta_z_view);
 
             let delta_mag =
                 (delta_x * delta_x + delta_y * delta_y + delta_z_view * delta_z_view).sqrt();
@@ -2130,16 +2130,16 @@ impl emViewAnimator for emVisitingViewAnimator {
         if self.state == VisitingState::Seek {
             if nep.depth + 1 >= self.names.len() {
                 // All panels exist — visit the target
-                view.visit(nep.panel, nep.target_x, nep.target_y, nep.target_a);
-                view.update_viewing(tree);
+                view.Visit(nep.panel, nep.target_x, nep.target_y, nep.target_a);
+                view.Update(tree);
                 self.state = VisitingState::GoalReached;
                 return false;
             } else if view.seek_pos_panel() != Some(nep.panel) {
-                view.set_seek_pos(tree, Some(nep.panel), &self.names[nep.depth + 1]);
-                view.visit_fullsized(tree, nep.panel);
-                view.update_viewing(tree);
+                view.SetSeekPos(tree, Some(nep.panel), &self.names[nep.depth + 1]);
+                view.VisitFullsized(tree, nep.panel);
+                view.Update(tree);
                 self.time_slices_without_hope = 4;
-            } else if view.is_hope_for_seeking(tree) {
+            } else if view.IsHopeForSeeking(tree) {
                 self.time_slices_without_hope = 0;
             } else {
                 self.time_slices_without_hope += 1;
@@ -2208,24 +2208,24 @@ impl emSwipingViewAnimator {
 
     /// Toggle grip state. On release, spring extension is zeroed and
     /// instantaneous velocity copies from kinetic velocity for coasting.
-    pub fn set_gripped(&mut self, gripped: bool) {
+    pub fn SetGripped(&mut self, gripped: bool) {
         if self.gripped != gripped {
             self.gripped = gripped;
             if !self.gripped {
                 self.spring_extension = [0.0; 3];
-                let (vx, vy, vz) = self.inner.velocity();
+                let (vx, vy, vz) = self.inner.GetVelocity();
                 self.instantaneous_velocity = [vx, vy, vz];
             }
         }
     }
 
     /// Whether the view is currently gripped.
-    pub fn is_gripped(&self) -> bool {
+    pub fn IsGripped(&self) -> bool {
         self.gripped
     }
 
     /// Add distance to spring extension in the given dimension (0=X, 1=Y, 2=Z).
-    pub fn move_grip(&mut self, dimension: usize, distance: f64) {
+    pub fn MoveGrip(&mut self, dimension: usize, distance: f64) {
         if self.gripped && dimension < 3 {
             self.spring_extension[dimension] += distance;
             self.update_busy_state();
@@ -2233,12 +2233,12 @@ impl emSwipingViewAnimator {
     }
 
     /// Set the spring constant (stiffness). Higher = stiffer, less lag.
-    pub fn set_spring_constant(&mut self, k: f64) {
+    pub fn SetSpringConstant(&mut self, k: f64) {
         self.spring_constant = k;
     }
 
     /// Absolute spring extension magnitude.
-    pub fn abs_spring_extension(&self) -> f64 {
+    pub fn GetAbsSpringExtension(&self) -> f64 {
         (self.spring_extension[0] * self.spring_extension[0]
             + self.spring_extension[1] * self.spring_extension[1]
             + self.spring_extension[2] * self.spring_extension[2])
@@ -2256,7 +2256,7 @@ impl emSwipingViewAnimator {
     }
 
     fn update_busy_state(&mut self) {
-        if self.gripped && (self.abs_spring_extension() > 0.01 || self.inner.abs_velocity() > 0.01)
+        if self.gripped && (self.GetAbsSpringExtension() > 0.01 || self.inner.GetAbsVelocity() > 0.01)
         {
             self.busy = true;
         } else {
@@ -2305,13 +2305,13 @@ impl emViewAnimator for emSwipingViewAnimator {
                 *nv = (e1 - e2) / dt;
             }
 
-            self.inner.set_velocity(new_vel[0], new_vel[1], new_vel[2]);
+            self.inner.SetVelocity(new_vel[0], new_vel[1], new_vel[2]);
 
             // Disable friction during grip, delegate to kinetic for scroll/zoom
-            let saved_friction = self.inner.is_friction_enabled();
-            self.inner.set_friction_enabled(false);
+            let saved_friction = self.inner.IsFrictionEnabled();
+            self.inner.SetFrictionEnabled(false);
             base_busy = self.inner.animate(view, tree, dt);
-            self.inner.set_friction_enabled(saved_friction);
+            self.inner.SetFrictionEnabled(saved_friction);
         } else {
             // Not gripped or not busy — pure kinetic coasting with friction
             base_busy = self.inner.animate(view, tree, dt);
@@ -2393,7 +2393,7 @@ impl emMagneticViewAnimator {
     }
 
     /// Set the spring constant.
-    pub fn set_spring_constant(&mut self, k: f64) {
+    pub fn SetSpringConstant(&mut self, k: f64) {
         self.spring_constant = k;
     }
 
@@ -2403,12 +2403,12 @@ impl emMagneticViewAnimator {
     }
 
     /// Current velocity.
-    pub fn velocity(&self) -> (f64, f64) {
+    pub fn GetVelocity(&self) -> (f64, f64) {
         (self.velocity_x, self.velocity_y)
     }
 
     /// Absolute velocity magnitude (3D).
-    pub fn abs_velocity(&self) -> f64 {
+    pub fn GetAbsVelocity(&self) -> f64 {
         (self.velocity_x * self.velocity_x
             + self.velocity_y * self.velocity_y
             + self.velocity_z * self.velocity_z)
@@ -2451,7 +2451,7 @@ impl emMagneticViewAnimator {
 
         if abs_dist <= max_dist && abs_dist > 1e-3 {
             // Within radius and non-trivial distance
-            if !self.magnetism_active && self.abs_velocity() < 10.0 {
+            if !self.magnetism_active && self.GetAbsVelocity() < 10.0 {
                 // C++: center zoom fix point on magnetism activation
                 self.needs_center_zoom_fix = true;
                 self.magnetism_active = true;
@@ -2465,7 +2465,7 @@ impl emMagneticViewAnimator {
                 self.velocity_z = 0.0;
                 self.magnetism_active = false;
             }
-            if self.abs_velocity() >= 0.01 {
+            if self.GetAbsVelocity() >= 0.01 {
                 busy = true; // friction deceleration
             }
         }
@@ -2560,7 +2560,7 @@ impl emMagneticViewAnimator {
         let vcx = view_rect.x + view_rect.w * 0.5;
         let vcy = view_rect.y + view_rect.h * 0.5;
         let view_dim = (view_rect.w + view_rect.h) * 0.5;
-        let zflpp = view.get_zoom_factor_log_per_pixel();
+        let zflpp = view.GetZoomFactorLogarithmPerPixel();
 
         let mut best_td = f64::MAX;
         let mut best_dx = 0.0;
@@ -2585,11 +2585,11 @@ impl emMagneticViewAnimator {
             }
 
             // Compute essence rect in view coords
-            let (ex, ey, ew, eh) = tree.get_essence_rect(id);
-            let vex = tree.panel_to_view_x(id, ex);
-            let vey = tree.panel_to_view_y(id, ey);
-            let vew = tree.panel_to_view_delta_x(id, ew);
-            let veh = tree.panel_to_view_delta_y(id, eh);
+            let (ex, ey, ew, eh) = tree.GetEssenceRect(id);
+            let vex = tree.PanelToViewX(id, ex);
+            let vey = tree.PanelToViewY(id, ey);
+            let vew = tree.PanelToViewDeltaX(id, ew);
+            let veh = tree.PanelToViewDeltaY(id, eh);
 
             let panel_cx = vex + vew * 0.5;
             let panel_cy = vey + veh * 0.5;
@@ -2658,7 +2658,7 @@ impl emViewAnimator for emMagneticViewAnimator {
 
             if dx.abs() > 1e-8 || dy.abs() > 1e-8 {
                 let (vw, vh) = view.viewport_size();
-                view.raw_scroll_and_zoom(tree, vw * 0.5, vh * 0.5, dx, dy, 0.0);
+                view.RawScrollAndZoom(tree, vw * 0.5, vh * 0.5, dx, dy, 0.0);
             }
 
             // Converged when displacement and velocity are both tiny
@@ -2699,7 +2699,7 @@ mod tests {
     fn setup() -> (PanelTree, emView) {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
         let view = emView::new(root, 800.0, 600.0);
         (tree, view)
     }
@@ -2707,7 +2707,7 @@ mod tests {
     #[test]
     fn kinetic_with_zoom() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         let initial_a = view.current_visit().rel_a;
 
         let mut anim = emKineticViewAnimator::new(0.0, 0.0, 100.0, 1000.0);
@@ -2721,30 +2721,30 @@ mod tests {
     #[test]
     fn speeding_with_zoom() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emSpeedingViewAnimator::new(1000.0);
-        anim.set_target(0.0, 0.0, 2.0);
+        anim.SetTargetVelocity(0.0, 0.0, 2.0);
 
         for _ in 0..10 {
             anim.animate(&mut view, &mut tree, 0.016);
         }
 
         // Should be accelerating toward zoom
-        let (_, _, vz) = anim.inner().velocity();
+        let (_, _, vz) = anim.inner().GetVelocity();
         assert!(vz.abs() > 0.0);
     }
 
     #[test]
     fn visiting_converges() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emVisitingViewAnimator::new(0.1, 0.1, 2.0, 10.0);
         anim.set_identity("root", "");
-        anim.set_animated(true);
-        anim.set_acceleration(5.0);
-        anim.set_max_absolute_speed(5.0);
+        anim.SetAnimated(true);
+        anim.SetAcceleration(5.0);
+        anim.SetMaxAbsoluteSpeed(5.0);
 
         for _ in 0..500 {
             if !anim.animate(&mut view, &mut tree, 0.016) {
@@ -2758,10 +2758,10 @@ mod tests {
     #[test]
     fn kinetic_linear_friction_stops() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emKineticViewAnimator::new(100.0, 0.0, 0.0, 1000.0);
-        anim.set_friction_enabled(true);
+        anim.SetFrictionEnabled(true);
 
         for _ in 0..200 {
             if !anim.animate(&mut view, &mut tree, 0.016) {
@@ -2775,14 +2775,14 @@ mod tests {
     #[test]
     fn kinetic_friction_disabled() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emKineticViewAnimator::new(100.0, 0.0, 0.0, 1000.0);
         // friction_enabled defaults to false
 
         anim.animate(&mut view, &mut tree, 0.016);
 
-        let (vx, _, _) = anim.velocity();
+        let (vx, _, _) = anim.GetVelocity();
         // Without friction, velocity should remain at 100.0 (or zeroed by blocked-motion)
         // but should NOT have been reduced by friction
         assert!(vx == 100.0 || vx == 0.0);
@@ -2791,19 +2791,19 @@ mod tests {
     #[test]
     fn speeding_3branch_reverse() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emSpeedingViewAnimator::new(1000.0);
-        anim.set_reverse_acceleration(500.0);
+        anim.SetReverseAcceleration(500.0);
 
         // Set inner velocity going right (set_velocity activates if > 0.01)
-        anim.inner_mut().set_velocity(100.0, 0.0, 0.0);
+        anim.inner_mut().SetVelocity(100.0, 0.0, 0.0);
         // Target going left — should trigger reverse acceleration
-        anim.set_target(-100.0, 0.0, 0.0);
+        anim.SetTargetVelocity(-100.0, 0.0, 0.0);
 
         anim.animate(&mut view, &mut tree, 0.016);
 
-        let (vx, _, _) = anim.inner().velocity();
+        let (vx, _, _) = anim.inner().GetVelocity();
         // Velocity should have moved toward -100 (decreased from 100)
         assert!(vx < 100.0);
     }
@@ -2811,12 +2811,12 @@ mod tests {
     #[test]
     fn speeding_delegates_to_kinetic() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
         let initial_a = view.current_visit().rel_a;
 
         let mut anim = emSpeedingViewAnimator::new(1000.0);
-        anim.set_target(0.0, 0.0, 2.0);
-        anim.set_acceleration(1000.0);
+        anim.SetTargetVelocity(0.0, 0.0, 2.0);
+        anim.SetAcceleration(1000.0);
 
         for _ in 0..10 {
             anim.animate(&mut view, &mut tree, 0.016);
@@ -2831,14 +2831,14 @@ mod tests {
         let mut anim = emVisitingViewAnimator::new(0.0, 0.0, 1.0, 5.0);
 
         // Below max: animated
-        anim.set_anim_params_by_speed_config(2.0, 10.0);
+        anim.SetAnimParamsByCoreConfig(2.0, 10.0);
         assert!(anim.animated);
         assert!((anim.acceleration - 70.0).abs() < 0.01);
         assert!((anim.max_absolute_speed - 70.0).abs() < 0.01);
         assert!((anim.max_cusp_speed - 35.0).abs() < 0.01);
 
         // At max: not animated (instant)
-        anim.set_anim_params_by_speed_config(10.0, 10.0);
+        anim.SetAnimParamsByCoreConfig(10.0, 10.0);
         assert!(!anim.animated);
     }
 
@@ -2878,15 +2878,15 @@ mod tests {
     #[test]
     fn visiting_goal_reached_on_target() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Target is the root at current coords — should reach goal quickly
         let state = view.current_visit().clone();
         let mut anim = emVisitingViewAnimator::new(state.rel_x, state.rel_y, state.rel_a, 5.0);
         anim.set_identity("root", "");
-        anim.set_animated(true);
-        anim.set_acceleration(5.0);
-        anim.set_max_absolute_speed(5.0);
+        anim.SetAnimated(true);
+        anim.SetAcceleration(5.0);
+        anim.SetMaxAbsoluteSpeed(5.0);
 
         let mut reached = false;
         for _ in 0..20 {
@@ -2902,12 +2902,12 @@ mod tests {
     #[test]
     fn visiting_giving_up_no_panel() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         // Target a non-existent panel
         let mut anim = emVisitingViewAnimator::new(0.5, 0.5, 2.0, 5.0);
         anim.set_identity("nonexistent", "");
-        anim.set_animated(true);
+        anim.SetAnimated(true);
 
         anim.animate(&mut view, &mut tree, 0.016);
         assert_eq!(
@@ -2928,44 +2928,44 @@ mod tests {
     #[test]
     fn swiping_grip_spring() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emSwipingViewAnimator::new(2.0);
-        anim.inner_mut().set_friction_enabled(true);
-        anim.set_spring_constant(100.0);
+        anim.inner_mut().SetFrictionEnabled(true);
+        anim.SetSpringConstant(100.0);
         assert!(!anim.is_active());
 
         // Grip and move
-        anim.set_gripped(true);
-        anim.move_grip(0, 50.0); // 50px spring extension in X
+        anim.SetGripped(true);
+        anim.MoveGrip(0, 50.0); // 50px spring extension in X
         assert!(anim.is_active());
 
         // Animate — spring should produce kinetic velocity
         anim.animate(&mut view, &mut tree, 0.016);
-        let (vx, _, _) = anim.inner().velocity();
+        let (vx, _, _) = anim.inner().GetVelocity();
         assert!(vx.abs() > 0.0, "Spring should produce X velocity");
     }
 
     #[test]
     fn swiping_release_coasts() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emSwipingViewAnimator::new(2.0);
-        anim.inner_mut().set_friction_enabled(true);
-        anim.set_spring_constant(100.0);
-        anim.set_gripped(true);
+        anim.inner_mut().SetFrictionEnabled(true);
+        anim.SetSpringConstant(100.0);
+        anim.SetGripped(true);
 
         // Build up velocity via spring
         for _ in 0..10 {
-            anim.move_grip(0, 5.0);
+            anim.MoveGrip(0, 5.0);
             anim.animate(&mut view, &mut tree, 1.0 / 60.0);
         }
-        let (vx_before, _, _) = anim.inner().velocity();
+        let (vx_before, _, _) = anim.inner().GetVelocity();
         assert!(vx_before.abs() > 1.0, "Should have built up velocity");
 
         // Release — should coast with friction
-        anim.set_gripped(false);
+        anim.SetGripped(false);
         for _ in 0..5000 {
             if !anim.animate(&mut view, &mut tree, 1.0 / 60.0) {
                 break;
@@ -2977,13 +2977,13 @@ mod tests {
     #[test]
     fn swiping_stop() {
         let mut anim = emSwipingViewAnimator::new(2.0);
-        anim.set_gripped(true);
-        anim.move_grip(0, 50.0);
+        anim.SetGripped(true);
+        anim.MoveGrip(0, 50.0);
         assert!(anim.is_active());
 
         anim.stop();
         assert!(!anim.is_active());
-        let (vx, vy, vz) = anim.inner().velocity();
+        let (vx, vy, vz) = anim.inner().GetVelocity();
         assert_eq!(vx, 0.0);
         assert_eq!(vy, 0.0);
         assert_eq!(vz, 0.0);
@@ -2992,7 +2992,7 @@ mod tests {
     #[test]
     fn magnetic_snaps_to_target() {
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut anim = emMagneticViewAnimator::new(50.0);
         let state = view.current_visit().clone();
@@ -3018,7 +3018,7 @@ mod tests {
 
         anim.stop();
         assert!(!anim.is_active());
-        let (vx, vy) = anim.velocity();
+        let (vx, vy) = anim.GetVelocity();
         assert_eq!(vx, 0.0);
         assert_eq!(vy, 0.0);
     }
@@ -3076,7 +3076,7 @@ mod tests {
         // automatically discovers the nearest focusable panel and smoothly
         // scrolls+zooms to center it in the viewport.
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let _anim = emMagneticViewAnimator::new(50.0);
         // Currently there is no auto-discovery — the snap target must be set
@@ -3116,16 +3116,16 @@ mod tests {
         // Expected behavior: swiping animator at velocity (100, 0, 0) is
         // replaced by a new kinetic animator which inherits that velocity.
         let (mut tree, mut view) = setup();
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let mut old_anim = emKineticViewAnimator::new(100.0, 50.0, 0.0, 1000.0);
-        old_anim.set_friction_enabled(true);
+        old_anim.SetFrictionEnabled(true);
         old_anim.animate(&mut view, &mut tree, 0.016);
 
         // A new kinetic animator should inherit velocity from old_anim.
         // Currently there is no activation protocol to transfer velocity.
         let new_anim = emKineticViewAnimator::new(0.0, 0.0, 0.0, 1000.0);
-        let (vx, vy, _) = new_anim.velocity();
+        let (vx, vy, _) = new_anim.GetVelocity();
         assert!(
             vx.abs() > 1.0 && vy.abs() > 1.0,
             "New animator should inherit velocity from previous active animator"
@@ -3156,7 +3156,7 @@ mod tests {
             zoom_fix_y: 200.0,
         };
         kva.inject_kinetic_state(state);
-        let (vx, vy, vz) = kva.velocity();
+        let (vx, vy, vz) = kva.GetVelocity();
         assert!((vx - 4.0).abs() < 1e-12);
         assert!((vy - 5.0).abs() < 1e-12);
         assert!((vz - 6.0).abs() < 1e-12);
@@ -3171,7 +3171,7 @@ mod tests {
         let mut new_anim = emKineticViewAnimator::new(0.0, 0.0, 0.0, 1000.0);
 
         new_anim.activate_with_handoff(Some(&old_anim), &view);
-        let (vx, vy, vz) = new_anim.velocity();
+        let (vx, vy, vz) = new_anim.GetVelocity();
         assert!(
             (vx - 100.0).abs() < 1e-6,
             "should inherit vx from old animator"
@@ -3195,7 +3195,7 @@ mod tests {
         assert!(anim.is_active());
 
         anim.activate_with_handoff(None, &view);
-        let (vx, vy, vz) = anim.velocity();
+        let (vx, vy, vz) = anim.GetVelocity();
         assert!(vx.abs() < 1e-12, "vx should be zero");
         assert!(vy.abs() < 1e-12, "vy should be zero");
         assert!(vz.abs() < 1e-12, "vz should be zero");
@@ -3308,24 +3308,24 @@ mod tests {
     fn calculate_distance_finds_nearest_panel() {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
         tree.set_focusable(root, true);
 
         // 3 child panels at different positions
         let left = tree.create_child(root, "left");
-        tree.set_layout_rect(left, 0.0, 0.0, 0.3, 1.0);
+        tree.Layout(left, 0.0, 0.0, 0.3, 1.0);
         tree.set_focusable(left, true);
 
         let center = tree.create_child(root, "center");
-        tree.set_layout_rect(center, 0.35, 0.0, 0.3, 1.0);
+        tree.Layout(center, 0.35, 0.0, 0.3, 1.0);
         tree.set_focusable(center, true);
 
         let right = tree.create_child(root, "right");
-        tree.set_layout_rect(right, 0.7, 0.0, 0.3, 1.0);
+        tree.Layout(right, 0.7, 0.0, 0.3, 1.0);
         tree.set_focusable(right, true);
 
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let (dx, dy, _dz, abs_dist) = emMagneticViewAnimator::calculate_distance(&view, &tree);
         // The center panel should be nearest to the viewport center
@@ -3345,11 +3345,11 @@ mod tests {
     fn calculate_distance_uses_log_zoom_z_axis() {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
         tree.set_focusable(root, true);
 
         let mut view = emView::new(root, 800.0, 600.0);
-        view.update_viewing(&mut tree);
+        view.Update(&mut tree);
 
         let (_dx, _dy, dz, abs_dist) = emMagneticViewAnimator::calculate_distance(&view, &tree);
         // Root panel fills the viewport, so dz depends on

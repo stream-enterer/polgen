@@ -30,13 +30,13 @@ impl Default for emRasterGroup {
 }
 
 impl PanelBehavior for emRasterGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         let pixel_scale = state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100);
         self.border
             .paint_border(painter, w, h, &self.look, state.is_focused(), state.enabled, pixel_scale);
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let aux_id = super::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRect(r.w, r.h, &self.look);

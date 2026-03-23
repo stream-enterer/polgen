@@ -119,10 +119,10 @@ impl emSplitter {
 
         let resolved = self.orientation.resolve(w, h);
         let color = self.look.button_bg_color;
-        let canvas = painter.canvas_color();
+        let canvas = painter.GetCanvasColor();
 
         let (gx, gy, gw, gh) = self.calc_grip_rect(w, h, resolved);
-        painter.paint_rect(gx, gy, gw, gh, color, canvas);
+        painter.PaintRect(gx, gy, gw, gh, color, canvas);
 
         // C++ emSplitter: PaintBorderImage overlay on grip.
         let d = gw.min(gh) * 0.5;
@@ -132,7 +132,7 @@ impl emSplitter {
             } else {
                 &img.splitter
             };
-            painter.paint_border_image(
+            painter.PaintBorderImage(
                 gx,
                 gy,
                 gw,
@@ -316,21 +316,21 @@ mod tests {
     fn splitter_position_clamping() {
         let look = emLook::new();
         let mut sp = emSplitter::new(Orientation::Horizontal, look);
-        sp.set_position(0.3);
-        assert!((sp.position() - 0.3).abs() < 0.001);
+        sp.SetPos(0.3);
+        assert!((sp.GetPos() - 0.3).abs() < 0.001);
 
-        sp.set_position(-1.0);
-        assert!((sp.position() - 0.0).abs() < 0.001);
+        sp.SetPos(-1.0);
+        assert!((sp.GetPos() - 0.0).abs() < 0.001);
 
-        sp.set_position(2.0);
-        assert!((sp.position() - 1.0).abs() < 0.001);
+        sp.SetPos(2.0);
+        assert!((sp.GetPos() - 1.0).abs() < 0.001);
     }
 
     #[test]
     fn splitter_drag() {
         let look = emLook::new();
         let mut sp = emSplitter::new(Orientation::Horizontal, look);
-        sp.set_position(0.5);
+        sp.SetPos(0.5);
         let ps = default_panel_state();
         let is = default_input_state();
 
@@ -342,7 +342,7 @@ mod tests {
         // Press at the divider center in normalized space (tallness = 0.5).
         // Grip center: gx = 0.5 * (1.0 - 0.015) + 0.015/2 ≈ 0.5.
         let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(0.5, 0.1);
-        assert!(sp.input(&press, &ps, &is));
+        assert!(sp.Input(&press, &ps, &is));
         assert!(sp.dragging);
 
         // Drag to x = 0.7 in normalized space.
@@ -360,12 +360,12 @@ mod tests {
             meta: false,
             eaten: false,
         };
-        sp.input(&drag, &ps, &is);
-        assert!((sp.position() - 0.7).abs() < 0.01);
+        sp.Input(&drag, &ps, &is);
+        assert!((sp.GetPos() - 0.7).abs() < 0.01);
 
         // Release
         let release = emInputEvent::release(InputKey::MouseLeft);
-        sp.input(&release, &ps, &is);
+        sp.Input(&release, &ps, &is);
         assert!(!sp.dragging);
     }
 }

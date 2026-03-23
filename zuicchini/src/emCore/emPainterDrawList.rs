@@ -201,9 +201,9 @@ impl DrawList {
                 DrawOp::SetOffset(x, y) => {
                     painter.set_offset(x - tile_offset.0, y - tile_offset.1);
                 }
-                DrawOp::ClipRect { x, y, w, h } => painter.clip_rect(*x, *y, *w, *h),
-                DrawOp::SetCanvasColor(c) => painter.set_canvas_color(*c),
-                DrawOp::SetAlpha(a) => painter.set_alpha(*a),
+                DrawOp::ClipRect { x, y, w, h } => painter.SetClipping(*x, *y, *w, *h),
+                DrawOp::SetCanvasColor(c) => painter.SetCanvasColor(*c),
+                DrawOp::SetAlpha(a) => painter.SetAlpha(*a),
 
                 DrawOp::PaintRect {
                     x,
@@ -212,7 +212,7 @@ impl DrawList {
                     h,
                     color,
                     canvas_color,
-                } => painter.paint_rect(*x, *y, *w, *h, *color, *canvas_color),
+                } => painter.PaintRect(*x, *y, *w, *h, *color, *canvas_color),
 
                 DrawOp::PaintRoundRect {
                     x,
@@ -221,7 +221,7 @@ impl DrawList {
                     h,
                     radius,
                     color,
-                } => painter.paint_round_rect(*x, *y, *w, *h, *radius, *color),
+                } => painter.PaintRoundRect(*x, *y, *w, *h, *radius, *color),
 
                 DrawOp::PaintRectOutlined {
                     x,
@@ -230,7 +230,7 @@ impl DrawList {
                     h,
                     stroke,
                     canvas_color,
-                } => painter.paint_rect_outlined(*x, *y, *w, *h, stroke, *canvas_color),
+                } => painter.PaintRectOutline(*x, *y, *w, *h, stroke, *canvas_color),
 
                 DrawOp::PaintRoundRectOutlined {
                     x,
@@ -239,7 +239,7 @@ impl DrawList {
                     h,
                     radius,
                     stroke,
-                } => painter.paint_round_rect_outlined(*x, *y, *w, *h, *radius, stroke),
+                } => painter.PaintRoundRectOutline(*x, *y, *w, *h, *radius, stroke),
 
                 DrawOp::PaintEllipse {
                     cx,
@@ -248,20 +248,20 @@ impl DrawList {
                     ry,
                     color,
                     canvas_color,
-                } => painter.paint_ellipse(*cx, *cy, *rx, *ry, *color, *canvas_color),
+                } => painter.PaintEllipse(*cx, *cy, *rx, *ry, *color, *canvas_color),
 
                 DrawOp::PaintPolygon {
                     vertices,
                     color,
                     canvas_color,
-                } => painter.paint_polygon(vertices, *color, *canvas_color),
+                } => painter.PaintPolygon(vertices, *color, *canvas_color),
 
                 DrawOp::PaintSolidPolyline {
                     vertices,
                     stroke,
                     closed,
                     canvas_color,
-                } => painter.paint_solid_polyline(vertices, stroke, *closed, *canvas_color),
+                } => painter.PaintSolidPolyline(vertices, stroke, *closed, *canvas_color),
 
                 DrawOp::PaintImageFull {
                     x,
@@ -293,7 +293,7 @@ impl DrawList {
                     extension,
                 } => {
                     let image = unsafe { &**image_ptr };
-                    painter.paint_image_colored(
+                    painter.PaintImageColored(
                         *x,
                         *y,
                         *w,
@@ -342,7 +342,7 @@ impl DrawList {
                     which_sub_rects,
                 } => {
                     let image = unsafe { &**image_ptr };
-                    painter.paint_border_image(
+                    painter.PaintBorderImage(
                         *x,
                         *y,
                         *w,
@@ -370,7 +370,7 @@ impl DrawList {
                     width_scale,
                     color,
                     canvas_color,
-                } => painter.paint_text(
+                } => painter.PaintText(
                     *x,
                     *y,
                     text,
@@ -395,7 +395,7 @@ impl DrawList {
                     min_width_scale,
                     formatted,
                     rel_line_space,
-                } => painter.paint_text_boxed(
+                } => painter.PaintTextBoxed(
                     *x,
                     *y,
                     *w,

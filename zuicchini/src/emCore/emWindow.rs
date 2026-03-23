@@ -135,14 +135,14 @@ impl ZuiWindow {
         // Create control tree with a root panel
         let mut control_tree = PanelTree::new();
         let control_root = control_tree.create_root("control_root");
-        control_tree.set_layout_rect(control_root, 0.0, 0.0, 1.0, 1.0);
+        control_tree.Layout(control_root, 0.0, 0.0, 1.0, 1.0);
         // Hidden initially — zero viewport height
         let control_view = emView::new(control_root, w as f64, 0.0);
 
         let vif_chain: Vec<Box<dyn emViewInputFilter>> = vec![
             {
                 let mut mouse_vif = emMouseZoomScrollVIF::new();
-                let zflpp = view.get_zoom_factor_log_per_pixel();
+                let zflpp = view.GetZoomFactorLogarithmPerPixel();
                 mouse_vif.set_mouse_anim_params(1.0, 0.25, zflpp);
                 mouse_vif.set_wheel_anim_params(1.0, 0.25, zflpp);
                 Box::new(mouse_vif)
@@ -198,9 +198,9 @@ impl ZuiWindow {
         self.tile_cache.resize(w, h);
         self.viewport_buffer.setup(w, h, 4);
         let ch = self.content_height();
-        self.view.set_viewport(tree, w as f64, ch as f64);
+        self.view.SetGeometry(tree, w as f64, ch as f64);
         if self.control_strip_height > 0 {
-            self.control_view.set_viewport(
+            self.control_view.SetGeometry(
                 &mut self.control_tree,
                 w as f64,
                 self.control_strip_height as f64,
@@ -221,8 +221,8 @@ impl ZuiWindow {
             self.control_strip_height = CONTROL_STRIP_PX;
             let w = self.surface_config.width;
             let ch = self.content_height();
-            self.view.set_viewport(tree, w as f64, ch as f64);
-            self.control_view.set_viewport(
+            self.view.SetGeometry(tree, w as f64, ch as f64);
+            self.control_view.SetGeometry(
                 &mut self.control_tree,
                 w as f64,
                 CONTROL_STRIP_PX as f64,
@@ -237,7 +237,7 @@ impl ZuiWindow {
             self.control_strip_height = 0;
             let w = self.surface_config.width;
             let h = self.surface_config.height;
-            self.view.set_viewport(tree, w as f64, h as f64);
+            self.view.SetGeometry(tree, w as f64, h as f64);
             self.invalidate();
         }
     }
@@ -271,11 +271,11 @@ impl ZuiWindow {
             self.viewport_buffer.fill(crate::emCore::emColor::emColor::BLACK);
             let ctrl_height = self.control_strip_height;
             let content_h = self.content_height() as f64;
-            let ctrl_root = self.control_view.root();
-            let ctrl_bg = self.control_view.background_color();
+            let ctrl_root = self.control_view.GetRootPanel();
+            let ctrl_bg = self.control_view.GetBackgroundColor();
             {
                 let mut painter = emPainter::new(&mut self.viewport_buffer);
-                self.view.paint(tree, &mut painter);
+                self.view.Paint(tree, &mut painter);
                 if ctrl_height > 0 {
                     self.control_view.paint_sub_tree(
                         &mut self.control_tree,
@@ -319,12 +319,12 @@ impl ZuiWindow {
                             let mut painter = emPainter::new(&mut tile.image);
                             let ts = tile_size as f64;
                             painter.translate(-(col as f64 * ts), -(row as f64 * ts));
-                            self.view.paint(tree, &mut painter);
+                            self.view.Paint(tree, &mut painter);
                             if self.control_strip_height > 0
                                 && row * tile_size + tile_size > content_h
                             {
-                                let control_root = self.control_view.root();
-                                let bg = self.control_view.background_color();
+                                let control_root = self.control_view.GetRootPanel();
+                                let bg = self.control_view.GetBackgroundColor();
                                 self.control_view.paint_sub_tree(
                                     &mut self.control_tree,
                                     &mut painter,
@@ -390,11 +390,11 @@ impl ZuiWindow {
         let mut draw_list = DrawList::new();
         {
             let mut painter = emPainter::new_recording(vp_w, vp_h, draw_list.ops_mut());
-            self.view.paint(tree, &mut painter);
+            self.view.Paint(tree, &mut painter);
             if self.control_strip_height > 0 {
                 let content_h = self.content_height() as f64;
-                let control_root = self.control_view.root();
-                let bg = self.control_view.background_color();
+                let control_root = self.control_view.GetRootPanel();
+                let bg = self.control_view.GetBackgroundColor();
                 self.control_view.paint_sub_tree(
                     &mut self.control_tree,
                     &mut painter,
@@ -660,39 +660,39 @@ impl ZuiWindow {
             {
                 let panel = self
                     .control_view
-                    .get_focusable_panel_at(
+                    .GetFocusablePanelAt(
                         &self.control_tree,
                         ctrl_event.mouse_x,
                         ctrl_event.mouse_y,
                     )
-                    .unwrap_or_else(|| self.control_view.root());
+                    .unwrap_or_else(|| self.control_view.GetRootPanel());
                 self.control_view
                     .set_active_panel(&mut self.control_tree, panel, false);
             }
 
             // Dispatch to control tree panels
             let ctrl_ev = ctrl_event.with_modifiers(state);
-            let wf = self.view.window_focused();
+            let wf = self.view.IsFocused();
             let viewed = self.control_tree.viewed_panels_dfs();
             for panel_id in viewed {
                 let mut panel_ev = ctrl_ev.clone();
-                panel_ev.mouse_x = self.control_tree.view_to_panel_x(panel_id, ctrl_ev.mouse_x);
-                panel_ev.mouse_y = self.control_tree.view_to_panel_y(
+                panel_ev.mouse_x = self.control_tree.ViewToPanelX(panel_id, ctrl_ev.mouse_x);
+                panel_ev.mouse_y = self.control_tree.ViewToPanelY(
                     panel_id,
                     ctrl_ev.mouse_y,
-                    self.control_view.pixel_tallness(),
+                    self.control_view.GetCurrentPixelTallness(),
                 );
                 if let Some(mut behavior) = self.control_tree.take_behavior(panel_id) {
                     let panel_state = self.control_tree.build_panel_state(
                         panel_id,
                         wf,
-                        self.control_view.pixel_tallness(),
+                        self.control_view.GetCurrentPixelTallness(),
                     );
-                    let consumed = behavior.input(&panel_ev, &panel_state, state);
+                    let consumed = behavior.Input(&panel_ev, &panel_state, state);
                     self.control_tree.put_behavior(panel_id, behavior);
                     if consumed {
                         self.control_view
-                            .invalidate_painting(&self.control_tree, panel_id);
+                            .InvalidatePainting(&self.control_tree, panel_id);
                         break;
                     }
                 }
@@ -762,10 +762,10 @@ impl ZuiWindow {
 
         // Tab / Shift+Tab focus cycling (C++ emPanel.cpp FocusNext/FocusPrev)
         if event.key == InputKey::Tab && event.variant == InputVariant::Press {
-            if state.shift() {
-                self.view.visit_prev(tree);
+            if state.GetShift() {
+                self.view.VisitPrev(tree);
             } else {
-                self.view.visit_next(tree);
+                self.view.VisitNext(tree);
             }
             return;
         }
@@ -779,8 +779,8 @@ impl ZuiWindow {
         {
             let panel = self
                 .view
-                .get_focusable_panel_at(tree, event.mouse_x, event.mouse_y)
-                .unwrap_or_else(|| self.view.root());
+                .GetFocusablePanelAt(tree, event.mouse_x, event.mouse_y)
+                .unwrap_or_else(|| self.view.GetRootPanel());
             self.view.set_active_panel(tree, panel, false);
         }
 
@@ -802,24 +802,24 @@ impl ZuiWindow {
                 ev.key, ev.variant, ev.mouse_x, ev.mouse_y
             );
         }
-        let wf = self.view.window_focused();
+        let wf = self.view.IsFocused();
         let viewed = tree.viewed_panels_dfs();
         let mut consumed = false;
         for panel_id in viewed {
             let mut panel_ev = ev.clone();
-            panel_ev.mouse_x = tree.view_to_panel_x(panel_id, ev.mouse_x);
+            panel_ev.mouse_x = tree.ViewToPanelX(panel_id, ev.mouse_x);
             panel_ev.mouse_y =
-                tree.view_to_panel_y(panel_id, ev.mouse_y, self.view.pixel_tallness());
+                tree.ViewToPanelY(panel_id, ev.mouse_y, self.view.GetCurrentPixelTallness());
 
             if let Some(mut behavior) = tree.take_behavior(panel_id) {
-                let panel_state = tree.build_panel_state(panel_id, wf, self.view.pixel_tallness());
+                let panel_state = tree.build_panel_state(panel_id, wf, self.view.GetCurrentPixelTallness());
                 // C++ RecurseInput (emView.cpp:2055-2058): keyboard events are
                 // suppressed for panels not in the active path.
                 if panel_ev.is_keyboard_event() && !panel_state.in_active_path {
                     tree.put_behavior(panel_id, behavior);
                     continue;
                 }
-                consumed = behavior.input(&panel_ev, &panel_state, state);
+                consumed = behavior.Input(&panel_ev, &panel_state, state);
                 if trace && is_press_release {
                     let name = tree.get(panel_id).map(|p| p.name.as_str()).unwrap_or("?");
                     eprintln!(
@@ -837,7 +837,7 @@ impl ZuiWindow {
                         let name = tree.get(panel_id).map(|p| p.name.as_str()).unwrap_or("?");
                         eprintln!("  >>> CONSUMED by {:?}", name);
                     }
-                    self.view.invalidate_painting(tree, panel_id);
+                    self.view.InvalidatePainting(tree, panel_id);
                     break;
                 }
             }
@@ -847,13 +847,13 @@ impl ZuiWindow {
         // Only fires if no behavior consumed the event.
         if !consumed
             && event.variant == InputVariant::Press
-            && state.is_no_mod()
+            && state.IsNoMod()
         {
             match event.key {
-                InputKey::ArrowLeft => self.view.visit_left(tree),
-                InputKey::ArrowRight => self.view.visit_right(tree),
-                InputKey::ArrowUp => self.view.visit_up(tree),
-                InputKey::ArrowDown => self.view.visit_down(tree),
+                InputKey::ArrowLeft => self.view.VisitLeft(tree),
+                InputKey::ArrowRight => self.view.VisitRight(tree),
+                InputKey::ArrowUp => self.view.VisitUp(tree),
+                InputKey::ArrowDown => self.view.VisitDown(tree),
                 _ => {}
             }
         }
@@ -863,7 +863,7 @@ impl ZuiWindow {
     ///
     /// Matches C++ emWindow::GetWindowFlagsSignal. Fired from
     /// `about_to_wait` when `flags_changed` is set.
-    pub fn window_flags_signal(&self) -> SignalId {
+    pub fn GetWindowFlagsSignal(&self) -> SignalId {
         self.flags_signal
     }
 
@@ -882,7 +882,7 @@ impl ZuiWindow {
     ///
     /// Matches C++ emWindow::GetWMResName. Returns a static default;
     /// set with `set_wm_res_name`.
-    pub fn wm_res_name(&self) -> &str {
+    pub fn GetWMResName(&self) -> &str {
         &self.wm_res_name
     }
 
@@ -913,7 +913,7 @@ impl ZuiWindow {
     /// Matches C++ emWindowPort::GetBorderSizes. Winit does not expose
     /// decoration sizes directly, so this returns a reasonable default
     /// for decorated windows and zero for undecorated ones.
-    pub fn border_sizes(&self) -> (i32, i32, i32, i32) {
+    pub fn GetBorderSizes(&self) -> (i32, i32, i32, i32) {
         if self.flags.contains(WindowFlags::UNDECORATED)
             || self.flags.contains(WindowFlags::FULLSCREEN)
         {
@@ -981,7 +981,7 @@ impl ZuiWindow {
     }
 
     /// Request the window manager to bring this window to front.
-    pub fn raise(&self) {
+    pub fn Raise(&self) {
         self.winit_window.focus_window();
     }
 
@@ -1026,7 +1026,7 @@ impl ZuiWindow {
     /// Matches C++ emWindow::SetWindowFlags: only acts when flags differ,
     /// then updates decorations, maximized, and fullscreen state on the
     /// underlying winit window.
-    pub fn set_window_flags(&mut self, new_flags: WindowFlags) {
+    pub fn SetWindowFlags(&mut self, new_flags: WindowFlags) {
         if self.flags == new_flags {
             return;
         }
@@ -1062,7 +1062,7 @@ impl ZuiWindow {
     /// Matches C++ emWindow::SetViewPos (PSAS_VIEW pos, PSAS_IGNORE size).
     /// Winit does not distinguish between view vs window position on all
     /// platforms, so this uses inner-size-aware outer position.
-    pub fn set_view_pos(&self, x: f64, y: f64) {
+    pub fn SetViewPos(&self, x: f64, y: f64) {
         self.winit_window
             .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
     }
@@ -1070,7 +1070,7 @@ impl ZuiWindow {
     /// Set the content area (view) size.
     ///
     /// Matches C++ emWindow::SetViewSize (PSAS_IGNORE pos, PSAS_VIEW size).
-    pub fn set_view_size(&self, w: f64, h: f64) {
+    pub fn SetViewSize(&self, w: f64, h: f64) {
         let _ = self
             .winit_window
             .request_inner_size(winit::dpi::LogicalSize::new(w, h));
@@ -1079,7 +1079,7 @@ impl ZuiWindow {
     /// Set the content area position and size.
     ///
     /// Matches C++ emWindow::SetViewPosSize (PSAS_VIEW pos, PSAS_VIEW size).
-    pub fn set_view_pos_size(&self, x: f64, y: f64, w: f64, h: f64) {
+    pub fn SetViewPosSize(&self, x: f64, y: f64, w: f64, h: f64) {
         self.winit_window
             .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
         let _ = self
@@ -1090,7 +1090,7 @@ impl ZuiWindow {
     /// Set the window position (including decorations).
     ///
     /// Matches C++ emWindow::SetWinPos (PSAS_WINDOW pos, PSAS_IGNORE size).
-    pub fn set_win_pos(&self, x: f64, y: f64) {
+    pub fn SetWinPos(&self, x: f64, y: f64) {
         self.winit_window
             .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
     }
@@ -1101,8 +1101,8 @@ impl ZuiWindow {
     /// Winit's `request_inner_size` sets the content area size, not the outer
     /// window size. We subtract border decoration sizes to convert outer
     /// dimensions to inner dimensions.
-    pub fn set_win_size(&self, w: f64, h: f64) {
-        let (left, top, right, bottom) = self.border_sizes();
+    pub fn SetWinSize(&self, w: f64, h: f64) {
+        let (left, top, right, bottom) = self.GetBorderSizes();
         let inner_w = (w - (left + right) as f64).max(1.0);
         let inner_h = (h - (top + bottom) as f64).max(1.0);
         let _ = self
@@ -1113,8 +1113,8 @@ impl ZuiWindow {
     /// Set window position and size (including decorations).
     ///
     /// Matches C++ emWindow::SetWinPosSize (PSAS_WINDOW pos, PSAS_WINDOW size).
-    pub fn set_win_pos_size(&self, x: f64, y: f64, w: f64, h: f64) {
-        let (left, top, right, bottom) = self.border_sizes();
+    pub fn SetWinPosSize(&self, x: f64, y: f64, w: f64, h: f64) {
+        let (left, top, right, bottom) = self.GetBorderSizes();
         self.winit_window
             .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
         let inner_w = (w - (left + right) as f64).max(1.0);
@@ -1127,7 +1127,7 @@ impl ZuiWindow {
     /// Set window position (outer, including decorations) and view (content) size.
     ///
     /// Matches C++ emWindow::SetWinPosViewSize (PSAS_WINDOW pos, PSAS_VIEW size).
-    pub fn set_win_pos_view_size(&self, x: f64, y: f64, w: f64, h: f64) {
+    pub fn SetWinPosViewSize(&self, x: f64, y: f64, w: f64, h: f64) {
         self.winit_window
             .set_outer_position(winit::dpi::LogicalPosition::new(x, y));
         let _ = self
@@ -1144,10 +1144,10 @@ impl ZuiWindow {
     /// Matches C++ emWindow::GetMonitorIndex: delegates to
     /// emScreen::monitor_index_of_rect with the window's outer position
     /// and inner size.
-    pub fn get_monitor_index(&self, screen: &emScreen) -> Option<usize> {
+    pub fn GetMonitorIndex(&self, screen: &emScreen) -> Option<usize> {
         let pos = self.winit_window.outer_position().unwrap_or_default();
         let size = self.winit_window.inner_size();
-        screen.monitor_index_of_rect(pos.x, pos.y, size.width, size.height)
+        screen.GetMonitorIndexOfRect(pos.x, pos.y, size.width, size.height)
     }
 
     /// Signal the close signal, triggering auto-delete if WF_AUTO_DELETE is set.
@@ -1156,7 +1156,7 @@ impl ZuiWindow {
     /// The caller (App) must call `scheduler.fire(window.close_signal)` to
     /// actually fire the signal in the scheduler. This method returns the
     /// signal ID so the caller can fire it.
-    pub fn signal_closing(&self) -> SignalId {
+    pub fn SignalClosing(&self) -> SignalId {
         self.close_signal
     }
 
@@ -1168,7 +1168,7 @@ impl ZuiWindow {
     ///
     /// Matches C++ emWindow::SetWindowIcon: copies the image, then applies
     /// it to the winit window. The image is converted to RGBA if needed.
-    pub fn set_window_icon(&mut self, icon: &emImage) {
+    pub fn SetWindowIcon(&mut self, icon: &emImage) {
         self.window_icon = Some(icon.clone());
 
         if icon.is_empty() {
@@ -1177,27 +1177,27 @@ impl ZuiWindow {
         }
 
         // Convert to RGBA (4 channels) if not already.
-        let rgba = if icon.channel_count() == 4 {
+        let rgba = if icon.GetChannelCount() == 4 {
             icon.clone()
         } else {
             icon.get_converted(4)
         };
 
         if let Ok(winit_icon) =
-            winit::window::Icon::from_rgba(rgba.data().to_vec(), rgba.width(), rgba.height())
+            winit::window::Icon::from_rgba(rgba.GetMap().to_vec(), rgba.GetWidth(), rgba.GetHeight())
         {
             self.winit_window.set_window_icon(Some(winit_icon));
         } else {
             log::error!(
                 "failed to create window icon from {}x{} image",
-                rgba.width(),
-                rgba.height()
+                rgba.GetWidth(),
+                rgba.GetHeight()
             );
         }
     }
 
     /// Get the current window icon, if set.
-    pub fn window_icon(&self) -> Option<&emImage> {
+    pub fn GetWindowIcon(&self) -> Option<&emImage> {
         self.window_icon.as_ref()
     }
 
@@ -1205,7 +1205,7 @@ impl ZuiWindow {
     /// D-Bus Inhibit call on the 0→1 transition.
     ///
     /// Matches C++ emWindowPort::InhibitScreensaver.
-    pub fn inhibit_screensaver(&mut self) {
+    pub fn InhibitScreensaver(&mut self) {
         self.screensaver_inhibit_count += 1;
         if self.screensaver_inhibit_count == 1 {
             self.screensaver_cookie = super::emWindowPlatform::inhibit_screensaver();
@@ -1220,7 +1220,7 @@ impl ZuiWindow {
     /// D-Bus UnInhibit call on the 1→0 transition.
     ///
     /// Matches C++ emWindowPort::AllowScreensaver.
-    pub fn allow_screensaver(&mut self) {
+    pub fn AllowScreensaver(&mut self) {
         self.screensaver_inhibit_count = self.screensaver_inhibit_count.saturating_sub(1);
         if self.screensaver_inhibit_count == 0 {
             if let Some(cookie) = self.screensaver_cookie.take() {

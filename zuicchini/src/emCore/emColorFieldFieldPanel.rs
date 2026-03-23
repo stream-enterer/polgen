@@ -41,11 +41,11 @@ impl ScalarFieldPanel {
 }
 
 impl PanelBehavior for ScalarFieldPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.scalar_field.paint(painter, w, h, state.enabled);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         _state: &PanelState,
@@ -54,7 +54,7 @@ impl PanelBehavior for ScalarFieldPanel {
         self.scalar_field.input(event, _state, _input_state)
     }
 
-    fn get_cursor(&self) -> emCursor {
+    fn GetCursor(&self) -> emCursor {
         self.scalar_field.get_cursor()
     }
 }
@@ -68,8 +68,8 @@ impl TextFieldPanel {
     pub fn new(caption: &str, text: &str, look: Rc<emLook>, editable: bool) -> Self {
         let mut tf = emTextField::new(look);
         tf.set_caption(caption);
-        tf.set_text(text);
-        tf.set_editable(editable);
+        tf.SetText(text);
+        tf.SetEditable(editable);
         tf.border_mut().outer = OuterBorderType::Rect;
         tf.border_mut().inner = InnerBorderType::CustomRect;
         tf.border_mut().SetBorderScaling(2.0);
@@ -78,7 +78,7 @@ impl TextFieldPanel {
 }
 
 impl PanelBehavior for TextFieldPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.text_field.cycle_blink(state.in_focused_path());
         self.text_field.paint(painter, w, h, state.enabled);
     }
@@ -96,11 +96,11 @@ pub(crate) struct CheckBoxPanel {
 }
 
 impl PanelBehavior for CheckBoxPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.check_box.paint(painter, w, h, state.enabled);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         _state: &PanelState,
@@ -109,7 +109,7 @@ impl PanelBehavior for CheckBoxPanel {
         self.check_box.input(event, _state, _input_state)
     }
 
-    fn get_cursor(&self) -> emCursor {
+    fn GetCursor(&self) -> emCursor {
         self.check_box.get_cursor()
     }
 }
@@ -120,11 +120,11 @@ pub(crate) struct ListBoxPanel {
 }
 
 impl PanelBehavior for ListBoxPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.list_box.paint(painter, w, h);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         _state: &PanelState,
@@ -149,11 +149,11 @@ pub(crate) struct ButtonPanel {
 }
 
 impl PanelBehavior for ButtonPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.button.paint(painter, w, h, state.enabled);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         _state: &PanelState,
@@ -162,7 +162,7 @@ impl PanelBehavior for ButtonPanel {
         self.button.input(event, _state, _input_state)
     }
 
-    fn get_cursor(&self) -> emCursor {
+    fn GetCursor(&self) -> emCursor {
         self.button.get_cursor()
     }
 }
@@ -173,7 +173,7 @@ pub(crate) struct LabelPanel {
 }
 
 impl PanelBehavior for LabelPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.label.PaintContent(painter, w, h, _state.enabled);
     }
 }

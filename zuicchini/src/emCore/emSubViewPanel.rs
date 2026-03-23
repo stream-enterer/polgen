@@ -39,7 +39,7 @@ impl emSubViewPanel {
     pub fn new() -> Self {
         let mut sub_tree = PanelTree::new();
         let root = sub_tree.create_root("sub_root");
-        sub_tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        sub_tree.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let sub_view = emView::new(root, 1.0, 1.0);
 
@@ -96,7 +96,7 @@ impl emSubViewPanel {
             self.viewed_width = state.viewed_rect.w;
             self.viewed_height = state.viewed_rect.h;
             self.sub_view
-                .set_viewport(&mut self.sub_tree, self.viewed_width, self.viewed_height);
+                .SetGeometry(&mut self.sub_tree, self.viewed_width, self.viewed_height);
         } else {
             // Not viewed — give the sub-view a default geometry.
             // C++ uses (0, 0, 1, GetHeight(), 1.0).
@@ -105,17 +105,17 @@ impl emSubViewPanel {
             self.viewed_width = 1.0;
             self.viewed_height = state.height;
             self.sub_view
-                .set_viewport(&mut self.sub_tree, 1.0, state.height);
+                .SetGeometry(&mut self.sub_tree, 1.0, state.height);
         }
     }
 }
 
 impl PanelBehavior for emSubViewPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         state: &PanelState,
@@ -133,7 +133,7 @@ impl PanelBehavior for emSubViewPanel {
         // propagate focus state to the sub-view here, matching C++.
         if event.is_mouse_event() || event.is_touch_event() {
             self.sub_view
-                .set_window_focused(&mut self.sub_tree, state.is_focused());
+                .SetFocused(&mut self.sub_tree, state.is_focused());
         }
 
         // Forward input to the sub-view's panels (C++ InputToView).
@@ -148,40 +148,40 @@ impl PanelBehavior for emSubViewPanel {
         {
             let panel = self
                 .sub_view
-                .get_focusable_panel_at(&self.sub_tree, sub_vx, sub_vy)
-                .unwrap_or_else(|| self.sub_view.root());
+                .GetFocusablePanelAt(&self.sub_tree, sub_vx, sub_vy)
+                .unwrap_or_else(|| self.sub_view.GetRootPanel());
             self.sub_view
                 .set_active_panel(&mut self.sub_tree, panel, false);
         }
 
         // Ensure sub-view viewing state is current for coordinate transforms.
-        self.sub_view.update_viewing(&mut self.sub_tree);
+        self.sub_view.Update(&mut self.sub_tree);
 
         // Dispatch to sub-tree panels (DFS order, matching C++ RecurseInput).
-        let wf = self.sub_view.window_focused();
+        let wf = self.sub_view.IsFocused();
         let viewed = self.sub_tree.viewed_panels_dfs();
         for panel_id in viewed {
             let mut panel_ev = event.clone();
-            panel_ev.mouse_x = self.sub_tree.view_to_panel_x(panel_id, sub_vx);
-            panel_ev.mouse_y = self.sub_tree.view_to_panel_y(
+            panel_ev.mouse_x = self.sub_tree.ViewToPanelX(panel_id, sub_vx);
+            panel_ev.mouse_y = self.sub_tree.ViewToPanelY(
                 panel_id,
                 sub_vy,
-                self.sub_view.pixel_tallness(),
+                self.sub_view.GetCurrentPixelTallness(),
             );
             if let Some(mut behavior) = self.sub_tree.take_behavior(panel_id) {
                 let panel_state = self
                     .sub_tree
-                    .build_panel_state(panel_id, wf, self.sub_view.pixel_tallness());
+                    .build_panel_state(panel_id, wf, self.sub_view.GetCurrentPixelTallness());
                 // Suppress keyboard events for panels not in the active path.
                 if panel_ev.is_keyboard_event() && !panel_state.in_active_path {
                     self.sub_tree.put_behavior(panel_id, behavior);
                     continue;
                 }
-                let consumed = behavior.input(&panel_ev, &panel_state, input_state);
+                let consumed = behavior.Input(&panel_ev, &panel_state, input_state);
                 self.sub_tree.put_behavior(panel_id, behavior);
                 if consumed {
                     self.sub_view
-                        .invalidate_painting(&self.sub_tree, panel_id);
+                        .InvalidatePainting(&self.sub_tree, panel_id);
                     return true;
                 }
             }
@@ -194,7 +194,7 @@ impl PanelBehavior for emSubViewPanel {
         // C++ NF_FOCUS_CHANGED → SetViewFocused(IsFocused())
         if flags.intersects(NoticeFlags::FOCUS_CHANGED) {
             self.sub_view
-                .set_window_focused(&mut self.sub_tree, state.is_focused());
+                .SetFocused(&mut self.sub_tree, state.is_focused());
         }
         // C++ NF_VIEWING_CHANGED → SetViewGeometry(...)
         if flags.intersects(NoticeFlags::VIEW_CHANGED | NoticeFlags::LAYOUT_CHANGED) {
@@ -202,13 +202,13 @@ impl PanelBehavior for emSubViewPanel {
         }
     }
 
-    fn paint(&mut self, painter: &mut emPainter, _w: f64, _h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, _w: f64, _h: f64, state: &PanelState) {
         if !state.viewed {
             return;
         }
 
         // Update the sub-view's viewing state so panel coordinates are current.
-        self.sub_view.update_viewing(&mut self.sub_tree);
+        self.sub_view.Update(&mut self.sub_tree);
 
         // The parent's paint_panel_recursive set the painter's origin to
         // (base_offset.x + viewed_x, base_offset.y + viewed_y), i.e. this
@@ -218,15 +218,15 @@ impl PanelBehavior for emSubViewPanel {
         // base offset, so we pass the current origin as-is (the sub-view's
         // (0, 0) == this panel's top-left).
         let base_offset = painter.origin();
-        let bg = self.sub_view.background_color();
+        let bg = self.sub_view.GetBackgroundColor();
         let root = self.sub_root();
 
         self.sub_view
             .paint_sub_tree(&mut self.sub_tree, painter, root, base_offset, bg);
     }
 
-    fn get_cursor(&self) -> emCursor {
-        self.sub_view.cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.sub_view.GetCursor()
     }
 
     fn get_title(&self) -> Option<String> {

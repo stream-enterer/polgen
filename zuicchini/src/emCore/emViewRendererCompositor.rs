@@ -218,7 +218,7 @@ impl WgpuCompositor {
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
                 },
-                tile.image.data(),
+                tile.image.GetMap(),
                 wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(TILE_SIZE * 4),

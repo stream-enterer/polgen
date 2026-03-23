@@ -397,10 +397,10 @@ impl emInputEvent {
     }
 
     pub fn with_modifiers(mut self, state: &super::emInputState::emInputState) -> Self {
-        self.shift = state.shift();
-        self.ctrl = state.ctrl();
-        self.alt = state.alt();
-        self.meta = state.meta();
+        self.shift = state.GetShift();
+        self.ctrl = state.GetCtrl();
+        self.alt = state.GetAlt();
+        self.meta = state.GetMeta();
         self
     }
 

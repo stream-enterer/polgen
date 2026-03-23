@@ -312,8 +312,8 @@ impl emRadioButton {
 
         // C++ emButton.cpp:361: always ButtonBgColor. Pressed visual from overlay.
         let face_color = self.look.button_bg_color;
-        painter.paint_round_rect(fx, fy, fw, fh, fr, face_color);
-        painter.set_canvas_color(face_color);
+        painter.PaintRoundRect(fx, fy, fw, fh, fr, face_color);
+        painter.SetCanvasColor(face_color);
 
         // emLabel inside face with padding (C++ lines 370-391).
         let d_min = fw.min(fh) * 0.1;
@@ -353,7 +353,7 @@ impl emRadioButton {
         with_toolkit_images(|img| {
             if self.pressed {
                 // Pressed: ButtonPressed overlay (C++ lines 393-401).
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -373,7 +373,7 @@ impl emRadioButton {
                 );
             } else if checked {
                 // ShownChecked: ButtonChecked overlay (C++ lines 402-409).
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -394,7 +394,7 @@ impl emRadioButton {
             } else {
                 // Normal: emButton overlay (C++ lines 411-420).
                 let extra = (658.0 - 648.0) / 264.0 * r;
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w + extra,
@@ -748,19 +748,19 @@ mod tests {
         r0.set_checked(true);
         assert!(r0.is_selected());
         assert!(!r1.is_selected());
-        assert_eq!(group.borrow().selected(), Some(0));
+        assert_eq!(group.borrow().GetChecked(), Some(0));
 
         // set_checked(true) on another button switches selection
         r1.set_checked(true);
         assert!(!r0.is_selected());
         assert!(r1.is_selected());
-        assert_eq!(group.borrow().selected(), Some(1));
+        assert_eq!(group.borrow().GetChecked(), Some(1));
 
         // set_checked(false) on the selected button clears selection
         r1.set_checked(false);
         assert!(!r0.is_selected());
         assert!(!r1.is_selected());
-        assert_eq!(group.borrow().selected(), None);
+        assert_eq!(group.borrow().GetChecked(), None);
     }
 
     #[test]
@@ -771,11 +771,11 @@ mod tests {
         let mut r1 = emRadioButton::new("B", look, group.clone(), 1);
 
         r0.set_checked(true);
-        assert_eq!(group.borrow().selected(), Some(0));
+        assert_eq!(group.borrow().GetChecked(), Some(0));
 
         // set_checked(false) on a non-selected button does nothing
         r1.set_checked(false);
-        assert_eq!(group.borrow().selected(), Some(0));
+        assert_eq!(group.borrow().GetChecked(), Some(0));
         assert!(r0.is_selected());
     }
 
@@ -784,14 +784,14 @@ mod tests {
         let group = RadioGroup::new();
         {
             let mut g = group.borrow_mut();
-            g.add_all(3);
-            g.select(1); // button at index 1 is checked
+            g.AddAll(3);
+            g.Select(1); // button at index 1 is checked
         }
 
         // Remove the checked button
-        group.borrow_mut().remove_by_index(1);
+        group.borrow_mut().RemoveByIndex(1);
         assert_eq!(group.borrow().count(), 2);
-        assert_eq!(group.borrow().selected(), None);
+        assert_eq!(group.borrow().GetChecked(), None);
     }
 
     #[test]
@@ -799,15 +799,15 @@ mod tests {
         let group = RadioGroup::new();
         {
             let mut g = group.borrow_mut();
-            g.add_all(4);
-            g.select(3); // button at index 3 is checked
+            g.AddAll(4);
+            g.Select(3); // button at index 3 is checked
         }
 
         // Remove button at index 1 (before the checked one)
-        group.borrow_mut().remove_by_index(1);
+        group.borrow_mut().RemoveByIndex(1);
         assert_eq!(group.borrow().count(), 3);
         // Checked index should have decremented from 3 to 2
-        assert_eq!(group.borrow().selected(), Some(2));
+        assert_eq!(group.borrow().GetChecked(), Some(2));
     }
 
     #[test]
@@ -815,14 +815,14 @@ mod tests {
         let group = RadioGroup::new();
         {
             let mut g = group.borrow_mut();
-            g.add_all(4);
-            g.select(0); // button at index 0 is checked
+            g.AddAll(4);
+            g.Select(0); // button at index 0 is checked
         }
 
         // Remove button at index 2 (after the checked one)
-        group.borrow_mut().remove_by_index(2);
+        group.borrow_mut().RemoveByIndex(2);
         assert_eq!(group.borrow().count(), 3);
-        assert_eq!(group.borrow().selected(), Some(0));
+        assert_eq!(group.borrow().GetChecked(), Some(0));
     }
 
     #[test]
@@ -830,12 +830,12 @@ mod tests {
         let group = RadioGroup::new();
         {
             let mut g = group.borrow_mut();
-            g.add_all(2);
-            g.select(0);
+            g.AddAll(2);
+            g.Select(0);
         }
-        group.borrow_mut().remove_by_index(5);
+        group.borrow_mut().RemoveByIndex(5);
         assert_eq!(group.borrow().count(), 2);
-        assert_eq!(group.borrow().selected(), Some(0));
+        assert_eq!(group.borrow().GetChecked(), Some(0));
     }
 
     #[test]
@@ -845,15 +845,15 @@ mod tests {
         let sig_clone = signals.clone();
         {
             let mut g = group.borrow_mut();
-            g.add_all(3);
-            g.select(1);
+            g.AddAll(3);
+            g.Select(1);
             g.on_select = Some(Box::new(move |idx| {
                 sig_clone.borrow_mut().push(idx);
             }));
         }
 
         // Remove checked button -- should fire callback with None
-        group.borrow_mut().remove_by_index(1);
+        group.borrow_mut().RemoveByIndex(1);
         assert_eq!(*signals.borrow(), vec![None]);
     }
 
@@ -864,16 +864,16 @@ mod tests {
         let sig_clone = signals.clone();
         {
             let mut g = group.borrow_mut();
-            g.add_all(3);
-            g.select(1);
+            g.AddAll(3);
+            g.Select(1);
             g.on_select = Some(Box::new(move |idx| {
                 sig_clone.borrow_mut().push(idx);
             }));
         }
 
-        group.borrow_mut().remove_all();
+        group.borrow_mut().RemoveAll();
         assert_eq!(group.borrow().count(), 0);
-        assert_eq!(group.borrow().selected(), None);
+        assert_eq!(group.borrow().GetChecked(), None);
         assert_eq!(*signals.borrow(), vec![None]);
     }
 
@@ -884,14 +884,14 @@ mod tests {
         let sig_clone = signals.clone();
         {
             let mut g = group.borrow_mut();
-            g.add_all(3);
+            g.AddAll(3);
             // No selection
             g.on_select = Some(Box::new(move |idx| {
                 sig_clone.borrow_mut().push(idx);
             }));
         }
 
-        group.borrow_mut().remove_all();
+        group.borrow_mut().RemoveAll();
         assert_eq!(group.borrow().count(), 0);
         assert!(signals.borrow().is_empty());
     }
@@ -901,13 +901,13 @@ mod tests {
         let group = RadioGroup::new();
         {
             let mut g = group.borrow_mut();
-            g.add_all(2);
-            g.select(0);
+            g.AddAll(2);
+            g.Select(0);
         }
 
         // Out of bounds normalizes to None
-        group.borrow_mut().set_check_index(Some(5));
-        assert_eq!(group.borrow().selected(), None);
+        group.borrow_mut().SetCheckIndex(Some(5));
+        assert_eq!(group.borrow().GetChecked(), None);
     }
 
     #[test]
@@ -917,15 +917,15 @@ mod tests {
         let sig_clone = signals.clone();
         {
             let mut g = group.borrow_mut();
-            g.add_all(3);
-            g.select(1);
+            g.AddAll(3);
+            g.Select(1);
             g.on_select = Some(Box::new(move |idx| {
                 sig_clone.borrow_mut().push(idx);
             }));
         }
 
         // Setting same index is a no-op
-        group.borrow_mut().set_check_index(Some(1));
+        group.borrow_mut().SetCheckIndex(Some(1));
         assert!(signals.borrow().is_empty());
     }
 
@@ -939,7 +939,7 @@ mod tests {
         let r2 = emRadioButton::new("C", look, group.clone(), 2);
 
         // Select the last button
-        group.borrow_mut().select(2);
+        group.borrow_mut().Select(2);
         assert!(r2.is_selected());
         assert_eq!(r2.index(), 2);
 
@@ -950,7 +950,7 @@ mod tests {
         assert_eq!(r2.index(), 1);
         assert_eq!(group.borrow().count(), 2);
         // Selection should have shifted from 2 to 1
-        assert_eq!(group.borrow().selected(), Some(1));
+        assert_eq!(group.borrow().GetChecked(), Some(1));
         assert!(r2.is_selected());
         assert!(!r0.is_selected());
     }
@@ -964,13 +964,13 @@ mod tests {
         let r1 = emRadioButton::new("B", look.clone(), group.clone(), 1);
         let r2 = emRadioButton::new("C", look, group.clone(), 2);
 
-        group.borrow_mut().select(1);
+        group.borrow_mut().Select(1);
         assert!(r1.is_selected());
 
         drop(r1);
 
         assert_eq!(group.borrow().count(), 2);
-        assert_eq!(group.borrow().selected(), None);
+        assert_eq!(group.borrow().GetChecked(), None);
         assert!(!r0.is_selected());
         assert!(!r2.is_selected());
         // r2's index should have been decremented

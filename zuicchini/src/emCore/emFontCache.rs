@@ -115,9 +115,9 @@ mod tests {
     #[test]
     fn atlas_dimensions() {
         let img = atlas();
-        assert_eq!(img.width(), 2048);
-        assert_eq!(img.height(), 1344);
-        assert_eq!(img.channel_count(), 1);
+        assert_eq!(img.GetWidth(), 2048);
+        assert_eq!(img.GetHeight(), 1344);
+        assert_eq!(img.GetChannelCount(), 1);
     }
 
     #[test]
@@ -127,7 +127,7 @@ mod tests {
         for dy in 0..sh {
             for dx in 0..sw {
                 assert_eq!(
-                    img.pixel(sx + dx, sy + dy)[0],
+                    img.GetPixel(sx + dx, sy + dy)[0],
                     0,
                     "space glyph non-zero at ({dx},{dy})"
                 );
@@ -141,7 +141,7 @@ mod tests {
         let (sx, sy, sw, sh) = GetChar('A');
         let any_set = (0..sh)
             .flat_map(|dy| (0..sw).map(move |dx| (dx, dy)))
-            .any(|(dx, dy)| img.pixel(sx + dx, sy + dy)[0] > 0);
+            .any(|(dx, dy)| img.GetPixel(sx + dx, sy + dy)[0] > 0);
         assert!(any_set, "'A' glyph should have non-zero pixels");
     }
 

@@ -24,11 +24,11 @@ pub(crate) struct ToolkitImages {
 fn decode(data: &[u8], name: &str, expected_w: u32, expected_h: u32) -> emImage {
     let img = load_tga(data).unwrap_or_else(|e| panic!("failed to decode {name}: {e}"));
     assert_eq!(
-        (img.width(), img.height()),
+        (img.GetWidth(), img.GetHeight()),
         (expected_w, expected_h),
         "{name} dimensions mismatch: got {}x{}, expected {expected_w}x{expected_h}",
-        img.width(),
-        img.height(),
+        img.GetWidth(),
+        img.GetHeight(),
     );
     img
 }

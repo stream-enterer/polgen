@@ -156,12 +156,12 @@ impl emTunnel {
             return;
         }
 
-        let canvas_color = painter.canvas_color();
+        let canvas_color = painter.GetCanvasColor();
         let (bx, by, bw, bh, br) = self.compute_inner_rect(ax, ay, aw, ah, ar);
 
         let img = tunnel_image();
-        let img_rx = img.width() as f64 * 0.5;
-        let img_ry = img.height() as f64 * 0.5;
+        let img_rx = img.GetWidth() as f64 * 0.5;
+        let img_ry = img.GetHeight() as f64 * 0.5;
 
         // Determine tessellation quality based on corner radius and view scale.
         let (sx, sy) = painter.scaling();
@@ -216,10 +216,10 @@ impl emTunnel {
                 let edge_dy = f_edge.sin();
 
                 // Sample color from the tunnel image at the edge angle.
-                let ix = ((img_rx + (img_rx - 0.6) * edge_dx + 0.5) as u32).min(img.width() - 1);
-                let iy = ((img_ry + (img_ry - 0.6) * edge_dy + 0.5) as u32).min(img.height() - 1);
-                let pix = img.pixel(ix, iy);
-                let color = if img.channel_count() >= 4 {
+                let ix = ((img_rx + (img_rx - 0.6) * edge_dx + 0.5) as u32).min(img.GetWidth() - 1);
+                let iy = ((img_ry + (img_ry - 0.6) * edge_dy + 0.5) as u32).min(img.GetHeight() - 1);
+                let pix = img.GetPixel(ix, iy);
+                let color = if img.GetChannelCount() >= 4 {
                     emColor::rgba(pix[0], pix[1], pix[2], pix[3])
                 } else {
                     emColor::rgb(pix[0], pix[1], pix[2])
@@ -232,7 +232,7 @@ impl emTunnel {
                     (xy[4], xy[5]),
                     (xy[6], xy[7]),
                 ];
-                painter.paint_polygon(&quad, color, canvas_color);
+                painter.PaintPolygon(&quad, color, canvas_color);
             }
 
             ja ^= 3;
@@ -287,7 +287,7 @@ impl emTunnel {
 }
 
 impl PanelBehavior for emTunnel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.paint_tunnel(painter, w, h);
     }
 
@@ -295,8 +295,8 @@ impl PanelBehavior for emTunnel {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -307,7 +307,7 @@ impl PanelBehavior for emTunnel {
         // also causes a full repaint, matching InvalidatePainting().
         if self.layout_invalid {
             self.layout_invalid = false;
-            ctx.tree.invalidate_children_layout(ctx.id);
+            ctx.tree.InvalidateChildrenLayout(ctx.id);
             ctx.tree.queue_notice(ctx.id, NoticeFlags::LAYOUT_CHANGED);
         }
 
@@ -329,23 +329,23 @@ mod tests {
     fn tunnel_default_depth() {
         let look = emLook::new();
         let tunnel = emTunnel::new(look);
-        assert!((tunnel.depth() - 10.0).abs() < f64::EPSILON);
-        assert!((tunnel.child_tallness() - 0.0).abs() < f64::EPSILON);
+        assert!((tunnel.GetDepth() - 10.0).abs() < f64::EPSILON);
+        assert!((tunnel.GetChildTallness() - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn tunnel_set_depth_clamps() {
         let look = emLook::new();
         let mut tunnel = emTunnel::new(look);
-        tunnel.set_depth(-5.0);
-        assert!(tunnel.depth() > 0.0);
+        tunnel.SetDepth(-5.0);
+        assert!(tunnel.GetDepth() > 0.0);
     }
 
     #[test]
     fn tunnel_child_rect_is_inside_content() {
         let look = emLook::new();
         let tunnel = emTunnel::new(look);
-        let cr = tunnel.child_rect(100.0, 60.0, emColor::BLACK);
+        let cr = tunnel.GetChildRect(100.0, 60.0, emColor::BLACK);
         assert!(cr.x > 0.0, "child x={} should be positive", cr.x);
         assert!(cr.y > 0.0, "child y={} should be positive", cr.y);
         assert!(

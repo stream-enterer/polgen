@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn register_and_lookup() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         let model = Rc::new(RefCell::new(42_i32));
         ctx.register_model::<i32>("answer", Rc::clone(&model));
 
@@ -265,7 +265,7 @@ mod tests {
 
     #[test]
     fn unregister() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         ctx.register_model::<i32>("x", Rc::new(RefCell::new(1)));
         assert!(ctx.is_registered::<i32>("x"));
         ctx.unregister_model::<i32>("x");
@@ -276,17 +276,17 @@ mod tests {
     #[test]
     #[should_panic(expected = "duplicate common model")]
     fn duplicate_registration_panics() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         ctx.register_model::<i32>("dup", Rc::new(RefCell::new(1)));
         ctx.register_model::<i32>("dup", Rc::new(RefCell::new(2)));
     }
 
     #[test]
     fn lookup_inherited_walks_parents() {
-        let root = emContext::new_root();
+        let root = emContext::NewRoot();
         root.register_model::<String>("greeting", Rc::new(RefCell::new("hello".to_string())));
 
-        let child = emContext::new_child(&root);
+        let child = emContext::NewChild(&root);
         // Not in child, but found via parent.
         let found = child
             .lookup_inherited::<String>("greeting")
@@ -299,7 +299,7 @@ mod tests {
 
     #[test]
     fn acquire_creates_or_returns_existing() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         let m1 = ctx.acquire::<Vec<u8>>("buf", Vec::new);
         m1.borrow_mut().push(42);
 
@@ -310,7 +310,7 @@ mod tests {
 
     #[test]
     fn min_common_lifetime() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         ctx.register_model::<i32>("lt", Rc::new(RefCell::new(0)));
         assert_eq!(ctx.get_min_common_lifetime::<i32>("lt"), Some(0));
         ctx.set_min_common_lifetime::<i32>("lt", 300);
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn different_types_same_name() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         ctx.register_model::<i32>("val", Rc::new(RefCell::new(1_i32)));
         ctx.register_model::<u32>("val", Rc::new(RefCell::new(2_u32)));
 
@@ -329,11 +329,11 @@ mod tests {
 
     #[test]
     fn common_model_count_and_listing() {
-        let ctx = emContext::new_root();
+        let ctx = emContext::NewRoot();
         assert_eq!(ctx.common_model_count(), 0);
         ctx.register_model::<i32>("a", Rc::new(RefCell::new(1)));
         ctx.register_model::<u32>("b", Rc::new(RefCell::new(2)));
         assert_eq!(ctx.common_model_count(), 2);
-        assert_eq!(ctx.listing().len(), 2);
+        assert_eq!(ctx.GetListing().len(), 2);
     }
 }

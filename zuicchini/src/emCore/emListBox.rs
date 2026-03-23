@@ -61,7 +61,7 @@ pub trait ItemPanelInterface {
     fn set_item_index(&mut self, index: usize);
 
     /// Get the display text.
-    fn text(&self) -> &str;
+    fn GetText(&self) -> &str;
 
     /// Whether selected.
     fn IsSelected(&self) -> bool;
@@ -85,7 +85,7 @@ impl DefaultItemPanel {
     }
 
     /// Get the display text.
-    pub fn text(&self) -> &str {
+    pub fn GetText(&self) -> &str {
         &self.text
     }
 
@@ -116,7 +116,7 @@ impl ItemPanelInterface for DefaultItemPanel {
         self.index = index;
     }
 
-    fn text(&self) -> &str {
+    fn GetText(&self) -> &str {
         &self.text
     }
 
@@ -156,7 +156,7 @@ impl DefaultItemPanelBehavior {
 }
 
 impl PanelBehavior for DefaultItemPanelBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         let s = w.min(h);
 
         // Select color set based on ReadOnly vs editable (C++ emListBox.cpp:554-608)
@@ -190,14 +190,14 @@ impl PanelBehavior for DefaultItemPanelBehavior {
             let rdx = s * 0.015;
             let rdy = s * 0.015;
             let r = s * 0.15;
-            painter.paint_round_rect(rdx, rdy, w - 2.0 * rdx, h - 2.0 * rdy, r, hl);
+            painter.PaintRoundRect(rdx, rdy, w - 2.0 * rdx, h - 2.0 * rdy, r, hl);
             item_canvas = hl;
         }
 
         let dx = s * 0.15;
         let dy = s * 0.03;
         let text_color = if self.selected { bg } else { fg };
-        painter.paint_text_boxed(
+        painter.PaintTextBoxed(
             dx,
             dy,
             (w - 2.0 * dx).max(0.0),
@@ -215,7 +215,7 @@ impl PanelBehavior for DefaultItemPanelBehavior {
         );
     }
 
-    fn canvas_color(&self) -> emColor {
+    fn GetCanvasColor(&self) -> emColor {
         if self.selection_mode == SelectionMode::ReadOnly {
             self.look.output_bg_color
         } else {
@@ -1020,7 +1020,7 @@ impl emListBox {
         self.visible_height = ch;
 
         painter.push_state();
-        painter.clip_rect(cx, cy, cw, ch);
+        painter.SetClipping(cx, cy, cw, ch);
 
         // Determine colors based on selection mode and enabled state (C++ lines 562-577)
         let (bg, fg, hl) = if self.selection_mode == SelectionMode::ReadOnly {
@@ -1074,7 +1074,7 @@ impl emListBox {
                 let rdx = s * 0.015;
                 let rdy = s * 0.015;
                 let r = s * 0.15;
-                painter.paint_round_rect(
+                painter.PaintRoundRect(
                     cx + rdx,
                     iy + rdy,
                     item_w - 2.0 * rdx,
@@ -1088,7 +1088,7 @@ impl emListBox {
             let dx = s * 0.15;
             let dy = s * 0.03;
             let text_color = if item.selected { bg } else { fg };
-            painter.paint_text_boxed(
+            painter.PaintTextBoxed(
                 cx + dx,
                 iy + dy,
                 (item_w - 2.0 * dx).max(0.0),
@@ -1693,7 +1693,7 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.set_selection_mode(SelectionMode::Multi);
+        lb.SetSelectionType(SelectionMode::Multi);
         lb.set_items(make_items(&["X", "Y", "Z"]));
 
         // In multi mode, ArrowDown doesn't auto-select
@@ -1776,74 +1776,74 @@ mod tests {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
 
-        lb.add_item("a".into(), "Alpha".into());
-        lb.add_item("b".into(), "Beta".into());
-        assert_eq!(lb.item_count(), 2);
-        assert_eq!(lb.get_item_text(0), "Alpha");
-        assert_eq!(lb.get_item_text(1), "Beta");
+        lb.AddItem("a".into(), "Alpha".into());
+        lb.AddItem("b".into(), "Beta".into());
+        assert_eq!(lb.GetItemCount(), 2);
+        assert_eq!(lb.GetItemText(0), "Alpha");
+        assert_eq!(lb.GetItemText(1), "Beta");
 
-        lb.insert_item(1, "g".into(), "Gamma".into());
-        assert_eq!(lb.item_count(), 3);
-        assert_eq!(lb.get_item_text(0), "Alpha");
-        assert_eq!(lb.get_item_text(1), "Gamma");
-        assert_eq!(lb.get_item_text(2), "Beta");
+        lb.InsertItem(1, "g".into(), "Gamma".into());
+        assert_eq!(lb.GetItemCount(), 3);
+        assert_eq!(lb.GetItemText(0), "Alpha");
+        assert_eq!(lb.GetItemText(1), "Gamma");
+        assert_eq!(lb.GetItemText(2), "Beta");
 
         // Name lookup
-        assert_eq!(lb.get_item_index("g"), Some(1));
-        assert_eq!(lb.get_item_index("z"), None);
+        assert_eq!(lb.GetItemIndex("g"), Some(1));
+        assert_eq!(lb.GetItemIndex("z"), None);
     }
 
     #[test]
     fn remove_item_adjusts_selection() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
-        lb.add_item("c".into(), "C".into());
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
+        lb.AddItem("c".into(), "C".into());
 
-        lb.select(0, false);
-        lb.select(2, false);
+        lb.Select(0, false);
+        lb.Select(2, false);
         assert_eq!(lb.selected(), &[0, 2]);
 
         // Remove item 1 ("B") — item 2 shifts to index 1.
-        lb.remove_item(1);
-        assert_eq!(lb.item_count(), 2);
+        lb.RemoveItem(1);
+        assert_eq!(lb.GetItemCount(), 2);
         assert_eq!(lb.selected(), &[0, 1]);
-        assert_eq!(lb.get_item_text(1), "C");
+        assert_eq!(lb.GetItemText(1), "C");
     }
 
     #[test]
     fn move_item_reorders() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
-        lb.add_item("c".into(), "C".into());
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
+        lb.AddItem("c".into(), "C".into());
 
-        lb.move_item(0, 2);
-        assert_eq!(lb.get_item_text(0), "B");
-        assert_eq!(lb.get_item_text(1), "C");
-        assert_eq!(lb.get_item_text(2), "A");
+        lb.MoveItem(0, 2);
+        assert_eq!(lb.GetItemText(0), "B");
+        assert_eq!(lb.GetItemText(1), "C");
+        assert_eq!(lb.GetItemText(2), "A");
 
-        assert_eq!(lb.get_item_index("a"), Some(2));
-        assert_eq!(lb.get_item_index("b"), Some(0));
+        assert_eq!(lb.GetItemIndex("a"), Some(2));
+        assert_eq!(lb.GetItemIndex("b"), Some(0));
     }
 
     #[test]
     fn sort_items_reorders() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("c".into(), "Cherry".into());
-        lb.add_item("a".into(), "Apple".into());
-        lb.add_item("b".into(), "Banana".into());
+        lb.AddItem("c".into(), "Cherry".into());
+        lb.AddItem("a".into(), "Apple".into());
+        lb.AddItem("b".into(), "Banana".into());
 
-        lb.select(0, false); // Cherry at index 0
+        lb.Select(0, false); // Cherry at index 0
 
-        let changed = lb.sort_items(|_n1, t1, _n2, t2| t1.cmp(t2));
+        let changed = lb.SortItems(|_n1, t1, _n2, t2| t1.cmp(t2));
         assert!(changed);
-        assert_eq!(lb.get_item_text(0), "Apple");
-        assert_eq!(lb.get_item_text(1), "Banana");
-        assert_eq!(lb.get_item_text(2), "Cherry");
+        assert_eq!(lb.GetItemText(0), "Apple");
+        assert_eq!(lb.GetItemText(1), "Banana");
+        assert_eq!(lb.GetItemText(2), "Cherry");
 
         // Cherry moved from 0 to 2; selection should follow.
         assert_eq!(lb.selected(), &[2]);
@@ -1853,12 +1853,12 @@ mod tests {
     fn clear_items_resets_all() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.select(0, true);
+        lb.AddItem("a".into(), "A".into());
+        lb.Select(0, true);
         assert_eq!(lb.selected(), &[0]);
 
-        lb.clear_items();
-        assert_eq!(lb.item_count(), 0);
+        lb.ClearItems();
+        assert_eq!(lb.GetItemCount(), 0);
         assert!(lb.selected().is_empty());
     }
 
@@ -1866,44 +1866,44 @@ mod tests {
     fn selection_apis() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.set_selection_mode(SelectionMode::Multi);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
-        lb.add_item("c".into(), "C".into());
+        lb.SetSelectionType(SelectionMode::Multi);
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
+        lb.AddItem("c".into(), "C".into());
 
-        assert_eq!(lb.selected_index(), None);
+        assert_eq!(lb.GetSelectedIndex(), None);
 
-        lb.select(1, true);
-        assert_eq!(lb.selected_index(), Some(1));
-        assert!(lb.is_selected(1));
-        assert!(!lb.is_selected(0));
+        lb.Select(1, true);
+        assert_eq!(lb.GetSelectedIndex(), Some(1));
+        assert!(lb.IsSelected(1));
+        assert!(!lb.IsSelected(0));
 
-        lb.select(0, false);
-        assert_eq!(lb.selected_indices(), &[0, 1]);
+        lb.Select(0, false);
+        assert_eq!(lb.GetSelectedIndices(), &[0, 1]);
 
-        lb.deselect(1);
-        assert_eq!(lb.selected_indices(), &[0]);
+        lb.EmptySelection(1);
+        assert_eq!(lb.GetSelectedIndices(), &[0]);
 
-        lb.toggle_selection(0);
-        assert!(lb.selected_indices().is_empty());
+        lb.ToggleSelection(0);
+        assert!(lb.GetSelectedIndices().is_empty());
 
-        lb.select_all();
-        assert_eq!(lb.selected_indices(), &[0, 1, 2]);
+        lb.SelectAll();
+        assert_eq!(lb.GetSelectedIndices(), &[0, 1, 2]);
 
-        lb.clear_selection();
-        assert!(lb.selected_indices().is_empty());
+        lb.ClearSelection();
+        assert!(lb.GetSelectedIndices().is_empty());
     }
 
     #[test]
     fn set_item_text_clears_keywalk() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "Alpha".into());
+        lb.AddItem("a".into(), "Alpha".into());
         lb.keywalk_chars = "al".into();
 
-        lb.set_item_text(0, "Altered".into());
+        lb.SetItemText(0, "Altered".into());
         assert!(lb.keywalk_chars.is_empty());
-        assert_eq!(lb.get_item_text(0), "Altered");
+        assert_eq!(lb.GetItemText(0), "Altered");
     }
 
     #[test]
@@ -1912,9 +1912,9 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.set_selection_mode(SelectionMode::ReadOnly);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
+        lb.SetSelectionType(SelectionMode::ReadOnly);
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
 
         // Mouse click: select_by_input is called, but ReadOnly blocks selection.
         let ev = emInputEvent::press(InputKey::MouseLeft).with_mouse(0.0, 5.0);
@@ -1928,9 +1928,9 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.set_selection_mode(SelectionMode::Toggle);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
+        lb.SetSelectionType(SelectionMode::Toggle);
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
 
         // Space toggles
         lb.input(&emInputEvent::press(InputKey::Space), &ps, &is);
@@ -1946,18 +1946,18 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.set_selection_mode(SelectionMode::Multi);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
-        lb.add_item("c".into(), "C".into());
+        lb.SetSelectionType(SelectionMode::Multi);
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
+        lb.AddItem("c".into(), "C".into());
 
         // Ctrl+A selects all
         lb.input(&emInputEvent::press(InputKey::Key('a')).with_ctrl(), &ps, &is);
-        assert_eq!(lb.selected_indices(), &[0, 1, 2]);
+        assert_eq!(lb.GetSelectedIndices(), &[0, 1, 2]);
 
         // Shift+Ctrl+A clears
         lb.input(&emInputEvent::press(InputKey::Key('a')).with_shift_ctrl(), &ps, &is);
-        assert!(lb.selected_indices().is_empty());
+        assert!(lb.GetSelectedIndices().is_empty());
     }
 
     #[test]
@@ -1967,33 +1967,33 @@ mod tests {
         let trig_clone = triggered.clone();
 
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
         lb.on_trigger = Some(Box::new(move |idx| {
             trig_clone.borrow_mut().push(idx);
         }));
 
-        lb.trigger_item(1);
+        lb.TriggerItem(1);
         assert_eq!(*triggered.borrow(), vec![1]);
-        assert_eq!(lb.triggered_index(), Some(1));
+        assert_eq!(lb.GetTriggeredItemIndex(), Some(1));
     }
 
     #[test]
     fn insert_adjusts_selected_indices() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
 
-        lb.select(1, true);
+        lb.Select(1, true);
         assert_eq!(lb.selected(), &[1]);
 
         // Insert before the selected item.
-        lb.insert_item(0, "z".into(), "Z".into());
+        lb.InsertItem(0, "z".into(), "Z".into());
         // Selected index should have shifted from 1 to 2.
         assert_eq!(lb.selected(), &[2]);
-        assert!(lb.is_selected(2));
-        assert_eq!(lb.get_item_text(2), "B");
+        assert!(lb.IsSelected(2));
+        assert_eq!(lb.GetItemText(2), "B");
     }
 
     #[test]
@@ -2002,13 +2002,13 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.add_item("a".into(), "Apple".into());
-        lb.add_item("b".into(), "Banana".into());
-        lb.add_item("c".into(), "Cherry".into());
+        lb.AddItem("a".into(), "Apple".into());
+        lb.AddItem("b".into(), "Banana".into());
+        lb.AddItem("c".into(), "Cherry".into());
 
         let ev = emInputEvent::press(InputKey::Key('b')).with_chars("b");
         lb.input(&ev, &ps, &is);
-        assert_eq!(lb.selected_index(), Some(1));
+        assert_eq!(lb.GetSelectedIndex(), Some(1));
     }
 
     #[test]
@@ -2017,8 +2017,8 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.add_item("a".into(), "Apple".into());
-        lb.add_item("b".into(), "Banana".into());
+        lb.AddItem("a".into(), "Apple".into());
+        lb.AddItem("b".into(), "Banana".into());
 
         // Type '*nan' to do substring search — "nan" is unique to "Banana".
         let ev1 = emInputEvent::press(InputKey::Key('*')).with_chars("*");
@@ -2029,7 +2029,7 @@ mod tests {
         lb.input(&ev3, &ps, &is);
         let ev4 = emInputEvent::press(InputKey::Key('n')).with_chars("n");
         lb.input(&ev4, &ps, &is);
-        assert_eq!(lb.selected_index(), Some(1)); // "Banana" contains "nan"
+        assert_eq!(lb.GetSelectedIndex(), Some(1)); // "Banana" contains "nan"
     }
 
     #[test]
@@ -2038,8 +2038,8 @@ mod tests {
         let mut lb = emListBox::new(look);
         let ps = default_panel_state();
         let is = default_input_state();
-        lb.add_item("a".into(), "Red-Apple".into());
-        lb.add_item("b".into(), "Banana".into());
+        lb.AddItem("a".into(), "Red-Apple".into());
+        lb.AddItem("b".into(), "Banana".into());
 
         // Type "ra" — fuzzy matches "Red-Apple" (skips '-')
         // 'r' -> 'R' match, 'a' -> skip '-', match 'A'
@@ -2047,26 +2047,26 @@ mod tests {
         lb.input(&ev, &ps, &is);
         let ev2 = emInputEvent::press(InputKey::Key('a')).with_chars("a");
         lb.input(&ev2, &ps, &is);
-        assert_eq!(lb.selected_index(), Some(0));
+        assert_eq!(lb.GetSelectedIndex(), Some(0));
     }
 
     #[test]
     fn out_of_range_operations_are_noop() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
+        lb.AddItem("a".into(), "A".into());
 
         // Out of range accessors return defaults.
-        assert_eq!(lb.get_item_name(99), "");
-        assert_eq!(lb.get_item_text(99), "");
-        assert!(!lb.is_selected(99));
+        assert_eq!(lb.GetItemName(99), "");
+        assert_eq!(lb.GetItemText(99), "");
+        assert!(!lb.IsSelected(99));
 
         // Out of range operations are no-ops.
-        lb.remove_item(99);
-        lb.move_item(99, 0);
-        lb.trigger_item(99);
-        lb.deselect(99);
-        assert_eq!(lb.item_count(), 1);
+        lb.RemoveItem(99);
+        lb.MoveItem(99, 0);
+        lb.TriggerItem(99);
+        lb.EmptySelection(99);
+        assert_eq!(lb.GetItemCount(), 1);
     }
 
     #[test]
@@ -2074,18 +2074,18 @@ mod tests {
     fn duplicate_name_panics() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("a".into(), "Also A".into());
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("a".into(), "Also A".into());
     }
 
     #[test]
     fn item_data_round_trip() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
+        lb.AddItem("a".into(), "A".into());
 
-        lb.set_item_data(0, Some(Box::new(42_i32)));
-        let data = lb.get_item_data(0).expect("data should be set");
+        lb.SetItemData(0, Some(Box::new(42_i32)));
+        let data = lb.GetItemData(0).expect("data should be set");
         assert_eq!(data.downcast_ref::<i32>(), Some(&42));
     }
 
@@ -2093,14 +2093,14 @@ mod tests {
     fn select_solely_out_of_range_clears() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.add_item("a".into(), "A".into());
-        lb.add_item("b".into(), "B".into());
-        lb.select(0, false);
-        lb.select(1, false);
+        lb.AddItem("a".into(), "A".into());
+        lb.AddItem("b".into(), "B".into());
+        lb.Select(0, false);
+        lb.Select(1, false);
         assert_eq!(lb.selected(), &[0, 1]);
 
         // Select out-of-range with solely=true should clear everything.
-        lb.select(99, true);
+        lb.Select(99, true);
         assert!(lb.selected().is_empty());
     }
 
@@ -2108,9 +2108,9 @@ mod tests {
     fn multi_shift_range_selection() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.set_selection_mode(SelectionMode::Multi);
+        lb.SetSelectionType(SelectionMode::Multi);
         for i in 0..5 {
-            lb.add_item(format!("{}", i), format!("Item {}", i));
+            lb.AddItem(format!("{}", i), format!("Item {}", i));
         }
 
         // Click item 1 (sets prev_input_index)
@@ -2119,18 +2119,18 @@ mod tests {
 
         // Shift-click item 3 (range 2..=3 selected, keeping 1)
         lb.select_by_input(3, true, false, false);
-        assert!(lb.is_selected(1));
-        assert!(lb.is_selected(2));
-        assert!(lb.is_selected(3));
+        assert!(lb.IsSelected(1));
+        assert!(lb.IsSelected(2));
+        assert!(lb.IsSelected(3));
     }
 
     #[test]
     fn toggle_mode_shift_range() {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
-        lb.set_selection_mode(SelectionMode::Toggle);
+        lb.SetSelectionType(SelectionMode::Toggle);
         for i in 0..5 {
-            lb.add_item(format!("{}", i), format!("Item {}", i));
+            lb.AddItem(format!("{}", i), format!("Item {}", i));
         }
 
         // Click item 1 (toggles on)
@@ -2139,9 +2139,9 @@ mod tests {
 
         // Shift-click item 3 (toggle range 2..=3)
         lb.select_by_input(3, true, false, false);
-        assert!(lb.is_selected(1));
-        assert!(lb.is_selected(2));
-        assert!(lb.is_selected(3));
+        assert!(lb.IsSelected(1));
+        assert!(lb.IsSelected(2));
+        assert!(lb.IsSelected(3));
     }
 
     #[test]
@@ -2149,20 +2149,20 @@ mod tests {
         let look = emLook::new();
         let mut lb = emListBox::new(look);
         for i in 0..4 {
-            lb.add_item(format!("{}", i), format!("Item {}", i));
+            lb.AddItem(format!("{}", i), format!("Item {}", i));
         }
 
-        lb.select(0, false); // "Item 0"
-        lb.select(3, false); // "Item 3"
+        lb.Select(0, false); // "Item 0"
+        lb.Select(3, false); // "Item 3"
 
         // Move item 0 to position 2
-        lb.move_item(0, 2);
+        lb.MoveItem(0, 2);
         // Items: 1, 2, 0, 3
-        assert_eq!(lb.get_item_text(0), "Item 1");
-        assert_eq!(lb.get_item_text(2), "Item 0");
+        assert_eq!(lb.GetItemText(0), "Item 1");
+        assert_eq!(lb.GetItemText(2), "Item 0");
         // "Item 0" (now at 2) and "Item 3" (still at 3) should be selected.
-        assert!(lb.is_selected(2));
-        assert!(lb.is_selected(3));
-        assert!(!lb.is_selected(0));
+        assert!(lb.IsSelected(2));
+        assert!(lb.IsSelected(3));
+        assert!(!lb.IsSelected(0));
     }
 }

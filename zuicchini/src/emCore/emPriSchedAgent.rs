@@ -37,7 +37,7 @@ struct PriSchedEngine {
 }
 
 impl emEngine for PriSchedEngine {
-    fn cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
         let mut model = self.inner.borrow_mut();
 
         // If there's already an active agent, or no one is waiting, nothing to do.
@@ -192,25 +192,25 @@ mod tests {
         let gb = Rc::clone(&got_b);
         let agent_b = model.add_agent(2.0, Box::new(move || *gb.borrow_mut() = true));
 
-        model.request_access(agent_a, &mut sched);
-        model.request_access(agent_b, &mut sched);
+        model.RequestAccess(agent_a, &mut sched);
+        model.RequestAccess(agent_b, &mut sched);
 
-        sched.do_time_slice();
+        sched.DoTimeSlice();
 
         // Agent B has higher priority, should get access first.
         assert!(!*got_a.borrow());
         assert!(*got_b.borrow());
-        assert!(model.has_access(agent_b));
-        assert!(!model.has_access(agent_a));
+        assert!(model.HasAccess(agent_b));
+        assert!(!model.HasAccess(agent_a));
 
         // Release B, then A should get access on next cycle.
-        model.release_access(agent_b, &mut sched);
-        sched.do_time_slice();
+        model.ReleaseAccess(agent_b, &mut sched);
+        sched.DoTimeSlice();
 
         assert!(*got_a.borrow());
-        assert!(model.has_access(agent_a));
+        assert!(model.HasAccess(agent_a));
 
-        model.release_access(agent_a, &mut sched);
+        model.ReleaseAccess(agent_a, &mut sched);
         model.remove(&mut sched);
     }
 
@@ -223,21 +223,21 @@ mod tests {
         let c = Rc::clone(&count);
         let agent = model.add_agent(1.0, Box::new(move || *c.borrow_mut() += 1));
 
-        model.request_access(agent, &mut sched);
-        sched.do_time_slice();
+        model.RequestAccess(agent, &mut sched);
+        sched.DoTimeSlice();
         assert_eq!(*count.borrow(), 1);
-        assert!(model.has_access(agent));
+        assert!(model.HasAccess(agent));
 
         // Re-request while active — should clear active and requeue.
-        model.request_access(agent, &mut sched);
-        assert!(!model.has_access(agent));
-        assert!(model.is_waiting_for_access(agent));
+        model.RequestAccess(agent, &mut sched);
+        assert!(!model.HasAccess(agent));
+        assert!(model.IsWaitingForAccess(agent));
 
-        sched.do_time_slice();
+        sched.DoTimeSlice();
         assert_eq!(*count.borrow(), 2);
-        assert!(model.has_access(agent));
+        assert!(model.HasAccess(agent));
 
-        model.release_access(agent, &mut sched);
+        model.ReleaseAccess(agent, &mut sched);
         model.remove(&mut sched);
     }
 }

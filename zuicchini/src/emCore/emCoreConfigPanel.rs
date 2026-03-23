@@ -225,7 +225,7 @@ impl KBGroup {
 }
 
 impl PanelBehavior for KBGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -234,8 +234,8 @@ impl PanelBehavior for KBGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -310,7 +310,7 @@ impl MouseMiscGroup {
         }));
         let stick_id = ctx.create_child_with("stick", Box::new(CheckBoxPanel { check_box: stick }));
         if !self.stick_possible {
-            ctx.tree.set_enable_switch(stick_id, false);
+            ctx.tree.SetEnableSwitch(stick_id, false);
         }
 
         let mut emu = emCheckBox::new("Emulate\nmiddle button", self.look.clone());
@@ -336,7 +336,7 @@ impl MouseMiscGroup {
 }
 
 impl PanelBehavior for MouseMiscGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -345,8 +345,8 @@ impl PanelBehavior for MouseMiscGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -493,7 +493,7 @@ impl KineticGroup {
 }
 
 impl PanelBehavior for KineticGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -502,8 +502,8 @@ impl PanelBehavior for KineticGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -609,7 +609,7 @@ impl MaxMemGroup {
 }
 
 impl PanelBehavior for MaxMemGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -618,8 +618,8 @@ impl PanelBehavior for MaxMemGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -694,14 +694,14 @@ impl MemFieldLayoutPanel {
 }
 
 impl PanelBehavior for MemFieldLayoutPanel {
-    fn paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
+    fn Paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -744,7 +744,7 @@ impl MaxMemInnerTunnelPanel {
 }
 
 impl PanelBehavior for MaxMemInnerTunnelPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.tunnel.paint_tunnel(painter, w, h);
     }
 
@@ -752,8 +752,8 @@ impl PanelBehavior for MaxMemInnerTunnelPanel {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -804,7 +804,7 @@ impl MaxMemTunnelPanel {
 }
 
 impl PanelBehavior for MaxMemTunnelPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.tunnel.paint_tunnel(painter, w, h);
     }
 
@@ -812,8 +812,8 @@ impl PanelBehavior for MaxMemTunnelPanel {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -916,7 +916,7 @@ impl CpuGroup {
 }
 
 impl PanelBehavior for CpuGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -925,8 +925,8 @@ impl PanelBehavior for CpuGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -1064,7 +1064,7 @@ impl PerformanceGroup {
 }
 
 impl PanelBehavior for PerformanceGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -1073,8 +1073,8 @@ impl PanelBehavior for PerformanceGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -1235,7 +1235,7 @@ impl MouseGroup {
 }
 
 impl PanelBehavior for MouseGroup {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -1244,8 +1244,8 @@ impl PanelBehavior for MouseGroup {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -1315,14 +1315,14 @@ impl ButtonsPanel {
 }
 
 impl PanelBehavior for ButtonsPanel {
-    fn paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
+    fn Paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -1406,14 +1406,14 @@ impl ContentPanel {
 }
 
 impl PanelBehavior for ContentPanel {
-    fn paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
+    fn Paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 
@@ -1513,7 +1513,7 @@ impl emCoreConfigPanel {
 }
 
 impl PanelBehavior for emCoreConfigPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, state.enabled, true, state.viewed_rect.w * state.viewed_rect.h / w.max(1e-100) / h.max(1e-100));
     }
@@ -1522,8 +1522,8 @@ impl PanelBehavior for emCoreConfigPanel {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if !ctx.tree.is_auto_expanded(ctx.id) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if !ctx.tree.IsAutoExpanded(ctx.id) {
             return;
         }
 

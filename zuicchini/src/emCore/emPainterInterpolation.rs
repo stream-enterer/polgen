@@ -17,8 +17,8 @@ pub(crate) enum InterpolationQuality {
 
 /// Sample a pixel from an image with extension mode handling.
 fn sample_pixel(image: &emImage, ix: i32, iy: i32, ext: ImageExtension) -> [u8; 4] {
-    let w = image.width() as i32;
-    let h = image.height() as i32;
+    let w = image.GetWidth() as i32;
+    let h = image.GetHeight() as i32;
 
     let (sx, sy) = match ext {
         ImageExtension::Clamp => (ix.clamp(0, w - 1), iy.clamp(0, h - 1)),
@@ -38,8 +38,8 @@ fn sample_pixel(image: &emImage, ix: i32, iy: i32, ext: ImageExtension) -> [u8; 
         }
     };
 
-    let p = image.pixel(sx as u32, sy as u32);
-    let ch = image.channel_count();
+    let p = image.GetPixel(sx as u32, sy as u32);
+    let ch = image.GetChannelCount();
     match ch {
         1 => [p[0], p[0], p[0], 255],
         3 => [p[0], p[1], p[2], 255],
@@ -75,8 +75,8 @@ pub(crate) fn sample_section_pixel(
             unreachable!("EdgeOrZero must be resolved before interpolation")
         }
     };
-    let p = image.pixel((sec.ox + sx) as u32, (sec.oy + sy) as u32);
-    let ch = image.channel_count();
+    let p = image.GetPixel((sec.ox + sx) as u32, (sec.oy + sy) as u32);
+    let ch = image.GetChannelCount();
     match ch {
         1 => [p[0], p[0], p[0], 255],
         3 => [p[0], p[1], p[2], 255],
@@ -212,8 +212,8 @@ fn sample_pixel_section(
             unreachable!("EdgeOrZero must be resolved before interpolation")
         }
     };
-    let p = image.pixel((sec.ox + sx) as u32, (sec.oy + sy) as u32);
-    let ch = image.channel_count();
+    let p = image.GetPixel((sec.ox + sx) as u32, (sec.oy + sy) as u32);
+    let ch = image.GetChannelCount();
     match ch {
         1 => [p[0], p[0], p[0], 255],
         3 => [p[0], p[1], p[2], 255],
@@ -243,7 +243,7 @@ fn read_area_pixel<'a>(
 ) -> &'a [u8] {
     let rx = (xfm.off_x + col * xfm.stride_x as i32).clamp(0, sec.w - 1);
     let ry = (xfm.off_y + row * xfm.stride_y as i32).clamp(0, sec.h - 1);
-    image.pixel((sec.ox + rx) as u32, (sec.oy + ry) as u32)
+    image.GetPixel((sec.ox + rx) as u32, (sec.oy + ry) as u32)
 }
 
 /// Area sampling with 24-bit fixed-point integer arithmetic.
@@ -266,7 +266,7 @@ pub(crate) fn sample_area_fp(
     sec: &SectionBounds,
     ext: ImageExtension,
 ) -> emColor {
-    let ch = image.channel_count();
+    let ch = image.GetChannelCount();
 
     // --- Y setup (C++ emPainter_ScTlIntImg.cpp lines 686-725) ---
     let mut ty1 = dest_y as i64 * xfm.tdy - xfm.ty;
@@ -1189,7 +1189,7 @@ pub(crate) fn interpolate_scanline_area_sampled(
     ext: ImageExtension,
     buf: &mut crate::emCore::emPainterScanlineTool::InterpolationBuffer,
 ) {
-    match image.channel_count() {
+    match image.GetChannelCount() {
         4 => interpolate_scanline_area_inner::<4>(image, dest_x_start, dest_y, count, xfm, sec, ext, buf),
         3 => interpolate_scanline_area_inner::<3>(image, dest_x_start, dest_y, count, xfm, sec, ext, buf),
         1 => interpolate_scanline_area_inner::<1>(image, dest_x_start, dest_y, count, xfm, sec, ext, buf),
@@ -1482,7 +1482,7 @@ mod tests {
         for y in 0..4u32 {
             for x in 0..4u32 {
                 let v = (x * 64 + y * 16) as u8;
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = v;
                 p[1] = v;
                 p[2] = v;
@@ -1615,7 +1615,7 @@ mod tests {
         let mut img = emImage::new(4, 4, 4);
         for y in 0..4u32 {
             for x in 0..4u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = 255;
                 p[3] = 255;
             }
@@ -1633,7 +1633,7 @@ mod tests {
         let mut img = emImage::new(4, 2, 4);
         for y in 0..2u32 {
             for x in 0..4u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 if x < 2 {
                     p[0] = 128;
                 } else {
@@ -1657,7 +1657,7 @@ mod tests {
         // 2x2 RGBA: (0,0)=(255,0,0,128), rest=(0,0,0,0).
         // Covers premul accumulation with mixed alpha.
         let mut img = emImage::new(2, 2, 4);
-        let p = img.pixel_mut(0, 0);
+        let p = img.SetPixel(0, 0);
         p[0] = 255;
         p[3] = 128;
         // 2:1 downscale → 1 dest pixel covers all 4 source pixels.
@@ -1678,7 +1678,7 @@ mod tests {
         let mut img = emImage::new(2, 2, 4);
         for y in 0..2u32 {
             for x in 0..2u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = 200;
                 p[1] = 100;
                 p[2] = 50;
@@ -1712,7 +1712,7 @@ mod tests {
         let mut img = emImage::new(2, 2, 4);
         for y in 0..2u32 {
             for x in 0..2u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = 200;
                 p[1] = 100;
                 p[2] = 50;
@@ -1746,7 +1746,7 @@ mod tests {
         let mut img = emImage::new(4, 4, 1);
         for y in 0..4u32 {
             for x in 0..4u32 {
-                img.pixel_mut(x, y)[0] = (x * 60 + y * 20) as u8;
+                img.SetPixel(x, y)[0] = (x * 60 + y * 20) as u8;
             }
         }
         // 2:1 downscale: dest pixel (0,0) covers source (0,0)=0, (1,0)=60, (0,1)=20, (1,1)=80.
@@ -1771,7 +1771,7 @@ mod tests {
         let mut img = emImage::new(4, 4, 3);
         for y in 0..4u32 {
             for x in 0..4u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = 100;
                 p[1] = 150;
                 p[2] = 200;
@@ -1791,7 +1791,7 @@ mod tests {
         let mut img = emImage::new(8, 8, 4);
         for y in 0..8u32 {
             for x in 0..8u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = (x * 30 + y * 10) as u8;
                 p[1] = (255 - x * 25) as u8;
                 p[2] = (y * 30) as u8;
@@ -1829,7 +1829,7 @@ mod tests {
         let mut img = emImage::new(6, 6, 1);
         for y in 0..6u32 {
             for x in 0..6u32 {
-                img.pixel_mut(x, y)[0] = (x * 40 + y * 20) as u8;
+                img.SetPixel(x, y)[0] = (x * 40 + y * 20) as u8;
             }
         }
         let xfm = make_area_xfm(6, 6, 3.0, 3.0);
@@ -1861,7 +1861,7 @@ mod tests {
         let mut img = emImage::new(6, 6, 3);
         for y in 0..6u32 {
             for x in 0..6u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = (x * 35 + y * 15) as u8;
                 p[1] = (128 + (x * 10).min(127)) as u8;
                 p[2] = (y * 40) as u8;
@@ -1897,7 +1897,7 @@ mod tests {
         let mut img = emImage::new(2, 2, 4);
         for y in 0..2u32 {
             for x in 0..2u32 {
-                let p = img.pixel_mut(x, y);
+                let p = img.SetPixel(x, y);
                 p[0] = 200;
                 p[1] = 100;
                 p[2] = 50;

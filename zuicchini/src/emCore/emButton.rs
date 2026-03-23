@@ -177,8 +177,8 @@ impl emButton {
         let fw = cr.w - 2.0 * d;
         let fh = cr.h - 2.0 * d;
         let fr = (r - d).max(0.0);
-        painter.paint_round_rect(fx, fy, fw, fh, fr, face_color);
-        painter.set_canvas_color(face_color);
+        painter.PaintRoundRect(fx, fy, fw, fh, fr, face_color);
+        painter.SetCanvasColor(face_color);
 
         // C++ DoButton: PaintLabel inside the face area with padding.
         let d_min = fw.min(fh) * 0.1;
@@ -214,7 +214,7 @@ impl emButton {
         // Priority: Pressed → ButtonPressed, ShownChecked → ButtonChecked, else → emButton.
         with_toolkit_images(|img| {
             if self.pressed {
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -234,7 +234,7 @@ impl emButton {
                 );
             } else if self.shown_checked {
                 // C++ emButton.cpp:402-409: ButtonChecked overlay.
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -255,7 +255,7 @@ impl emButton {
             } else {
                 // Normal button: image extends slightly beyond content rect.
                 let extra = (658.0 - 648.0) / 264.0 * r;
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w + extra,
@@ -517,8 +517,8 @@ mod tests {
             *count_clone.borrow_mut() += 1;
         }));
 
-        btn.click();
-        btn.click();
+        btn.Click();
+        btn.Click();
         assert_eq!(*count.borrow(), 2);
     }
 
@@ -526,38 +526,38 @@ mod tests {
     fn click_without_callback_is_noop() {
         let look = emLook::new();
         let mut btn = emButton::new("Go", look);
-        btn.click(); // should not panic
+        btn.Click(); // should not panic
     }
 
     #[test]
     fn no_eoi_default_false() {
         let look = emLook::new();
         let btn = emButton::new("Test", look);
-        assert!(!btn.is_no_eoi());
+        assert!(!btn.IsNoEOI());
     }
 
     #[test]
     fn SetNoEOI() {
         let look = emLook::new();
         let mut btn = emButton::new("Test", look);
-        btn.set_no_eoi(true);
-        assert!(btn.is_no_eoi());
-        btn.set_no_eoi(false);
-        assert!(!btn.is_no_eoi());
+        btn.SetNoEOI(true);
+        assert!(btn.IsNoEOI());
+        btn.SetNoEOI(false);
+        assert!(!btn.IsNoEOI());
     }
 
     #[test]
     fn has_howto_always_true() {
         let look = emLook::new();
         let btn = emButton::new("OK", look);
-        assert!(btn.has_how_to());
+        assert!(btn.HasHowTo());
     }
 
     #[test]
     fn howto_includes_eoi_by_default() {
         let look = emLook::new();
         let btn = emButton::new("OK", look);
-        let text = btn.get_how_to(true, true);
+        let text = btn.GetHowTo(true, true);
         assert!(text.contains("BUTTON"));
         assert!(text.contains("EOI BUTTON"));
         // Should also include border preface and focus sections
@@ -569,8 +569,8 @@ mod tests {
     fn howto_excludes_eoi_when_no_eoi() {
         let look = emLook::new();
         let mut btn = emButton::new("OK", look);
-        btn.set_no_eoi(true);
-        let text = btn.get_how_to(true, true);
+        btn.SetNoEOI(true);
+        let text = btn.GetHowTo(true, true);
         assert!(text.contains("BUTTON"));
         assert!(!text.contains("EOI BUTTON"));
     }
@@ -579,7 +579,7 @@ mod tests {
     fn howto_includes_disabled_when_not_enabled() {
         let look = emLook::new();
         let btn = emButton::new("OK", look);
-        let text = btn.get_how_to(false, false);
+        let text = btn.GetHowTo(false, false);
         assert!(text.contains("DISABLED"));
         assert!(!text.contains("FOCUS"));
     }
@@ -588,7 +588,7 @@ mod tests {
     fn check_mouse_zero_size_returns_false() {
         let look = emLook::new();
         let btn = emButton::new("X", look);
-        assert!(!btn.check_mouse(0.0, 0.0));
+        assert!(!btn.CheckMouse(0.0, 0.0));
     }
 
     #[test]
@@ -601,7 +601,7 @@ mod tests {
         let mut painter = emPainter::new(&mut img);
         btn.paint(&mut painter, 200.0, 100.0, true);
         // Center of the button should hit
-        assert!(btn.check_mouse(100.0, 50.0));
+        assert!(btn.CheckMouse(100.0, 50.0));
     }
 
     #[test]
@@ -613,7 +613,7 @@ mod tests {
         let mut painter = emPainter::new(&mut img);
         btn.paint(&mut painter, 200.0, 100.0, true);
         // Well outside the button bounds
-        assert!(!btn.check_mouse(-50.0, -50.0));
-        assert!(!btn.check_mouse(300.0, 200.0));
+        assert!(!btn.CheckMouse(-50.0, -50.0));
+        assert!(!btn.CheckMouse(300.0, 200.0));
     }
 }

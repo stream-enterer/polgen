@@ -63,7 +63,7 @@ pub enum ViewConditionType {
 /// escaping `:` and `\` with backslash prefixes.
 ///
 /// Corresponds to `emPanel::EncodeIdentity`.
-pub fn encode_identity(names: &[&str]) -> String {
+pub fn EncodeIdentity(names: &[&str]) -> String {
     // First pass: compute total length for the output
     let mut len = 0usize;
     for (i, name) in names.iter().enumerate() {
@@ -98,7 +98,7 @@ pub fn encode_identity(names: &[&str]) -> String {
 /// handling backslash-escaped colons and backslashes.
 ///
 /// Corresponds to `emPanel::DecodeIdentity`.
-pub fn decode_identity(identity: &str) -> Vec<String> {
+pub fn DecodeIdentity(identity: &str) -> Vec<String> {
     let mut names = Vec::new();
     let bytes = identity.as_bytes();
     let mut pos = 0;
@@ -531,28 +531,28 @@ impl PanelTree {
     /// Get the first child of a panel.
     ///
     /// Corresponds to `emPanel::GetFirstChild`.
-    pub fn first_child(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetFirstChild(&self, id: PanelId) -> Option<PanelId> {
         self.panels.get(id).and_then(|p| p.first_child)
     }
 
     /// Get the last child of a panel.
     ///
     /// Corresponds to `emPanel::GetLastChild`.
-    pub fn last_child(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetLastChild(&self, id: PanelId) -> Option<PanelId> {
         self.panels.get(id).and_then(|p| p.last_child)
     }
 
     /// Get the previous sibling of a panel.
     ///
     /// Corresponds to `emPanel::GetPrev`.
-    pub fn prev_sibling(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetPrev(&self, id: PanelId) -> Option<PanelId> {
         self.panels.get(id).and_then(|p| p.prev_sibling)
     }
 
     /// Get the next sibling of a panel.
     ///
     /// Corresponds to `emPanel::GetNext`.
-    pub fn next_sibling(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetNext(&self, id: PanelId) -> Option<PanelId> {
         self.panels.get(id).and_then(|p| p.next_sibling)
     }
 
@@ -560,7 +560,7 @@ impl PanelTree {
     /// root, collecting names, and encoding them.
     ///
     /// Corresponds to `emPanel::GetIdentity`.
-    pub fn get_identity(&self, id: PanelId) -> String {
+    pub fn GetIdentity(&self, id: PanelId) -> String {
         // Walk up to root collecting names
         let mut names = Vec::new();
         let mut cur = id;
@@ -573,7 +573,7 @@ impl PanelTree {
         }
         // names is child-to-root; reverse to root-to-child
         names.reverse();
-        encode_identity(&names)
+        EncodeIdentity(&names)
     }
 
     // ── Sibling reordering ───────────────────────────────────────────
@@ -617,7 +617,7 @@ impl PanelTree {
     /// No-op if already first or if the panel is the root.
     ///
     /// Corresponds to `emPanel::BeFirst`.
-    pub fn be_first(&mut self, id: PanelId) {
+    pub fn BeFirst(&mut self, id: PanelId) {
         // No-op if no parent or already first
         let parent = match self.panels.get(id).and_then(|p| p.parent) {
             Some(p) => p,
@@ -647,7 +647,7 @@ impl PanelTree {
     /// No-op if already last or if the panel is the root.
     ///
     /// Corresponds to `emPanel::BeLast`.
-    pub fn be_last(&mut self, id: PanelId) {
+    pub fn BeLast(&mut self, id: PanelId) {
         let parent = match self.panels.get(id).and_then(|p| p.parent) {
             Some(p) => p,
             None => return,
@@ -678,11 +678,11 @@ impl PanelTree {
     /// a different parent.
     ///
     /// Corresponds to `emPanel::BePrevOf`.
-    pub fn be_prev_of(&mut self, id: PanelId, sibling: Option<PanelId>) {
+    pub fn BePrevOf(&mut self, id: PanelId, sibling: Option<PanelId>) {
         let sibling = match sibling {
             Some(s) => s,
             None => {
-                self.be_last(id);
+                self.BeLast(id);
                 return;
             }
         };
@@ -723,11 +723,11 @@ impl PanelTree {
     /// a different parent.
     ///
     /// Corresponds to `emPanel::BeNextOf`.
-    pub fn be_next_of(&mut self, id: PanelId, sibling: Option<PanelId>) {
+    pub fn BeNextOf(&mut self, id: PanelId, sibling: Option<PanelId>) {
         let sibling = match sibling {
             Some(s) => s,
             None => {
-                self.be_first(id);
+                self.BeFirst(id);
                 return;
             }
         };
@@ -766,7 +766,7 @@ impl PanelTree {
     /// Notifies `CHILDREN_CHANGED` only if the order actually changed.
     ///
     /// Corresponds to `emPanel::SortChildren`.
-    pub fn sort_children<F>(&mut self, parent: PanelId, mut compare: F)
+    pub fn SortChildren<F>(&mut self, parent: PanelId, mut compare: F)
     where
         F: FnMut(PanelId, PanelId) -> std::cmp::Ordering,
     {
@@ -832,12 +832,12 @@ impl PanelTree {
     /// filename. If no behavior provides one, the root returns `""`.
     ///
     /// Corresponds to `emPanel::GetIconFileName`.
-    pub fn get_icon_file_name(&self, id: PanelId) -> String {
+    pub fn GetIconFileName(&self, id: PanelId) -> String {
         let mut cur = id;
         loop {
             if let Some(panel) = self.panels.get(cur) {
                 if let Some(ref behavior) = panel.behavior {
-                    if let Some(name) = behavior.get_icon_file_name() {
+                    if let Some(name) = behavior.GetIconFileName() {
                         return name;
                     }
                 }
@@ -852,7 +852,7 @@ impl PanelTree {
     }
 
     /// Remove all children of a panel.
-    pub fn delete_all_children(&mut self, parent: PanelId) {
+    pub fn DeleteAllChildren(&mut self, parent: PanelId) {
         let children: Vec<PanelId> = self.children(parent).collect();
         for child in children {
             self.remove(child);
@@ -876,7 +876,7 @@ impl PanelTree {
     /// `NoticeFlags::LAYOUT_CHANGED` into each child's pending notices.
     ///
     /// Corresponds to `emPanel::InvalidateChildrenLayout`.
-    pub fn invalidate_children_layout(&mut self, id: PanelId) {
+    pub fn InvalidateChildrenLayout(&mut self, id: PanelId) {
         let children: Vec<PanelId> = self.children(id).collect();
         for child in children {
             if let Some(panel) = self.panels.get_mut(child) {
@@ -890,7 +890,7 @@ impl PanelTree {
     ///
     /// Width and height are clamped to a minimum of `1e-100` to prevent
     /// division-by-zero when computing tallness.
-    pub fn set_layout_rect(&mut self, id: PanelId, x: f64, y: f64, w: f64, h: f64) {
+    pub fn Layout(&mut self, id: PanelId, x: f64, y: f64, w: f64, h: f64) {
         let rect = Rect {
             x,
             y,
@@ -922,7 +922,7 @@ impl PanelTree {
     }
 
     /// Set the enable switch for a panel and recompute enabled state for descendants.
-    pub fn set_enable_switch(&mut self, id: PanelId, enable: bool) {
+    pub fn SetEnableSwitch(&mut self, id: PanelId, enable: bool) {
         if let Some(panel) = self.panels.get_mut(id) {
             if panel.enable_switch == enable {
                 return;
@@ -1021,7 +1021,7 @@ impl PanelTree {
     ///
     /// Corresponds to the C++ `emEngine::WakeUp` call from within a panel's
     /// constructor or `Cycle` implementation.
-    pub fn request_cycle(&mut self, id: PanelId) {
+    pub fn Cycle(&mut self, id: PanelId) {
         if !self.cycle_list.contains(&id) {
             self.cycle_list.push(id);
         }
@@ -1042,7 +1042,7 @@ impl PanelTree {
         for id in ids {
             if let Some(mut behavior) = self.take_behavior(id) {
                 let mut ctx = PanelCtx::new(self, id);
-                let stay_awake = behavior.cycle(&mut ctx);
+                let stay_awake = behavior.Cycle(&mut ctx);
                 if self.panels.contains_key(id) {
                     self.put_behavior(id, behavior);
                 }
@@ -1059,7 +1059,7 @@ impl PanelTree {
     /// Deliver pending notices to all panels with behaviors.
     /// Dispatch pending notices to panel behaviors. Returns `true` if any
     /// notices were delivered (meaning visual state may have changed).
-    pub fn deliver_notices(&mut self, window_focused: bool, pixel_tallness: f64) -> bool {
+    pub fn HandleNotice(&mut self, window_focused: bool, pixel_tallness: f64) -> bool {
         if !self.has_pending_notices {
             return false;
         }
@@ -1085,10 +1085,10 @@ impl PanelTree {
                 if let Some(mut behavior) = self.take_behavior(id) {
                     let state = self.build_panel_state(id, window_focused, pixel_tallness);
                     behavior.notice(flags, &state);
-                    if flags.contains(NoticeFlags::LAYOUT_CHANGED) && self.first_child(id).is_some()
+                    if flags.contains(NoticeFlags::LAYOUT_CHANGED) && self.GetFirstChild(id).is_some()
                     {
                         let mut ctx = PanelCtx::new(self, id);
-                        behavior.layout_children(&mut ctx);
+                        behavior.LayoutChildren(&mut ctx);
                     }
                     // Panel may have been removed by its own callback (e.g. delete_self).
                     if self.panels.contains_key(id) {
@@ -1128,7 +1128,7 @@ impl PanelTree {
     }
 
     /// Find nearest focusable ancestor of `id` (excluding self, starting from parent).
-    pub fn focusable_ancestor(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetFocusableParent(&self, id: PanelId) -> Option<PanelId> {
         let mut cur = self.panels.get(id).and_then(|p| p.parent);
         while let Some(c) = cur {
             if self.panels.get(c).map(|p| p.focusable).unwrap_or(false) {
@@ -1142,19 +1142,19 @@ impl PanelTree {
     // ── Coordinate transforms ─────────────────────────────────────────
 
     /// Convert panel-space X to view-space X.
-    pub fn panel_to_view_x(&self, id: PanelId, x: f64) -> f64 {
+    pub fn PanelToViewX(&self, id: PanelId, x: f64) -> f64 {
         let p = &self.panels[id];
         p.viewed_x + x * p.viewed_width
     }
 
     /// Convert panel-space Y to view-space Y.
-    pub fn panel_to_view_y(&self, id: PanelId, y: f64) -> f64 {
+    pub fn PanelToViewY(&self, id: PanelId, y: f64) -> f64 {
         let p = &self.panels[id];
         p.viewed_y + y * p.viewed_height
     }
 
     /// Convert view-space X to panel-space X.
-    pub fn view_to_panel_x(&self, id: PanelId, vx: f64) -> f64 {
+    pub fn ViewToPanelX(&self, id: PanelId, vx: f64) -> f64 {
         let p = &self.panels[id];
         (vx - p.viewed_x) / p.viewed_width
     }
@@ -1164,28 +1164,28 @@ impl PanelTree {
     /// C++ emView.cpp:2020: `my = (mouseY - ViewedY) / ViewedWidth * PixelTallness`
     /// Both axes divide by ViewedWidth (not ViewedHeight) to preserve the panel's
     /// normalized coordinate system where X is 0..1 and Y is 0..tallness.
-    pub fn view_to_panel_y(&self, id: PanelId, vy: f64, pixel_tallness: f64) -> f64 {
+    pub fn ViewToPanelY(&self, id: PanelId, vy: f64, pixel_tallness: f64) -> f64 {
         let p = &self.panels[id];
         (vy - p.viewed_y) / p.viewed_width * pixel_tallness
     }
 
     /// Convert a panel-space delta X to view-space delta X.
-    pub fn panel_to_view_delta_x(&self, id: PanelId, dx: f64) -> f64 {
+    pub fn PanelToViewDeltaX(&self, id: PanelId, dx: f64) -> f64 {
         dx * self.panels[id].viewed_width
     }
 
     /// Convert a panel-space delta Y to view-space delta Y.
-    pub fn panel_to_view_delta_y(&self, id: PanelId, dy: f64) -> f64 {
+    pub fn PanelToViewDeltaY(&self, id: PanelId, dy: f64) -> f64 {
         dy * self.panels[id].viewed_height
     }
 
     /// Convert a view-space delta X to panel-space delta X.
-    pub fn view_to_panel_delta_x(&self, id: PanelId, dvx: f64) -> f64 {
+    pub fn ViewToPanelDeltaX(&self, id: PanelId, dvx: f64) -> f64 {
         dvx / self.panels[id].viewed_width
     }
 
     /// Convert a view-space delta Y to panel-space delta Y.
-    pub fn view_to_panel_delta_y(&self, id: PanelId, dvy: f64) -> f64 {
+    pub fn ViewToPanelDeltaY(&self, id: PanelId, dvy: f64) -> f64 {
         dvy / self.panels[id].viewed_height
     }
 
@@ -1200,7 +1200,7 @@ impl PanelTree {
     }
 
     /// Alias for [`get_height`](Self::get_height).
-    pub fn get_tallness(&self, id: PanelId) -> f64 {
+    pub fn GetTallness(&self, id: PanelId) -> f64 {
         self.get_height(id)
     }
 
@@ -1210,14 +1210,14 @@ impl PanelTree {
     /// i.e. the full panel rect with zero radius. Subclass overrides (border
     /// panels) may return a smaller rect with a nonzero radius; those will be
     /// handled by the behavior trait. This method provides the default.
-    pub fn get_substance_rect(&self, id: PanelId) -> (f64, f64, f64, f64, f64) {
+    pub fn GetSubstanceRect(&self, id: PanelId) -> (f64, f64, f64, f64, f64) {
         let h = self.get_height(id);
         (0.0, 0.0, 1.0, h, 0.0)
     }
 
     /// Test whether a point lies inside the substance rectangle (with rounded
     /// corners).
-    pub fn is_point_in_substance_rect(&self, id: PanelId, x: f64, y: f64) -> bool {
+    pub fn IsPointInSubstanceRect(&self, id: PanelId, x: f64, y: f64) -> bool {
         let h = self.get_height(id);
 
         // Quick rejection: outside panel bounds
@@ -1225,7 +1225,7 @@ impl PanelTree {
             return false;
         }
 
-        let (sx, sy, sw, sh, sr) = self.get_substance_rect(id);
+        let (sx, sy, sw, sh, sr) = self.GetSubstanceRect(id);
         let sw2 = sw * 0.5;
         let sh2 = sh * 0.5;
 
@@ -1256,8 +1256,8 @@ impl PanelTree {
 
     /// Return the essence rectangle -- the substance rectangle without the
     /// corner-radius inset.
-    pub fn get_essence_rect(&self, id: PanelId) -> (f64, f64, f64, f64) {
-        let (sx, sy, sw, sh, _sr) = self.get_substance_rect(id);
+    pub fn GetEssenceRect(&self, id: PanelId) -> (f64, f64, f64, f64) {
+        let (sx, sy, sw, sh, _sr) = self.GetSubstanceRect(id);
         (sx, sy, sw, sh)
     }
 
@@ -1268,7 +1268,7 @@ impl PanelTree {
     /// pass will re-evaluate.
     ///
     /// Corresponds to `emPanel::SetAutoExpansionThreshold`.
-    pub fn set_auto_expansion_threshold(
+    pub fn SetAutoExpansionThreshold(
         &mut self,
         id: PanelId,
         threshold_value: f64,
@@ -1289,7 +1289,7 @@ impl PanelTree {
     /// Return the auto-expansion threshold value.
     ///
     /// Corresponds to `emPanel::GetAutoExpansionThresholdValue`.
-    pub fn get_auto_expansion_threshold_value(&self, id: PanelId) -> f64 {
+    pub fn GetAutoExpansionThresholdValue(&self, id: PanelId) -> f64 {
         self.panels
             .get(id)
             .map(|p| p.ae_threshold_value)
@@ -1299,7 +1299,7 @@ impl PanelTree {
     /// Return the auto-expansion threshold type.
     ///
     /// Corresponds to `emPanel::GetAutoExpansionThresholdType`.
-    pub fn get_auto_expansion_threshold_type(&self, id: PanelId) -> ViewConditionType {
+    pub fn GetAutoExpansionThresholdType(&self, id: PanelId) -> ViewConditionType {
         self.panels
             .get(id)
             .map(|p| p.ae_threshold_type)
@@ -1309,7 +1309,7 @@ impl PanelTree {
     /// Whether the panel is currently auto-expanded.
     ///
     /// Corresponds to `emPanel::IsAutoExpanded`.
-    pub fn is_auto_expanded(&self, id: PanelId) -> bool {
+    pub fn IsAutoExpanded(&self, id: PanelId) -> bool {
         self.panels.get(id).map(|p| p.ae_expanded).unwrap_or(false)
     }
 
@@ -1317,7 +1317,7 @@ impl PanelTree {
     /// the panel is currently expanded and not already invalidated.
     ///
     /// Corresponds to `emPanel::InvalidateAutoExpansion`.
-    pub fn invalidate_auto_expansion(&mut self, id: PanelId) {
+    pub fn InvalidateAutoExpansion(&mut self, id: PanelId) {
         if let Some(panel) = self.panels.get_mut(id) {
             if !panel.ae_invalid && panel.ae_expanded {
                 panel.ae_invalid = true;
@@ -1329,7 +1329,7 @@ impl PanelTree {
     /// simply returns the `ae_expanded` state.
     ///
     /// Corresponds to `emPanel::IsContentReady`.
-    pub fn is_content_ready(&self, id: PanelId) -> bool {
+    pub fn IsContentReady(&self, id: PanelId) -> bool {
         self.panels.get(id).map(|p| p.ae_expanded).unwrap_or(false)
     }
 
@@ -1338,7 +1338,7 @@ impl PanelTree {
     /// Set the autoplay handling flags for a panel.
     ///
     /// Corresponds to `emPanel::SetAutoplayHandling`.
-    pub fn set_autoplay_handling(&mut self, id: PanelId, flags: AutoplayHandlingFlags) {
+    pub fn SetAutoplayHandling(&mut self, id: PanelId, flags: AutoplayHandlingFlags) {
         if let Some(panel) = self.panels.get_mut(id) {
             panel.autoplay_handling = flags;
         }
@@ -1347,7 +1347,7 @@ impl PanelTree {
     /// Return the autoplay handling flags for a panel.
     ///
     /// Corresponds to `emPanel::GetAutoplayHandling`.
-    pub fn get_autoplay_handling(&self, id: PanelId) -> AutoplayHandlingFlags {
+    pub fn GetAutoplayHandling(&self, id: PanelId) -> AutoplayHandlingFlags {
         self.panels
             .get(id)
             .map(|p| p.autoplay_handling)
@@ -1362,10 +1362,10 @@ impl PanelTree {
     /// return different values.
     ///
     /// Corresponds to `emPanel::GetPlaybackState`.
-    pub fn get_playback_state(&self, id: PanelId) -> PlaybackState {
+    pub fn GetPlaybackState(&self, id: PanelId) -> PlaybackState {
         if let Some(panel) = self.panels.get(id) {
             if let Some(ref behavior) = panel.behavior {
-                return behavior.get_playback_state();
+                return behavior.GetPlaybackState();
             }
         }
         PlaybackState::default()
@@ -1375,9 +1375,9 @@ impl PanelTree {
     /// the panel supports playback and accepted the state, `false` otherwise.
     ///
     /// Corresponds to `emPanel::SetPlaybackState`.
-    pub fn set_playback_state(&mut self, id: PanelId, playing: bool, pos: f64) -> bool {
+    pub fn SetPlaybackState(&mut self, id: PanelId, playing: bool, pos: f64) -> bool {
         if let Some(mut behavior) = self.take_behavior(id) {
-            let accepted = behavior.set_playback_state(playing, pos);
+            let accepted = behavior.SetPlaybackState(playing, pos);
             self.put_behavior(id, behavior);
             return accepted;
         }
@@ -1391,7 +1391,7 @@ impl PanelTree {
     /// [`emView::seek_pos_panel`] and [`emView::seek_pos_child_name`].
     ///
     /// Corresponds to `emPanel::GetSoughtName`.
-    pub fn get_sought_name<'a>(
+    pub fn GetSoughtName<'a>(
         &self,
         id: PanelId,
         seek_pos_panel: Option<PanelId>,
@@ -1410,10 +1410,10 @@ impl PanelTree {
     /// that overrides `is_hope_for_seeking` may return `true`.
     ///
     /// Corresponds to `emPanel::IsHopeForSeeking`.
-    pub fn is_hope_for_seeking(&self, id: PanelId) -> bool {
+    pub fn IsHopeForSeeking(&self, id: PanelId) -> bool {
         if let Some(panel) = self.panels.get(id) {
             if let Some(ref behavior) = panel.behavior {
-                return behavior.is_hope_for_seeking();
+                return behavior.IsHopeForSeeking();
             }
         }
         false
@@ -1424,7 +1424,7 @@ impl PanelTree {
     /// for API compatibility but unused in the base implementation.
     ///
     /// Corresponds to `emPanel::GetTouchEventPriority`.
-    pub fn get_touch_event_priority(&self, id: PanelId, _touch_x: f64, _touch_y: f64) -> f64 {
+    pub fn GetTouchEventPriority(&self, id: PanelId, _touch_x: f64, _touch_y: f64) -> f64 {
         if self.focusable(id) {
             1.0
         } else {
@@ -1437,7 +1437,7 @@ impl PanelTree {
     /// `None` if the root is reached without any behavior creating a panel.
     ///
     /// Corresponds to `emPanel::CreateControlPanel`.
-    pub fn create_control_panel(
+    pub fn CreateControlPanel(
         &mut self,
         id: PanelId,
         parent_arg: PanelId,
@@ -1447,7 +1447,7 @@ impl PanelTree {
         loop {
             if let Some(mut behavior) = self.take_behavior(cur) {
                 let mut ctx = PanelCtx::new(self, parent_arg);
-                let result = behavior.create_control_panel(&mut ctx, name);
+                let result = behavior.CreateControlPanel(&mut ctx, name);
                 self.put_behavior(cur, behavior);
                 if result.is_some() {
                     return result;
@@ -1476,7 +1476,7 @@ impl PanelTree {
         loop {
             if let Some(mut behavior) = self.take_behavior(cur) {
                 let mut ctx = PanelCtx::new(target_tree, parent_arg);
-                let result = behavior.create_control_panel(&mut ctx, name);
+                let result = behavior.CreateControlPanel(&mut ctx, name);
                 self.put_behavior(cur, behavior);
                 if result.is_some() {
                     return result;
@@ -1498,7 +1498,7 @@ impl PanelTree {
     /// `ViewConditionType` when viewed.
     ///
     /// Corresponds to `emPanel::GetViewCondition`.
-    pub fn get_view_condition(&self, id: PanelId, vc_type: ViewConditionType) -> f64 {
+    pub fn GetViewCondition(&self, id: PanelId, vc_type: ViewConditionType) -> f64 {
         let panel = match self.panels.get(id) {
             Some(p) => p,
             None => return 0.0,
@@ -1526,7 +1526,7 @@ impl PanelTree {
     /// is focused.
     ///
     /// Corresponds to `emPanel::GetUpdatePriority`.
-    pub fn get_update_priority(
+    pub fn GetUpdatePriority(
         &self,
         id: PanelId,
         viewport_width: f64,
@@ -1590,7 +1590,7 @@ impl PanelTree {
     /// blended fraction of `max_per_view` otherwise.
     ///
     /// Corresponds to `emPanel::GetMemoryLimit`.
-    pub fn get_memory_limit(
+    pub fn GetMemoryLimit(
         &self,
         id: PanelId,
         viewport_width: f64,
@@ -1659,7 +1659,7 @@ impl PanelTree {
     // ── Focusable navigation ─────────────────────────────────────────
 
     /// DFS for the first focusable descendant of `id`.
-    pub fn focusable_first_child(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetFocusableFirstChild(&self, id: PanelId) -> Option<PanelId> {
         let mut p = self.panels.get(id)?.first_child?;
         loop {
             if self.panels[p].focusable && self.panels[p].enabled {
@@ -1685,7 +1685,7 @@ impl PanelTree {
     }
 
     /// Reverse DFS for the last focusable descendant of `id`.
-    pub fn focusable_last_child(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetFocusableLastChild(&self, id: PanelId) -> Option<PanelId> {
         let mut p = self.panels.get(id)?.last_child?;
         loop {
             if self.panels[p].focusable && self.panels[p].enabled {
@@ -1712,7 +1712,7 @@ impl PanelTree {
 
     /// Find the previous focusable panel relative to `id` in pre-order
     /// traversal. Searches within the same focusable ancestor boundary.
-    pub fn focusable_prev(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetFocusablePrev(&self, id: PanelId) -> Option<PanelId> {
         let mut p = id;
         loop {
             match self.panels[p].prev_sibling {
@@ -1740,7 +1740,7 @@ impl PanelTree {
 
     /// Find the next focusable panel relative to `id` in pre-order
     /// traversal. Searches within the same focusable ancestor boundary.
-    pub fn focusable_next(&self, id: PanelId) -> Option<PanelId> {
+    pub fn GetFocusableNext(&self, id: PanelId) -> Option<PanelId> {
         let mut p = id;
         loop {
             match self.panels[p].next_sibling {
@@ -1921,31 +1921,31 @@ mod tests {
         let mut t = PanelTree::new();
         let root = t.create_root("root");
         t.set_focusable(root, true);
-        t.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        t.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let a = t.create_child(root, "a");
         t.set_focusable(a, false);
-        t.set_layout_rect(a, 0.0, 0.0, 0.5, 0.5);
+        t.Layout(a, 0.0, 0.0, 0.5, 0.5);
 
         let a1 = t.create_child(a, "a1");
-        t.set_layout_rect(a1, 0.0, 0.0, 0.5, 1.0);
+        t.Layout(a1, 0.0, 0.0, 0.5, 1.0);
 
         let a2 = t.create_child(a, "a2");
-        t.set_layout_rect(a2, 0.5, 0.0, 0.5, 1.0);
+        t.Layout(a2, 0.5, 0.0, 0.5, 1.0);
 
         let b = t.create_child(root, "b");
-        t.set_layout_rect(b, 0.5, 0.0, 0.5, 0.5);
+        t.Layout(b, 0.5, 0.0, 0.5, 0.5);
 
         let c = t.create_child(root, "c");
         t.set_focusable(c, false);
-        t.set_layout_rect(c, 0.0, 0.5, 1.0, 0.5);
+        t.Layout(c, 0.0, 0.5, 1.0, 0.5);
 
         let c1 = t.create_child(c, "c1");
         t.set_focusable(c1, false);
-        t.set_layout_rect(c1, 0.0, 0.0, 1.0, 1.0);
+        t.Layout(c1, 0.0, 0.0, 1.0, 1.0);
 
         let c1a = t.create_child(c1, "c1a");
-        t.set_layout_rect(c1a, 0.0, 0.0, 1.0, 1.0);
+        t.Layout(c1a, 0.0, 0.0, 1.0, 1.0);
 
         (t, root, a1, a2, b, c1a, c)
     }
@@ -1954,17 +1954,17 @@ mod tests {
     fn test_get_height_and_tallness() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 2.0, 6.0);
+        t.Layout(root, 0.0, 0.0, 2.0, 6.0);
         assert!((t.get_height(root) - 3.0).abs() < 1e-12);
-        assert!((t.get_tallness(root) - t.get_height(root)).abs() < 1e-15);
+        assert!((t.GetTallness(root) - t.get_height(root)).abs() < 1e-15);
     }
 
     #[test]
     fn test_substance_rect_default() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 2.0, 4.0);
-        let (sx, sy, sw, sh, sr) = t.get_substance_rect(root);
+        t.Layout(root, 0.0, 0.0, 2.0, 4.0);
+        let (sx, sy, sw, sh, sr) = t.GetSubstanceRect(root);
         assert_eq!((sx, sy, sw), (0.0, 0.0, 1.0));
         assert!((sh - 2.0).abs() < 1e-12);
         assert_eq!(sr, 0.0);
@@ -1974,20 +1974,20 @@ mod tests {
     fn test_point_in_substance_rect() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 1.0, 2.0);
-        assert!(t.is_point_in_substance_rect(root, 0.5, 1.0));
-        assert!(t.is_point_in_substance_rect(root, 0.0, 0.0));
-        assert!(!t.is_point_in_substance_rect(root, 1.0, 0.0));
-        assert!(!t.is_point_in_substance_rect(root, 0.5, 2.0));
-        assert!(!t.is_point_in_substance_rect(root, -0.1, 0.5));
+        t.Layout(root, 0.0, 0.0, 1.0, 2.0);
+        assert!(t.IsPointInSubstanceRect(root, 0.5, 1.0));
+        assert!(t.IsPointInSubstanceRect(root, 0.0, 0.0));
+        assert!(!t.IsPointInSubstanceRect(root, 1.0, 0.0));
+        assert!(!t.IsPointInSubstanceRect(root, 0.5, 2.0));
+        assert!(!t.IsPointInSubstanceRect(root, -0.1, 0.5));
     }
 
     #[test]
     fn test_essence_rect() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 1.0, 3.0);
-        let (ex, ey, ew, eh) = t.get_essence_rect(root);
+        t.Layout(root, 0.0, 0.0, 1.0, 3.0);
+        let (ex, ey, ew, eh) = t.GetEssenceRect(root);
         assert_eq!((ex, ey, ew), (0.0, 0.0, 1.0));
         assert!((eh - 3.0).abs() < 1e-12);
     }
@@ -1995,13 +1995,13 @@ mod tests {
     #[test]
     fn test_focusable_first_child() {
         let (t, root, a1, _a2, _b, _c1a, _c) = make_tree();
-        assert_eq!(t.focusable_first_child(root), Some(a1));
+        assert_eq!(t.GetFocusableFirstChild(root), Some(a1));
     }
 
     #[test]
     fn test_focusable_last_child() {
         let (t, root, _a1, _a2, _b, c1a, _c) = make_tree();
-        assert_eq!(t.focusable_last_child(root), Some(c1a));
+        assert_eq!(t.GetFocusableLastChild(root), Some(c1a));
     }
 
     #[test]
@@ -2010,22 +2010,22 @@ mod tests {
         let root = t.create_root("r");
         let child = t.create_child(root, "c");
         t.set_focusable(child, false);
-        assert_eq!(t.focusable_first_child(root), None);
+        assert_eq!(t.GetFocusableFirstChild(root), None);
     }
 
     #[test]
     fn test_focusable_next_prev() {
         let (t, _root, a1, a2, _b, _c1a, _c) = make_tree();
-        assert_eq!(t.focusable_next(a1), Some(a2));
-        assert_eq!(t.focusable_prev(a2), Some(a1));
-        assert_eq!(t.focusable_prev(a1), None);
+        assert_eq!(t.GetFocusableNext(a1), Some(a2));
+        assert_eq!(t.GetFocusablePrev(a2), Some(a1));
+        assert_eq!(t.GetFocusablePrev(a1), None);
     }
 
     #[test]
     fn test_focusable_next_crosses_subtree() {
         let (t, _root, _a1, a2, b, _c1a, _c) = make_tree();
         // a2 -> next: walk up to 'a' (not focusable), a.next = b (focusable)
-        assert_eq!(t.focusable_next(a2), Some(b));
+        assert_eq!(t.GetFocusableNext(a2), Some(b));
     }
 
     // ── Identity tests ───────────────────────────────────────────────
@@ -2033,45 +2033,45 @@ mod tests {
     #[test]
     fn test_encode_identity_basic() {
         assert_eq!(
-            encode_identity(&["root", "child", "leaf"]),
+            EncodeIdentity(&["root", "child", "leaf"]),
             "root:child:leaf"
         );
     }
 
     #[test]
     fn test_encode_identity_escaping() {
-        assert_eq!(encode_identity(&["a:b", "c\\d"]), r"a\:b:c\\d");
+        assert_eq!(EncodeIdentity(&["a:b", "c\\d"]), r"a\:b:c\\d");
     }
 
     #[test]
     fn test_encode_identity_empty() {
-        assert_eq!(encode_identity(&[]), "");
-        assert_eq!(encode_identity(&[""]), "");
+        assert_eq!(EncodeIdentity(&[]), "");
+        assert_eq!(EncodeIdentity(&[""]), "");
     }
 
     #[test]
     fn test_decode_identity_basic() {
         assert_eq!(
-            decode_identity("root:child:leaf"),
+            DecodeIdentity("root:child:leaf"),
             vec!["root", "child", "leaf"]
         );
     }
 
     #[test]
     fn test_decode_identity_escaping() {
-        assert_eq!(decode_identity(r"a\:b:c\\d"), vec!["a:b", "c\\d"]);
+        assert_eq!(DecodeIdentity(r"a\:b:c\\d"), vec!["a:b", "c\\d"]);
     }
 
     #[test]
     fn test_decode_identity_empty_segments() {
-        assert_eq!(decode_identity("a::b"), vec!["a", "", "b"]);
+        assert_eq!(DecodeIdentity("a::b"), vec!["a", "", "b"]);
     }
 
     #[test]
     fn test_encode_decode_round_trip() {
         let names = vec!["root", "child:with:colons", "back\\slash"];
-        let encoded = encode_identity(&names);
-        let decoded = decode_identity(&encoded);
+        let encoded = EncodeIdentity(&names);
+        let decoded = DecodeIdentity(&encoded);
         let expected: Vec<String> = names.iter().map(|s| s.to_string()).collect();
         assert_eq!(decoded, expected);
     }
@@ -2079,9 +2079,9 @@ mod tests {
     #[test]
     fn test_get_identity() {
         let (t, root, a1, _a2, _b, c1a, _c) = make_tree();
-        assert_eq!(t.get_identity(root), "root");
-        assert_eq!(t.get_identity(a1), "root:a:a1");
-        assert_eq!(t.get_identity(c1a), "root:c:c1:c1a");
+        assert_eq!(t.GetIdentity(root), "root");
+        assert_eq!(t.GetIdentity(a1), "root:a:a1");
+        assert_eq!(t.GetIdentity(c1a), "root:c:c1:c1a");
     }
 
     // ── Sibling reordering tests ─────────────────────────────────────
@@ -2102,19 +2102,19 @@ mod tests {
         let c = t.create_child(root, "c");
 
         // Move c to front
-        t.be_first(c);
+        t.BeFirst(c);
         assert_eq!(child_names(&t, root), vec!["c", "a", "b"]);
 
         // Move c again (already first → no-op)
-        t.be_first(c);
+        t.BeFirst(c);
         assert_eq!(child_names(&t, root), vec!["c", "a", "b"]);
 
         // Move b to front
-        t.be_first(b);
+        t.BeFirst(b);
         assert_eq!(child_names(&t, root), vec!["b", "c", "a"]);
 
         // Already first → no-op
-        t.be_first(a);
+        t.BeFirst(a);
         // a is last, move to first
         assert_eq!(child_names(&t, root), vec!["a", "b", "c"]);
     }
@@ -2128,7 +2128,7 @@ mod tests {
         let _c = t.create_child(root, "c");
 
         // Move a to end
-        t.be_last(a);
+        t.BeLast(a);
         assert_eq!(child_names(&t, root), vec!["b", "c", "a"]);
     }
 
@@ -2141,15 +2141,15 @@ mod tests {
         let c = t.create_child(root, "c");
 
         // Move c before a → c, a, b
-        t.be_prev_of(c, Some(a));
+        t.BePrevOf(c, Some(a));
         assert_eq!(child_names(&t, root), vec!["c", "a", "b"]);
 
         // Move b before a → c, b, a
-        t.be_prev_of(b, Some(a));
+        t.BePrevOf(b, Some(a));
         assert_eq!(child_names(&t, root), vec!["c", "b", "a"]);
 
         // be_prev_of with None → be_last
-        t.be_prev_of(c, None);
+        t.BePrevOf(c, None);
         assert_eq!(child_names(&t, root), vec!["b", "a", "c"]);
     }
 
@@ -2162,11 +2162,11 @@ mod tests {
         let c = t.create_child(root, "c");
 
         // Move a after c → b, c, a
-        t.be_next_of(a, Some(c));
+        t.BeNextOf(a, Some(c));
         assert_eq!(child_names(&t, root), vec!["b", "c", "a"]);
 
         // be_next_of with None → be_first
-        t.be_next_of(a, None);
+        t.BeNextOf(a, None);
         assert_eq!(child_names(&t, root), vec!["a", "b", "c"]);
     }
 
@@ -2178,11 +2178,11 @@ mod tests {
         let b = t.create_child(root, "b");
 
         // Same panel → no-op
-        t.be_prev_of(a, Some(a));
+        t.BePrevOf(a, Some(a));
         assert_eq!(child_names(&t, root), vec!["a", "b"]);
 
         // Already before sibling → no-op
-        t.be_prev_of(a, Some(b));
+        t.BePrevOf(a, Some(b));
         assert_eq!(child_names(&t, root), vec!["a", "b"]);
     }
 
@@ -2194,11 +2194,11 @@ mod tests {
         let b = t.create_child(root, "b");
 
         // Same panel → no-op
-        t.be_next_of(b, Some(b));
+        t.BeNextOf(b, Some(b));
         assert_eq!(child_names(&t, root), vec!["a", "b"]);
 
         // Already after sibling → no-op
-        t.be_next_of(b, Some(a));
+        t.BeNextOf(b, Some(a));
         assert_eq!(child_names(&t, root), vec!["a", "b"]);
     }
 
@@ -2215,7 +2215,7 @@ mod tests {
             .children(root)
             .map(|id| (id, t.name(id).unwrap().to_string()))
             .collect();
-        t.sort_children(root, |a_id, b_id| names[&a_id].cmp(&names[&b_id]));
+        t.SortChildren(root, |a_id, b_id| names[&a_id].cmp(&names[&b_id]));
         assert_eq!(child_names(&t, root), vec!["a", "b", "c"]);
     }
 
@@ -2227,7 +2227,7 @@ mod tests {
         let _b = t.create_child(root, "b");
 
         // Clear pending notices before sort
-        t.deliver_notices(true, 1.0);
+        t.HandleNotice(true, 1.0);
 
         // Build name map
         let names: HashMap<PanelId, String> = t
@@ -2236,7 +2236,7 @@ mod tests {
             .collect();
 
         // Already sorted -> should not set CHILDREN_CHANGED
-        t.sort_children(root, |a_id, b_id| names[&a_id].cmp(&names[&b_id]));
+        t.SortChildren(root, |a_id, b_id| names[&a_id].cmp(&names[&b_id]));
         assert!(!t
             .pending_notices(root)
             .contains(NoticeFlags::CHILDREN_CHANGED));
@@ -2257,7 +2257,7 @@ mod tests {
             .collect();
 
         // Sort in reverse
-        t.sort_children(root, |a_id, b_id| names[&b_id].cmp(&names[&a_id]));
+        t.SortChildren(root, |a_id, b_id| names[&b_id].cmp(&names[&a_id]));
         assert_eq!(child_names(&t, root), vec!["c", "b", "a"]);
 
         // Verify reverse iteration also works
@@ -2275,7 +2275,7 @@ mod tests {
         /// A behavior that creates a control panel child.
         struct ControlCreator;
         impl PanelBehavior for ControlCreator {
-            fn create_control_panel(&mut self, ctx: &mut PanelCtx, name: &str) -> Option<PanelId> {
+            fn CreateControlPanel(&mut self, ctx: &mut PanelCtx, name: &str) -> Option<PanelId> {
                 Some(ctx.create_child(name))
             }
         }
@@ -2287,7 +2287,7 @@ mod tests {
         let child = t.create_child(root, "child");
         // child has no behavior, so create_control_panel should
         // walk up to root, which has ControlCreator.
-        let ctrl_id = t.create_control_panel(child, root, "ctrl")
+        let ctrl_id = t.CreateControlPanel(child, root, "ctrl")
             .expect("create_control_panel should succeed when root has ControlCreator");
         assert_eq!(t.name(ctrl_id), Some("ctrl"));
         // The control panel is created as a child of root (parent_arg).
@@ -2300,7 +2300,7 @@ mod tests {
         let root = t.create_root("root");
         let child = t.create_child(root, "child");
         // No behaviors at all -- should walk to root and return None
-        let result = t.create_control_panel(child, root, "ctrl");
+        let result = t.CreateControlPanel(child, root, "ctrl");
         assert!(result.is_none());
     }
 
@@ -2313,25 +2313,25 @@ mod tests {
 
         // Initial state
         assert_eq!(
-            t.get_auto_expansion_threshold_type(root),
+            t.GetAutoExpansionThresholdType(root),
             ViewConditionType::Area
         );
-        assert_eq!(t.get_auto_expansion_threshold_value(root), 150.0);
+        assert_eq!(t.GetAutoExpansionThresholdValue(root), 150.0);
 
         // Change threshold
-        t.set_auto_expansion_threshold(root, 100.0, ViewConditionType::Width);
+        t.SetAutoExpansionThreshold(root, 100.0, ViewConditionType::Width);
         assert_eq!(
-            t.get_auto_expansion_threshold_type(root),
+            t.GetAutoExpansionThresholdType(root),
             ViewConditionType::Width
         );
-        assert_eq!(t.get_auto_expansion_threshold_value(root), 100.0);
+        assert_eq!(t.GetAutoExpansionThresholdValue(root), 100.0);
 
         // Mark AE decision invalid on change
         assert!(t.get(root).unwrap().ae_decision_invalid);
 
         // No-op when values unchanged
         t.get_mut(root).unwrap().ae_decision_invalid = false;
-        t.set_auto_expansion_threshold(root, 100.0, ViewConditionType::Width);
+        t.SetAutoExpansionThreshold(root, 100.0, ViewConditionType::Width);
         assert!(!t.get(root).unwrap().ae_decision_invalid);
     }
 
@@ -2341,16 +2341,16 @@ mod tests {
         let root = t.create_root("r");
 
         // Not expanded => no effect
-        t.invalidate_auto_expansion(root);
+        t.InvalidateAutoExpansion(root);
         assert!(!t.get(root).unwrap().ae_invalid);
 
         // Expanded => marks invalid
         t.get_mut(root).unwrap().ae_expanded = true;
-        t.invalidate_auto_expansion(root);
+        t.InvalidateAutoExpansion(root);
         assert!(t.get(root).unwrap().ae_invalid);
 
         // Already invalid => still invalid (idempotent)
-        t.invalidate_auto_expansion(root);
+        t.InvalidateAutoExpansion(root);
         assert!(t.get(root).unwrap().ae_invalid);
     }
 
@@ -2360,25 +2360,25 @@ mod tests {
     fn test_get_view_condition() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        t.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         // Not viewed, not in viewed path => 0.0
-        assert_eq!(t.get_view_condition(root, ViewConditionType::Area), 0.0);
+        assert_eq!(t.GetViewCondition(root, ViewConditionType::Area), 0.0);
 
         // In viewed path but not viewed => 1e100
         t.get_mut(root).unwrap().in_viewed_path = true;
-        assert_eq!(t.get_view_condition(root, ViewConditionType::Area), 1e100);
+        assert_eq!(t.GetViewCondition(root, ViewConditionType::Area), 1e100);
 
         // Viewed => actual metric
         t.get_mut(root).unwrap().viewed = true;
         t.get_mut(root).unwrap().viewed_width = 800.0;
         t.get_mut(root).unwrap().viewed_height = 600.0;
 
-        assert!((t.get_view_condition(root, ViewConditionType::Area) - 480000.0).abs() < 1e-6);
-        assert!((t.get_view_condition(root, ViewConditionType::Width) - 800.0).abs() < 1e-6);
-        assert!((t.get_view_condition(root, ViewConditionType::Height) - 600.0).abs() < 1e-6);
-        assert!((t.get_view_condition(root, ViewConditionType::MinExt) - 600.0).abs() < 1e-6);
-        assert!((t.get_view_condition(root, ViewConditionType::MaxExt) - 800.0).abs() < 1e-6);
+        assert!((t.GetViewCondition(root, ViewConditionType::Area) - 480000.0).abs() < 1e-6);
+        assert!((t.GetViewCondition(root, ViewConditionType::Width) - 800.0).abs() < 1e-6);
+        assert!((t.GetViewCondition(root, ViewConditionType::Height) - 600.0).abs() < 1e-6);
+        assert!((t.GetViewCondition(root, ViewConditionType::MinExt) - 600.0).abs() < 1e-6);
+        assert!((t.GetViewCondition(root, ViewConditionType::MaxExt) - 800.0).abs() < 1e-6);
     }
 
     // ── Update priority tests ────────────────────────────────────────
@@ -2387,20 +2387,20 @@ mod tests {
     fn test_get_update_priority() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        t.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let vw = 800.0;
         let vh = 600.0;
 
         // Not viewed, not in path => 0.0
-        assert_eq!(t.get_update_priority(root, vw, vh, false), 0.0);
+        assert_eq!(t.GetUpdatePriority(root, vw, vh, false), 0.0);
 
         // In viewed path, not viewed, focused => 1.0
         t.get_mut(root).unwrap().in_viewed_path = true;
-        assert_eq!(t.get_update_priority(root, vw, vh, true), 1.0);
+        assert_eq!(t.GetUpdatePriority(root, vw, vh, true), 1.0);
 
         // In viewed path, not viewed, not focused => 0.5
-        assert_eq!(t.get_update_priority(root, vw, vh, false), 0.5);
+        assert_eq!(t.GetUpdatePriority(root, vw, vh, false), 0.5);
 
         // Viewed, centered clip => high priority
         t.get_mut(root).unwrap().viewed = true;
@@ -2409,8 +2409,8 @@ mod tests {
         t.get_mut(root).unwrap().clip_w = vw;
         t.get_mut(root).unwrap().clip_h = vh;
 
-        let p_focused = t.get_update_priority(root, vw, vh, true);
-        let p_unfocused = t.get_update_priority(root, vw, vh, false);
+        let p_focused = t.GetUpdatePriority(root, vw, vh, true);
+        let p_unfocused = t.GetUpdatePriority(root, vw, vh, false);
 
         // Focused should be ~0.5 higher
         assert!((p_focused - p_unfocused - 0.5).abs() < 0.01);
@@ -2420,7 +2420,7 @@ mod tests {
 
         // Degenerate clip => 0.0
         t.get_mut(root).unwrap().clip_w = 0.0;
-        assert_eq!(t.get_update_priority(root, vw, vh, false), 0.0);
+        assert_eq!(t.GetUpdatePriority(root, vw, vh, false), 0.0);
     }
 
     // ── Memory limit tests ───────────────────────────────────────────
@@ -2429,18 +2429,18 @@ mod tests {
     fn test_get_memory_limit() {
         let mut t = PanelTree::new();
         let root = t.create_root("r");
-        t.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
+        t.Layout(root, 0.0, 0.0, 1.0, 1.0);
 
         let vw = 800.0;
         let vh = 600.0;
         let max_user: u64 = 1_000_000;
 
         // Not in viewed path => 0
-        assert_eq!(t.get_memory_limit(root, vw, vh, max_user, None), 0);
+        assert_eq!(t.GetMemoryLimit(root, vw, vh, max_user, None), 0);
 
         // In viewed path but not viewed => max_per_panel
         t.get_mut(root).unwrap().in_viewed_path = true;
-        let limit = t.get_memory_limit(root, vw, vh, max_user, None);
+        let limit = t.GetMemoryLimit(root, vw, vh, max_user, None);
         assert_eq!(limit, (1_000_000.0 * 0.33) as u64);
 
         // Seeking panel => max_per_panel
@@ -2449,11 +2449,11 @@ mod tests {
         t.get_mut(root).unwrap().clip_y = 0.0;
         t.get_mut(root).unwrap().clip_w = vw;
         t.get_mut(root).unwrap().clip_h = vh;
-        let limit_seeking = t.get_memory_limit(root, vw, vh, max_user, Some(root));
+        let limit_seeking = t.GetMemoryLimit(root, vw, vh, max_user, Some(root));
         assert_eq!(limit_seeking, (1_000_000.0 * 0.33) as u64);
 
         // Full-viewport panel, not seeking => positive limit
-        let limit_viewed = t.get_memory_limit(root, vw, vh, max_user, None);
+        let limit_viewed = t.GetMemoryLimit(root, vw, vh, max_user, None);
         assert!(limit_viewed > 0);
         assert!(limit_viewed <= (1_000_000.0 * 0.33) as u64);
     }

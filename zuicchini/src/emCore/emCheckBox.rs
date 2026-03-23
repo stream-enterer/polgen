@@ -147,8 +147,8 @@ impl emCheckBox {
 
         // Paint face (InputBgColor).
         let face_color = self.look.input_bg_color;
-        painter.paint_round_rect(fx, fy, fw, fh, fr, face_color);
-        painter.set_canvas_color(face_color);
+        painter.PaintRoundRect(fx, fy, fw, fh, fr, face_color);
+        painter.SetCanvasColor(face_color);
 
         // Paint check symbol if checked (C++ PaintBoxSymbol, emButton.cpp:160-184).
         if self.checked {
@@ -161,7 +161,7 @@ impl emCheckBox {
             let mut stroke = emStroke::new(check_color, fw * 0.16);
             stroke.join = LineJoin::Round;
             stroke.cap = LineCap::Round;
-            painter.paint_solid_polyline(&verts, &stroke, false, emColor::TRANSPARENT);
+            painter.PaintSolidPolyline(&verts, &stroke, false, emColor::TRANSPARENT);
         }
 
         // Paint checkbox image overlay (C++ lines 318-331).
@@ -180,7 +180,7 @@ impl emCheckBox {
             // Outer hit-test radius: r = h * 0.2 (C++ line 276).
             let r = cr.h * 0.2;
             with_toolkit_images(|img| {
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -204,7 +204,7 @@ impl emCheckBox {
         // C++ DoButton: disabled gray overlay for boxed path.
         // PaintRoundRect(fx, fy, fw, fh, fr, fr, 0x888888E0).
         if !enabled {
-            painter.paint_round_rect(fx, fy, fw, fh, fr, emColor::rgba(0x88, 0x88, 0x88, 0xE0));
+            painter.PaintRoundRect(fx, fy, fw, fh, fr, emColor::rgba(0x88, 0x88, 0x88, 0xE0));
         }
     }
 

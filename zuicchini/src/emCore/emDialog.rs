@@ -252,15 +252,15 @@ mod tests {
         let res_clone = results.clone();
 
         let mut dlg = emDialog::new("Test", look);
-        dlg.add_button("OK", DialogResult::Ok);
-        dlg.add_button("Cancel", DialogResult::Cancel);
+        dlg.AddCustomButton("OK", DialogResult::Ok);
+        dlg.AddCustomButton("Cancel", DialogResult::Cancel);
         dlg.on_finish = Some(Box::new(move |r| {
             res_clone.borrow_mut().push(r.clone());
         }));
 
-        assert!(dlg.result().is_none());
-        dlg.finish(DialogResult::Ok);
-        assert_eq!(dlg.result(), Some(&DialogResult::Ok));
+        assert!(dlg.GetResult().is_none());
+        dlg.Finish(DialogResult::Ok);
+        assert_eq!(dlg.GetResult(), Some(&DialogResult::Ok));
         assert_eq!(*results.borrow(), vec![DialogResult::Ok]);
     }
 
@@ -270,20 +270,20 @@ mod tests {
         let mut dlg = emDialog::new("Veto", look);
         dlg.on_check_finish = Some(Box::new(|r| *r != DialogResult::Cancel));
 
-        dlg.finish(DialogResult::Cancel);
-        assert!(dlg.result().is_none(), "veto should prevent finish");
+        dlg.Finish(DialogResult::Cancel);
+        assert!(dlg.GetResult().is_none(), "veto should prevent finish");
 
-        dlg.finish(DialogResult::Ok);
-        assert_eq!(dlg.result(), Some(&DialogResult::Ok));
+        dlg.Finish(DialogResult::Ok);
+        assert_eq!(dlg.GetResult(), Some(&DialogResult::Ok));
     }
 
     #[test]
     fn dialog_custom_result() {
         let look = emLook::new();
         let mut dlg = emDialog::new("Custom", look);
-        dlg.add_button("Retry", DialogResult::Custom(42));
-        dlg.finish(DialogResult::Custom(42));
-        assert_eq!(dlg.result(), Some(&DialogResult::Custom(42)));
+        dlg.AddCustomButton("Retry", DialogResult::Custom(42));
+        dlg.Finish(DialogResult::Custom(42));
+        assert_eq!(dlg.GetResult(), Some(&DialogResult::Custom(42)));
     }
 
     #[test]
@@ -295,7 +295,7 @@ mod tests {
 
         let consumed = dlg.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
         assert!(consumed);
-        assert_eq!(dlg.result(), Some(&DialogResult::Ok));
+        assert_eq!(dlg.GetResult(), Some(&DialogResult::Ok));
     }
 
     #[test]
@@ -307,7 +307,7 @@ mod tests {
 
         let consumed = dlg.input(&emInputEvent::press(InputKey::Escape), &ps, &is);
         assert!(consumed);
-        assert_eq!(dlg.result(), Some(&DialogResult::Cancel));
+        assert_eq!(dlg.GetResult(), Some(&DialogResult::Cancel));
     }
 
     #[test]
@@ -321,7 +321,7 @@ mod tests {
         ev.ctrl = true;
         let consumed = dlg.input(&ev, &ps, &is);
         assert!(!consumed);
-        assert!(dlg.result().is_none());
+        assert!(dlg.GetResult().is_none());
     }
 
     #[test]
@@ -333,6 +333,6 @@ mod tests {
 
         let consumed = dlg.input(&emInputEvent::release(InputKey::Enter), &ps, &is);
         assert!(!consumed);
-        assert!(dlg.result().is_none());
+        assert!(dlg.GetResult().is_none());
     }
 }

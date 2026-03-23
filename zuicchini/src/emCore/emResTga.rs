@@ -111,12 +111,12 @@ mod tests {
         data.push(0x81); // RLE, count=2
         data.extend_from_slice(&[0x10, 0x20, 0x30, 0xFF]);
         let img = load_tga(&data).unwrap();
-        assert_eq!(img.width(), 2);
-        assert_eq!(img.height(), 1);
-        assert_eq!(img.channel_count(), 4);
+        assert_eq!(img.GetWidth(), 2);
+        assert_eq!(img.GetHeight(), 1);
+        assert_eq!(img.GetChannelCount(), 4);
         // Should be RGBA
-        assert_eq!(img.pixel(0, 0), &[0x30, 0x20, 0x10, 0xFF]);
-        assert_eq!(img.pixel(1, 0), &[0x30, 0x20, 0x10, 0xFF]);
+        assert_eq!(img.GetPixel(0, 0), &[0x30, 0x20, 0x10, 0xFF]);
+        assert_eq!(img.GetPixel(1, 0), &[0x30, 0x20, 0x10, 0xFF]);
     }
 
     #[test]
@@ -126,10 +126,10 @@ mod tests {
         data.push(0x02); // raw, count=3
         data.extend_from_slice(&[100, 150, 200]);
         let img = load_tga(&data).unwrap();
-        assert_eq!(img.channel_count(), 1);
-        assert_eq!(img.pixel(0, 0), &[100]);
-        assert_eq!(img.pixel(1, 0), &[150]);
-        assert_eq!(img.pixel(2, 0), &[200]);
+        assert_eq!(img.GetChannelCount(), 1);
+        assert_eq!(img.GetPixel(0, 0), &[100]);
+        assert_eq!(img.GetPixel(1, 0), &[150]);
+        assert_eq!(img.GetPixel(2, 0), &[200]);
     }
 
     #[test]

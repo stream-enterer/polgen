@@ -328,7 +328,7 @@ impl emColorField {
                 } else if let Some(tfp) = behavior.as_any().downcast_ref::<TextFieldPanel>() {
                     let exp = self.expansion.as_mut().unwrap();
                     if name == "n" {
-                        exp.tf_name = tfp.text_field.text().to_string();
+                        exp.tf_name = tfp.text_field.GetText().to_string();
                     }
                 }
                 ctx.tree.put_behavior(child_id, behavior);
@@ -413,14 +413,14 @@ impl emColorField {
         // PaintRect so the painter can optimise edge blending. When the color is
         // NOT opaque, canvasColor is reset to 0 after painting the "transparent"
         // text (see C++ line 393).
-        let mut canvas_color = painter.canvas_color();
+        let mut canvas_color = painter.GetCanvasColor();
         if !self.color.IsOpaque() {
             let text_color = if self.editable {
                 self.look.input_fg_color
             } else {
                 self.look.output_fg_color
             };
-            painter.paint_text_boxed(
+            painter.PaintTextBoxed(
                 rx, ry, rw, rh,
                 "transparent",
                 cr.h,
@@ -437,7 +437,7 @@ impl emColorField {
         }
 
         // Paint color rect.
-        painter.paint_rect(rx, ry, rw, rh, self.color, canvas_color);
+        painter.PaintRect(rx, ry, rw, rh, self.color, canvas_color);
 
         // Paint rect outline (C++ PaintRectOutline defaults to canvasColor=0).
         // C++ PaintRectOutline uses a 10-vertex polygon (outer + bridge + inner).
@@ -448,13 +448,13 @@ impl emColorField {
             let t2 = thickness * 0.5;
             let oc = self.look.input_fg_color;
             // Top
-            painter.paint_rect(rx - t2, ry - t2, rw + thickness, thickness, oc, emColor::TRANSPARENT);
+            painter.PaintRect(rx - t2, ry - t2, rw + thickness, thickness, oc, emColor::TRANSPARENT);
             // Bottom
-            painter.paint_rect(rx - t2, ry + rh - t2, rw + thickness, thickness, oc, emColor::TRANSPARENT);
+            painter.PaintRect(rx - t2, ry + rh - t2, rw + thickness, thickness, oc, emColor::TRANSPARENT);
             // Left
-            painter.paint_rect(rx - t2, ry + t2, thickness, (rh - thickness).max(0.0), oc, emColor::TRANSPARENT);
+            painter.PaintRect(rx - t2, ry + t2, thickness, (rh - thickness).max(0.0), oc, emColor::TRANSPARENT);
             // Right
-            painter.paint_rect(rx + rw - t2, ry + t2, thickness, (rh - thickness).max(0.0), oc, emColor::TRANSPARENT);
+            painter.PaintRect(rx + rw - t2, ry + t2, thickness, (rh - thickness).max(0.0), oc, emColor::TRANSPARENT);
         }
 
         // C++ paints content, THEN overlays the IO field border image.
@@ -590,7 +590,7 @@ impl emColorField {
 
         // C++ UpdateExpAppearance: SfAlpha->SetEnableSwitch(AlphaEnabled)
         if !self.alpha_enabled {
-            ctx.tree.set_enable_switch(alpha_id, false);
+            ctx.tree.SetEnableSwitch(alpha_id, false);
         }
 
         // Hue field: different intervals, text formatter, and tallness.
@@ -649,7 +649,7 @@ impl emColorField {
     /// creates them via `create_expansion_children`, matching the pattern
     /// used by other widgets (e.g. `emCoreConfigPanel`).
     pub fn layout_children(&mut self, ctx: &mut PanelCtx, w: f64, h: f64) {
-        if ctx.tree.is_auto_expanded(ctx.id) && ctx.child_count() == 0 {
+        if ctx.tree.IsAutoExpanded(ctx.id) && ctx.child_count() == 0 {
             self.create_expansion_children(ctx);
         }
 
@@ -744,8 +744,8 @@ mod tests {
     fn set_and_get_color() {
         let look = emLook::new();
         let mut cf = emColorField::new(look);
-        cf.set_color(emColor::RED);
-        assert_eq!(cf.color(), emColor::RED);
+        cf.SetColor(emColor::RED);
+        assert_eq!(cf.GetColor(), emColor::RED);
     }
 
     #[test]
@@ -770,7 +770,7 @@ mod tests {
     fn expansion_rgba_values_match_color() {
         let look = emLook::new();
         let mut cf = emColorField::new(look);
-        cf.set_color(emColor::rgba(100, 150, 200, 255));
+        cf.SetColor(emColor::rgba(100, 150, 200, 255));
         cf.set_expanded(true);
         let exp = cf.expansion().expect("expanded");
         // r=100 → (100 * 10000 + 127) / 255 = 3922
@@ -784,13 +784,13 @@ mod tests {
     fn cycle_rgba_change() {
         let look = emLook::new();
         let mut cf = emColorField::new(look);
-        cf.set_color(emColor::BLACK);
+        cf.SetColor(emColor::BLACK);
         cf.set_expanded(true);
         // Modify red via expansion
         cf.expansion_mut().unwrap().sf_red = 5000; // ~50% = 127
         assert!(cf.cycle());
         // emColor should have updated red channel
-        let r = cf.color().GetRed();
+        let r = cf.GetColor().GetRed();
         assert!((r as i64 - 127).abs() <= 1, "expected ~127, got {}", r);
     }
 
@@ -798,7 +798,7 @@ mod tests {
     fn cycle_hsv_change() {
         let look = emLook::new();
         let mut cf = emColorField::new(look);
-        cf.set_color(emColor::BLACK);
+        cf.SetColor(emColor::BLACK);
         cf.set_expanded(true);
         // Set via HSV: hue=0 (red), sat=100%, val=100%
         let exp = cf.expansion_mut().unwrap();
@@ -807,9 +807,9 @@ mod tests {
         exp.sf_val = 10000;
         assert!(cf.cycle());
         // Should be red
-        assert_eq!(cf.color().GetRed(), 255);
-        assert!(cf.color().GetGreen() < 5);
-        assert!(cf.color().GetBlue() < 5);
+        assert_eq!(cf.GetColor().GetRed(), 255);
+        assert!(cf.GetColor().GetGreen() < 5);
+        assert!(cf.GetColor().GetBlue() < 5);
     }
 
     #[test]
@@ -819,14 +819,14 @@ mod tests {
         cf.set_expanded(true);
         cf.expansion_mut().unwrap().tf_name = "#FF0000".to_string();
         assert!(cf.cycle());
-        assert_eq!(cf.color(), emColor::rgba(255, 0, 0, 255));
+        assert_eq!(cf.GetColor(), emColor::rgba(255, 0, 0, 255));
     }
 
     #[test]
     fn update_name_output_hex_format() {
         let look = emLook::new();
         let mut cf = emColorField::new(look);
-        cf.set_color(emColor::rgba(0xAB, 0xCD, 0xEF, 0xFF));
+        cf.SetColor(emColor::rgba(0xAB, 0xCD, 0xEF, 0xFF));
         cf.set_expanded(true);
         let exp = cf.expansion().unwrap();
         assert_eq!(exp.tf_name, "#ABCDEF");
@@ -836,11 +836,11 @@ mod tests {
     fn update_hsv_preserves_hue_at_black() {
         let look = emLook::new();
         let mut cf = emColorField::new(look);
-        cf.set_color(emColor::rgba(255, 0, 0, 255)); // Red
+        cf.SetColor(emColor::rgba(255, 0, 0, 255)); // Red
         cf.set_expanded(true);
         let hue_before = cf.expansion().unwrap().sf_hue;
         // Now set to black via RGBA
-        cf.set_color(emColor::BLACK);
+        cf.SetColor(emColor::BLACK);
         // Hue should be preserved (not reset to 0) because v=0
         let hue_after = cf.expansion().unwrap().sf_hue;
         assert_eq!(hue_before, hue_after);

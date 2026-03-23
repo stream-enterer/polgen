@@ -157,10 +157,10 @@ bitflags! {
 /// only the methods they need.
 pub trait PanelBehavior: AsAny {
     /// Paint the panel's content.
-    fn paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
+    fn Paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {}
 
     /// Handle an input event. Returns true if the event was consumed.
-    fn input(
+    fn Input(
         &mut self,
         _event: &emInputEvent,
         _state: &PanelState,
@@ -170,17 +170,17 @@ pub trait PanelBehavior: AsAny {
     }
 
     /// Get the cursor to display when the mouse is over this panel.
-    fn get_cursor(&self) -> emCursor {
+    fn GetCursor(&self) -> emCursor {
         emCursor::Normal
     }
 
     /// Whether this panel is fully opaque (no need to paint panels behind it).
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         false
     }
 
     /// Layout child panels. Called when the panel's layout rect changes.
-    fn layout_children(&mut self, _ctx: &mut PanelCtx) {}
+    fn LayoutChildren(&mut self, _ctx: &mut PanelCtx) {}
 
     /// Receive a notice about state changes.
     fn notice(&mut self, _flags: NoticeFlags, _state: &PanelState) {}
@@ -206,7 +206,7 @@ pub trait PanelBehavior: AsAny {
     }
 
     /// Get the canvas color for this panel (used for canvas blending).
-    fn canvas_color(&self) -> emColor {
+    fn GetCanvasColor(&self) -> emColor {
         emColor::TRANSPARENT
     }
 
@@ -223,7 +223,7 @@ pub trait PanelBehavior: AsAny {
     ///
     /// The tree walks up the parent chain; the root returns `""` if no
     /// behavior along the chain provides an icon filename.
-    fn get_icon_file_name(&self) -> Option<String> {
+    fn GetIconFileName(&self) -> Option<String> {
         None
     }
 
@@ -231,20 +231,20 @@ pub trait PanelBehavior: AsAny {
     ///
     /// The default returns `PlaybackState { playing: false, pos: 0.0,
     /// supported: false }`.
-    fn get_playback_state(&self) -> PlaybackState {
+    fn GetPlaybackState(&self) -> PlaybackState {
         PlaybackState::default()
     }
 
     /// Attempt to set the playback state. Returns `true` if the panel
     /// supports playback and accepted the new state.
-    fn set_playback_state(&mut self, _playing: bool, _pos: f64) -> bool {
+    fn SetPlaybackState(&mut self, _playing: bool, _pos: f64) -> bool {
         false
     }
 
     /// Whether this panel has hope that a seeking operation can succeed.
     ///
     /// The default returns `false`.
-    fn is_hope_for_seeking(&self) -> bool {
+    fn IsHopeForSeeking(&self) -> bool {
         false
     }
 
@@ -261,7 +261,7 @@ pub trait PanelBehavior: AsAny {
     ///
     /// Return the new panel's id, or `None` to delegate to the parent
     /// (the tree walks up the parent chain; the root returns `None`).
-    fn create_control_panel(&mut self, _parent_ctx: &mut PanelCtx, _name: &str) -> Option<PanelId> {
+    fn CreateControlPanel(&mut self, _parent_ctx: &mut PanelCtx, _name: &str) -> Option<PanelId> {
         None
     }
 
@@ -270,7 +270,7 @@ pub trait PanelBehavior: AsAny {
     /// Corresponds to the C++ `emPanel::Cycle` protected virtual (inherited
     /// from `emEngine`). The default implementation does nothing and returns
     /// `false`.
-    fn cycle(&mut self, _ctx: &mut PanelCtx) -> bool {
+    fn Cycle(&mut self, _ctx: &mut PanelCtx) -> bool {
         false
     }
 

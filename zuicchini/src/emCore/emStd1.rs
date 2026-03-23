@@ -71,33 +71,33 @@ mod tests {
 
     #[test]
     fn toggle_dlog() {
-        assert!(!is_dlog_enabled());
-        set_dlog_enabled(true);
-        assert!(is_dlog_enabled());
-        set_dlog_enabled(false);
-        assert!(!is_dlog_enabled());
+        assert!(!emIsDLogEnabled());
+        emEnableDLog(true);
+        assert!(emIsDLogEnabled());
+        emEnableDLog(false);
+        assert!(!emIsDLogEnabled());
     }
 
     #[test]
     fn dlog_macro_fires_when_enabled() {
-        set_dlog_enabled(true);
+        emEnableDLog(true);
         // Should output to stderr without panicking
         dlog!("test message: {}", 42);
-        set_dlog_enabled(false);
+        emEnableDLog(false);
         // Should be a no-op when disabled
         dlog!("this should not appear");
     }
 
     #[test]
     fn dlog_capture_stderr_output() {
-        set_dlog_enabled(true);
+        emEnableDLog(true);
         start_capture();
 
         dlog!("captured line {}", 1);
         dlog!("captured line {}", 2);
 
         let lines = stop_capture();
-        set_dlog_enabled(false);
+        emEnableDLog(false);
 
         assert_eq!(lines.len(), 2);
         assert!(lines[0].contains("captured line 1"));

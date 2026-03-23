@@ -31,25 +31,25 @@ impl emErrorPanel {
 
 impl PanelBehavior for emErrorPanel {
     // DIVERGED: IsOpaque — implemented as PanelBehavior::is_opaque trait method
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn canvas_color(&self) -> emColor {
+    fn GetCanvasColor(&self) -> emColor {
         BG_COLOR
     }
 
     // DIVERGED: Paint — implemented as PanelBehavior::paint trait method
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        let canvas_color = painter.canvas_color();
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        let canvas_color = painter.GetCanvasColor();
 
-        painter.paint_rect(0.0, 0.0, w, h, BG_COLOR, canvas_color);
+        painter.PaintRect(0.0, 0.0, w, h, BG_COLOR, canvas_color);
 
         if self.error_message.is_empty() {
             return;
         }
 
-        painter.paint_text_boxed(
+        painter.PaintTextBoxed(
             0.05 * w,
             0.05 * h,
             0.9 * w,
@@ -83,12 +83,12 @@ mod tests {
     #[test]
     fn error_panel_is_opaque() {
         let panel = emErrorPanel::new("error");
-        assert!(panel.is_opaque());
+        assert!(panel.IsOpaque());
     }
 
     #[test]
     fn error_panel_canvas_color() {
         let panel = emErrorPanel::new("error");
-        assert_eq!(panel.canvas_color(), BG_COLOR);
+        assert_eq!(panel.GetCanvasColor(), BG_COLOR);
     }
 }

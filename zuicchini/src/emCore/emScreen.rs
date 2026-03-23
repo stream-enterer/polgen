@@ -102,7 +102,7 @@ impl emScreen {
     /// scale_factor to compute logical DPI. Returns 96.0 as the base DPI
     /// multiplied by the scale factor, following the convention that 1.0 scale
     /// = 96 DPI.
-    pub fn get_dpi(&self) -> f64 {
+    pub fn GetDPI(&self) -> f64 {
         let scale = self.primary().map(|m| m.scale_factor).unwrap_or(1.0);
         96.0 * scale
     }
@@ -111,26 +111,26 @@ impl emScreen {
     ///
     /// Matches C++ emScreen::CanMoveMousePointer. Returns true on X11
     /// where winit's set_cursor_position is supported.
-    pub fn can_move_mouse_pointer(&self) -> bool {
+    pub fn CanMoveMousePointer(&self) -> bool {
         self.can_warp
     }
 
     /// Move the mouse pointer by (dx, dy) pixels.
     ///
     /// Matches C++ emScreen::MoveMousePointer. No-op; winit limitation.
-    pub fn move_mouse_pointer(&self, _dx: f64, _dy: f64) {
+    pub fn MoveMousePointer(&self, _dx: f64, _dy: f64) {
         // Not supported by winit core. See ZuiWindow::move_mouse_pointer.
     }
 
     /// Emit an acoustic warning beep via libcanberra (Linux) or no-op (other).
     ///
     /// Matches C++ emScreen::Beep.
-    pub fn beep(&self) {
+    pub fn Beep(&self) {
         super::emWindowPlatform::system_beep();
     }
 
     /// Find the monitor with maximum overlap area with the given rect.
-    pub fn monitor_index_of_rect(&self, x: i32, y: i32, w: u32, h: u32) -> Option<usize> {
+    pub fn GetMonitorIndexOfRect(&self, x: i32, y: i32, w: u32, h: u32) -> Option<usize> {
         let rx1 = x as i64;
         let ry1 = y as i64;
         let rx2 = rx1 + w as i64;
@@ -162,21 +162,21 @@ impl emScreen {
     ///
     /// Matches C++ emScreen::LookupInherited. The screen is registered
     /// under the type `emScreen` with name `""`.
-    pub fn lookup_inherited(context: &emContext) -> Option<Rc<RefCell<emScreen>>> {
+    pub fn LookupInherited(context: &emContext) -> Option<Rc<RefCell<emScreen>>> {
         context.LookupInherited::<emScreen>("")
     }
 
     /// Signal fired when monitor geometry (bounds, DPI, count) changes.
     ///
     /// Matches C++ emScreen::GetGeometrySignal.
-    pub fn geometry_signal(&self) -> SignalId {
+    pub fn GetGeometrySignal(&self) -> SignalId {
         self.geometry_signal
     }
 
     /// Signal fired when the set of open windows changes.
     ///
     /// Matches C++ emScreen::GetWindowsSignal.
-    pub fn windows_signal(&self) -> SignalId {
+    pub fn GetWindowsSignal(&self) -> SignalId {
         self.windows_signal
     }
 
@@ -185,7 +185,7 @@ impl emScreen {
     ///
     /// Matches C++ emScreen::Install (protected). Should be called once
     /// on the root context at startup.
-    pub fn install(screen: Rc<RefCell<emScreen>>, context: &emContext) {
+    pub fn Install(screen: Rc<RefCell<emScreen>>, context: &emContext) {
         context.register_model::<emScreen>("", screen);
     }
 
@@ -194,7 +194,7 @@ impl emScreen {
     /// Matches C++ emScreen::SignalGeometrySignal (protected).
     /// The caller must pass this signal ID to the scheduler to actually
     /// fire it.
-    pub fn signal_geometry_signal(&self) -> SignalId {
+    pub fn SignalGeometrySignal(&self) -> SignalId {
         self.geometry_signal
     }
 
@@ -203,11 +203,11 @@ impl emScreen {
     /// Matches C++ emScreen::CreateWindowPort (pure virtual, protected).
     /// In zuicchini the window port is created directly by `ZuiWindow::create`,
     /// so this is a no-op placeholder for API parity.
-    pub fn create_window_port(&self) {
+    pub fn CreateWindowPort(&self) {
         // No-op: window ports are created inline by ZuiWindow::create.
     }
 
-    pub fn leave_fullscreen_modes(
+    pub fn LeaveFullscreenModes(
         &self,
         windows: &mut std::collections::HashMap<
             winit::window::WindowId,
@@ -219,7 +219,7 @@ impl emScreen {
 
         for (id, win) in windows.iter_mut() {
             if win.flags.contains(WindowFlags::FULLSCREEN) && Some(*id) != except {
-                win.set_window_flags(win.flags & !WindowFlags::FULLSCREEN);
+                win.SetWindowFlags(win.flags & !WindowFlags::FULLSCREEN);
             }
         }
     }
@@ -253,7 +253,7 @@ mod tests {
             scale_factor: 1.0,
             primary: true,
         }]);
-        assert_eq!(screen.monitor_index_of_rect(100, 100, 200, 200), Some(0));
+        assert_eq!(screen.GetMonitorIndexOfRect(100, 100, 200, 200), Some(0));
     }
 
     #[test]
@@ -275,9 +275,9 @@ mod tests {
             },
         ]);
         // Mostly on monitor 1 (right)
-        assert_eq!(screen.monitor_index_of_rect(1900, 0, 200, 100), Some(1));
+        assert_eq!(screen.GetMonitorIndexOfRect(1900, 0, 200, 100), Some(1));
         // Mostly on monitor 0 (left)
-        assert_eq!(screen.monitor_index_of_rect(1800, 0, 200, 100), Some(0));
+        assert_eq!(screen.GetMonitorIndexOfRect(1800, 0, 200, 100), Some(0));
     }
 
     #[test]
@@ -289,12 +289,12 @@ mod tests {
             scale_factor: 1.0,
             primary: true,
         }]);
-        assert_eq!(screen.monitor_index_of_rect(2000, 2000, 100, 100), None);
+        assert_eq!(screen.GetMonitorIndexOfRect(2000, 2000, 100, 100), None);
     }
 
     #[test]
     fn monitor_index_of_rect_empty_monitors() {
         let screen = make_screen(vec![]);
-        assert_eq!(screen.monitor_index_of_rect(0, 0, 100, 100), None);
+        assert_eq!(screen.GetMonitorIndexOfRect(0, 0, 100, 100), None);
     }
 }

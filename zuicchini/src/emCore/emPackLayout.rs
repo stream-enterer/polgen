@@ -168,7 +168,7 @@ impl Default for emPackLayout {
 }
 
 impl PanelBehavior for emPackLayout {
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         self.do_layout(ctx);
     }
 
@@ -593,7 +593,7 @@ mod tests {
     fn setup(n: usize, w: f64, h: f64) -> (PanelTree, PanelId, Vec<PanelId>) {
         let mut tree = PanelTree::new();
         let root = tree.create_root("root");
-        tree.set_layout_rect(root, 0.0, 0.0, w, h);
+        tree.Layout(root, 0.0, 0.0, w, h);
         let mut children = Vec::new();
         for i in 0..n {
             children.push(tree.create_child(root, &format!("c{i}")));

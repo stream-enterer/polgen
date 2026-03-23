@@ -162,7 +162,7 @@ impl emFilePanel {
     /// Derived panels should check `vir_file_state().is_good()` and render
     /// their content instead of calling this method when the state is good.
     pub fn paint_status(&self, painter: &mut emPainter, w: f64, h: f64) {
-        let canvas_color = painter.canvas_color();
+        let canvas_color = painter.GetCanvasColor();
         let vfs = self.GetVirFileState();
 
         match &vfs {
@@ -229,8 +229,8 @@ impl emFilePanel {
             }
             VirtualFileState::LoadError(ref _e) => {
                 let bg = emColor::rgb(128, 0, 0);
-                painter.paint_rect(0.0, 0.0, w, h, bg, canvas_color);
-                painter.paint_text_boxed(
+                painter.PaintRect(0.0, 0.0, w, h, bg, canvas_color);
+                painter.PaintTextBoxed(
                     0.05 * w,
                     h * 0.15,
                     0.9 * w,
@@ -246,7 +246,7 @@ impl emFilePanel {
                     false,
                     0.0,
                 );
-                painter.paint_text_boxed(
+                painter.PaintTextBoxed(
                     0.05 * w,
                     h * 0.3,
                     0.9 * w,
@@ -265,8 +265,8 @@ impl emFilePanel {
             }
             VirtualFileState::SaveError(ref _e) => {
                 let bg = emColor::rgb(128, 0, 0);
-                painter.paint_rect(0.0, 0.0, w, h, bg, canvas_color);
-                painter.paint_text_boxed(
+                painter.PaintRect(0.0, 0.0, w, h, bg, canvas_color);
+                painter.PaintTextBoxed(
                     0.05 * w,
                     h * 0.15,
                     0.9 * w,
@@ -282,7 +282,7 @@ impl emFilePanel {
                     false,
                     0.0,
                 );
-                painter.paint_text_boxed(
+                painter.PaintTextBoxed(
                     0.05 * w,
                     h * 0.5,
                     0.9 * w,
@@ -301,8 +301,8 @@ impl emFilePanel {
             }
             VirtualFileState::CustomError(ref msg) => {
                 let bg = emColor::rgb(128, 0, 0);
-                painter.paint_rect(0.0, 0.0, w, h, bg, canvas_color);
-                painter.paint_text_boxed(
+                painter.PaintRect(0.0, 0.0, w, h, bg, canvas_color);
+                painter.PaintTextBoxed(
                     0.05 * w,
                     h * 0.15,
                     0.9 * w,
@@ -318,7 +318,7 @@ impl emFilePanel {
                     false,
                     0.0,
                 );
-                painter.paint_text_boxed(
+                painter.PaintTextBoxed(
                     0.05 * w,
                     h * 0.45,
                     0.9 * w,
@@ -359,7 +359,7 @@ fn paint_status_text(
     color: emColor,
     canvas_color: emColor,
 ) {
-    painter.paint_text_boxed(
+    painter.PaintTextBoxed(
         0.0,
         0.0,
         w,
@@ -378,7 +378,7 @@ fn paint_status_text(
 }
 
 impl PanelBehavior for emFilePanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         matches!(
             self.GetVirFileState(),
             VirtualFileState::LoadError(_)
@@ -387,7 +387,7 @@ impl PanelBehavior for emFilePanel {
         )
     }
 
-    fn canvas_color(&self) -> emColor {
+    fn GetCanvasColor(&self) -> emColor {
         match self.GetVirFileState() {
             VirtualFileState::LoadError(_)
             | VirtualFileState::SaveError(_)
@@ -396,11 +396,11 @@ impl PanelBehavior for emFilePanel {
         }
     }
 
-    fn get_icon_file_name(&self) -> Option<String> {
+    fn GetIconFileName(&self) -> Option<String> {
         Some("file.tga".to_string())
     }
 
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.paint_status(painter, w, h);
     }
 }
@@ -412,13 +412,13 @@ mod tests {
     #[test]
     fn vfs_no_model() {
         let panel = emFilePanel::new();
-        assert_eq!(panel.vir_file_state(), VirtualFileState::NoFileModel);
+        assert_eq!(panel.GetVirFileState(), VirtualFileState::NoFileModel);
     }
 
     #[test]
     fn vfs_with_model_waiting() {
         let panel = emFilePanel::with_model();
-        assert_eq!(panel.vir_file_state(), VirtualFileState::Waiting);
+        assert_eq!(panel.GetVirFileState(), VirtualFileState::Waiting);
     }
 
     #[test]
@@ -427,11 +427,11 @@ mod tests {
         panel.set_file_state(FileState::Loaded);
         panel.set_custom_error("custom problem");
         assert_eq!(
-            panel.vir_file_state(),
+            panel.GetVirFileState(),
             VirtualFileState::CustomError("custom problem".to_string())
         );
         panel.clear_custom_error();
-        assert_eq!(panel.vir_file_state(), VirtualFileState::Loaded);
+        assert_eq!(panel.GetVirFileState(), VirtualFileState::Loaded);
     }
 
     #[test]
@@ -440,30 +440,30 @@ mod tests {
         panel.set_file_state(FileState::Loaded);
         panel.set_memory_need(1000);
         panel.set_memory_limit(500);
-        assert_eq!(panel.vir_file_state(), VirtualFileState::TooCostly);
+        assert_eq!(panel.GetVirFileState(), VirtualFileState::TooCostly);
     }
 
     #[test]
     fn vfs_good_states() {
         let mut panel = emFilePanel::with_model();
         panel.set_file_state(FileState::Loaded);
-        assert!(panel.vir_file_state().is_good());
+        assert!(panel.GetVirFileState().is_good());
 
         panel.set_file_state(FileState::Unsaved);
-        assert!(panel.vir_file_state().is_good());
+        assert!(panel.GetVirFileState().is_good());
 
         panel.set_file_state(FileState::Waiting);
-        assert!(!panel.vir_file_state().is_good());
+        assert!(!panel.GetVirFileState().is_good());
     }
 
     #[test]
     fn is_opaque_for_errors() {
         let mut panel = emFilePanel::with_model();
         panel.set_file_state(FileState::LoadError("err".to_string()));
-        assert!(panel.is_opaque());
+        assert!(panel.IsOpaque());
 
         panel.set_file_state(FileState::Loaded);
-        assert!(!panel.is_opaque());
+        assert!(!panel.IsOpaque());
     }
 
     #[test]

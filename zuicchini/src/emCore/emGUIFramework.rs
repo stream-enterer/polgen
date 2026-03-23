@@ -188,7 +188,7 @@ impl ApplicationHandler for App {
             }
             WindowEvent::Focused(focused) => {
                 if let Some(win) = self.windows.get_mut(&window_id) {
-                    win.view_mut().set_window_focused(&mut self.tree, focused);
+                    win.view_mut().SetFocused(&mut self.tree, focused);
                     win.invalidate();
                     win.request_redraw();
                 }
@@ -251,14 +251,14 @@ impl ApplicationHandler for App {
         self.tree.run_panel_cycles();
 
         // Deliver notices (includes layout dispatch)
-        let window_focused = self.windows.values().any(|w| w.view().window_focused());
+        let window_focused = self.windows.values().any(|w| w.view().IsFocused());
         let pixel_tallness = self
             .windows
             .values()
             .next()
-            .map(|w| w.view().pixel_tallness())
+            .map(|w| w.view().GetCurrentPixelTallness())
             .unwrap_or(1.0);
-        let had_notices = self.tree.deliver_notices(window_focused, pixel_tallness);
+        let had_notices = self.tree.HandleNotice(window_focused, pixel_tallness);
 
         // Update views and tick animators
         let now = Instant::now();
@@ -305,8 +305,8 @@ impl ApplicationHandler for App {
 
                 // Create new control panel in the control tree.
                 // Extract active panel from view first to avoid borrow conflict.
-                let active = win.view().active();
-                let control_root = win.control_view.root();
+                let active = win.view().GetActivePanel();
+                let control_root = win.control_view.GetRootPanel();
                 let new_id = active.and_then(|active_id| {
                     tree.create_control_panel_in(
                         active_id,
@@ -331,7 +331,7 @@ impl ApplicationHandler for App {
             // Deliver notices for control tree
             if win.control_strip_height > 0 {
                 win.control_tree
-                    .deliver_notices(window_focused, pixel_tallness);
+                    .HandleNotice(window_focused, pixel_tallness);
                 win.control_view.update(&mut win.control_tree);
             }
 
@@ -340,8 +340,8 @@ impl ApplicationHandler for App {
             // matches C++ emCore where Input() is called for all viewed
             // panels on every frame, and emTextField invalidates itself
             // when the blink timer fires.
-            if let Some(active_id) = win.view().active() {
-                win.view_mut().invalidate_painting(tree, active_id);
+            if let Some(active_id) = win.view().GetActivePanel() {
+                win.view_mut().InvalidatePainting(tree, active_id);
             }
 
             // Check for pending dirty rects from invalidate_painting calls.
@@ -352,8 +352,8 @@ impl ApplicationHandler for App {
                 let dirty = win.view_mut().take_dirty_clip_rects();
                 log::trace!(
                     "dirty clip rects: {} regions, bounds {:?}",
-                    dirty.count(),
-                    dirty.get_min_max()
+                    dirty.GetCount(),
+                    dirty.GetMinMax()
                 );
                 for r in dirty.iter() {
                     win.mark_dirty_rect(r.x1, r.y1, r.x2, r.y2);

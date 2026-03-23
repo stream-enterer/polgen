@@ -311,7 +311,7 @@ impl emScalarField {
         }
         self.border
             .paint_border(painter, w, h, &self.look, false, enabled, 1.0);
-        let canvas_color = painter.canvas_color();
+        let canvas_color = painter.GetCanvasColor();
 
         let (content, radius) = self.border.GetContentRoundRect(w, h, &self.look);
         let Rect { x, y, w: cw, h: ch } = content;
@@ -403,10 +403,10 @@ impl emScalarField {
         // Side bars — C++: col = bgCol.GetBlended(fgCol, 25)
         let side_col = bg_col.GetBlended(fg_col, 0.25);
         if ax > rx {
-            painter.paint_rect(rx, ry, ax - rx, rh, side_col, canvas_color);
+            painter.PaintRect(rx, ry, ax - rx, rh, side_col, canvas_color);
         }
         if ax + aw < rx + rw {
-            painter.paint_rect(ax + aw, ry, rx + rw - ax - aw, rh, side_col, canvas_color);
+            painter.PaintRect(ax + aw, ry, rx + rw - ax - aw, rh, side_col, canvas_color);
         }
 
         // Value arrow polygon (5-point downward arrow)
@@ -425,7 +425,7 @@ impl emScalarField {
             (tx, ay + ah),
             (tx - e, ay + ah - e),
         ];
-        painter.paint_polygon(&arrow, fg_col, emColor::TRANSPARENT);
+        painter.PaintPolygon(&arrow, fg_col, emColor::TRANSPARENT);
 
         // Scale marks with text labels and small arrows.
         // C++ emScalarField.cpp lines 438-473.
@@ -449,8 +449,8 @@ impl emScalarField {
 
                 // C++ clip-region culling: only iterate marks within visible area.
                 let interval = ival as f64;
-                let mut x3 = painter.get_user_clip_x1() - tw * 0.5;
-                let mut w3 = painter.get_user_clip_x2() + tw * 0.5 - x3;
+                let mut x3 = painter.GetUserClipX1() - tw * 0.5;
+                let mut w3 = painter.GetUserClipX2() + tw * 0.5 - x3;
                 if x3 < ax {
                     x3 = ax;
                 }
@@ -468,7 +468,7 @@ impl emScalarField {
                     // Text label
                     let label = (self.text_of_value_fn)(v as i64, ival);
                     // C++ PaintTextBoxed defaults: minWidthScale=0.5, formatted=true.
-                    painter.paint_text_boxed(
+                    painter.PaintTextBoxed(
                         mark_tx - tw * 0.5,
                         mark_ty,
                         tw,
@@ -491,7 +491,7 @@ impl emScalarField {
                         (mark_tx + h5 * 0.5, mark_ty + h4),
                         (mark_tx, mark_ty + h4 + h5),
                     ];
-                    painter.paint_polygon(&mini_arrow, mark_col, emColor::TRANSPARENT);
+                    painter.PaintPolygon(&mini_arrow, mark_col, emColor::TRANSPARENT);
 
                     k += 1;
                 }
@@ -774,21 +774,21 @@ mod tests {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
 
-        sf.set_value(50.0);
-        assert!((sf.value() - 50.0).abs() < 0.001);
+        sf.SetValue(50.0);
+        assert!((sf.GetValue() - 50.0).abs() < 0.001);
 
-        sf.set_value(-10.0);
-        assert!((sf.value() - 0.0).abs() < 0.001);
+        sf.SetValue(-10.0);
+        assert!((sf.GetValue() - 0.0).abs() < 0.001);
 
-        sf.set_value(200.0);
-        assert!((sf.value() - 100.0).abs() < 0.001);
+        sf.SetValue(200.0);
+        assert!((sf.GetValue() - 100.0).abs() < 0.001);
     }
 
     #[test]
     fn arrow_key_stepping() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_value(50.0);
+        sf.SetValue(50.0);
 
         // Cache dimensions (paint would do this in real usage)
         sf.last_w = 200.0;
@@ -796,11 +796,11 @@ mod tests {
 
         // emScalarField uses '+' and '-' keys (not arrow keys).
         sf.input(&emInputEvent::press(InputKey::Key('+')), &default_panel_state(), &default_input_state());
-        assert!(sf.value() > 50.0);
+        assert!(sf.GetValue() > 50.0);
 
         sf.input(&emInputEvent::press(InputKey::Key('-')), &default_panel_state(), &default_input_state());
         // Should be roughly back to 50
-        assert!((sf.value() - 50.0).abs() < 2.0);
+        assert!((sf.GetValue() - 50.0).abs() < 2.0);
     }
 
     #[test]
@@ -810,7 +810,7 @@ mod tests {
         let val_clone = values.clone();
 
         let mut sf = emScalarField::new(0.0, 10.0, look);
-        sf.set_value(5.0);
+        sf.SetValue(5.0);
         sf.last_w = 200.0;
         sf.last_h = 40.0;
         sf.on_value = Some(Box::new(move |v| {
@@ -827,23 +827,23 @@ mod tests {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
 
-        assert!(sf.is_editable());
+        assert!(sf.IsEditable());
         assert_eq!(sf.border.inner, InnerBorderType::InputField);
 
-        sf.set_editable(false);
-        assert!(!sf.is_editable());
+        sf.SetEditable(false);
+        assert!(!sf.IsEditable());
         assert_eq!(sf.border.inner, InnerBorderType::OutputField);
 
         // Input should be disabled when not editable
-        sf.set_value(50.0);
+        sf.SetValue(50.0);
         sf.last_w = 200.0;
         sf.last_h = 40.0;
         let handled = sf.input(&emInputEvent::press(InputKey::Key('+')), &default_panel_state(), &default_input_state());
         assert!(!handled);
-        assert!((sf.value() - 50.0).abs() < 0.001);
+        assert!((sf.GetValue() - 50.0).abs() < 0.001);
 
-        sf.set_editable(true);
-        assert!(sf.is_editable());
+        sf.SetEditable(true);
+        assert!(sf.IsEditable());
         assert_eq!(sf.border.inner, InnerBorderType::InputField);
     }
 
@@ -852,24 +852,24 @@ mod tests {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
 
-        assert!((sf.min_value() - 0.0).abs() < f64::EPSILON);
-        assert!((sf.max_value() - 100.0).abs() < f64::EPSILON);
+        assert!((sf.GetMinValue() - 0.0).abs() < f64::EPSILON);
+        assert!((sf.GetMaxValue() - 100.0).abs() < f64::EPSILON);
 
         // Setting min above max clamps max up
-        sf.set_min_value(200.0);
-        assert!((sf.min_value() - 200.0).abs() < f64::EPSILON);
-        assert!((sf.max_value() - 200.0).abs() < f64::EPSILON);
-        assert!((sf.value() - 200.0).abs() < f64::EPSILON);
+        sf.SetMinValue(200.0);
+        assert!((sf.GetMinValue() - 200.0).abs() < f64::EPSILON);
+        assert!((sf.GetMaxValue() - 200.0).abs() < f64::EPSILON);
+        assert!((sf.GetValue() - 200.0).abs() < f64::EPSILON);
 
         // Setting max below min clamps min down
-        sf.set_max_value(50.0);
-        assert!((sf.max_value() - 50.0).abs() < f64::EPSILON);
-        assert!((sf.min_value() - 50.0).abs() < f64::EPSILON);
+        sf.SetMaxValue(50.0);
+        assert!((sf.GetMaxValue() - 50.0).abs() < f64::EPSILON);
+        assert!((sf.GetMinValue() - 50.0).abs() < f64::EPSILON);
 
         // set_min_max_values
-        sf.set_min_max_values(10.0, 90.0);
-        assert!((sf.min_value() - 10.0).abs() < f64::EPSILON);
-        assert!((sf.max_value() - 90.0).abs() < f64::EPSILON);
+        sf.SetMinMaxValues(10.0, 90.0);
+        assert!((sf.GetMinValue() - 10.0).abs() < f64::EPSILON);
+        assert!((sf.GetMaxValue() - 90.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -877,8 +877,8 @@ mod tests {
         let look = emLook::new();
         let sf = emScalarField::new(50.0, 10.0, look);
         // max < min => max clamped to min
-        assert!((sf.max_value() - 50.0).abs() < f64::EPSILON);
-        assert!((sf.min_value() - 50.0).abs() < f64::EPSILON);
+        assert!((sf.GetMaxValue() - 50.0).abs() < f64::EPSILON);
+        assert!((sf.GetMinValue() - 50.0).abs() < f64::EPSILON);
     }
 
     #[test]
@@ -887,10 +887,10 @@ mod tests {
         let mut sf = emScalarField::new(0.0, 100.0, look);
 
         // Default is [1]
-        assert_eq!(sf.scale_mark_intervals(), &[1]);
+        assert_eq!(sf.GetScaleMarkIntervals(), &[1]);
 
-        sf.set_scale_mark_intervals(&[100, 50, 10, 5, 1]);
-        assert_eq!(sf.scale_mark_intervals(), &[100, 50, 10, 5, 1]);
+        sf.SetScaleMarkIntervals(&[100, 50, 10, 5, 1]);
+        assert_eq!(sf.GetScaleMarkIntervals(), &[100, 50, 10, 5, 1]);
     }
 
     #[test]
@@ -898,7 +898,7 @@ mod tests {
     fn scale_mark_intervals_rejects_non_descending() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_scale_mark_intervals(&[10, 50]); // ascending — invalid
+        sf.SetScaleMarkIntervals(&[10, 50]); // ascending — invalid
     }
 
     #[test]
@@ -906,65 +906,65 @@ mod tests {
     fn scale_mark_intervals_rejects_zero() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_scale_mark_intervals(&[0]);
+        sf.SetScaleMarkIntervals(&[0]);
     }
 
     #[test]
     fn scale_mark_intervals_empty_is_ok() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_scale_mark_intervals(&[]);
-        assert_eq!(sf.scale_mark_intervals(), &[] as &[u64]);
+        sf.SetScaleMarkIntervals(&[]);
+        assert_eq!(sf.GetScaleMarkIntervals(), &[] as &[u64]);
     }
 
     #[test]
     fn never_hide_marks() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        assert!(!sf.is_never_hiding_marks());
-        sf.set_never_hide_marks(true);
-        assert!(sf.is_never_hiding_marks());
+        assert!(!sf.IsNeverHidingMarks());
+        sf.SetNeverHideMarks(true);
+        assert!(sf.IsNeverHidingMarks());
     }
 
     #[test]
     fn GetTextBoxTallness() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        assert!((sf.text_box_tallness() - 0.5).abs() < f64::EPSILON);
-        sf.set_text_box_tallness(0.75);
-        assert!((sf.text_box_tallness() - 0.75).abs() < f64::EPSILON);
+        assert!((sf.GetTextBoxTallness() - 0.5).abs() < f64::EPSILON);
+        sf.SetTextBoxTallness(0.75);
+        assert!((sf.GetTextBoxTallness() - 0.75).abs() < f64::EPSILON);
     }
 
     #[test]
     fn GetKeyboardInterval() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        assert_eq!(sf.keyboard_interval(), 0);
-        sf.set_keyboard_interval(5);
-        assert_eq!(sf.keyboard_interval(), 5);
+        assert_eq!(sf.GetKeyboardInterval(), 0);
+        sf.SetKeyboardInterval(5);
+        assert_eq!(sf.GetKeyboardInterval(), 5);
     }
 
     #[test]
     fn step_by_keyboard_with_explicit_interval() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_keyboard_interval(10);
-        sf.set_value(50.0);
+        sf.SetKeyboardInterval(10);
+        sf.SetValue(50.0);
         sf.last_w = 200.0;
         sf.last_h = 40.0;
 
         sf.input(&emInputEvent::press(InputKey::Key('+')), &default_panel_state(), &default_input_state());
-        assert!((sf.value() - 60.0).abs() < 1.0);
+        assert!((sf.GetValue() - 60.0).abs() < 1.0);
 
         sf.input(&emInputEvent::press(InputKey::Key('-')), &default_panel_state(), &default_input_state());
-        assert!((sf.value() - 50.0).abs() < 1.0);
+        assert!((sf.GetValue() - 50.0).abs() < 1.0);
     }
 
     #[test]
     fn custom_text_of_value() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_text_of_value_fn(Box::new(|val, _iv| format!("{}%", val)));
+        sf.SetTextOfValueFunc(Box::new(|val, _iv| format!("{}%", val)));
         // The function is stored and usable
         let text = (sf.text_of_value_fn)(50, 1);
         assert_eq!(text, "50%");
@@ -974,13 +974,13 @@ mod tests {
     fn plus_minus_keys_work() {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
-        sf.set_value(50.0);
+        sf.SetValue(50.0);
         sf.last_w = 200.0;
         sf.last_h = 40.0;
 
         let handled = sf.input(&emInputEvent::press(InputKey::Key('+')), &default_panel_state(), &default_input_state());
         assert!(handled);
-        assert!(sf.value() > 50.0);
+        assert!(sf.GetValue() > 50.0);
     }
 
     #[test]
@@ -989,7 +989,7 @@ mod tests {
         let look = emLook::new();
         let mut sf = emScalarField::new(0.0, 100.0, look);
         assert_eq!(sf.get_cursor(), emCursor::Normal);
-        sf.set_editable(false);
+        sf.SetEditable(false);
         assert_eq!(sf.get_cursor(), emCursor::Normal);
     }
 
@@ -1003,11 +1003,11 @@ mod tests {
             *count_clone.borrow_mut() += 1;
         }));
 
-        sf.set_value(50.0);
+        sf.SetValue(50.0);
         assert_eq!(*count.borrow(), 1);
 
         // Setting same value should not fire
-        sf.set_value(50.0);
+        sf.SetValue(50.0);
         assert_eq!(*count.borrow(), 1);
     }
 }

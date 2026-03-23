@@ -69,10 +69,10 @@ impl Hotkey {
     /// Check if this hotkey matches the current input state plus a just-pressed key.
     pub fn Match(&self, key: InputKey, state: &emInputState) -> bool {
         self.key == key
-            && self.ctrl == state.ctrl()
-            && self.alt == state.alt()
-            && self.shift == state.shift()
-            && self.meta == state.meta()
+            && self.ctrl == state.GetCtrl()
+            && self.alt == state.GetAlt()
+            && self.shift == state.GetShift()
+            && self.meta == state.GetMeta()
     }
 
     /// Clear all modifier keys.

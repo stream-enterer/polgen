@@ -307,7 +307,7 @@ mod tests {
     fn alignment_rec_default() {
         let rec = emAlignmentRec::default();
         assert_eq!(rec.get(), Alignment::Center);
-        assert!(rec.is_default());
+        assert!(rec.IsSetToDefault());
     }
 
     #[test]
@@ -316,9 +316,9 @@ mod tests {
         assert_eq!(rec.get(), Alignment::Start);
         rec.set(Alignment::End);
         assert_eq!(rec.get(), Alignment::End);
-        assert!(!rec.is_default());
-        rec.set_to_default();
-        assert!(rec.is_default());
+        assert!(!rec.IsSetToDefault());
+        rec.SetToDefault();
+        assert!(rec.IsSetToDefault());
     }
 
     #[test]
@@ -329,8 +329,8 @@ mod tests {
             Alignment::End,
             Alignment::Stretch,
         ] {
-            let val = emAlignmentRec::to_rec_value(align);
-            let parsed = emAlignmentRec::from_rec_value(&val).unwrap();
+            let val = emAlignmentRec::ToRecValue(align);
+            let parsed = emAlignmentRec::FromRecValue(&val).unwrap();
             assert_eq!(parsed, align);
         }
     }
@@ -339,8 +339,8 @@ mod tests {
     fn color_rec_default() {
         let rec = emColorRec::default();
         assert_eq!(rec.get(), emColor::BLACK);
-        assert!(!rec.have_alpha());
-        assert!(rec.is_default());
+        assert!(!rec.HaveAlpha());
+        assert!(rec.IsSetToDefault());
     }
 
     #[test]
@@ -349,9 +349,9 @@ mod tests {
         assert_eq!(rec.get(), emColor::RED);
         rec.set(emColor::BLUE);
         assert_eq!(rec.get(), emColor::BLUE);
-        assert!(!rec.is_default());
-        rec.set_to_default();
-        assert!(rec.is_default());
+        assert!(!rec.IsSetToDefault());
+        rec.SetToDefault();
+        assert!(rec.IsSetToDefault());
     }
 
     #[test]
@@ -371,16 +371,16 @@ mod tests {
     #[test]
     fn color_rec_struct_round_trip() {
         let color = emColor::rgba(10, 20, 30, 255);
-        let s = emColorRec::to_rec_struct(color, false);
-        let parsed = emColorRec::from_rec_struct(&s, false).unwrap();
+        let s = emColorRec::ToRecStruct(color, false);
+        let parsed = emColorRec::FromRecStruct(&s, false).unwrap();
         assert_eq!(parsed, color);
     }
 
     #[test]
     fn color_rec_struct_with_alpha_round_trip() {
         let color = emColor::rgba(10, 20, 30, 128);
-        let s = emColorRec::to_rec_struct(color, true);
-        let parsed = emColorRec::from_rec_struct(&s, true).unwrap();
+        let s = emColorRec::ToRecStruct(color, true);
+        let parsed = emColorRec::FromRecStruct(&s, true).unwrap();
         assert_eq!(parsed, color);
     }
 }

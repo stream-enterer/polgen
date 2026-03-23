@@ -294,13 +294,13 @@ mod tests {
     #[test]
     fn dialog_mode() {
         let dlg = make_dialog(FileDialogMode::Select);
-        assert_eq!(dlg.mode(), FileDialogMode::Select);
+        assert_eq!(dlg.GetMode(), FileDialogMode::Select);
     }
 
     #[test]
     fn dialog_cancel_always_allowed() {
         let mut dlg = make_dialog(FileDialogMode::Open);
-        let result = dlg.check_finish(&DialogResult::Cancel);
+        let result = dlg.CheckFinish(&DialogResult::Cancel);
         assert!(matches!(result, FileDialogCheckResult::Allow));
     }
 
@@ -308,7 +308,7 @@ mod tests {
     fn dialog_open_no_selection_error() {
         let mut dlg = make_dialog(FileDialogMode::Open);
         dlg.clear_selection();
-        let result = dlg.check_finish(&DialogResult::Ok);
+        let result = dlg.CheckFinish(&DialogResult::Ok);
         assert!(matches!(result, FileDialogCheckResult::Error(_)));
     }
 
@@ -324,8 +324,8 @@ mod tests {
     fn filters_forwarded() {
         let mut dlg = make_dialog(FileDialogMode::Open);
         dlg.set_filters(&["All (*)".to_string()]);
-        assert_eq!(dlg.filters().len(), 1);
-        assert_eq!(dlg.selected_filter_index(), 0);
+        assert_eq!(dlg.GetFilters().len(), 1);
+        assert_eq!(dlg.GetSelectedFilterIndex(), 0);
     }
 
     #[test]

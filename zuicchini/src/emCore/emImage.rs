@@ -164,27 +164,27 @@ impl emImage {
     }
 
     #[inline]
-    pub fn width(&self) -> u32 {
+    pub fn GetWidth(&self) -> u32 {
         self.width
     }
 
     #[inline]
-    pub fn height(&self) -> u32 {
+    pub fn GetHeight(&self) -> u32 {
         self.height
     }
 
     #[inline]
-    pub fn channel_count(&self) -> u8 {
+    pub fn GetChannelCount(&self) -> u8 {
         self.channel_count
     }
 
     #[inline]
-    pub fn data(&self) -> &[u8] {
+    pub fn GetMap(&self) -> &[u8] {
         &self.data
     }
 
     #[inline]
-    pub fn data_mut(&mut self) -> &mut [u8] {
+    pub fn GetWritableMap(&mut self) -> &mut [u8] {
         &mut self.data
     }
 
@@ -200,7 +200,7 @@ impl emImage {
     }
 
     /// Access the raw channel bytes for a pixel.
-    pub fn pixel(&self, x: u32, y: u32) -> &[u8] {
+    pub fn GetPixel(&self, x: u32, y: u32) -> &[u8] {
         let offset = self.pixel_offset(x, y);
         &self.data[offset..offset + self.channel_count as usize]
     }
@@ -215,7 +215,7 @@ impl emImage {
     }
 
     /// Mutably access the raw channel bytes for a pixel.
-    pub fn pixel_mut(&mut self, x: u32, y: u32) -> &mut [u8] {
+    pub fn SetPixel(&mut self, x: u32, y: u32) -> &mut [u8] {
         let offset = self.pixel_offset(x, y);
         let cc = self.channel_count as usize;
         &mut self.data[offset..offset + cc]
@@ -287,7 +287,7 @@ impl emImage {
     ///
     /// Port of C++ `emImage::Fill` with rect clipping. Converts color per
     /// channel count (same as `fill`).
-    pub fn fill_rect(&mut self, x: u32, y: u32, w: u32, h: u32, color: emColor) {
+    pub fn Fill(&mut self, x: u32, y: u32, w: u32, h: u32, color: emColor) {
         let x1 = x.min(self.width);
         let y1 = y.min(self.height);
         let x2 = (x.saturating_add(w)).min(self.width);
@@ -348,7 +348,7 @@ impl emImage {
     }
 
     /// Fill one channel within a rectangle. Clips to image bounds.
-    pub fn fill_channel_rect(&mut self, ch: u8, x: u32, y: u32, w: u32, h: u32, val: u8) {
+    pub fn FillChannel(&mut self, ch: u8, x: u32, y: u32, w: u32, h: u32, val: u8) {
         let x1 = x.min(self.width);
         let y1 = y.min(self.height);
         let x2 = (x.saturating_add(w)).min(self.width);
@@ -364,7 +364,7 @@ impl emImage {
     }
 
     /// Copy entire source image into self at (dx, dy). Channel counts must match.
-    pub fn copy_from(&mut self, dx: u32, dy: u32, src: &emImage) {
+    pub fn Copy(&mut self, dx: u32, dy: u32, src: &emImage) {
         self.copy_from_rect(dx, dy, src, (0, 0, src.width, src.height));
     }
 
@@ -425,7 +425,7 @@ impl emImage {
     }
 
     /// Copy a single channel from src into a (possibly different) channel in self.
-    pub fn copy_channel(&mut self, dst_ch: u8, dx: u32, dy: u32, src: &emImage, src_ch: u8) {
+    pub fn CopyChannel(&mut self, dst_ch: u8, dx: u32, dy: u32, src: &emImage, src_ch: u8) {
         let copy_w = src.width.min(self.width.saturating_sub(dx));
         let copy_h = src.height.min(self.height.saturating_sub(dy));
         let scc = src.channel_count as usize;
@@ -490,8 +490,8 @@ impl emImage {
         let mut out = emImage::new(self.width, self.height, new_cc);
         for y in 0..self.height {
             for x in 0..self.width {
-                let src = self.pixel(x, y);
-                let dst = out.pixel_mut(x, y);
+                let src = self.GetPixel(x, y);
+                let dst = out.SetPixel(x, y);
                 match (old_cc, new_cc) {
                     (1, 2) => {
                         dst[0] = src[0];
@@ -613,7 +613,7 @@ impl emImage {
         let mut max_y = 0u32;
         for y in 0..self.height {
             for x in 0..self.width {
-                let p = self.pixel(x, y);
+                let p = self.GetPixel(x, y);
                 if p != bg_bytes {
                     min_x = min_x.min(x);
                     min_y = min_y.min(y);
@@ -867,7 +867,7 @@ impl emImage {
             for py in y..y + h {
                 for px in x..x + w {
                     if px >= 0 && py >= 0 && (px as u32) < self.width && (py as u32) < self.height {
-                        self.pixel_mut(px as u32, py as u32)
+                        self.SetPixel(px as u32, py as u32)
                             .copy_from_slice(&bg_bytes);
                     }
                 }
@@ -931,7 +931,7 @@ impl emImage {
                     if ix < 0 || iy < 0 || ix >= src.width as i32 || iy >= src.height as i32 {
                         bg_color
                     } else {
-                        let p = src.pixel(ix as u32, iy as u32);
+                        let p = src.GetPixel(ix as u32, iy as u32);
                         // Convert from source cc to RGBA emColor
                         match scc {
                             1 => emColor::rgba(p[0], p[0], p[0], 255),
@@ -944,7 +944,7 @@ impl emImage {
                 };
 
                 // Write per destination channel count
-                let dst = self.pixel_mut(px as u32, py as u32);
+                let dst = self.SetPixel(px as u32, py as u32);
                 match dcc {
                     1 => dst[0] = color.GetGrey(),
                     2 => {
@@ -1172,7 +1172,7 @@ impl emImage {
                     Ok(idx) => color_table[idx].1,
                     Err(_) => return None,
                 };
-                let dst = img.pixel_mut(x, y);
+                let dst = img.SetPixel(x, y);
                 match cc {
                     1 => dst[0] = color.GetGrey(),
                     2 => {
@@ -1256,18 +1256,18 @@ mod tests {
     #[test]
     fn new_zero_filled() {
         let img = emImage::new(4, 4, 4);
-        assert!(img.data().iter().all(|&b| b == 0));
-        assert_eq!(img.data().len(), 4 * 4 * 4);
+        assert!(img.GetMap().iter().all(|&b| b == 0));
+        assert_eq!(img.GetMap().len(), 4 * 4 * 4);
     }
 
     #[test]
     fn pixel_access() {
         let mut img = emImage::new(2, 2, 3);
-        let p = img.pixel_mut(1, 0);
+        let p = img.SetPixel(1, 0);
         p[0] = 10;
         p[1] = 20;
         p[2] = 30;
-        assert_eq!(img.pixel(1, 0), &[10, 20, 30]);
+        assert_eq!(img.GetPixel(1, 0), &[10, 20, 30]);
     }
 
     #[test]
@@ -1276,7 +1276,7 @@ mod tests {
         img.fill(emColor::RED);
         for y in 0..2 {
             for x in 0..3 {
-                assert_eq!(img.pixel(x, y), &[255, 0, 0, 255]);
+                assert_eq!(img.GetPixel(x, y), &[255, 0, 0, 255]);
             }
         }
     }
@@ -1291,25 +1291,25 @@ mod tests {
     fn fill_non_rgba() {
         let mut img = emImage::new(2, 1, 3);
         img.fill(emColor::rgb(10, 20, 30));
-        assert_eq!(img.pixel(0, 0), &[10, 20, 30]);
-        assert_eq!(img.pixel(1, 0), &[10, 20, 30]);
+        assert_eq!(img.GetPixel(0, 0), &[10, 20, 30]);
+        assert_eq!(img.GetPixel(1, 0), &[10, 20, 30]);
 
         let mut img1 = emImage::new(2, 1, 1);
         img1.fill(emColor::rgb(10, 20, 30));
         // (10+20+30+1)/3 = 20
-        assert_eq!(img1.pixel(0, 0), &[20]);
+        assert_eq!(img1.GetPixel(0, 0), &[20]);
 
         let mut img2 = emImage::new(2, 1, 2);
         img2.fill(emColor::rgba(10, 20, 30, 128));
-        assert_eq!(img2.pixel(0, 0), &[20, 128]);
+        assert_eq!(img2.GetPixel(0, 0), &[20, 128]);
     }
 
     #[test]
     fn from_raw_valid() {
         let data = vec![10, 20, 30, 255, 40, 50, 60, 128];
         let img = emImage::from_raw(2, 1, 4, data);
-        assert_eq!(img.pixel(0, 0), &[10, 20, 30, 255]);
-        assert_eq!(img.pixel(1, 0), &[40, 50, 60, 128]);
+        assert_eq!(img.GetPixel(0, 0), &[10, 20, 30, 255]);
+        assert_eq!(img.GetPixel(1, 0), &[40, 50, 60, 128]);
     }
 
     #[test]
@@ -1321,9 +1321,9 @@ mod tests {
     #[test]
     fn single_channel() {
         let mut img = emImage::new(2, 2, 1);
-        img.pixel_mut(0, 0)[0] = 128;
-        assert_eq!(img.pixel(0, 0), &[128]);
-        assert_eq!(img.pixel(1, 0), &[0]);
+        img.SetPixel(0, 0)[0] = 128;
+        assert_eq!(img.GetPixel(0, 0), &[128]);
+        assert_eq!(img.GetPixel(1, 0), &[0]);
     }
 
     #[test]
@@ -1340,14 +1340,14 @@ mod tests {
         let mut img = emImage::new(4, 4, 4);
         img.fill(emColor::RED);
         img.setup(2, 3, 1);
-        assert_eq!(img.width(), 2);
-        assert_eq!(img.height(), 3);
-        assert_eq!(img.channel_count(), 1);
-        assert!(img.data().iter().all(|&b| b == 0));
+        assert_eq!(img.GetWidth(), 2);
+        assert_eq!(img.GetHeight(), 3);
+        assert_eq!(img.GetChannelCount(), 1);
+        assert!(img.GetMap().iter().all(|&b| b == 0));
 
         img.clear();
-        assert_eq!(img.width(), 0);
-        assert_eq!(img.height(), 0);
+        assert_eq!(img.GetWidth(), 0);
+        assert_eq!(img.GetHeight(), 0);
         assert!(img.is_empty());
     }
 
@@ -1362,13 +1362,13 @@ mod tests {
     #[test]
     fn fill_rect_region_isolation() {
         let mut img = emImage::new(4, 4, 4);
-        img.fill_rect(1, 1, 2, 2, emColor::RED);
+        img.Fill(1, 1, 2, 2, emColor::RED);
         // Inside rect
-        assert_eq!(img.pixel(1, 1), &[255, 0, 0, 255]);
-        assert_eq!(img.pixel(2, 2), &[255, 0, 0, 255]);
+        assert_eq!(img.GetPixel(1, 1), &[255, 0, 0, 255]);
+        assert_eq!(img.GetPixel(2, 2), &[255, 0, 0, 255]);
         // Outside rect
-        assert_eq!(img.pixel(0, 0), &[0, 0, 0, 0]);
-        assert_eq!(img.pixel(3, 3), &[0, 0, 0, 0]);
+        assert_eq!(img.GetPixel(0, 0), &[0, 0, 0, 0]);
+        assert_eq!(img.GetPixel(3, 3), &[0, 0, 0, 0]);
     }
 
     #[test]
@@ -1377,7 +1377,7 @@ mod tests {
         img.fill_channel(1, 128);
         for y in 0..2 {
             for x in 0..2 {
-                assert_eq!(img.pixel(x, y), &[0, 128, 0]);
+                assert_eq!(img.GetPixel(x, y), &[0, 128, 0]);
             }
         }
     }
@@ -1385,7 +1385,7 @@ mod tests {
     #[test]
     fn fill_channel_rect_clips() {
         let mut img = emImage::new(3, 3, 1);
-        img.fill_channel_rect(0, 1, 1, 100, 100, 77);
+        img.FillChannel(0, 1, 1, 100, 100, 77);
         assert_eq!(img.get_pixel_channel(0, 0, 0), 0);
         assert_eq!(img.get_pixel_channel(1, 1, 0), 77);
         assert_eq!(img.get_pixel_channel(2, 2, 0), 77);
@@ -1396,11 +1396,11 @@ mod tests {
         let mut src = emImage::new(2, 2, 4);
         src.fill(emColor::rgb(10, 20, 30));
         let mut dst = emImage::new(4, 4, 4);
-        dst.copy_from(1, 1, &src);
-        assert_eq!(dst.pixel(0, 0), &[0, 0, 0, 0]);
-        assert_eq!(dst.pixel(1, 1), &[10, 20, 30, 255]);
-        assert_eq!(dst.pixel(2, 2), &[10, 20, 30, 255]);
-        assert_eq!(dst.pixel(3, 3), &[0, 0, 0, 0]);
+        dst.Copy(1, 1, &src);
+        assert_eq!(dst.GetPixel(0, 0), &[0, 0, 0, 0]);
+        assert_eq!(dst.GetPixel(1, 1), &[10, 20, 30, 255]);
+        assert_eq!(dst.GetPixel(2, 2), &[10, 20, 30, 255]);
+        assert_eq!(dst.GetPixel(3, 3), &[0, 0, 0, 0]);
     }
 
     #[test]
@@ -1408,50 +1408,50 @@ mod tests {
         let mut img = emImage::new(4, 4, 1);
         img.set_pixel_channel(2, 1, 0, 99);
         let sub = img.get_cropped(1, 1, 2, 2, None);
-        assert_eq!(sub.width(), 2);
-        assert_eq!(sub.height(), 2);
+        assert_eq!(sub.GetWidth(), 2);
+        assert_eq!(sub.GetHeight(), 2);
         assert_eq!(sub.get_pixel_channel(1, 0, 0), 99);
     }
 
     #[test]
     fn get_converted_1_to_4() {
         let mut img = emImage::new(1, 1, 1);
-        img.pixel_mut(0, 0)[0] = 128;
+        img.SetPixel(0, 0)[0] = 128;
         let rgba = img.get_converted(4);
-        assert_eq!(rgba.pixel(0, 0), &[128, 128, 128, 255]);
+        assert_eq!(rgba.GetPixel(0, 0), &[128, 128, 128, 255]);
     }
 
     #[test]
     fn get_converted_4_to_1() {
         let mut img = emImage::new(1, 1, 4);
-        img.pixel_mut(0, 0).copy_from_slice(&[30, 60, 90, 255]);
+        img.SetPixel(0, 0).copy_from_slice(&[30, 60, 90, 255]);
         let grey = img.get_converted(1);
-        assert_eq!(grey.pixel(0, 0), &[60]); // (30+60+90)/3 = 60
+        assert_eq!(grey.GetPixel(0, 0), &[60]); // (30+60+90)/3 = 60
     }
 
     #[test]
     fn get_converted_3_to_4() {
         let mut img = emImage::new(1, 1, 3);
-        img.pixel_mut(0, 0).copy_from_slice(&[10, 20, 30]);
+        img.SetPixel(0, 0).copy_from_slice(&[10, 20, 30]);
         let rgba = img.get_converted(4);
-        assert_eq!(rgba.pixel(0, 0), &[10, 20, 30, 255]);
+        assert_eq!(rgba.GetPixel(0, 0), &[10, 20, 30, 255]);
     }
 
     #[test]
     fn get_converted_4_to_3() {
         let mut img = emImage::new(1, 1, 4);
-        img.pixel_mut(0, 0).copy_from_slice(&[10, 20, 30, 128]);
+        img.SetPixel(0, 0).copy_from_slice(&[10, 20, 30, 128]);
         let rgb = img.get_converted(3);
-        assert_eq!(rgb.pixel(0, 0), &[10, 20, 30]);
+        assert_eq!(rgb.GetPixel(0, 0), &[10, 20, 30]);
     }
 
     #[test]
     fn has_any_non_grey_pixel_detects() {
         let mut img = emImage::new(2, 1, 3);
-        img.pixel_mut(0, 0).copy_from_slice(&[50, 50, 50]);
-        img.pixel_mut(1, 0).copy_from_slice(&[50, 50, 50]);
+        img.SetPixel(0, 0).copy_from_slice(&[50, 50, 50]);
+        img.SetPixel(1, 0).copy_from_slice(&[50, 50, 50]);
         assert!(!img.has_any_non_grey_pixel());
-        img.pixel_mut(1, 0)[1] = 51;
+        img.SetPixel(1, 0)[1] = 51;
         assert!(img.has_any_non_grey_pixel());
     }
 
@@ -1468,8 +1468,8 @@ mod tests {
     fn calc_min_max_rect_basic() {
         let mut img = emImage::new(4, 4, 4);
         img.fill(emColor::BLACK);
-        img.pixel_mut(1, 1).copy_from_slice(&[255, 0, 0, 255]);
-        img.pixel_mut(2, 2).copy_from_slice(&[0, 255, 0, 255]);
+        img.SetPixel(1, 1).copy_from_slice(&[255, 0, 0, 255]);
+        img.SetPixel(2, 2).copy_from_slice(&[0, 255, 0, 255]);
         let r = img.calc_min_max_rect(emColor::BLACK).unwrap();
         assert_eq!(r, (1, 1, 2, 2));
     }
@@ -1495,19 +1495,19 @@ mod tests {
     fn get_cropped_by_alpha_works() {
         let mut img = emImage::new(4, 4, 4);
         img.set_pixel_channel(1, 1, 3, 255);
-        img.pixel_mut(1, 1).copy_from_slice(&[10, 20, 30, 255]);
+        img.SetPixel(1, 1).copy_from_slice(&[10, 20, 30, 255]);
         let cropped = img.get_cropped_by_alpha(None);
-        assert_eq!(cropped.width(), 1);
-        assert_eq!(cropped.height(), 1);
-        assert_eq!(cropped.pixel(0, 0), &[10, 20, 30, 255]);
+        assert_eq!(cropped.GetWidth(), 1);
+        assert_eq!(cropped.GetHeight(), 1);
+        assert_eq!(cropped.GetPixel(0, 0), &[10, 20, 30, 255]);
     }
 
     #[test]
     fn determine_all_colors_sorted_works() {
         let mut img = emImage::new(3, 1, 4);
-        img.pixel_mut(0, 0).copy_from_slice(&[0, 0, 255, 255]); // blue
-        img.pixel_mut(1, 0).copy_from_slice(&[255, 0, 0, 255]); // red
-        img.pixel_mut(2, 0).copy_from_slice(&[0, 0, 255, 255]); // blue dup
+        img.SetPixel(0, 0).copy_from_slice(&[0, 0, 255, 255]); // blue
+        img.SetPixel(1, 0).copy_from_slice(&[255, 0, 0, 255]); // red
+        img.SetPixel(2, 0).copy_from_slice(&[0, 0, 255, 255]); // blue dup
         let colors = img.determine_all_colors_sorted(1000);
         assert_eq!(colors.len(), 2);
         // Red (0xFF0000FF) > Blue (0x0000FFFF) in packed u32
@@ -1518,10 +1518,10 @@ mod tests {
     #[test]
     fn copy_channel_cross_cc() {
         let mut src = emImage::new(2, 2, 1);
-        src.pixel_mut(0, 0)[0] = 42;
-        src.pixel_mut(1, 1)[0] = 99;
+        src.SetPixel(0, 0)[0] = 42;
+        src.SetPixel(1, 1)[0] = 99;
         let mut dst = emImage::new(3, 3, 4);
-        dst.copy_channel(2, 0, 0, &src, 0); // copy src ch0 into dst ch2 (blue)
+        dst.CopyChannel(2, 0, 0, &src, 0); // copy src ch0 into dst ch2 (blue)
         assert_eq!(dst.get_pixel_channel(0, 0, 2), 42);
         assert_eq!(dst.get_pixel_channel(1, 1, 2), 99);
         assert_eq!(dst.get_pixel_channel(0, 0, 0), 0); // red untouched
@@ -1557,16 +1557,16 @@ mod tests {
         // Identity matrix: target == source coords
         let mut src = emImage::new(4, 4, 4);
         src.fill(emColor::RED);
-        src.pixel_mut(1, 1).copy_from_slice(&[0, 255, 0, 255]);
+        src.SetPixel(1, 1).copy_from_slice(&[0, 255, 0, 255]);
 
         let mut dst = emImage::new(4, 4, 4);
         // Identity: target_x = 1*src_x + 0*src_y + 0, target_y = 0*src_x + 1*src_y + 0
         let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
         dst.copy_transformed((0, 0, 4, 4), &identity, &src, false, emColor::BLACK);
 
-        assert_eq!(dst.pixel(0, 0), &[255, 0, 0, 255]);
-        assert_eq!(dst.pixel(1, 1), &[0, 255, 0, 255]);
-        assert_eq!(dst.pixel(3, 3), &[255, 0, 0, 255]);
+        assert_eq!(dst.GetPixel(0, 0), &[255, 0, 0, 255]);
+        assert_eq!(dst.GetPixel(1, 1), &[0, 255, 0, 255]);
+        assert_eq!(dst.GetPixel(3, 3), &[255, 0, 0, 255]);
     }
 
     #[test]
@@ -1581,29 +1581,29 @@ mod tests {
         dst.copy_transformed((0, 0, 6, 6), &translate, &src, false, emColor::BLACK);
 
         // Source pixel (0,0) maps to target (2,1)
-        assert_eq!(dst.pixel(2, 1), &[10, 20, 30, 255]);
-        assert_eq!(dst.pixel(3, 2), &[10, 20, 30, 255]);
+        assert_eq!(dst.GetPixel(2, 1), &[10, 20, 30, 255]);
+        assert_eq!(dst.GetPixel(3, 2), &[10, 20, 30, 255]);
         // Outside source -> bg
-        assert_eq!(dst.pixel(0, 0), &[0, 0, 0, 255]);
+        assert_eq!(dst.GetPixel(0, 0), &[0, 0, 0, 255]);
     }
 
     #[test]
     fn copy_transformed_scale() {
         // Scale 2x: target_x = 2*src_x, target_y = 2*src_y
         let mut src = emImage::new(2, 2, 4);
-        src.pixel_mut(0, 0).copy_from_slice(&[255, 0, 0, 255]);
-        src.pixel_mut(1, 0).copy_from_slice(&[0, 255, 0, 255]);
-        src.pixel_mut(0, 1).copy_from_slice(&[0, 0, 255, 255]);
-        src.pixel_mut(1, 1).copy_from_slice(&[255, 255, 0, 255]);
+        src.SetPixel(0, 0).copy_from_slice(&[255, 0, 0, 255]);
+        src.SetPixel(1, 0).copy_from_slice(&[0, 255, 0, 255]);
+        src.SetPixel(0, 1).copy_from_slice(&[0, 0, 255, 255]);
+        src.SetPixel(1, 1).copy_from_slice(&[255, 255, 0, 255]);
 
         let mut dst = emImage::new(4, 4, 4);
         let scale = [2.0, 0.0, 0.0, 0.0, 2.0, 0.0];
         dst.copy_transformed((0, 0, 4, 4), &scale, &src, false, emColor::BLACK);
 
         // Source (0,0) maps to target (0,0); nearest for (0,0) -> src(0,0)
-        assert_eq!(dst.pixel(0, 0), &[255, 0, 0, 255]);
+        assert_eq!(dst.GetPixel(0, 0), &[255, 0, 0, 255]);
         // Source (1,0) maps to target (2,0); nearest for (2,0) -> src(1,0)
-        assert_eq!(dst.pixel(2, 0), &[0, 255, 0, 255]);
+        assert_eq!(dst.GetPixel(2, 0), &[0, 255, 0, 255]);
     }
 
     #[test]
@@ -1617,8 +1617,8 @@ mod tests {
         dst.copy_transformed((0, 0, 2, 2), &identity, &src, true, emColor::BLACK);
 
         // With bilinear on a uniform image, result should be same
-        assert_eq!(dst.pixel(0, 0), &[100, 100, 100, 255]);
-        assert_eq!(dst.pixel(1, 1), &[100, 100, 100, 255]);
+        assert_eq!(dst.GetPixel(0, 0), &[100, 100, 100, 255]);
+        assert_eq!(dst.GetPixel(1, 1), &[100, 100, 100, 255]);
     }
 
     #[test]
@@ -1633,10 +1633,10 @@ mod tests {
         // Only transform the top-left 2x2 region
         dst.copy_transformed((0, 0, 2, 2), &identity, &src, false, emColor::BLUE);
 
-        assert_eq!(dst.pixel(0, 0), &[255, 0, 0, 255]); // transformed
-        assert_eq!(dst.pixel(1, 1), &[255, 0, 0, 255]); // transformed
-        assert_eq!(dst.pixel(2, 2), &[0, 0, 0, 255]); // untouched
-        assert_eq!(dst.pixel(3, 3), &[0, 0, 0, 255]); // untouched
+        assert_eq!(dst.GetPixel(0, 0), &[255, 0, 0, 255]); // transformed
+        assert_eq!(dst.GetPixel(1, 1), &[255, 0, 0, 255]); // transformed
+        assert_eq!(dst.GetPixel(2, 2), &[0, 0, 0, 255]); // untouched
+        assert_eq!(dst.GetPixel(3, 3), &[0, 0, 0, 255]); // untouched
     }
 
     #[test]
@@ -1647,9 +1647,9 @@ mod tests {
         let singular = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
         dst.copy_transformed((1, 1, 2, 2), &singular, &src, false, emColor::rgb(42, 42, 42));
 
-        assert_eq!(dst.pixel(1, 1), &[42, 42, 42, 255]);
-        assert_eq!(dst.pixel(2, 2), &[42, 42, 42, 255]);
-        assert_eq!(dst.pixel(0, 0), &[0, 0, 0, 0]); // outside clip
+        assert_eq!(dst.GetPixel(1, 1), &[42, 42, 42, 255]);
+        assert_eq!(dst.GetPixel(2, 2), &[42, 42, 42, 255]);
+        assert_eq!(dst.GetPixel(0, 0), &[0, 0, 0, 0]); // outside clip
     }
 
     #[test]
@@ -1660,6 +1660,6 @@ mod tests {
         let identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
         // Zero-width clip should be a no-op
         dst.copy_transformed((0, 0, 0, 4), &identity, &src, false, emColor::BLACK);
-        assert_eq!(dst.pixel(0, 0), &[255, 255, 255, 255]);
+        assert_eq!(dst.GetPixel(0, 0), &[255, 255, 255, 255]);
     }
 }

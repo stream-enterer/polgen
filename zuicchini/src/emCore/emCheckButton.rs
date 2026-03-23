@@ -84,8 +84,8 @@ impl emCheckButton {
 
         // C++ emButton.cpp:361: always ButtonBgColor. Pressed visual from overlay.
         let face_color = self.look.button_bg_color;
-        painter.paint_round_rect(fx, fy, fw, fh, fr, face_color);
-        painter.set_canvas_color(face_color);
+        painter.PaintRoundRect(fx, fy, fw, fh, fr, face_color);
+        painter.SetCanvasColor(face_color);
 
         // emLabel inside face with padding (C++ lines 370-391).
         let d_min = fw.min(fh) * 0.1;
@@ -124,7 +124,7 @@ impl emCheckButton {
         with_toolkit_images(|img| {
             if self.pressed {
                 // Pressed: ButtonPressed overlay (C++ lines 393-401).
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -144,7 +144,7 @@ impl emCheckButton {
                 );
             } else if self.checked {
                 // ShownChecked: ButtonChecked overlay (C++ lines 402-409).
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w,
@@ -165,7 +165,7 @@ impl emCheckButton {
             } else {
                 // Normal: emButton overlay (C++ lines 411-420).
                 let extra = (658.0 - 648.0) / 264.0 * r;
-                painter.paint_border_image(
+                painter.PaintBorderImage(
                     cr.x,
                     cr.y,
                     cr.w + extra,

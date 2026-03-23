@@ -200,75 +200,75 @@ mod tests {
 
     #[test]
     fn adler32_empty() {
-        assert_eq!(calc_adler32(&[], 1), 1);
+        assert_eq!(emCalcAdler32(&[], 1), 1);
     }
 
     #[test]
     fn adler32_known() {
         // "Wikipedia" -> 0x11E60398 (well-known test vector)
-        assert_eq!(calc_adler32(b"Wikipedia", 1), 0x11E6_0398);
+        assert_eq!(emCalcAdler32(b"Wikipedia", 1), 0x11E6_0398);
     }
 
     #[test]
     fn adler32_chaining() {
         let data = b"Hello, World!";
-        let full = calc_adler32(data, 1);
-        let part1 = calc_adler32(&data[..5], 1);
-        let part2 = calc_adler32(&data[5..], part1);
+        let full = emCalcAdler32(data, 1);
+        let part1 = emCalcAdler32(&data[..5], 1);
+        let part2 = emCalcAdler32(&data[5..], part1);
         assert_eq!(full, part2);
     }
 
     #[test]
     fn crc32_empty() {
-        assert_eq!(calc_crc32(&[], 0), 0);
+        assert_eq!(emCalcCRC32(&[], 0), 0);
     }
 
     #[test]
     fn crc32_known() {
         // "123456789" -> 0xCBF43926 (ISO 3309 / ITU-T V.42 test vector)
-        assert_eq!(calc_crc32(b"123456789", 0), 0xCBF4_3926);
+        assert_eq!(emCalcCRC32(b"123456789", 0), 0xCBF4_3926);
     }
 
     #[test]
     fn crc32_chaining() {
         let data = b"Hello, World!";
-        let full = calc_crc32(data, 0);
-        let part1 = calc_crc32(&data[..5], 0);
-        let part2 = calc_crc32(&data[5..], part1);
+        let full = emCalcCRC32(data, 0);
+        let part1 = emCalcCRC32(&data[..5], 0);
+        let part2 = emCalcCRC32(&data[5..], part1);
         assert_eq!(full, part2);
     }
 
     #[test]
     fn crc64_empty() {
-        assert_eq!(calc_crc64(&[], 0), 0);
+        assert_eq!(emCalcCRC64(&[], 0), 0);
     }
 
     #[test]
     fn crc64_nonempty() {
         // Non-zero result for non-empty input
-        let result = calc_crc64(b"test", 0);
+        let result = emCalcCRC64(b"test", 0);
         assert_ne!(result, 0);
     }
 
     #[test]
     fn crc64_chaining() {
         let data = b"Hello, World!";
-        let full = calc_crc64(data, 0);
-        let part1 = calc_crc64(&data[..5], 0);
-        let part2 = calc_crc64(&data[5..], part1);
+        let full = emCalcCRC64(data, 0);
+        let part1 = emCalcCRC64(&data[..5], 0);
+        let part2 = emCalcCRC64(&data[5..], part1);
         assert_eq!(full, part2);
     }
 
     #[test]
     fn hash_code_empty() {
-        assert_eq!(calc_hash_code(&[], 0), 0);
+        assert_eq!(emCalcHashCode(&[], 0), 0);
     }
 
     #[test]
     fn hash_code_stops_at_null() {
         // C++ emCalcHashCode stops at null byte
-        let with_null = calc_hash_code(b"abc\0xyz", 0);
-        let without = calc_hash_code(b"abc", 0);
+        let with_null = emCalcHashCode(b"abc\0xyz", 0);
+        let without = emCalcHashCode(b"abc", 0);
         assert_eq!(with_null, without);
     }
 
@@ -276,19 +276,19 @@ mod tests {
     fn hash_code_specific_value() {
         // Verify the formula: r = r * 335171 + c for each byte
         // "A" (0x41=65): 0 * 335171 + 65 = 65
-        assert_eq!(calc_hash_code(b"A", 0), 65);
+        assert_eq!(emCalcHashCode(b"A", 0), 65);
         // "AB": (65 * 335171 + 66) = 21786181
-        assert_eq!(calc_hash_code(b"AB", 0), 65_i32.wrapping_mul(335_171).wrapping_add(66));
+        assert_eq!(emCalcHashCode(b"AB", 0), 65_i32.wrapping_mul(335_171).wrapping_add(66));
     }
 
     #[test]
     fn hash_code_differs() {
-        assert_ne!(calc_hash_code(b"abc", 0), calc_hash_code(b"xyz", 0));
+        assert_ne!(emCalcHashCode(b"abc", 0), emCalcHashCode(b"xyz", 0));
     }
 
     #[test]
     fn hash_name_length() {
-        let name = calc_hash_name(b"test", 8);
+        let name = emCalcHashName(b"test", 8);
         assert_eq!(name.len(), 8);
         // All chars should be alphanumeric
         assert!(name.chars().all(|c| c.is_ascii_alphanumeric()));
@@ -296,15 +296,15 @@ mod tests {
 
     #[test]
     fn hash_name_deterministic() {
-        let a = calc_hash_name(b"hello", 10);
-        let b = calc_hash_name(b"hello", 10);
+        let a = emCalcHashName(b"hello", 10);
+        let b = emCalcHashName(b"hello", 10);
         assert_eq!(a, b);
     }
 
     #[test]
     fn hash_name_differs() {
-        let a = calc_hash_name(b"hello", 8);
-        let b = calc_hash_name(b"world", 8);
+        let a = emCalcHashName(b"hello", 8);
+        let b = emCalcHashName(b"world", 8);
         assert_ne!(a.to_ascii_lowercase(), b.to_ascii_lowercase());
     }
 }

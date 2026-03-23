@@ -61,11 +61,11 @@ impl Record for WindowGeometry {
         s
     }
 
-    fn set_to_default(&mut self) {
+    fn SetToDefault(&mut self) {
         *self = Self::default();
     }
 
-    fn is_default(&self) -> bool {
+    fn IsSetToDefault(&self) -> bool {
         *self == Self::default()
     }
 }
