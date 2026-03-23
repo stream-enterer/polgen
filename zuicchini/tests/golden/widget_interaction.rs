@@ -85,11 +85,11 @@ fn widget_checkbox_toggle() {
     );
 
     // After first activation (Enter is instant — no release needed)
-    cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
+    cb.Input(&emInputEvent::press(InputKey::Enter), &ps, &is);
     assert_eq!(cb.IsChecked() as u8, golden[1], "after 1st click mismatch");
 
     // After second activation
-    cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
+    cb.Input(&emInputEvent::press(InputKey::Enter), &ps, &is);
     assert_eq!(cb.IsChecked() as u8, golden[2], "after 2nd click mismatch");
 }
 
@@ -114,11 +114,11 @@ fn widget_checkbutton_toggle() {
     );
 
     // After first activation (Enter is instant — no release needed)
-    cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
+    cb.Input(&emInputEvent::press(InputKey::Enter), &ps, &is);
     assert_eq!(cb.IsChecked() as u8, golden[1], "after 1st click mismatch");
 
     // After second activation
-    cb.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
+    cb.Input(&emInputEvent::press(InputKey::Enter), &ps, &is);
     assert_eq!(cb.IsChecked() as u8, golden[2], "after 2nd click mismatch");
 }
 
@@ -140,7 +140,7 @@ fn widget_radiobutton_switch() {
     group.borrow_mut().select(0);
     let initial = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
     assert_eq!(
-        group.borrow().selected(),
+        group.borrow().GetChecked(),
         Some(initial),
         "initial radio check mismatch"
     );
@@ -148,10 +148,10 @@ fn widget_radiobutton_switch() {
     // Activate B (Enter is instant — no release needed)
     let ps = default_panel_state();
     let is = default_input_state();
-    rb_b.input(&emInputEvent::press(InputKey::Enter), &ps, &is);
+    rb_b.Input(&emInputEvent::press(InputKey::Enter), &ps, &is);
     let after = u32::from_le_bytes(golden[4..8].try_into().unwrap()) as usize;
     assert_eq!(
-        group.borrow().selected(),
+        group.borrow().GetChecked(),
         Some(after),
         "after switch mismatch"
     );
@@ -163,33 +163,33 @@ fn widget_radiobutton_switch() {
 fn widget_listbox_select() {
     require_golden!();
     let golden = load_widget_state_golden("widget_listbox_select");
-    // Golden format: [u32 count][u32 * count indices]. Single mode → count=1, 1 index = 8 bytes.
+    // Golden format: [u32 GetCount][u32 * GetCount indices]. Single GetMode → GetCount=1, 1 index = 8 bytes.
     assert_eq!(golden.len(), 8, "golden file size mismatch (expected count + 1 index = 8 bytes)");
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_selection_mode(SelectionMode::Single);
-    lb.add_item("item0".to_string(), "Alpha".to_string());
-    lb.add_item("item1".to_string(), "Beta".to_string());
-    lb.add_item("item2".to_string(), "Gamma".to_string());
-    lb.add_item("item3".to_string(), "Delta".to_string());
-    lb.add_item("item4".to_string(), "Epsilon".to_string());
+    lb.SetSelectionType(SelectionMode::Single);
+    lb.AddItem("item0".to_string(), "Alpha".to_string());
+    lb.AddItem("item1".to_string(), "Beta".to_string());
+    lb.AddItem("item2".to_string(), "Gamma".to_string());
+    lb.AddItem("item3".to_string(), "Delta".to_string());
+    lb.AddItem("item4".to_string(), "Epsilon".to_string());
 
-    // Select 2, then 4 (single mode should replace)
+    // Select 2, then 4 (single GetMode should replace)
     lb.select(2, true);
     lb.select(4, true);
 
-    // Parse golden: [u32 count][u32 * count indices]
-    let count = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
+    // Parse golden: [u32 GetCount][u32 * GetCount indices]
+    let GetCount = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
     let mut expected_indices: Vec<usize> = Vec::new();
-    for i in 0..count {
+    for i in 0..GetCount {
         let off = 4 + i * 4;
         expected_indices
             .push(u32::from_le_bytes(golden[off..off + 4].try_into().unwrap()) as usize);
     }
 
     assert_eq!(
-        lb.selected_indices(),
+        lb.GetSelectedIndices(),
         &expected_indices,
         "listbox selection mismatch"
     );
@@ -205,37 +205,37 @@ fn widget_splitter_setpos() {
 
     let look = emLook::new();
     let mut sp = emSplitter::new(Orientation::Horizontal, look);
-    sp.set_limits(0.0, 1.0);
+    sp.SetMinMaxPos(0.0, 1.0);
 
     let eps = 1e-9;
 
-    // Normal value
-    sp.set_position(0.7);
+    // Normal GetValue
+    sp.SetPos(0.7);
     let expected_1 = f64::from_le_bytes(golden[0..8].try_into().unwrap());
     assert!(
-        (sp.position() - expected_1).abs() < eps,
+        (sp.GetPos() - expected_1).abs() < eps,
         "pos 0.7: actual={} expected={}",
-        sp.position(),
+        sp.GetPos(),
         expected_1
     );
 
     // Above max — should clamp
-    sp.set_position(1.5);
+    sp.SetPos(1.5);
     let expected_2 = f64::from_le_bytes(golden[8..16].try_into().unwrap());
     assert!(
-        (sp.position() - expected_2).abs() < eps,
+        (sp.GetPos() - expected_2).abs() < eps,
         "pos 1.5 clamped: actual={} expected={}",
-        sp.position(),
+        sp.GetPos(),
         expected_2
     );
 
     // Below min — should clamp
-    sp.set_position(-0.5);
+    sp.SetPos(-0.5);
     let expected_3 = f64::from_le_bytes(golden[16..24].try_into().unwrap());
     assert!(
-        (sp.position() - expected_3).abs() < eps,
+        (sp.GetPos() - expected_3).abs() < eps,
         "pos -0.5 clamped: actual={} expected={}",
-        sp.position(),
+        sp.GetPos(),
         expected_3
     );
 }
@@ -250,14 +250,14 @@ fn widget_textfield_type() {
 
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_editable(true);
+    tf.SetEditable(true);
     let ps = default_panel_state();
     let is = default_input_state();
 
     // Type "abc"
     for ch in ['a', 'b', 'c'] {
         let event = emInputEvent::press(InputKey::Key(ch)).with_chars(&ch.to_string());
-        tf.input(&event, &ps, &is);
+        tf.Input(&event, &ps, &is);
     }
 
     // Parse golden: [u32 text_len][text_bytes][u32 cursor_pos]
@@ -281,18 +281,18 @@ fn widget_textfield_backspace() {
 
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_editable(true);
+    tf.SetEditable(true);
     let ps = default_panel_state();
     let is = default_input_state();
 
     // Type "abc"
     for ch in ['a', 'b', 'c'] {
         let event = emInputEvent::press(InputKey::Key(ch)).with_chars(&ch.to_string());
-        tf.input(&event, &ps, &is);
+        tf.Input(&event, &ps, &is);
     }
 
     // Backspace
-    tf.input(&emInputEvent::press(InputKey::Backspace), &ps, &is);
+    tf.Input(&emInputEvent::press(InputKey::Backspace), &ps, &is);
 
     // Parse golden: [u32 text_len][text_bytes][u32 cursor_pos]
     let text_len = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
@@ -315,19 +315,19 @@ fn widget_textfield_select() {
 
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_editable(true);
+    tf.SetEditable(true);
     let ps = default_panel_state();
     let is = default_input_state();
 
     // Type "abcdef"
     for ch in ['a', 'b', 'c', 'd', 'e', 'f'] {
         let event = emInputEvent::press(InputKey::Key(ch)).with_chars(&ch.to_string());
-        tf.input(&event, &ps, &is);
+        tf.Input(&event, &ps, &is);
     }
 
     // Shift+ArrowLeft × 3 to select last 3 chars
     for _ in 0..3 {
-        tf.input(&emInputEvent::press(InputKey::ArrowLeft).with_shift(), &ps, &is);
+        tf.Input(&emInputEvent::press(InputKey::ArrowLeft).with_shift(), &ps, &is);
     }
 
     // Parse golden: [u32 sel_start][u32 sel_end][u32 cursor]
@@ -350,29 +350,29 @@ fn widget_scalarfield_inc() {
 
     let look = emLook::new();
     let mut sf = emScalarField::new(0.0, 100.0, look);
-    sf.set_value(50.0);
+    sf.SetValue(50.0);
     let ps = default_panel_state();
     let is = default_input_state();
 
     let eps = 1e-9;
 
     // Press "+" to increment
-    sf.input(&emInputEvent::press(InputKey::Key('+')), &ps, &is);
+    sf.Input(&emInputEvent::press(InputKey::Key('+')), &ps, &is);
     let expected_inc = f64::from_le_bytes(golden[0..8].try_into().unwrap());
     assert!(
-        (sf.value() - expected_inc).abs() < eps,
+        (sf.GetValue() - expected_inc).abs() < eps,
         "after +: actual={} expected={}",
-        sf.value(),
+        sf.GetValue(),
         expected_inc
     );
 
     // Press "-" to decrement
-    sf.input(&emInputEvent::press(InputKey::Key('-')), &ps, &is);
+    sf.Input(&emInputEvent::press(InputKey::Key('-')), &ps, &is);
     let expected_dec = f64::from_le_bytes(golden[8..16].try_into().unwrap());
     assert!(
-        (sf.value() - expected_dec).abs() < eps,
+        (sf.GetValue() - expected_dec).abs() < eps,
         "after -: actual={} expected={}",
-        sf.value(),
+        sf.GetValue(),
         expected_dec
     );
 }
@@ -392,34 +392,34 @@ fn widget_button_click() {
     let click_count = std::rc::Rc::new(std::cell::Cell::new(0u32));
     let cc = click_count.clone();
     btn.on_click = Some(Box::new(move || {
-        cc.set(cc.get() + 1);
+        cc.set(cc.GetRec() + 1);
     }));
 
     // Initial state: not pressed, callback not fired
     assert_eq!(
-        btn.is_pressed() as u8,
+        btn.IsPressed() as u8,
         golden[0],
         "initial pressed state mismatch"
     );
-    assert_eq!(click_count.get(), 0, "on_click should not fire before any click");
+    assert_eq!(click_count.GetRec(), 0, "on_click should not fire before any click");
 
-    // After programmatic click(): pressed state unchanged (click is instantaneous)
-    btn.click();
+    // After programmatic Click(): pressed state unchanged (Click is instantaneous)
+    btn.Click();
     assert_eq!(
-        btn.is_pressed() as u8,
+        btn.IsPressed() as u8,
         golden[1],
         "after 1st click pressed mismatch"
     );
-    assert_eq!(click_count.get(), 1, "on_click should fire exactly once after 1st click");
+    assert_eq!(click_count.GetRec(), 1, "on_click should fire exactly once after 1st click");
 
-    // After second click
-    btn.click();
+    // After second Click
+    btn.Click();
     assert_eq!(
-        btn.is_pressed() as u8,
+        btn.IsPressed() as u8,
         golden[2],
         "after 2nd click pressed mismatch"
     );
-    assert_eq!(click_count.get(), 2, "on_click should fire exactly twice after 2nd click");
+    assert_eq!(click_count.GetRec(), 2, "on_click should fire exactly twice after 2nd click");
 }
 
 // ─── Test 10: widget_listbox_multi ──────────────────────────────
@@ -428,33 +428,33 @@ fn widget_button_click() {
 fn widget_listbox_multi() {
     require_golden!();
     let golden = load_widget_state_golden("widget_listbox_multi");
-    // Golden format: [u32 count][u32 * count indices]. Multi select 2 items → count=2, 2 indices = 12 bytes.
+    // Golden format: [u32 GetCount][u32 * GetCount indices]. Multi select 2 items → GetCount=2, 2 indices = 12 bytes.
     assert_eq!(golden.len(), 12, "golden file size mismatch (expected count + 2 indices = 12 bytes)");
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_selection_mode(SelectionMode::Multi);
-    lb.add_item("item0".to_string(), "Alpha".to_string());
-    lb.add_item("item1".to_string(), "Beta".to_string());
-    lb.add_item("item2".to_string(), "Gamma".to_string());
-    lb.add_item("item3".to_string(), "Delta".to_string());
-    lb.add_item("item4".to_string(), "Epsilon".to_string());
+    lb.SetSelectionType(SelectionMode::Multi);
+    lb.AddItem("item0".to_string(), "Alpha".to_string());
+    lb.AddItem("item1".to_string(), "Beta".to_string());
+    lb.AddItem("item2".to_string(), "Gamma".to_string());
+    lb.AddItem("item3".to_string(), "Delta".to_string());
+    lb.AddItem("item4".to_string(), "Epsilon".to_string());
 
     // Select items 1 and 3 additively
     lb.select(1, false);
     lb.select(3, false);
 
-    // Parse golden: [u32 count][u32*count indices]
-    let count = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
+    // Parse golden: [u32 GetCount][u32*GetCount indices]
+    let GetCount = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
     let mut expected_indices: Vec<usize> = Vec::new();
-    for i in 0..count {
+    for i in 0..GetCount {
         let off = 4 + i * 4;
         expected_indices
             .push(u32::from_le_bytes(golden[off..off + 4].try_into().unwrap()) as usize);
     }
 
     assert_eq!(
-        lb.selected_indices(),
+        lb.GetSelectedIndices(),
         &expected_indices,
         "listbox multi-selection mismatch"
     );
@@ -466,20 +466,20 @@ fn widget_listbox_multi() {
 fn widget_listbox_toggle() {
     require_golden!();
     let golden = load_widget_state_golden("widget_listbox_toggle");
-    // Golden format: two snapshots. Snap 1: [count=1][1 index] = 8 bytes. Snap 2: [count=0] = 4 bytes. Total = 12.
+    // Golden format: two snapshots. Snap 1: [GetCount=1][1 index] = 8 bytes. Snap 2: [GetCount=0] = 4 bytes. Total = 12.
     assert_eq!(golden.len(), 12, "golden file size mismatch (expected 2 snapshots = 12 bytes)");
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_selection_mode(SelectionMode::Toggle);
-    lb.add_item("item0".to_string(), "Alpha".to_string());
-    lb.add_item("item1".to_string(), "Beta".to_string());
-    lb.add_item("item2".to_string(), "Gamma".to_string());
-    lb.add_item("item3".to_string(), "Delta".to_string());
-    lb.add_item("item4".to_string(), "Epsilon".to_string());
+    lb.SetSelectionType(SelectionMode::Toggle);
+    lb.AddItem("item0".to_string(), "Alpha".to_string());
+    lb.AddItem("item1".to_string(), "Beta".to_string());
+    lb.AddItem("item2".to_string(), "Gamma".to_string());
+    lb.AddItem("item3".to_string(), "Delta".to_string());
+    lb.AddItem("item4".to_string(), "Epsilon".to_string());
 
     // Toggle item 2 on — first snapshot
-    lb.toggle_selection(2);
+    lb.ToggleSelection(2);
 
     let count1 = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
     let mut expected1: Vec<usize> = Vec::new();
@@ -489,13 +489,13 @@ fn widget_listbox_toggle() {
         off += 4;
     }
     assert_eq!(
-        lb.selected_indices(),
+        lb.GetSelectedIndices(),
         &expected1,
         "after toggle-on mismatch"
     );
 
     // Toggle item 2 off — second snapshot
-    lb.toggle_selection(2);
+    lb.ToggleSelection(2);
 
     let count2 = u32::from_le_bytes(golden[off..off + 4].try_into().unwrap()) as usize;
     off += 4;
@@ -505,7 +505,7 @@ fn widget_listbox_toggle() {
         off += 4;
     }
     assert_eq!(
-        lb.selected_indices(),
+        lb.GetSelectedIndices(),
         &expected2,
         "after toggle-off mismatch"
     );
@@ -521,7 +521,7 @@ fn widget_textfield_cursor_nav() {
 
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_editable(true);
+    tf.SetEditable(true);
     tf.set_multi_line(true);
     tf.set_text("abc\ndef");
     tf.set_cursor_index(7); // End of "abc\ndef"
@@ -536,7 +536,7 @@ fn widget_textfield_cursor_nav() {
     );
 
     // ArrowUp
-    tf.input(&emInputEvent::press(InputKey::ArrowUp), &ps, &is);
+    tf.Input(&emInputEvent::press(InputKey::ArrowUp), &ps, &is);
 
     let cursor_after = u32::from_le_bytes(golden[4..8].try_into().unwrap()) as usize;
     assert_eq!(
@@ -556,26 +556,26 @@ fn widget_splitter_drag() {
 
     let look = emLook::new();
     let mut sp = emSplitter::new(Orientation::Horizontal, look);
-    sp.set_limits(0.0, 1.0);
-    sp.set_position(0.5);
+    sp.SetMinMaxPos(0.0, 1.0);
+    sp.SetPos(0.5);
 
     let eps = 1e-9;
 
     let expected_before = f64::from_le_bytes(golden[0..8].try_into().unwrap());
     assert!(
-        (sp.position() - expected_before).abs() < eps,
+        (sp.GetPos() - expected_before).abs() < eps,
         "pos before: actual={} expected={}",
-        sp.position(),
+        sp.GetPos(),
         expected_before
     );
 
-    // Set position to 0.7 (matching C++ SetPos(0.7))
-    sp.set_position(0.7);
+    // Set GetPos to 0.7 (matching C++ SetPos(0.7))
+    sp.SetPos(0.7);
     let expected_after = f64::from_le_bytes(golden[8..16].try_into().unwrap());
     assert!(
-        (sp.position() - expected_after).abs() < eps,
+        (sp.GetPos() - expected_after).abs() < eps,
         "pos after: actual={} expected={}",
-        sp.position(),
+        sp.GetPos(),
         expected_after
     );
 }
@@ -588,13 +588,13 @@ struct SplitterLayoutBehavior {
 }
 
 impl PanelBehavior for SplitterLayoutBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.splitter.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.splitter.PaintContent(painter, w, h, _state.enabled);
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let rect = ctx.layout_rect();
-        self.splitter.layout_children(ctx, rect.w, rect.h);
+        self.splitter.LayoutChildren(ctx, rect.w, rect.h);
     }
 }
 
@@ -603,7 +603,7 @@ impl PanelBehavior for SplitterLayoutBehavior {
 fn parse_splitter_layout_golden(data: &[u8]) -> Vec<[f64; 9]> {
     let steps = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
     assert_eq!(data.len(), 4 + steps * 72, "golden size mismatch");
-    let mut result = Vec::with_capacity(steps);
+    let mut GetResult = Vec::with_capacity(steps);
     for s in 0..steps {
         let base = 4 + s * 72;
         let mut vals = [0.0f64; 9];
@@ -611,12 +611,12 @@ fn parse_splitter_layout_golden(data: &[u8]) -> Vec<[f64; 9]> {
             let off = base + i * 8;
             vals[i] = f64::from_le_bytes(data[off..off + 8].try_into().unwrap());
         }
-        result.push(vals);
+        GetResult.push(vals);
     }
-    result
+    GetResult
 }
 
-/// Run splitter layout for a single position, return [pos, c0_x, c0_y, c0_w, c0_h, c1_x, c1_y, c1_w, c1_h].
+/// Run splitter layout for a single GetPos, return [pos, c0_x, c0_y, c0_w, c0_h, c1_x, c1_y, c1_w, c1_h].
 fn run_splitter_layout_step(
     orientation: Orientation,
     parent_rect: (f64, f64, f64, f64),
@@ -624,9 +624,9 @@ fn run_splitter_layout_step(
 ) -> [f64; 9] {
     let look = emLook::new();
     let mut sp = emSplitter::new(orientation, look);
-    sp.set_limits(0.0, 1.0);
-    sp.set_position(pos);
-    let clamped_pos = sp.position();
+    sp.SetMinMaxPos(0.0, 1.0);
+    sp.SetPos(pos);
+    let clamped_pos = sp.GetPos();
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("root");
@@ -644,7 +644,7 @@ fn run_splitter_layout_step(
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -667,11 +667,11 @@ fn splitter_layout_h() {
 
     // C++ uses layout (0,0,1.0,0.75), positions: 0.5, 0.3, 0.8, 1.5 (clamped to 1.0)
     let positions = [0.5, 0.3, 0.8, 1.5];
-    let parent = (0.0, 0.0, 1.0, 0.75);
+    let GetParentContext = (0.0, 0.0, 1.0, 0.75);
 
     let eps = 1e-9;
     for (i, &pos) in positions.iter().enumerate() {
-        let actual = run_splitter_layout_step(Orientation::Horizontal, parent, pos);
+        let actual = run_splitter_layout_step(Orientation::Horizontal, GetParentContext, pos);
         for j in 0..9 {
             assert!(
                 (actual[j] - expected[i][j]).abs() < eps,
@@ -692,11 +692,11 @@ fn splitter_layout_v() {
 
     // C++ uses layout (0,0,1.0,1.0), positions: 0.5, 0.2, 0.7, 0.0 (at min)
     let positions = [0.5, 0.2, 0.7, 0.0];
-    let parent = (0.0, 0.0, 1.0, 1.0);
+    let GetParentContext = (0.0, 0.0, 1.0, 1.0);
 
     let eps = 1e-9;
     for (i, &pos) in positions.iter().enumerate() {
-        let actual = run_splitter_layout_step(Orientation::Vertical, parent, pos);
+        let actual = run_splitter_layout_step(Orientation::Vertical, GetParentContext, pos);
         for j in 0..9 {
             assert!(
                 (actual[j] - expected[i][j]).abs() < eps,
@@ -710,28 +710,28 @@ fn splitter_layout_v() {
 
 // ─── Test: composition_click_through_tree ────────────────────────
 
-/// emButton wrapper that delegates input handling (needed for mouse click dispatch).
+/// emButton wrapper that delegates Input handling (needed for mouse Click dispatch).
 struct ClickableButtonPanel {
     widget: emButton,
 }
 
 impl PanelBehavior for ClickableButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.widget.paint(p, w, h, s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.widget.PaintContent(p, w, h, s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, s: &PanelState, is: &emInputState) -> bool {
-        self.widget.input(e, s, is)
+    fn Input(&mut self, e: &emInputEvent, s: &PanelState, is: &emInputState) -> bool {
+        self.widget.Input(e, s, is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
 
-/// Dispatch a single input event through the panel tree, replicating the
-/// input delivery logic from ZuiWindow::dispatch_input without needing a
+/// Dispatch a single Input event through the panel tree, replicating the
+/// Input delivery logic from ZuiWindow::dispatch_input without needing a
 /// window. Iterates viewed panels in post-order (children before parents),
 /// transforms mouse coordinates to panel-local space, and stops on first
 /// consumption.
@@ -743,7 +743,7 @@ fn dispatch_event(
 ) {
     // For mouse press: set active panel via hit test
     if event.variant == InputVariant::Press
-        && matches!(
+        && Match!(
             event.key,
             InputKey::MouseLeft | InputKey::MouseRight | InputKey::MouseMiddle
         )
@@ -768,7 +768,7 @@ fn dispatch_event(
                 tree.put_behavior(panel_id, behavior);
                 continue;
             }
-            let consumed = behavior.input(&panel_ev, &panel_state, input_state);
+            let consumed = behavior.Input(&panel_ev, &panel_state, input_state);
             tree.put_behavior(panel_id, behavior);
             if consumed {
                 view.invalidate_painting(tree, panel_id);
@@ -779,7 +779,7 @@ fn dispatch_event(
 }
 
 /// Build a panel tree with nested borders and a button, simulate a mouse
-/// click on the button, and verify the click reaches the button (the
+/// Click on the button, and verify the Click reaches the button (the
 /// on_click callback fires).
 ///
 /// Hierarchy:
@@ -817,7 +817,7 @@ fn composition_click_through_tree() {
     let button_id = tree.create_child(container_id, "button");
     let mut btn = emButton::new("Click Me", look);
     btn.on_click = Some(Box::new(move || {
-        clicked_clone.set(clicked_clone.get() + 1);
+        clicked_clone.set(clicked_clone.GetRec() + 1);
     }));
     tree.set_behavior(button_id, Box::new(ClickableButtonPanel { widget: btn }));
 
@@ -832,7 +832,7 @@ fn composition_click_through_tree() {
         view.update_viewing(&mut tree);
     }
 
-    // Render once so the button caches its paint dimensions (last_w, last_h)
+    // Render once so the button caches its PaintContent dimensions (last_w, last_h)
     // which are needed for mouse hit-testing.
     let mut compositor = SoftwareCompositor::new(800, 600);
     compositor.render(&mut tree, &view);
@@ -847,12 +847,12 @@ fn composition_click_through_tree() {
     let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(click_x, click_y);
     dispatch_event(&mut tree, &mut view, &press, &input_state);
 
-    // Mouse release at the same position
+    // Mouse release at the same GetPos
     let release = emInputEvent::release(InputKey::MouseLeft).with_mouse(click_x, click_y);
     dispatch_event(&mut tree, &mut view, &release, &input_state);
 
     assert_eq!(
-        click_count.get(),
+        click_count.GetRec(),
         1,
         "Button on_click callback should fire exactly once — click did not reach the button through the nested border tree"
     );

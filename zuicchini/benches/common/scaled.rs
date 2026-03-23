@@ -14,15 +14,15 @@ use super::{DEFAULT_VH, DEFAULT_VW};
 // ---------------------------------------------------------------------------
 
 pub struct ColorPanel {
-    color: emColor,
+    GetColor: emColor,
 }
 
 impl PanelBehavior for ColorPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        painter.paint_rect(0.0, 0.0, w, h, self.color, emColor::TRANSPARENT);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        painter.paint_rect(0.0, 0.0, w, h, self.GetColor, emColor::TRANSPARENT);
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -41,7 +41,7 @@ pub fn build_scaled_tree(panel_count: usize) -> (PanelTree, emView, PanelId) {
     tree.set_behavior(
         root,
         Box::new(ColorPanel {
-            color: color_for_index(0),
+            GetColor: color_for_index(0),
         }),
     );
     tree.set_focusable(root, true);
@@ -53,12 +53,12 @@ pub fn build_scaled_tree(panel_count: usize) -> (PanelTree, emView, PanelId) {
 
         'outer: while created < panel_count {
             let mut next_parents = Vec::new();
-            for &parent in &parents {
+            for &GetParentContext in &parents {
                 for child_idx in 0..branching {
                     if created >= panel_count {
                         break 'outer;
                     }
-                    let child = tree.create_child(parent, &format!("p{created}"));
+                    let child = tree.create_child(GetParentContext, &format!("p{created}"));
                     let siblings = branching.min(panel_count - created + child_idx);
                     let x = child_idx as f64 / siblings as f64;
                     let w = 1.0 / siblings as f64;
@@ -66,7 +66,7 @@ pub fn build_scaled_tree(panel_count: usize) -> (PanelTree, emView, PanelId) {
                     tree.set_behavior(
                         child,
                         Box::new(ColorPanel {
-                            color: color_for_index(created),
+                            GetColor: color_for_index(created),
                         }),
                     );
                     next_parents.push(child);
@@ -104,7 +104,7 @@ pub fn run_one_scaled_frame(
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(viewport_buf);
-        view.paint(tree, &mut painter);
+        view.PaintContent(tree, &mut painter);
     }
 
     view.clear_viewport_changed();

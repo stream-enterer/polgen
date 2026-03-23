@@ -7,7 +7,7 @@ use zuicchini::emCore::emEngine::{emEngine, EngineCtx, Priority};
 use zuicchini::emCore::emScheduler::EngineScheduler;
 use zuicchini::emCore::emSignal::SignalId;
 
-// ─── Helper: engine that records cycle calls ────────────────────
+// ─── Helper: engine that records Cycle calls ────────────────────
 
 struct RecordingEngine {
     label: &'static str,
@@ -16,7 +16,7 @@ struct RecordingEngine {
 }
 
 impl emEngine for RecordingEngine {
-    fn cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
         self.log.borrow_mut().push(self.label);
         self.stay_awake
     }
@@ -37,7 +37,7 @@ fn signal_fire_check() {
     assert!(sched.is_pending(sig));
 
     // Time slice consumes pending signals
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert!(!sched.is_pending(sig));
 
     sched.remove_signal(sig);
@@ -59,7 +59,7 @@ fn signal_multi() {
     assert!(!sched.is_pending(sig1));
     assert!(sched.is_pending(sig2));
 
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert!(!sched.is_pending(sig0));
     assert!(!sched.is_pending(sig1));
     assert!(!sched.is_pending(sig2));
@@ -94,8 +94,8 @@ fn signal_abort() {
     assert!(!sched.is_pending(sig));
 
     // emEngine should NOT be cycled
-    sched.do_time_slice();
-    assert!(log.borrow().is_empty());
+    sched.DoTimeSlice();
+    assert!(log.borrow().IsEmpty());
 
     sched.remove_engine(eng);
     sched.remove_signal(sig);
@@ -124,13 +124,13 @@ fn timer_oneshot() {
     sched.start_timer(timer, 0, false);
     assert!(sched.is_timer_running(timer));
 
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert_eq!(log.borrow().len(), 1, "One-shot should fire exactly once");
 
     // After firing, one-shot stops running
-    log.borrow_mut().clear();
-    sched.do_time_slice();
-    assert!(log.borrow().is_empty(), "One-shot should not repeat");
+    log.borrow_mut().Clear();
+    sched.DoTimeSlice();
+    assert!(log.borrow().IsEmpty(), "One-shot should not repeat");
 
     sched.remove_engine(eng);
     sched.remove_timer(timer);
@@ -162,12 +162,12 @@ fn timer_periodic() {
     // Subsequent slices execute faster than 1ms refire, so add a small sleep.
     for _ in 0..5 {
         std::thread::sleep(std::time::Duration::from_millis(2));
-        sched.do_time_slice();
+        sched.DoTimeSlice();
     }
 
-    let count = log.borrow().len();
+    let GetCount = log.borrow().len();
     assert!(
-        count >= 3,
+        GetCount >= 3,
         "Periodic timer should fire multiple times, got {count}"
     );
 
@@ -200,8 +200,8 @@ fn timer_cancel() {
     sched.cancel_timer(timer, false);
     assert!(!sched.is_timer_running(timer));
 
-    sched.do_time_slice();
-    assert!(log.borrow().is_empty(), "Cancelled timer should not fire");
+    sched.DoTimeSlice();
+    assert!(log.borrow().IsEmpty(), "Cancelled timer should not fire");
 
     sched.remove_timer(timer);
     sched.remove_engine(eng);
@@ -218,11 +218,11 @@ fn timer_cancel_abort() {
 
     // Start and immediately fire
     sched.start_timer(timer, 0, false);
-    sched.do_time_slice(); // timer fires signal
+    sched.DoTimeSlice(); // timer fires signal
 
     // Signal may be pending; cancel with abort_signal=true
     sched.start_timer(timer, 0, false);
-    sched.do_time_slice(); // fires
+    sched.DoTimeSlice(); // fires
     sched.cancel_timer(timer, true);
     // After abort, signal should not be pending
     assert!(!sched.is_pending(sig));
@@ -249,9 +249,9 @@ fn engine_basic() {
     );
     sched.connect(sig, eng);
 
-    // Fire signal → engine should cycle
+    // Fire signal → engine should Cycle
     sched.fire(sig);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert_eq!(*log.borrow(), vec!["basic"]);
 
     sched.remove_engine(eng);
@@ -293,7 +293,7 @@ fn engine_priority() {
     sched.wake_up(vl);
     sched.wake_up(med);
     sched.wake_up(vh);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
     assert_eq!(*log.borrow(), vec!["very_high", "medium", "very_low"]);
 
@@ -314,21 +314,21 @@ fn engine_wake_sleep() {
         Box::new(RecordingEngine {
             label: "ws",
             log: Rc::clone(&log),
-            stay_awake: true, // stays awake each cycle
+            stay_awake: true, // stays awake each Cycle
         }),
     );
 
-    // Wake → should cycle
+    // Wake → should Cycle
     sched.wake_up(eng);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert_eq!(log.borrow().len(), 1);
 
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert_eq!(log.borrow().len(), 2);
 
     // Sleep → should stop cycling
     sched.sleep(eng);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert_eq!(log.borrow().len(), 2, "Sleeping engine should not cycle");
 
     sched.remove_engine(eng);
@@ -356,14 +356,14 @@ fn engine_multi_signal() {
         c_seen: Rc<RefCell<bool>>,
     }
     impl emEngine for MultiSigEngine {
-        fn cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
-            if ctx.is_signaled(self.sig_a) {
+        fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
+            if ctx.IsSignaled(self.sig_a) {
                 *self.a_seen.borrow_mut() = true;
             }
-            if ctx.is_signaled(self.sig_b) {
+            if ctx.IsSignaled(self.sig_b) {
                 *self.b_seen.borrow_mut() = true;
             }
-            if ctx.is_signaled(self.sig_c) {
+            if ctx.IsSignaled(self.sig_c) {
                 *self.c_seen.borrow_mut() = true;
             }
             false
@@ -387,7 +387,7 @@ fn engine_multi_signal() {
 
     // Fire only A
     sched.fire(sig_a);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert!(*a_seen.borrow());
     assert!(!*b_seen.borrow());
     assert!(!*c_seen.borrow());
@@ -398,7 +398,7 @@ fn engine_multi_signal() {
     // Fire B and C
     sched.fire(sig_b);
     sched.fire(sig_c);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert!(!*a_seen.borrow());
     assert!(*b_seen.borrow());
     assert!(*c_seen.borrow());

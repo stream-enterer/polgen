@@ -25,7 +25,7 @@ impl TestBehavior {
 }
 
 impl PanelBehavior for TestBehavior {
-    fn paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {
         self.paint_count += 1;
     }
 
@@ -33,7 +33,7 @@ impl PanelBehavior for TestBehavior {
         self.last_notice = flags;
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -47,7 +47,7 @@ fn create_and_remove_panels() {
 
     let child = tree.create_child(root, "child");
     assert_eq!(tree.len(), 2);
-    assert_eq!(tree.parent(child), Some(root));
+    assert_eq!(tree.GetParentContext(child), Some(root));
 
     tree.remove(child);
     assert!(!tree.contains(child));
@@ -105,7 +105,7 @@ fn notice_flag_propagation() {
     let root = tree.create_root("root");
     tree.set_behavior(root, Box::new(TestBehavior::new()));
 
-    // Creating a child should set CHILDREN_CHANGED on parent
+    // Creating a child should set CHILDREN_CHANGED on GetParentContext
     let _child = tree.create_child(root, "child");
 
     // Verify notice is pending before delivery
@@ -117,23 +117,23 @@ fn notice_flag_propagation() {
     tree.deliver_notices(true, 1.0);
 
     // Verify notices were cleared after delivery
-    assert!(tree.pending_notices(root).is_empty());
+    assert!(tree.pending_notices(root).IsEmpty());
 }
 
 #[test]
 fn remove_subtree() {
     let mut tree = PanelTree::new();
     let root = tree.create_root("root");
-    let parent = tree.create_child(root, "parent");
-    let child1 = tree.create_child(parent, "child1");
-    let child2 = tree.create_child(parent, "child2");
+    let GetParentContext = tree.create_child(root, "parent");
+    let child1 = tree.create_child(GetParentContext, "child1");
+    let child2 = tree.create_child(GetParentContext, "child2");
     let grandchild = tree.create_child(child1, "grandchild");
     assert_eq!(tree.len(), 5);
 
-    // Remove parent and all descendants
-    tree.remove(parent);
+    // Remove GetParentContext and all descendants
+    tree.remove(GetParentContext);
     assert_eq!(tree.len(), 1);
-    assert!(!tree.contains(parent));
+    assert!(!tree.contains(GetParentContext));
     assert!(!tree.contains(child1));
     assert!(!tree.contains(child2));
     assert!(!tree.contains(grandchild));

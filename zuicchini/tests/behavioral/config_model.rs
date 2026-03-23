@@ -10,7 +10,7 @@ use zuicchini::emCore::emScheduler::EngineScheduler;
 #[derive(Clone, Debug, PartialEq)]
 struct TestConfig {
     name: String,
-    count: i32,
+    GetCount: i32,
     ratio: f64,
     enabled: bool,
 }
@@ -19,7 +19,7 @@ impl Default for TestConfig {
     fn default() -> Self {
         Self {
             name: "default".to_string(),
-            count: 0,
+            GetCount: 0,
             ratio: 1.0,
             enabled: false,
         }
@@ -33,7 +33,7 @@ impl Record for TestConfig {
                 .get_str("name")
                 .ok_or_else(|| RecError::MissingField("name".into()))?
                 .to_string(),
-            count: rec
+            GetCount: rec
                 .get_int("count")
                 .ok_or_else(|| RecError::MissingField("count".into()))?,
             ratio: rec
@@ -46,17 +46,17 @@ impl Record for TestConfig {
     fn to_rec(&self) -> RecStruct {
         let mut s = RecStruct::new();
         s.set_str("name", &self.name);
-        s.set_int("count", self.count);
+        s.set_int("count", self.GetCount);
         s.set_double("ratio", self.ratio);
         s.set_bool("enabled", self.enabled);
         s
     }
 
-    fn set_to_default(&mut self) {
+    fn SetToDefault(&mut self) {
         *self = Self::default();
     }
 
-    fn is_default(&self) -> bool {
+    fn IsSetToDefault(&self) -> bool {
         *self == Self::default()
     }
 }
@@ -75,21 +75,21 @@ fn config_model_round_trip_save_load() {
 
     let original = TestConfig {
         name: "hello world".to_string(),
-        count: 42,
+        GetCount: 42,
         ratio: 3.14,
         enabled: true,
     };
 
     // Save
     let mut model = emConfigModel::new(original.clone(), path.clone(), sig);
-    model.save().expect("save should succeed");
-    assert!(!model.is_dirty());
+    model.Save().expect("save should succeed");
+    assert!(!model.IsUnsaved());
 
     // Load into a fresh model
     let mut model2 = emConfigModel::new(TestConfig::default(), path.clone(), sig);
-    model2.load().expect("load should succeed");
-    assert_eq!(model2.get(), &original);
-    assert!(!model2.is_dirty());
+    model2.TryLoad().expect("load should succeed");
+    assert_eq!(model2.GetRec(), &original);
+    assert!(!model2.IsUnsaved());
 
     // Cleanup
     let _ = std::fs::remove_file(&path);
@@ -104,10 +104,10 @@ fn config_model_load_or_install_creates_default() {
 
     let mut model = emConfigModel::new(TestConfig::default(), path.clone(), sig);
     model
-        .load_or_install()
+        .TryLoadOrInstall()
         .expect("load_or_install should succeed");
     assert!(path.exists(), "file should be created");
-    assert_eq!(model.get(), &TestConfig::default());
+    assert_eq!(model.GetRec(), &TestConfig::default());
 
     // Cleanup
     let _ = std::fs::remove_file(&path);
@@ -122,17 +122,17 @@ fn config_model_load_or_install_reads_existing() {
     // Write a custom config first
     let custom = TestConfig {
         name: "custom".to_string(),
-        count: 99,
+        GetCount: 99,
         ratio: 2.718,
         enabled: true,
     };
     let mut writer = emConfigModel::new(custom.clone(), path.clone(), sig);
-    writer.save().expect("save");
+    writer.Save().expect("save");
 
-    // load_or_install should read existing, not overwrite
+    // TryLoadOrInstall should read existing, not overwrite
     let mut model = emConfigModel::new(TestConfig::default(), path.clone(), sig);
-    model.load_or_install().expect("load_or_install");
-    assert_eq!(model.get(), &custom);
+    model.TryLoadOrInstall().expect("load_or_install");
+    assert_eq!(model.GetRec(), &custom);
 
     // Cleanup
     let _ = std::fs::remove_file(&path);
@@ -145,12 +145,12 @@ fn config_model_set_marks_dirty() {
     let sig = sched.create_signal();
 
     let mut model = emConfigModel::new(TestConfig::default(), path, sig);
-    assert!(!model.is_dirty());
+    assert!(!model.IsUnsaved());
     model.set(TestConfig {
         name: "changed".to_string(),
         ..TestConfig::default()
     });
-    assert!(model.is_dirty());
+    assert!(model.IsUnsaved());
 }
 
 #[test]
@@ -160,9 +160,9 @@ fn config_model_modify_marks_dirty() {
     let sig = sched.create_signal();
 
     let mut model = emConfigModel::new(TestConfig::default(), path, sig);
-    model.modify(|c| c.count = 7);
-    assert!(model.is_dirty());
-    assert_eq!(model.get().count, 7);
+    model.modify(|c| c.GetCount = 7);
+    assert!(model.IsUnsaved());
+    assert_eq!(model.GetRec().GetCount, 7);
 }
 
 #[test]
@@ -173,21 +173,21 @@ fn config_model_reset_to_default() {
 
     let custom = TestConfig {
         name: "non-default".to_string(),
-        count: 100,
+        GetCount: 100,
         ratio: 9.9,
         enabled: true,
     };
     let mut model = emConfigModel::new(custom, path, sig);
-    model.reset_to_default();
-    assert!(model.is_dirty());
-    assert_eq!(model.get(), &TestConfig::default());
+    model.SetToDefault();
+    assert!(model.IsUnsaved());
+    assert_eq!(model.GetRec(), &TestConfig::default());
 }
 
 #[test]
 fn record_round_trip_through_rec_text() {
     let original = TestConfig {
         name: "serialized".to_string(),
-        count: -5,
+        GetCount: -5,
         ratio: 0.001,
         enabled: false,
     };

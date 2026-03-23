@@ -67,7 +67,7 @@ impl TestHarness {
 
     /// Run one frame: scheduler time slice → deliver notices → update viewing.
     pub fn tick(&mut self) {
-        self.scheduler.do_time_slice();
+        self.scheduler.DoTimeSlice();
         self.tree
             .deliver_notices(self.view.window_focused(), self.view.pixel_tallness());
         self.view.update_viewing(&mut self.tree);
@@ -81,8 +81,8 @@ impl TestHarness {
     }
 
     /// Create a focusable child panel with a layout rect.
-    pub fn add_panel(&mut self, parent: PanelId, name: &str) -> PanelId {
-        let id = self.tree.create_child(parent, name);
+    pub fn add_panel(&mut self, GetParentContext: PanelId, name: &str) -> PanelId {
+        let id = self.tree.create_child(GetParentContext, name);
         self.tree.set_focusable(id, true);
         self.tree.set_layout_rect(id, 0.0, 0.0, 1.0, 1.0);
         id
@@ -91,16 +91,16 @@ impl TestHarness {
     /// Create a focusable child panel with a layout rect and behavior.
     pub fn add_panel_with(
         &mut self,
-        parent: PanelId,
+        GetParentContext: PanelId,
         name: &str,
         behavior: Box<dyn PanelBehavior>,
     ) -> PanelId {
-        let id = self.add_panel(parent, name);
+        let id = self.add_panel(GetParentContext, name);
         self.tree.set_behavior(id, behavior);
         id
     }
 
-    /// Dispatch input through VIF chain → hit-test → behavior delivery.
+    /// Dispatch Input through VIF chain → hit-test → behavior delivery.
     /// Matches C++ emPanel::Input which broadcasts to ALL viewed panels in
     /// post-order (children → parents, last → first).
     pub fn inject_input(&mut self, event: &emInputEvent) {
@@ -113,7 +113,7 @@ impl TestHarness {
 
         // For mouse press: hit test and set active panel
         if event.variant == InputVariant::Press
-            && matches!(
+            && Match!(
                 event.key,
                 InputKey::MouseLeft | InputKey::MouseRight | InputKey::MouseMiddle
             )
@@ -138,7 +138,7 @@ impl TestHarness {
                 let state = self
                     .tree
                     .build_panel_state(panel_id, wf, self.view.pixel_tallness());
-                let consumed = behavior.input(&ev, &state, &self.input_state);
+                let consumed = behavior.Input(&ev, &state, &self.input_state);
                 self.tree.put_behavior(panel_id, behavior);
                 if consumed {
                     break;
@@ -170,7 +170,7 @@ impl PanelBehavior for RecordingBehavior {
         self.log.borrow_mut().push(format!("notice:{flags:?}"));
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         _state: &PanelState,
@@ -186,7 +186,7 @@ impl PanelBehavior for RecordingBehavior {
         }
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         self.log.borrow_mut().push("layout_children".to_string());
         if let Some(ref mut f) = self.on_layout {
             f(ctx);
@@ -211,7 +211,7 @@ impl PanelBehavior for NoticeBehavior {
     }
 }
 
-/// A behavior that tracks whether input was received.
+/// A behavior that tracks whether Input was received.
 pub struct InputTrackingBehavior {
     pub input_received: Rc<RefCell<bool>>,
 }
@@ -223,7 +223,7 @@ impl InputTrackingBehavior {
 }
 
 impl PanelBehavior for InputTrackingBehavior {
-    fn input(
+    fn Input(
         &mut self,
         _event: &emInputEvent,
         _state: &PanelState,
@@ -234,7 +234,7 @@ impl PanelBehavior for InputTrackingBehavior {
     }
 }
 
-/// Behavior that calls closures on notice/layout_children for tree mutation tests.
+/// Behavior that calls closures on notice/LayoutChildren for tree mutation tests.
 pub struct MutatingBehavior {
     pub on_layout: Option<Box<dyn FnMut(&mut PanelCtx)>>,
     pub on_notice: Option<Box<dyn FnMut(NoticeFlags)>>,
@@ -256,7 +256,7 @@ impl PanelBehavior for MutatingBehavior {
         }
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         if let Some(ref mut f) = self.on_layout {
             f(ctx);
         }

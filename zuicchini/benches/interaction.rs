@@ -31,7 +31,7 @@ fn bench_interaction(c: &mut Criterion) {
         });
     }
 
-    group.finish();
+    group.Finish();
 }
 
 criterion_group!(benches, bench_interaction);

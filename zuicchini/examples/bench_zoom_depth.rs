@@ -1,6 +1,6 @@
-//! Benchmark paint cost at various zoom depths.
+//! Benchmark PaintContent cost at various zoom depths.
 //!
-//! Pre-zooms to several levels, then measures paint cost at each.
+//! Pre-zooms to several levels, then measures PaintContent cost at each.
 //! Tests whether clipping effectively limits work when most of the
 //! panel is off-screen.
 //!
@@ -36,7 +36,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         use std::f64::consts::PI;
         use zuicchini::emCore::emStroke::emStroke;
 
@@ -98,7 +98,7 @@ impl PanelBehavior for TestPanel {
         painter.pop_state();
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -139,7 +139,7 @@ fn measure_at_zoom(zoom_factor: f64) -> (f64, f64, f64) {
     buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut buf);
-        view.paint(&mut tree, &mut painter);
+        view.PaintContent(&mut tree, &mut painter);
     }
 
     // Measure
@@ -149,7 +149,7 @@ fn measure_at_zoom(zoom_factor: f64) -> (f64, f64, f64) {
         let t = Instant::now();
         {
             let mut painter = emPainter::new(&mut buf);
-            view.paint(&mut tree, &mut painter);
+            view.PaintContent(&mut tree, &mut painter);
         }
         times.push(t.elapsed().as_micros() as f64);
     }
@@ -169,7 +169,7 @@ fn measure_nested_at_zoom(panel_count: usize, zoom_factor: f64) -> (f64, f64, f6
     tree.set_behavior(root, Box::new(TestPanel::new()));
     tree.set_focusable(root, true);
 
-    // Build nested children: each child fills most of the parent,
+    // Build nested children: each child fills most of the GetParentContext,
     // like Eagle Mode's recursive zoom structure
     if panel_count > 1 {
         let mut parents = vec![root];
@@ -178,12 +178,12 @@ fn measure_nested_at_zoom(panel_count: usize, zoom_factor: f64) -> (f64, f64, f6
 
         while created < panel_count {
             let mut next_parents = Vec::new();
-            for &parent in &parents {
+            for &GetParentContext in &parents {
                 for child_idx in 0..branching {
                     if created >= panel_count {
                         break;
                     }
-                    let child = tree.create_child(parent, &format!("p{created}"));
+                    let child = tree.create_child(GetParentContext, &format!("p{created}"));
                     let siblings = branching.min(panel_count - created + child_idx);
                     let x = child_idx as f64 / siblings as f64;
                     let w = 1.0 / siblings as f64;
@@ -220,7 +220,7 @@ fn measure_nested_at_zoom(panel_count: usize, zoom_factor: f64) -> (f64, f64, f6
     buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut buf);
-        view.paint(&mut tree, &mut painter);
+        view.PaintContent(&mut tree, &mut painter);
     }
 
     // Measure
@@ -230,7 +230,7 @@ fn measure_nested_at_zoom(panel_count: usize, zoom_factor: f64) -> (f64, f64, f6
         let t = Instant::now();
         {
             let mut painter = emPainter::new(&mut buf);
-            view.paint(&mut tree, &mut painter);
+            view.PaintContent(&mut tree, &mut painter);
         }
         times.push(t.elapsed().as_micros() as f64);
     }

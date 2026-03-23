@@ -46,7 +46,7 @@ fn dt_for_frame(i: usize) -> f64 {
     }
 }
 
-/// Initial fake clock value matching C++ TimedGoldenViewPort.
+/// Initial fake clock GetValue matching C++ TimedGoldenViewPort.
 const CLOCK_INIT: u64 = 1_000_000;
 /// Clock step per frame (16ms).
 const CLOCK_STEP: u64 = 16;

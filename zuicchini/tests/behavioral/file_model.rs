@@ -22,7 +22,7 @@ fn get_memory_need_default_zero() {
 fn get_memory_need_after_update() {
     let (change, update) = make_signals();
     let mut m: emFileModel<Vec<u8>> = emFileModel::new(PathBuf::from("test.dat"), change, update);
-    m.update_memory_need(1024);
+    m.CalcMemoryNeed(1024);
     assert_eq!(m.get_memory_need(), 1024);
 }
 
@@ -30,11 +30,11 @@ fn get_memory_need_after_update() {
 fn update_retries_load_error() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.request_load();
+    m.Load();
     m.fail_load("network error".to_string());
-    assert!(matches!(m.state(), FileState::LoadError(_)));
+    assert!(Match!(m.state(), FileState::LoadError(_)));
     m.update();
-    assert!(matches!(m.state(), &FileState::Waiting));
+    assert!(Match!(m.state(), &FileState::Waiting));
 }
 
 #[test]
@@ -43,19 +43,19 @@ fn update_retries_too_costly() {
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
     m.mark_too_costly();
     m.update();
-    assert!(matches!(m.state(), &FileState::Waiting));
+    assert!(Match!(m.state(), &FileState::Waiting));
 }
 
 #[test]
 fn update_unloads_out_of_date() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.request_load();
+    m.Load();
     m.complete_load("data".to_string());
-    m.set_file_date(1000, 512);
-    m.check_out_of_date(2000, 512); // marks out_of_date = true
+    m.TryFetchDate(1000, 512);
+    m.IsOutOfDate(2000, 512); // marks out_of_date = true
     m.update();
-    assert!(matches!(m.state(), &FileState::Waiting));
+    assert!(Match!(m.state(), &FileState::Waiting));
     assert!(m.data().is_none());
 }
 
@@ -63,12 +63,12 @@ fn update_unloads_out_of_date() {
 fn update_keeps_loaded_if_fresh() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.request_load();
+    m.Load();
     m.complete_load("data".to_string());
-    m.set_file_date(1000, 512);
-    m.check_out_of_date(1000, 512); // same date, not out of date
+    m.TryFetchDate(1000, 512);
+    m.IsOutOfDate(1000, 512); // same date, not out of date
     m.update();
-    assert!(matches!(m.state(), &FileState::Loaded));
+    assert!(Match!(m.state(), &FileState::Loaded));
     assert_eq!(m.data().unwrap(), "data", "loaded data should be preserved after fresh update");
 }
 
@@ -76,11 +76,11 @@ fn update_keeps_loaded_if_fresh() {
 fn reset_data_clears_everything() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.request_load();
+    m.Load();
     m.complete_load("data".to_string());
-    m.update_memory_need(500);
+    m.CalcMemoryNeed(500);
     m.reset_data();
-    assert!(matches!(m.state(), &FileState::Waiting));
+    assert!(Match!(m.state(), &FileState::Waiting));
     assert!(m.data().is_none());
     assert_eq!(m.get_memory_need(), 0);
 }
@@ -169,9 +169,9 @@ fn loading_error() {
     }
 
     let mut loader = FailLoader;
-    let result = loader.try_start_loading();
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), "cannot open file");
+    let GetResult = loader.try_start_loading();
+    assert!(GetResult.is_err());
+    assert_eq!(GetResult.unwrap_err(), "cannot open file");
 }
 
 struct TestSaver {
@@ -328,32 +328,32 @@ fn calc_file_progress_complete() {
 fn file_date_same_is_not_out_of_date() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.set_file_date(1000, 512);
-    assert!(!m.check_out_of_date(1000, 512));
+    m.TryFetchDate(1000, 512);
+    assert!(!m.IsOutOfDate(1000, 512));
 }
 
 #[test]
 fn file_date_different_mtime_is_out_of_date() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.set_file_date(1000, 512);
-    assert!(m.check_out_of_date(2000, 512));
+    m.TryFetchDate(1000, 512);
+    assert!(m.IsOutOfDate(2000, 512));
 }
 
 #[test]
 fn file_date_different_size_is_out_of_date() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.set_file_date(1000, 512);
-    assert!(m.check_out_of_date(1000, 1024));
+    m.TryFetchDate(1000, 512);
+    assert!(m.IsOutOfDate(1000, 1024));
 }
 
 #[test]
 fn file_date_both_different_is_out_of_date() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.set_file_date(1000, 512);
-    assert!(m.check_out_of_date(2000, 1024));
+    m.TryFetchDate(1000, 512);
+    assert!(m.IsOutOfDate(2000, 1024));
 }
 
 #[test]
@@ -362,7 +362,7 @@ fn update_signal_returned() {
     let change = sched.create_signal();
     let update = sched.create_signal();
     let m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    assert_eq!(m.update_signal(), update);
+    assert_eq!(m.AcquireUpdateSignalModel(), update);
 }
 
 #[test]
@@ -371,14 +371,14 @@ fn update_signal_differs_from_change() {
     let change = sched.create_signal();
     let update = sched.create_signal();
     let m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    assert_ne!(m.change_signal(), m.update_signal());
+    assert_ne!(m.change_signal(), m.AcquireUpdateSignalModel());
 }
 
 #[test]
 fn ignore_update_signal_default_false() {
     let (change, update) = make_signals();
     let m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    assert!(!m.ignore_update_signal());
+    assert!(!m.GetIgnoreUpdateSignal());
 }
 
 #[test]
@@ -386,7 +386,7 @@ fn set_ignore_update_signal_true() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
     m.set_ignore_update_signal(true);
-    assert!(m.ignore_update_signal());
+    assert!(m.GetIgnoreUpdateSignal());
 }
 
 #[test]
@@ -394,23 +394,23 @@ fn set_ignore_update_signal_toggle() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
     m.set_ignore_update_signal(true);
-    assert!(m.ignore_update_signal());
+    assert!(m.GetIgnoreUpdateSignal());
     m.set_ignore_update_signal(false);
-    assert!(!m.ignore_update_signal());
+    assert!(!m.GetIgnoreUpdateSignal());
 }
 
 #[test]
 fn clear_save_error_transitions_to_unsaved() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.request_load();
+    m.Load();
     m.complete_load("data".to_string());
-    m.mark_unsaved();
-    m.request_save();
+    m.SetUnsavedState();
+    m.Save();
     m.fail_save("disk full".to_string());
-    assert!(matches!(m.state(), FileState::SaveError(_)));
+    assert!(Match!(m.state(), FileState::SaveError(_)));
     m.clear_save_error();
-    assert!(matches!(m.state(), &FileState::Unsaved));
+    assert!(Match!(m.state(), &FileState::Unsaved));
 }
 
 #[test]
@@ -418,15 +418,15 @@ fn clear_save_error_noop_in_waiting() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
     m.clear_save_error();
-    assert!(matches!(m.state(), &FileState::Waiting));
+    assert!(Match!(m.state(), &FileState::Waiting));
 }
 
 #[test]
 fn clear_save_error_noop_in_loaded() {
     let (change, update) = make_signals();
     let mut m: emFileModel<String> = emFileModel::new(PathBuf::from("t.dat"), change, update);
-    m.request_load();
+    m.Load();
     m.complete_load("data".to_string());
     m.clear_save_error();
-    assert!(matches!(m.state(), &FileState::Loaded));
+    assert!(Match!(m.state(), &FileState::Loaded));
 }

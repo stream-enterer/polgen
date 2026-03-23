@@ -1,5 +1,5 @@
 //! Systematic interaction test for emSplitter at 1x and 2x zoom, driven through
-//! the full input dispatch pipeline (PipelineTestHarness).
+//! the full Input dispatch pipeline (PipelineTestHarness).
 //!
 //! Verifies emSplitter drag behavior when dispatched through the coordinate-
 //! transform pipeline at different zoom levels.
@@ -29,30 +29,30 @@ struct SharedSplitterPanel {
 }
 
 impl PanelBehavior for SharedSplitterPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.inner.borrow_mut().paint(painter, w, h, state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.inner.borrow_mut().PaintContent(painter, w, h, state.enabled);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         state: &PanelState,
         input_state: &emInputState,
     ) -> bool {
-        self.inner.borrow_mut().input(event, state, input_state)
+        self.inner.borrow_mut().Input(event, state, input_state)
     }
 
-    fn get_cursor(&self) -> emCursor {
-        self.inner.borrow().get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.inner.borrow().GetCursor()
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
 
 // ---------------------------------------------------------------------------
-// Helper: create a harness with a shared emSplitter at a given position.
+// Helper: create a harness with a shared emSplitter at a given GetPos.
 // ---------------------------------------------------------------------------
 
 fn setup_splitter(
@@ -64,7 +64,7 @@ fn setup_splitter(
 
     let look = emLook::new();
     let mut sp = emSplitter::new(orientation, look);
-    sp.set_position(initial_pos);
+    sp.SetPos(initial_pos);
     let sp_ref = Rc::new(RefCell::new(sp));
 
     let _panel_id = h.add_panel_with(
@@ -87,7 +87,7 @@ fn setup_splitter(
 
 /// Horizontal emSplitter drag through the full pipeline at 1x and 2x zoom.
 ///
-/// The emSplitter's `input()` method computes grip geometry in normalized
+/// The emSplitter's `Input()` method computes grip Restore in normalized
 /// `(1.0, tallness)` panel-local space, matching the coordinate system
 /// used by the pipeline for mouse coordinates.
 #[test]
@@ -96,7 +96,7 @@ fn splitter_drag_horizontal_1x_and_2x() {
 
     // Verify initial state.
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "Splitter should start at position 0.5"
     );
 
@@ -104,31 +104,31 @@ fn splitter_drag_horizontal_1x_and_2x() {
     // Drag from grip center (view 400,300) to ~30% (view 240,300).
     h.drag(400.0, 300.0, 240.0, 300.0);
 
-    let pos_after_1x = sp_ref.borrow().position();
+    let pos_after_1x = sp_ref.borrow().GetPos();
 
     assert!(
         (pos_after_1x - 0.3).abs() < 0.1,
         "After dragging to ~30%, position should be near 0.3. Got {pos_after_1x}"
     );
 
-    // ── Reset position to 0.5 ──────────────────────────────────────
-    sp_ref.borrow_mut().set_position(0.5);
+    // ── Reset GetPos to 0.5 ──────────────────────────────────────
+    sp_ref.borrow_mut().SetPos(0.5);
 
     // ── At 2x zoom ─────────────────────────────────────────────────
     h.set_zoom(2.0);
     h.tick_n(5);
     compositor.render(&mut h.tree, &h.view);
 
-    // Verify position is still 0.5 after zoom change.
+    // Verify GetPos is still 0.5 after zoom change.
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "Splitter position should remain 0.5 after zoom change"
     );
 
     // Drag at 2x zoom from grip center to ~30%.
     h.drag(400.0, 300.0, 240.0, 300.0);
 
-    let pos_after_2x = sp_ref.borrow().position();
+    let pos_after_2x = sp_ref.borrow().GetPos();
 
     assert!(
         (pos_after_2x - 0.3).abs() < 0.1,
@@ -142,7 +142,7 @@ fn splitter_drag_horizontal_1x_and_2x() {
 
 /// Vertical emSplitter drag through the full pipeline at 1x and 2x zoom.
 ///
-/// The emSplitter's `input()` method computes grip geometry in normalized
+/// The emSplitter's `Input()` method computes grip Restore in normalized
 /// `(1.0, tallness)` panel-local space, matching the coordinate system
 /// used by the pipeline for mouse coordinates.
 #[test]
@@ -151,7 +151,7 @@ fn splitter_drag_vertical_1x_and_2x() {
 
     // Verify initial state.
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "Vertical splitter should start at position 0.5"
     );
 
@@ -160,15 +160,15 @@ fn splitter_drag_vertical_1x_and_2x() {
     // Drag target ~30%: panel_y=0.3 maps to view_y=240.
     h.drag(400.0, 400.0, 400.0, 240.0);
 
-    let pos_after_1x = sp_ref.borrow().position();
+    let pos_after_1x = sp_ref.borrow().GetPos();
 
     assert!(
         (pos_after_1x - 0.3).abs() < 0.1,
         "After dragging to ~30%, vertical position should be near 0.3. Got {pos_after_1x}"
     );
 
-    // ── Reset position to 0.5 ──────────────────────────────────────
-    sp_ref.borrow_mut().set_position(0.5);
+    // ── Reset GetPos to 0.5 ──────────────────────────────────────
+    sp_ref.borrow_mut().SetPos(0.5);
 
     // ── At 2x zoom ─────────────────────────────────────────────────
     h.set_zoom(2.0);
@@ -176,7 +176,7 @@ fn splitter_drag_vertical_1x_and_2x() {
     compositor.render(&mut h.tree, &h.view);
 
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "Vertical splitter position should remain 0.5 after zoom change"
     );
 
@@ -185,7 +185,7 @@ fn splitter_drag_vertical_1x_and_2x() {
     // Target ~30%: view_y = -300 + 0.3*1600 = 180.
     h.drag(400.0, 500.0, 400.0, 180.0);
 
-    let pos_after_2x = sp_ref.borrow().position();
+    let pos_after_2x = sp_ref.borrow().GetPos();
 
     assert!(
         (pos_after_2x - 0.3).abs() < 0.1,
@@ -194,19 +194,19 @@ fn splitter_drag_vertical_1x_and_2x() {
 }
 
 // ---------------------------------------------------------------------------
-// Test: emSplitter position() and set_position() are coherent across zoom
+// Test: emSplitter GetPos() and SetPos() are coherent across zoom
 // ---------------------------------------------------------------------------
 
-/// Verify that programmatic position changes are preserved across zoom changes.
-/// This does NOT involve drag -- it tests that set_position/position round-trip
-/// correctly and that zooming + re-rendering does not alter position.
+/// Verify that programmatic GetPos changes are preserved across zoom changes.
+/// This does NOT involve drag -- it tests that SetPos/GetPos round-trip
+/// correctly and that zooming + re-rendering does not alter GetPos.
 #[test]
 fn splitter_position_stable_across_zoom() {
     let (mut h, sp_ref, mut compositor) = setup_splitter(Orientation::Horizontal, 0.25);
 
-    // Initial position at 1x.
+    // Initial GetPos at 1x.
     assert!(
-        (sp_ref.borrow().position() - 0.25).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.25).abs() < 0.001,
         "Splitter should start at position 0.25"
     );
 
@@ -216,14 +216,14 @@ fn splitter_position_stable_across_zoom() {
     compositor.render(&mut h.tree, &h.view);
 
     assert!(
-        (sp_ref.borrow().position() - 0.25).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.25).abs() < 0.001,
         "Splitter position should remain 0.25 after zoom to 2x"
     );
 
-    // Programmatically change position at 2x zoom.
-    sp_ref.borrow_mut().set_position(0.75);
+    // Programmatically change GetPos at 2x zoom.
+    sp_ref.borrow_mut().SetPos(0.75);
     assert!(
-        (sp_ref.borrow().position() - 0.75).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.75).abs() < 0.001,
         "set_position(0.75) should set position to 0.75 at 2x"
     );
 
@@ -233,7 +233,7 @@ fn splitter_position_stable_across_zoom() {
     compositor.render(&mut h.tree, &h.view);
 
     assert!(
-        (sp_ref.borrow().position() - 0.75).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.75).abs() < 0.001,
         "Splitter position should remain 0.75 after returning to 1x"
     );
 }
@@ -242,60 +242,60 @@ fn splitter_position_stable_across_zoom() {
 // Test: emSplitter clamping with limits
 // ---------------------------------------------------------------------------
 
-/// Verify that set_position respects min/max limits at both zoom levels.
+/// Verify that SetPos respects min/max limits at both zoom levels.
 #[test]
 fn splitter_limits_respected_across_zoom() {
     let (mut h, sp_ref, mut compositor) = setup_splitter(Orientation::Horizontal, 0.5);
 
     // Set limits to [0.2, 0.8].
-    sp_ref.borrow_mut().set_limits(0.2, 0.8);
+    sp_ref.borrow_mut().SetMinMaxPos(0.2, 0.8);
 
-    // Verify position is still 0.5 (within limits).
+    // Verify GetPos is still 0.5 (within limits).
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "Position 0.5 should remain within [0.2, 0.8] limits"
     );
 
-    // Try to set position below minimum.
-    sp_ref.borrow_mut().set_position(0.0);
+    // Try to set GetPos below minimum.
+    sp_ref.borrow_mut().SetPos(0.0);
     assert!(
-        (sp_ref.borrow().position() - 0.2).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.2).abs() < 0.001,
         "Position should be clamped to min_position 0.2, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 
-    // Try to set position above maximum.
-    sp_ref.borrow_mut().set_position(1.0);
+    // Try to set GetPos above maximum.
+    sp_ref.borrow_mut().SetPos(1.0);
     assert!(
-        (sp_ref.borrow().position() - 0.8).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.8).abs() < 0.001,
         "Position should be clamped to max_position 0.8, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 
-    // Zoom to 2x -- clamped position should be preserved.
+    // Zoom to 2x -- clamped GetPos should be preserved.
     h.set_zoom(2.0);
     h.tick_n(5);
     compositor.render(&mut h.tree, &h.view);
 
     assert!(
-        (sp_ref.borrow().position() - 0.8).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.8).abs() < 0.001,
         "Clamped position 0.8 should be preserved after zoom to 2x, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 
     // Verify limits still work at 2x.
-    sp_ref.borrow_mut().set_position(0.0);
+    sp_ref.borrow_mut().SetPos(0.0);
     assert!(
-        (sp_ref.borrow().position() - 0.2).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.2).abs() < 0.001,
         "Position should be clamped to min 0.2 at 2x zoom, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 
-    sp_ref.borrow_mut().set_position(1.0);
+    sp_ref.borrow_mut().SetPos(1.0);
     assert!(
-        (sp_ref.borrow().position() - 0.8).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.8).abs() < 0.001,
         "Position should be clamped to max 0.8 at 2x zoom, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 }
 
@@ -313,7 +313,7 @@ fn setup_splitter_with_id(
 
     let look = emLook::new();
     let mut sp = emSplitter::new(orientation, look);
-    sp.set_position(initial_pos);
+    sp.SetPos(initial_pos);
     let sp_ref = Rc::new(RefCell::new(sp));
 
     let panel_id = h.add_panel_with(
@@ -349,8 +349,8 @@ fn splitter_press_on_grip_starts_drag() {
     );
 }
 
-/// BP-11: Move during drag updates position continuously.
-/// C++ ref: emSplitter.cpp:117-137 — position updates on mouse move while Pressed.
+/// BP-11: Move during drag updates GetPos continuously.
+/// C++ ref: emSplitter.cpp:117-137 — GetPos updates on mouse move while Pressed.
 #[test]
 fn splitter_move_during_drag_updates_position() {
     let (mut h, sp_ref, _compositor) = setup_splitter(Orientation::Horizontal, 0.5);
@@ -363,7 +363,7 @@ fn splitter_move_during_drag_updates_position() {
     // Move to ~60% of viewport width (480px).
     let move1 = emInputEvent::mouse_move(InputKey::MouseLeft, 480.0, 300.0);
     h.dispatch(&move1);
-    let pos1 = sp_ref.borrow().position();
+    let pos1 = sp_ref.borrow().GetPos();
     assert!(
         (pos1 - 0.6).abs() < 0.1,
         "position should be near 0.6 after move to 480px, got {pos1}"
@@ -372,7 +372,7 @@ fn splitter_move_during_drag_updates_position() {
     // Move again to ~80% (640px).
     let move2 = emInputEvent::mouse_move(InputKey::MouseLeft, 640.0, 300.0);
     h.dispatch(&move2);
-    let pos2 = sp_ref.borrow().position();
+    let pos2 = sp_ref.borrow().GetPos();
     assert!(
         (pos2 - 0.8).abs() < 0.15,
         "position should be near 0.8 after move to 640px, got {pos2}"
@@ -423,12 +423,12 @@ fn splitter_press_outside_grip_no_drag() {
 
     // Position should remain unchanged.
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "position should remain 0.5 when clicking outside grip"
     );
 }
 
-/// BP-11: Drag beyond max clamps position to max_position.
+/// BP-11: Drag beyond max clamps GetPos to GetMaxPos.
 /// C++ ref: emSplitter.cpp:124/134 → SetPos → clamp(min,max).
 #[test]
 fn splitter_drag_clamp_to_max() {
@@ -443,13 +443,13 @@ fn splitter_drag_clamp_to_max() {
     h.dispatch(&move_ev);
 
     assert!(
-        (sp_ref.borrow().position() - 1.0).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 1.0).abs() < 0.001,
         "dragging beyond right edge should clamp to max (1.0), got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 }
 
-/// BP-11: Drag below min clamps position to min_position.
+/// BP-11: Drag below min clamps GetPos to GetMinPos.
 /// C++ ref: emSplitter.cpp:124/134 → SetPos → clamp(min,max).
 #[test]
 fn splitter_drag_clamp_to_min() {
@@ -464,9 +464,9 @@ fn splitter_drag_clamp_to_min() {
     h.dispatch(&move_ev);
 
     assert!(
-        (sp_ref.borrow().position() - 0.0).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.0).abs() < 0.001,
         "dragging beyond left edge should clamp to min (0.0), got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 }
 
@@ -476,7 +476,7 @@ fn splitter_drag_clamp_to_min() {
 fn splitter_drag_with_custom_limits() {
     let (mut h, sp_ref, _compositor) = setup_splitter(Orientation::Horizontal, 0.5);
 
-    sp_ref.borrow_mut().set_limits(0.2, 0.8);
+    sp_ref.borrow_mut().SetMinMaxPos(0.2, 0.8);
 
     // Press at grip center.
     let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(400.0, 300.0);
@@ -486,19 +486,19 @@ fn splitter_drag_with_custom_limits() {
     let move_right = emInputEvent::mouse_move(InputKey::MouseLeft, 900.0, 300.0);
     h.dispatch(&move_right);
     assert!(
-        (sp_ref.borrow().position() - 0.8).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.8).abs() < 0.001,
         "drag right should clamp to max_position 0.8, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 
-    // Release and re-press at the new grip position (~80% = 640px).
+    // Release and re-press at the new grip GetPos (~80% = 640px).
     let release = emInputEvent::release(InputKey::MouseLeft).with_mouse(900.0, 300.0);
     h.dispatch(&release);
 
     // Reset to middle of range.
-    sp_ref.borrow_mut().set_position(0.5);
+    sp_ref.borrow_mut().SetPos(0.5);
 
-    // Re-render so paint caches are updated.
+    // Re-render so PaintContent caches are updated.
     let mut compositor = SoftwareCompositor::new(800, 600);
     compositor.render(&mut h.tree, &h.view);
 
@@ -510,9 +510,9 @@ fn splitter_drag_with_custom_limits() {
     let move_left = emInputEvent::mouse_move(InputKey::MouseLeft, -100.0, 300.0);
     h.dispatch(&move_left);
     assert!(
-        (sp_ref.borrow().position() - 0.2).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.2).abs() < 0.001,
         "drag left should clamp to min_position 0.2, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 }
 
@@ -532,25 +532,25 @@ fn splitter_on_position_callback_fires_during_drag() {
     let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(400.0, 300.0);
     h.dispatch(&press);
 
-    // Move to a new position.
+    // Move to a new GetPos.
     let move_ev = emInputEvent::mouse_move(InputKey::MouseLeft, 560.0, 300.0);
     h.dispatch(&move_ev);
 
     let recorded = positions.borrow();
     assert!(
-        !recorded.is_empty(),
+        !recorded.IsEmpty(),
         "on_position callback should have fired at least once during drag"
     );
-    // The last recorded position should match the current splitter position.
+    // The last recorded GetPos should match the current splitter GetPos.
     let last = *recorded.last().unwrap();
     assert!(
-        (last - sp_ref.borrow().position()).abs() < 0.001,
+        (last - sp_ref.borrow().GetPos()).abs() < 0.001,
         "last callback position ({last}) should match current position ({})",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 }
 
-/// BP-11: Disabled splitter rejects input (press on grip does not start drag).
+/// BP-11: Disabled splitter rejects Input (press on grip does not start drag).
 /// C++ ref: emSplitter.cpp:144 — gated on IsEnabled().
 #[test]
 fn splitter_disabled_rejects_input() {
@@ -560,7 +560,7 @@ fn splitter_disabled_rejects_input() {
     // Disable the panel via the tree.
     h.tree.set_enable_switch(panel_id, false);
     h.tick_n(3);
-    // Re-render so the emSplitter caches enabled=false from the paint call.
+    // Re-render so the emSplitter caches enabled=false from the PaintContent call.
     compositor.render(&mut h.tree, &h.view);
 
     // Press at grip center.
@@ -574,9 +574,9 @@ fn splitter_disabled_rejects_input() {
 
     // Position should remain unchanged.
     assert!(
-        (sp_ref.borrow().position() - 0.5).abs() < 0.001,
+        (sp_ref.borrow().GetPos() - 0.5).abs() < 0.001,
         "disabled splitter position should remain 0.5, got {}",
-        sp_ref.borrow().position()
+        sp_ref.borrow().GetPos()
     );
 }
 
@@ -588,7 +588,7 @@ fn splitter_vertical_drag_states() {
 
     assert!(!sp_ref.borrow().is_dragging());
 
-    // With layout_rect (0,0,1,1) and viewed_width=800, paint receives
+    // With layout_rect (0,0,1,1) and viewed_width=800, PaintContent receives
     // w=800, h=800 (paint_h = vw * layout_h/layout_w = 800*1=800).
     // So tallness = 800/800 = 1.0. Vertical grip: gs = 0.015*1.0 = 0.015,
     // gy = 0.5*(1.0-0.015) = 0.4925. panel_y = vy/800 (pixel_tallness=1.0).
@@ -605,7 +605,7 @@ fn splitter_vertical_drag_states() {
     // Drag upward to ~30%: panel_y = 0.3 → vy = 0.3 * 800 = 240.
     let move_ev = emInputEvent::mouse_move(InputKey::MouseLeft, 400.0, 240.0);
     h.dispatch(&move_ev);
-    let pos = sp_ref.borrow().position();
+    let pos = sp_ref.borrow().GetPos();
     assert!(
         (pos - 0.3).abs() < 0.1,
         "vertical drag to 30% should move position near 0.3, got {pos}"

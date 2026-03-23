@@ -42,16 +42,16 @@ struct ButtonPanel {
     button: emButton,
 }
 impl PanelBehavior for ButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.button.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.button.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.button.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.button.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.button.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.button.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -60,16 +60,16 @@ struct CheckButtonPanel {
     widget: emCheckButton,
 }
 impl PanelBehavior for CheckButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -78,16 +78,16 @@ struct CheckBoxPanel {
     widget: emCheckBox,
 }
 impl PanelBehavior for CheckBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -96,16 +96,16 @@ struct RadioButtonPanel {
     widget: emRadioButton,
 }
 impl PanelBehavior for RadioButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -114,17 +114,17 @@ struct TextFieldPanel {
     widget: emTextField,
 }
 impl PanelBehavior for TextFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
         self.widget.cycle_blink(_s.in_focused_path());
-        self.widget.paint(p, w, h, _s.enabled);
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
     fn notice(&mut self, flags: NoticeFlags, state: &PanelState) {
@@ -138,16 +138,16 @@ struct ScalarFieldPanel {
     widget: emScalarField,
 }
 impl PanelBehavior for ScalarFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.widget.paint(p, w, h, s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.widget.PaintContent(p, w, h, s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -156,13 +156,13 @@ struct ColorFieldPanel {
     widget: emColorField,
 }
 impl PanelBehavior for ColorFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -171,13 +171,13 @@ struct ListBoxPanel {
     widget: emListBox,
 }
 impl PanelBehavior for ListBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -190,11 +190,11 @@ struct ToolkitRoot {
 }
 
 impl PanelBehavior for ToolkitRoot {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         p.paint_rect(
             0.0,
             0.0,
@@ -226,7 +226,7 @@ impl PanelBehavior for ToolkitRoot {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let children = ctx.children();
         let rect = ctx.layout_rect();
         let h = rect.h / rect.w;
@@ -238,7 +238,7 @@ impl PanelBehavior for ToolkitRoot {
         let cell_w = (1.0 - margin * (cols as f64 + 1.0)) / cols as f64;
         let cell_h = cell_w * 0.35;
 
-        if !children.is_empty() {
+        if !children.IsEmpty() {
             for (i, child) in children.iter().enumerate() {
                 let col = i % cols;
                 let row = i / cols;
@@ -302,7 +302,7 @@ impl PanelBehavior for ToolkitRoot {
         // 8. Editable text field
         let msg_c = msg.clone();
         let mut tf = emTextField::new(look.clone());
-        tf.set_editable(true);
+        tf.SetEditable(true);
         tf.set_multi_line(true);
         tf.set_text("Edit me\nsecond line");
         tf.on_text = Some(Box::new(move |text| {
@@ -314,8 +314,8 @@ impl PanelBehavior for ToolkitRoot {
         // 9. Scalar Field
         let msg_c = msg.clone();
         let mut sf = emScalarField::new(0.0, 100.0, look.clone());
-        sf.set_editable(true);
-        sf.set_scale_mark_intervals(&[50, 10, 5, 1]);
+        sf.SetEditable(true);
+        sf.SetScaleMarkIntervals(&[50, 10, 5, 1]);
         sf.on_value = Some(Box::new(move |val| {
             *msg_c.borrow_mut() = format!("Scalar value: {val:.0}");
         }));
@@ -324,14 +324,14 @@ impl PanelBehavior for ToolkitRoot {
         // 10. emColor Field
         let msg_c = msg.clone();
         let mut cf = emColorField::new(look.clone());
-        cf.set_editable(true);
-        cf.set_color(emColor::rgba(0x22, 0xBB, 0x22, 0xFF));
-        cf.on_color = Some(Box::new(move |color| {
+        cf.SetEditable(true);
+        cf.SetColor(emColor::rgba(0x22, 0xBB, 0x22, 0xFF));
+        cf.on_color = Some(Box::new(move |GetColor| {
             *msg_c.borrow_mut() = format!(
                 "Color: #{:02X}{:02X}{:02X}",
-                color.GetRed(),
-                color.GetGreen(),
-                color.GetBlue()
+                GetColor.GetRed(),
+                GetColor.GetGreen(),
+                GetColor.GetBlue()
             );
         }));
         ctx.create_child_with("cf", Box::new(ColorFieldPanel { widget: cf }));
@@ -339,7 +339,7 @@ impl PanelBehavior for ToolkitRoot {
         // 11. List Box
         let msg_c = msg.clone();
         let mut lb = emListBox::new(look.clone());
-        lb.set_selection_mode(SelectionMode::Single);
+        lb.SetSelectionType(SelectionMode::Single);
         lb.set_items((1..=7).map(|i| format!("Item {i}")).collect());
         lb.on_selection = Some(Box::new(move |sel| {
             if let Some(&idx) = sel.first() {
@@ -358,8 +358,8 @@ impl PanelBehavior for ToolkitRoot {
             ctx.layout_child(*child, x, y, cell_w, cell_h);
         }
 
-        // Store msg panel id to update text from the message Rc in paint
-        // We can't update the emTextField from paint, so the message display
+        // Store msg panel id to update text from the message Rc in PaintContent
+        // We can't update the emTextField from PaintContent, so the message display
         // relies on the Rc<RefCell<String>> shared state.
         let _ = msg_id;
     }

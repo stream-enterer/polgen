@@ -1,4 +1,4 @@
-//! Headless profiling harness for the TestPanel paint path.
+//! Headless profiling harness for the TestPanel PaintContent path.
 //! Run with:
 //!   cargo run --release --example profile_testpanel
 //! or under samply:
@@ -24,7 +24,7 @@ use zuicchini::emCore::emViewRendererTileCache::{TileCache, TILE_SIZE};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
-// Inline a minimal TestPanel that exercises the same paint primitives
+// Inline a minimal TestPanel that exercises the same PaintContent primitives
 // ---------------------------------------------------------------------------
 
 struct TestPanel {
@@ -47,7 +47,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         if state.viewed_rect.w < 25.0 {
             return;
         }
@@ -70,15 +70,15 @@ impl PanelBehavior for TestPanel {
             emColor::TRANSPARENT,
         );
 
-        // TODO(font): paint text here
+        // TODO(font): PaintContent text here
 
-        // TODO(font): paint text here
+        // TODO(font): PaintContent text here
 
-        // TODO(font): paint text here
+        // TODO(font): PaintContent text here
 
         // --- All the paint_primitives from the real TestPanel ---
 
-        // TODO(font): paint text here
+        // TODO(font): PaintContent text here
         painter.paint_rect(
             0.25,
             0.8,
@@ -557,14 +557,14 @@ impl PanelBehavior for TestPanel {
         painter.paint_polygon_textured(
             &star(0.240),
             &emTexture::emImage {
-                image: self.test_image.clone(),
+                GetImage: self.test_image.clone(),
                 extension: ImageExtension::Clamp,
                 quality: ImageQuality::Bilinear,
             },
             emColor::TRANSPARENT,
         );
 
-        // Gradient/image rects
+        // Gradient/GetImage rects
         painter.paint_linear_gradient(
             0.2,
             0.94,
@@ -644,7 +644,7 @@ impl PanelBehavior for TestPanel {
         painter.pop_state();
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -652,7 +652,7 @@ impl PanelBehavior for TestPanel {
 fn main() {
     let iterations: usize = std::env::args()
         .nth(1)
-        .and_then(|s| s.parse().ok())
+        .and_then(|s| s.TryParse().ok())
         .unwrap_or(50);
 
     let vw: u32 = 1920;
@@ -678,13 +678,13 @@ fn main() {
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.image.fill(emColor::BLACK);
-            let mut painter = emPainter::new(&mut tile.image);
+            tile.GetImage.fill(emColor::BLACK);
+            let mut painter = emPainter::new(&mut tile.GetImage);
             painter.translate(
                 -(col as f64 * TILE_SIZE as f64),
                 -(row as f64 * TILE_SIZE as f64),
             );
-            view.paint(&mut tree, &mut painter);
+            view.PaintContent(&mut tree, &mut painter);
         }
     }
 
@@ -694,13 +694,13 @@ fn main() {
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.image.fill(emColor::BLACK);
-                let mut painter = emPainter::new(&mut tile.image);
+                tile.GetImage.fill(emColor::BLACK);
+                let mut painter = emPainter::new(&mut tile.GetImage);
                 painter.translate(
                     -(col as f64 * TILE_SIZE as f64),
                     -(row as f64 * TILE_SIZE as f64),
                 );
-                view.paint(&mut tree, &mut painter);
+                view.PaintContent(&mut tree, &mut painter);
             }
         }
     }
@@ -712,7 +712,7 @@ fn main() {
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut viewport_buf);
-        view.paint(&mut tree, &mut painter);
+        view.PaintContent(&mut tree, &mut painter);
     }
 
     let t0 = Instant::now();
@@ -720,13 +720,13 @@ fn main() {
         viewport_buf.fill(emColor::BLACK);
         {
             let mut painter = emPainter::new(&mut viewport_buf);
-            view.paint(&mut tree, &mut painter);
+            view.PaintContent(&mut tree, &mut painter);
         }
         // Copy to tiles (simulates the upload path)
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.image.copy_from_rect(
+                tile.GetImage.copy_from_rect(
                     0,
                     0,
                     &viewport_buf,

@@ -4,7 +4,7 @@ use zuicchini::emCore::emLook::emLook;
 struct CustomPanel {
     index: usize,
     label: String,
-    selected: bool,
+    GetChecked: bool,
 }
 
 impl ItemPanelInterface for CustomPanel {
@@ -14,8 +14,8 @@ impl ItemPanelInterface for CustomPanel {
 
     fn item_data_changed(&mut self) {}
 
-    fn item_selection_changed(&mut self, selected: bool) {
-        self.selected = selected;
+    fn item_selection_changed(&mut self, GetChecked: bool) {
+        self.GetChecked = GetChecked;
     }
 
     fn item_index(&self) -> usize {
@@ -30,8 +30,8 @@ impl ItemPanelInterface for CustomPanel {
         &self.label
     }
 
-    fn is_selected(&self) -> bool {
-        self.selected
+    fn IsSelected(&self) -> bool {
+        self.GetChecked
     }
 }
 
@@ -49,7 +49,7 @@ fn item_panel_interface_notifications() {
     panel.item_text_changed("updated");
     assert_eq!(panel.text(), "updated");
     panel.item_selection_changed(true);
-    assert!(panel.is_selected());
+    assert!(panel.IsSelected());
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn default_item_panel_new() {
     let panel = DefaultItemPanel::new(3, "item 3".to_string(), true);
     assert_eq!(panel.item_index(), 3);
     assert_eq!(panel.text(), "item 3");
-    assert!(panel.is_selected());
+    assert!(panel.IsSelected());
 }
 
 #[test]
@@ -70,11 +70,11 @@ fn default_item_panel_text_changed() {
 #[test]
 fn default_item_panel_selection_changed() {
     let mut panel = DefaultItemPanel::new(0, "test".to_string(), false);
-    assert!(!panel.is_selected());
+    assert!(!panel.IsSelected());
     panel.item_selection_changed(true);
-    assert!(panel.is_selected());
+    assert!(panel.IsSelected());
     panel.item_selection_changed(false);
-    assert!(!panel.is_selected());
+    assert!(!panel.IsSelected());
 }
 
 #[test]
@@ -88,36 +88,36 @@ fn default_item_panel_set_index() {
 fn get_item_panel_none_before_expand() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.add_item("a".to_string(), "Item A".to_string());
-    assert!(lb.get_item_panel(0).is_none());
+    lb.AddItem("a".to_string(), "Item A".to_string());
+    assert!(lb.GetItemPanel(0).is_none());
 }
 
 #[test]
 fn get_item_panel_some_after_expand() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.add_item("a".to_string(), "Item A".to_string());
+    lb.AddItem("a".to_string(), "Item A".to_string());
     lb.auto_expand_items();
-    assert!(lb.get_item_panel(0).is_some());
-    assert_eq!(lb.get_item_panel(0).unwrap().text(), "Item A");
+    assert!(lb.GetItemPanel(0).is_some());
+    assert_eq!(lb.GetItemPanel(0).unwrap().text(), "Item A");
 }
 
 #[test]
 fn get_item_panel_out_of_range() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.add_item("a".to_string(), "Item A".to_string());
+    lb.AddItem("a".to_string(), "Item A".to_string());
     lb.auto_expand_items();
-    assert!(lb.get_item_panel(99).is_none());
+    assert!(lb.GetItemPanel(99).is_none());
 }
 
 #[test]
 fn get_item_panel_interface_after_expand() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.add_item("x".to_string(), "X".to_string());
+    lb.AddItem("x".to_string(), "X".to_string());
     lb.auto_expand_items();
-    let iface = lb.get_item_panel_interface(0).unwrap();
+    let iface = lb.GetItemPanelInterface(0).unwrap();
     assert_eq!(iface.item_index(), 0);
 }
 
@@ -125,10 +125,10 @@ fn get_item_panel_interface_after_expand() {
 fn get_item_panel_interface_text_sync() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.add_item("x".to_string(), "Original".to_string());
+    lb.AddItem("x".to_string(), "Original".to_string());
     lb.auto_expand_items();
-    lb.set_item_text(0, "Changed".to_string());
-    let iface = lb.get_item_panel_interface(0).unwrap();
+    lb.SetItemText(0, "Changed".to_string());
+    let iface = lb.GetItemPanelInterface(0).unwrap();
     assert_eq!(iface.text(), "Changed");
 }
 
@@ -136,25 +136,25 @@ fn get_item_panel_interface_text_sync() {
 fn custom_factory_creates_custom_panels() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_item_panel_factory(|index, text, selected| {
+    lb.set_item_panel_factory(|index, text, GetChecked| {
         Box::new(CustomPanel {
             index,
             label: format!("Custom: {}", text),
-            selected,
+            GetChecked,
         })
     });
-    lb.add_item("a".to_string(), "Alpha".to_string());
+    lb.AddItem("a".to_string(), "Alpha".to_string());
     lb.auto_expand_items();
-    assert!(lb.get_item_panel(0).is_some());
-    assert_eq!(lb.get_item_panel(0).unwrap().text(), "Custom: Alpha");
+    assert!(lb.GetItemPanel(0).is_some());
+    assert_eq!(lb.GetItemPanel(0).unwrap().text(), "Custom: Alpha");
 }
 
 #[test]
 fn default_factory_creates_default_panels() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.add_item("a".to_string(), "Alpha".to_string());
+    lb.AddItem("a".to_string(), "Alpha".to_string());
     lb.auto_expand_items();
-    let panel = lb.get_item_panel(0).unwrap();
+    let panel = lb.GetItemPanel(0).unwrap();
     assert_eq!(panel.text(), "Alpha");
 }

@@ -18,7 +18,7 @@ fn encode_decode_empty_args() {
     let encoded = encode_message(args);
     let (decoded, consumed) = decode_message(&encoded).expect("should decode");
     assert_eq!(consumed, encoded.len());
-    assert!(decoded.is_empty());
+    assert!(decoded.IsEmpty());
 }
 
 #[test]
@@ -93,8 +93,8 @@ mod linux {
 
     #[test]
     fn server_not_found() {
-        let result = emMiniIpcClient::TrySend("nonexistent_test_server_12345", &["hello"]);
-        assert!(result.is_err());
+        let GetResult = emMiniIpcClient::TrySend("nonexistent_test_server_12345", &["hello"]);
+        assert!(GetResult.is_err());
     }
 
     #[test]
@@ -125,15 +125,15 @@ mod linux {
         // First fire the timer signal manually to trigger the engine
         let dummy_sig = sched.create_signal();
         sched.fire(dummy_sig);
-        sched.do_time_slice();
+        sched.DoTimeSlice();
         sched.remove_signal(dummy_sig);
 
         // The timer fires after 200ms, but we can trigger it by running time slices.
         // For the test, directly poll via the scheduler. We need to wait for
-        // the timer to fire. Let's just do time slices until we get the message.
+        // the timer to fire. Let's just do time slices until we GetRec the message.
         let start = std::time::Instant::now();
-        while received.borrow().is_empty() {
-            sched.do_time_slice();
+        while received.borrow().IsEmpty() {
+            sched.DoTimeSlice();
             if start.elapsed() > std::time::Duration::from_secs(2) {
                 panic!("timed out waiting for message");
             }
@@ -163,8 +163,8 @@ mod linux {
         assert!(!server.IsServing());
 
         // Verify FIFO is removed — sending should fail
-        let result = emMiniIpcClient::TrySend(&name, &["test"]);
-        assert!(result.is_err());
+        let GetResult = emMiniIpcClient::TrySend(&name, &["test"]);
+        assert!(GetResult.is_err());
 
         server.cleanup(&mut sched);
     }
@@ -193,7 +193,7 @@ mod linux {
 
         let start = std::time::Instant::now();
         while received.borrow().len() < 3 {
-            sched.do_time_slice();
+            sched.DoTimeSlice();
             if start.elapsed() > std::time::Duration::from_secs(2) {
                 break;
             }

@@ -72,8 +72,8 @@ fn window_geometry_from_rec_missing_x_fails() {
     rec.set_int("width", 800);
     rec.set_int("height", 600);
 
-    let result = WindowGeometry::from_rec(&rec);
-    assert!(matches!(result, Err(RecError::MissingField(_))));
+    let GetResult = WindowGeometry::from_rec(&rec);
+    assert!(Match!(GetResult, Err(RecError::MissingField(_))));
 }
 
 #[test]
@@ -83,8 +83,8 @@ fn window_geometry_from_rec_missing_width_fails() {
     rec.set_int("y", 100);
     rec.set_int("height", 600);
 
-    let result = WindowGeometry::from_rec(&rec);
-    assert!(matches!(result, Err(RecError::MissingField(_))));
+    let GetResult = WindowGeometry::from_rec(&rec);
+    assert!(Match!(GetResult, Err(RecError::MissingField(_))));
 }
 
 #[test]
@@ -103,13 +103,13 @@ fn window_geometry_bools_default_false_when_absent() {
 #[test]
 fn window_geometry_is_default() {
     let geo = WindowGeometry::default();
-    assert!(geo.is_default());
+    assert!(geo.IsSetToDefault());
 
     let modified = WindowGeometry {
         x: 999,
         ..WindowGeometry::default()
     };
-    assert!(!modified.is_default());
+    assert!(!modified.IsSetToDefault());
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn window_geometry_set_to_default() {
         maximized: true,
         fullscreen: true,
     };
-    geo.set_to_default();
+    geo.SetToDefault();
     assert_eq!(geo, WindowGeometry::default());
 }
 

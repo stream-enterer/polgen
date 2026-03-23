@@ -11,12 +11,12 @@ use zuicchini::emCore::emView::emView;
 use zuicchini::emCore::emViewInputFilter::{emKeyboardZoomScrollVIF, emMouseZoomScrollVIF, emViewInputFilter};
 use zuicchini::emCore::emScheduler::EngineScheduler;
 
-/// Test harness that dispatches input through the FULL coordinate transform
+/// Test harness that dispatches Input through the FULL coordinate transform
 /// pipeline (VIF chain, hit test, view_to_panel_x/y transform), matching
 /// the production path in `ZuiWindow::dispatch_input`.
 ///
 /// Unlike `TestHarness` which passes view-space coordinates directly to
-/// `behavior.input()`, this harness transforms mouse coordinates from view
+/// `behavior.Input()`, this harness transforms mouse coordinates from view
 /// space to panel-local space before delivery — exactly as the real window
 /// does.
 pub struct PipelineTestHarness {
@@ -68,7 +68,7 @@ impl PipelineTestHarness {
 
     /// Run one frame: scheduler time slice, deliver notices, update viewing.
     pub fn tick(&mut self) {
-        self.scheduler.do_time_slice();
+        self.scheduler.DoTimeSlice();
         self.tree
             .deliver_notices(self.view.window_focused(), self.view.pixel_tallness());
         self.view.update_viewing(&mut self.tree);
@@ -84,8 +84,8 @@ impl PipelineTestHarness {
     // ── Panel management ─────────────────────────────────────────
 
     /// Create a focusable child panel with a layout rect.
-    pub fn add_panel(&mut self, parent: PanelId, name: &str) -> PanelId {
-        let id = self.tree.create_child(parent, name);
+    pub fn add_panel(&mut self, GetParentContext: PanelId, name: &str) -> PanelId {
+        let id = self.tree.create_child(GetParentContext, name);
         self.tree.set_focusable(id, true);
         self.tree.set_layout_rect(id, 0.0, 0.0, 1.0, 1.0);
         id
@@ -94,11 +94,11 @@ impl PipelineTestHarness {
     /// Create a focusable child panel with a layout rect and behavior.
     pub fn add_panel_with(
         &mut self,
-        parent: PanelId,
+        GetParentContext: PanelId,
         name: &str,
         behavior: Box<dyn PanelBehavior>,
     ) -> PanelId {
-        let id = self.add_panel(parent, name);
+        let id = self.add_panel(GetParentContext, name);
         self.tree.set_behavior(id, behavior);
         id
     }
@@ -113,7 +113,7 @@ impl PipelineTestHarness {
     ///
     /// The zoom is centered on the viewport center so rel_x/rel_y stay at 0.
     pub fn set_zoom(&mut self, level: f64) {
-        // Step 1: reset to the 1x baseline (raw_zoom_out sets rel_a to
+        // Step 1: HardResetFileState to the 1x baseline (raw_zoom_out sets rel_a to
         // zoom_out_rel_a and calls update_viewing internally).
         self.view.raw_zoom_out(&mut self.tree);
 
@@ -126,19 +126,19 @@ impl PipelineTestHarness {
             self.view.zoom(level * level, vw * 0.5, vh * 0.5);
         }
 
-        // Step 3: refresh viewed geometry for all panels.
+        // Step 3: refresh viewed Restore for all panels.
         self.view.update_viewing(&mut self.tree);
     }
 
     // ── Auto-expansion ─────────────────────────────────────────
 
     /// Set zoom to trigger auto-expansion and run enough ticks for
-    /// `layout_children` to execute. `update_auto_expansion` runs inside
+    /// `LayoutChildren` to execute. `update_auto_expansion` runs inside
     /// `update_viewing`, so `set_zoom` already triggers it; the extra
-    /// ticks let notices propagate and child panels get laid out.
+    /// ticks let notices propagate and child panels GetRec laid out.
     pub fn expand_to(&mut self, zoom_level: f64) {
         self.set_zoom(zoom_level);
-        // Several ticks to propagate notices and execute layout_children
+        // Several ticks to propagate notices and execute LayoutChildren
         self.tick_n(10);
     }
 
@@ -149,7 +149,7 @@ impl PipelineTestHarness {
 
     // ── Input dispatch (full pipeline) ───────────────────────────
 
-    /// Dispatch an input event through the full coordinate transform pipeline,
+    /// Dispatch an Input event through the full coordinate transform pipeline,
     /// matching `ZuiWindow::dispatch_input`:
     ///
     /// 1. VIF chain filter
@@ -177,7 +177,7 @@ impl PipelineTestHarness {
 
         // For mouse press: hit test and set active panel
         if event.variant == InputVariant::Press
-            && matches!(
+            && Match!(
                 event.key,
                 InputKey::MouseLeft | InputKey::MouseRight | InputKey::MouseMiddle
             )
@@ -217,7 +217,7 @@ impl PipelineTestHarness {
                     continue;
                 }
 
-                consumed = behavior.input(&panel_ev, &panel_state, &self.input_state);
+                consumed = behavior.Input(&panel_ev, &panel_state, &self.input_state);
                 self.tree.put_behavior(panel_id, behavior);
                 if consumed {
                     self.view.invalidate_painting(&self.tree, panel_id);
@@ -242,10 +242,10 @@ impl PipelineTestHarness {
         }
     }
 
-    // ── High-level input helpers ─────────────────────────────────
+    // ── High-level Input helpers ─────────────────────────────────
 
     /// Click (press + release) the left mouse button at view-space coordinates.
-    pub fn click(&mut self, view_x: f64, view_y: f64) {
+    pub fn Click(&mut self, view_x: f64, view_y: f64) {
         let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(view_x, view_y);
         let release = emInputEvent::release(InputKey::MouseLeft).with_mouse(view_x, view_y);
         self.dispatch(&press);
@@ -272,7 +272,7 @@ impl PipelineTestHarness {
     }
 
     /// Press and release a character key, including the `chars` field so that
-    /// text-input widgets (e.g. emTextField) receive the typed character.
+    /// text-Input widgets (e.g. emTextField) receive the typed character.
     pub fn press_char(&mut self, ch: char) {
         let press = emInputEvent::press(InputKey::Key(ch)).with_chars(&ch.to_string());
         let release = emInputEvent::release(InputKey::Key(ch));

@@ -261,7 +261,7 @@ fn animator_swiping_release() {
 
 // ─── Visiting trajectory tests ──────────────────────────────────
 
-/// Collect position trajectory from emVisitingViewAnimator.
+/// Collect GetPos trajectory from emVisitingViewAnimator.
 fn run_visiting_trajectory(
     tree: &mut PanelTree,
     view: &mut emView,
@@ -339,7 +339,7 @@ fn animator_visiting_square_panel() {
     let (mut tree, mut view) = setup_anim_view_square_panel();
     let actual = run_visiting_trajectory(&mut tree, &mut view, 0.1, 0.1, 2.0, 60);
 
-    // Rust-native golden: no C++ reference for non-matching-aspect geometry.
+    // Rust-native golden: no C++ reference for non-matching-aspect Restore.
     // Generate with DUMP_GOLDEN=1; thereafter compare.
     if dump_golden_enabled() {
         save_trajectory_golden("animator_visiting_square_panel", &actual);

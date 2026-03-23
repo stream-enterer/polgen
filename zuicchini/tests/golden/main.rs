@@ -2,7 +2,7 @@ mod animator;
 mod common;
 mod composition;
 mod compositor;
-mod input;
+mod Input;
 mod input_filter;
 mod interaction;
 mod layout;

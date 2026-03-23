@@ -96,9 +96,9 @@ fn missing_fields_use_defaults() {
 
 #[test]
 fn acquire_returns_singleton() {
-    let ctx = emContext::new_root();
-    let m1 = emCoreConfig::acquire(&ctx);
-    let m2 = emCoreConfig::acquire(&ctx);
+    let ctx = emContext::NewRoot();
+    let m1 = emCoreConfig::Acquire(&ctx);
+    let m2 = emCoreConfig::Acquire(&ctx);
     assert!(std::rc::Rc::ptr_eq(&m1, &m2));
 }
 
@@ -110,8 +110,8 @@ fn set_to_default_restores_defaults() {
         allow_simd: false,
         ..emCoreConfig::default()
     };
-    assert!(!cfg.is_default());
-    cfg.set_to_default();
-    assert!(cfg.is_default());
+    assert!(!cfg.IsSetToDefault());
+    cfg.SetToDefault();
+    assert!(cfg.IsSetToDefault());
     assert_eq!(cfg, emCoreConfig::default());
 }

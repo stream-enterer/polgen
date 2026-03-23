@@ -1,7 +1,7 @@
 //! Input-handling demo derived from C++ `InputExample.cpp`.
 //!
 //! Logs keyboard and mouse events to an on-screen list, demonstrating
-//! modifier matching, key press/release tracking, and mouse position.
+//! modifier matching, key press/release tracking, and mouse GetPos.
 
 use zuicchini::emCore::emColor::emColor;
 use zuicchini::emCore::emInput::{emInputEvent, InputKey, InputVariant};
@@ -42,11 +42,11 @@ impl InputPanel {
 }
 
 impl PanelBehavior for InputPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn input(&mut self, event: &emInputEvent, _state: &PanelState, input_state: &emInputState) -> bool {
+    fn Input(&mut self, event: &emInputEvent, _state: &PanelState, input_state: &emInputState) -> bool {
         // E with no modifiers
         if event.key == InputKey::Key('e')
             && event.variant == InputVariant::Press
@@ -92,7 +92,7 @@ impl PanelBehavior for InputPanel {
             self.push_log("X key pressed".into());
             return true;
         }
-        if self.x_key_down && !input_state.is_pressed(InputKey::Key('x')) {
+        if self.x_key_down && !input_state.IsPressed(InputKey::Key('x')) {
             self.x_key_down = false;
             self.push_log("X key released".into());
         }
@@ -109,7 +109,7 @@ impl PanelBehavior for InputPanel {
             // Don't eat — let panel system handle focus.
             return false;
         }
-        if self.button_down && !input_state.is_pressed(InputKey::MouseLeft) {
+        if self.button_down && !input_state.IsPressed(InputKey::MouseLeft) {
             self.button_down = false;
             self.push_log("Left button released".into());
         }
@@ -130,7 +130,7 @@ impl PanelBehavior for InputPanel {
         false
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         p.paint_rect(0.0, 0.0, w, h, emColor::WHITE, emColor::TRANSPARENT);
 
         // Title
@@ -164,7 +164,7 @@ impl PanelBehavior for InputPanel {
             );
         }
 
-        // Mouse position indicator
+        // Mouse GetPos indicator
         if self.button_down {
             let sz = 0.01 * w;
             p.paint_rect(

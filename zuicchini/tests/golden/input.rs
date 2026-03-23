@@ -144,7 +144,7 @@ fn input_scroll_delta() {
 
     // Clear VIF chain: C++ golden generator uses DoInputToView which bypasses VIF.
     // emMouseZoomScrollVIF would consume the wheel event before it reaches panels.
-    h.vif_chain.clear();
+    h.vif_chain.Clear();
 
     // Wheel event
     h.input_state.set_mouse(200.0, 300.0);
@@ -185,7 +185,7 @@ fn input_mouse_miss() {
 
     // Click outside panel clip area.
     // C++ root Layout(0,0,1,0.5) → root is 800×400 centered → miss below y=500.
-    // Rust update_viewing maps root differently (clip starts at ~y=55), so click
+    // Rust update_viewing maps root differently (clip starts at ~y=55), so Click
     // above the clip top to achieve the same empty-space miss scenario.
     h.input_state.set_mouse(400.0, 20.0);
     let event = emInputEvent::press(InputKey::MouseLeft).with_mouse(400.0, 20.0);

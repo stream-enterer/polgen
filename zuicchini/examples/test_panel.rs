@@ -1,8 +1,8 @@
 //! Comprehensive integration test panel derived from C++ `emTestPanel.cpp`.
 //!
 //! Exercises nearly every subsystem: panel tree, auto-expansion, recursive
-//! children, full paint primitives, input logging, widgets, splitters,
-//! color field binding, and interactive polygon drawing.
+//! children, full PaintContent primitives, Input logging, widgets, splitters,
+//! GetColor field binding, and interactive polygon drawing.
 
 use std::cell::Cell;
 use std::f64::consts::PI;
@@ -75,16 +75,16 @@ struct ButtonPanel {
     widget: emButton,
 }
 impl PanelBehavior for ButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -93,16 +93,16 @@ struct CheckButtonPanel {
     widget: emCheckButton,
 }
 impl PanelBehavior for CheckButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -111,16 +111,16 @@ struct CheckBoxPanel {
     widget: emCheckBox,
 }
 impl PanelBehavior for CheckBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -129,16 +129,16 @@ struct RadioButtonPanel {
     widget: emRadioButton,
 }
 impl PanelBehavior for RadioButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -147,16 +147,16 @@ struct RadioBoxPanel {
     widget: emRadioBox,
 }
 impl PanelBehavior for RadioBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -165,17 +165,17 @@ struct TextFieldPanel {
     widget: emTextField,
 }
 impl PanelBehavior for TextFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
         self.widget.cycle_blink(_s.in_focused_path());
-        self.widget.paint(p, w, h, _s.enabled);
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
     fn notice(&mut self, flags: NoticeFlags, state: &PanelState) {
@@ -189,16 +189,16 @@ struct ScalarFieldPanel {
     widget: emScalarField,
 }
 impl PanelBehavior for ScalarFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.widget.paint(p, w, h, s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.widget.PaintContent(p, w, h, s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -207,13 +207,13 @@ struct ColorFieldPanel {
     widget: emColorField,
 }
 impl PanelBehavior for ColorFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -222,13 +222,13 @@ struct ListBoxPanel {
     widget: emListBox,
 }
 impl PanelBehavior for ListBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -237,10 +237,10 @@ struct LabelPanel {
     widget: emLabel,
 }
 impl PanelBehavior for LabelPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
         self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -253,11 +253,11 @@ struct TestPanel {
     bg_color_shared: Rc<Cell<emColor>>,
     input_log: Vec<String>,
     test_image: emImage,
-    depth: u32,
+    GetDepth: u32,
 }
 
 impl TestPanel {
-    fn new(depth: u32, bg_color_shared: Rc<Cell<emColor>>) -> Self {
+    fn new(GetDepth: u32, bg_color_shared: Rc<Cell<emColor>>) -> Self {
         let mut img = emImage::new(64, 64, 4);
         for y in 0..64u32 {
             for x in 0..64u32 {
@@ -271,15 +271,15 @@ impl TestPanel {
             bg_color_shared,
             input_log: Vec::new(),
             test_image: img,
-            depth,
+            GetDepth,
         }
     }
 
     fn bg_color(&self) -> emColor {
-        self.bg_color_shared.get()
+        self.bg_color_shared.GetRec()
     }
 
-    /// Paint all the primitive-drawing tests (matches C++ Paint() body).
+    /// Paint all the primitive-drawing tests (Match C++ Paint() body).
     fn paint_primitives(&self, p: &mut emPainter, fg: emColor, bg: emColor) {
         // Text test with tabs
         p.paint_text_boxed(
@@ -620,7 +620,7 @@ impl TestPanel {
         p.paint_polygon_textured(
             &star3,
             &emTexture::emImage {
-                image: self.test_image.clone(),
+                GetImage: self.test_image.clone(),
                 extension: ImageExtension::Repeat,
                 quality: ImageQuality::Bilinear,
             },
@@ -670,7 +670,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         self.bg_color().IsOpaque()
     }
 
@@ -682,7 +682,7 @@ impl PanelBehavior for TestPanel {
         Some("Test Panel".into())
     }
 
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         let bg = self.bg_color();
         let fg = if state.is_focused() {
             emColor::rgba(255, 136, 136, 255)
@@ -750,7 +750,7 @@ impl PanelBehavior for TestPanel {
             0.15,
         );
 
-        let pri_str = format!("Pri={:.6} MemLim={}", state.priority, state.memory_limit);
+        let pri_str = format!("Pri={:.6} MemLim={}", state.GetPriority, state.GetMemoryLimit);
         painter.paint_text_boxed(
             0.05,
             0.45,
@@ -787,7 +787,7 @@ impl PanelBehavior for TestPanel {
         painter.pop_state();
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         _state: &PanelState,
@@ -808,10 +808,10 @@ impl PanelBehavior for TestPanel {
         // Nothing specific — painting is already invalidated by the framework.
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let children = ctx.children();
 
-        if !children.is_empty() {
+        if !children.IsEmpty() {
             // Reposition existing children
             for &(name, x, y, cw, ch) in &CHILD_LAYOUT {
                 if let Some(child) = ctx.find_child_by_name(name) {
@@ -821,19 +821,19 @@ impl PanelBehavior for TestPanel {
             return;
         }
 
-        // Create children — matches C++ AutoExpand()
+        // Create children — Match C++ AutoExpand()
         let bg_shared = self.bg_color_shared.clone();
 
         // TkTestGrp
         ctx.create_child_with("tktest", Box::new(TkTestGrpPanel::new()));
 
-        // Recursive test panels (depth + 1)
-        if self.depth < MAX_DEPTH {
+        // Recursive test panels (GetDepth + 1)
+        if self.GetDepth < MAX_DEPTH {
             for i in 1..=4 {
                 let child_bg = Rc::new(Cell::new(emColor::rgba(0x00, 0x1C, 0x38, 0xFF)));
                 let tp_id = ctx.create_child_with(
                     &format!("tp{i}"),
-                    Box::new(TestPanel::new(self.depth + 1, child_bg)),
+                    Box::new(TestPanel::new(self.GetDepth + 1, child_bg)),
                 );
                 // C++: every emTestPanel constructor calls SetAutoExpansionThreshold(900.0)
                 ctx.tree
@@ -841,15 +841,15 @@ impl PanelBehavior for TestPanel {
             }
         }
 
-        // Background color field — linked to bg_color_shared
+        // Background GetColor field — linked to bg_color_shared
         let bg_for_cf = bg_shared.clone();
         let mut cf = emColorField::new(emLook::new());
-        cf.set_caption("Background Color");
-        cf.set_editable(true);
-        cf.set_alpha_enabled(true);
-        cf.set_color(bg_shared.get());
-        cf.on_color = Some(Box::new(move |color| {
-            bg_for_cf.set(color);
+        cf.SetCaption("Background Color");
+        cf.SetEditable(true);
+        cf.SetAlphaEnabled(true);
+        cf.SetColor(bg_shared.GetRec());
+        cf.on_color = Some(Box::new(move |GetColor| {
+            bg_for_cf.set(GetColor);
         }));
         ctx.create_child_with("bgcf", Box::new(ColorFieldPanel { widget: cf }));
 
@@ -889,7 +889,7 @@ impl TkTestGrpPanel {
 }
 
 impl PanelBehavior for TkTestGrpPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
@@ -897,7 +897,7 @@ impl PanelBehavior for TkTestGrpPanel {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
         p.paint_rect(
             0.0,
             0.0,
@@ -924,7 +924,7 @@ impl PanelBehavior for TkTestGrpPanel {
         );
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let children = ctx.children();
         let rect = ctx.layout_rect();
         let h = rect.h / rect.w;
@@ -933,7 +933,7 @@ impl PanelBehavior for TkTestGrpPanel {
         let half_w = 0.5;
         let half_h = body_h * 0.5;
 
-        if !children.is_empty() {
+        if !children.IsEmpty() {
             // Reposition existing children in 2x2 grid
             if let Some(id) = ctx.find_child_by_name("t1a") {
                 ctx.layout_child(id, 0.0, body_y, half_w, half_h);
@@ -1000,7 +1000,7 @@ impl WidgetGroupPanel {
     fn new(category: WidgetCategory, caption: &str, look: Rc<emLook>) -> Self {
         let mut group = emRasterGroup::new();
         group.border.caption = caption.to_string();
-        group.border.set_border_scaling(2.5);
+        group.border.SetBorderScaling(2.5);
         group.look = (*look).clone();
         Self {
             group,
@@ -1011,16 +1011,16 @@ impl WidgetGroupPanel {
 }
 
 impl PanelBehavior for WidgetGroupPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.group.paint(p, w, h, s);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.group.PaintContent(p, w, h, s);
     }
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if ctx.children().is_empty() {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if ctx.children().IsEmpty() {
             let look = self.look.clone();
             match self.category {
                 WidgetCategory::Buttons => {
@@ -1060,16 +1060,16 @@ impl PanelBehavior for WidgetGroupPanel {
                     tf1.set_text("Read-Only");
                     ctx.create_child_with("tf1", Box::new(TextFieldPanel { widget: tf1 }));
                     let mut tf2 = emTextField::new(look.clone());
-                    tf2.set_editable(true);
+                    tf2.SetEditable(true);
                     tf2.set_text("Editable");
                     ctx.create_child_with("tf2", Box::new(TextFieldPanel { widget: tf2 }));
                     let mut tf3 = emTextField::new(look.clone());
-                    tf3.set_editable(true);
+                    tf3.SetEditable(true);
                     tf3.set_text("Password");
                     tf3.set_password_mode(true);
                     ctx.create_child_with("tf3", Box::new(TextFieldPanel { widget: tf3 }));
                     let mut tf4 = emTextField::new(look);
-                    tf4.set_editable(true);
+                    tf4.SetEditable(true);
                     tf4.set_multi_line(true);
                     tf4.set_text("first line\nsecond line\n...");
                     ctx.create_child_with("mltf1", Box::new(TextFieldPanel { widget: tf4 }));
@@ -1078,55 +1078,55 @@ impl PanelBehavior for WidgetGroupPanel {
                     let sf1 = emScalarField::new(0.0, 100.0, look.clone());
                     ctx.create_child_with("sf1", Box::new(ScalarFieldPanel { widget: sf1 }));
                     let mut sf2 = emScalarField::new(0.0, 100.0, look.clone());
-                    sf2.set_editable(true);
+                    sf2.SetEditable(true);
                     ctx.create_child_with("sf2", Box::new(ScalarFieldPanel { widget: sf2 }));
                     let mut sf3 = emScalarField::new(-1000.0, 1000.0, look);
-                    sf3.set_editable(true);
-                    sf3.set_scale_mark_intervals(&[1000, 100, 10, 5, 1]);
+                    sf3.SetEditable(true);
+                    sf3.SetScaleMarkIntervals(&[1000, 100, 10, 5, 1]);
                     ctx.create_child_with("sf3", Box::new(ScalarFieldPanel { widget: sf3 }));
                 }
                 WidgetCategory::ColorFields => {
                     let mut cf1 = emColorField::new(look.clone());
-                    cf1.set_color(emColor::rgba(0xBB, 0x22, 0x22, 0xFF));
+                    cf1.SetColor(emColor::rgba(0xBB, 0x22, 0x22, 0xFF));
                     ctx.create_child_with("cf1", Box::new(ColorFieldPanel { widget: cf1 }));
                     let mut cf2 = emColorField::new(look.clone());
-                    cf2.set_editable(true);
-                    cf2.set_color(emColor::rgba(0x22, 0xBB, 0x22, 0xFF));
+                    cf2.SetEditable(true);
+                    cf2.SetColor(emColor::rgba(0x22, 0xBB, 0x22, 0xFF));
                     ctx.create_child_with("cf2", Box::new(ColorFieldPanel { widget: cf2 }));
                     let mut cf3 = emColorField::new(look);
-                    cf3.set_editable(true);
-                    cf3.set_alpha_enabled(true);
-                    cf3.set_color(emColor::rgba(0x22, 0x22, 0xBB, 0xFF));
+                    cf3.SetEditable(true);
+                    cf3.SetAlphaEnabled(true);
+                    cf3.SetColor(emColor::rgba(0x22, 0x22, 0xBB, 0xFF));
                     ctx.create_child_with("cf3", Box::new(ColorFieldPanel { widget: cf3 }));
                 }
                 WidgetCategory::ListBoxes => {
                     let lb1 = emListBox::new(look.clone());
                     ctx.create_child_with("l1", Box::new(ListBoxPanel { widget: lb1 }));
                     let mut lb2 = emListBox::new(look.clone());
-                    lb2.set_selection_mode(SelectionMode::Single);
+                    lb2.SetSelectionType(SelectionMode::Single);
                     lb2.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l2", Box::new(ListBoxPanel { widget: lb2 }));
                     let mut lb3 = emListBox::new(look.clone());
-                    lb3.set_selection_mode(SelectionMode::ReadOnly);
+                    lb3.SetSelectionType(SelectionMode::ReadOnly);
                     lb3.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l3", Box::new(ListBoxPanel { widget: lb3 }));
                     let mut lb4 = emListBox::new(look.clone());
-                    lb4.set_selection_mode(SelectionMode::Multi);
+                    lb4.SetSelectionType(SelectionMode::Multi);
                     lb4.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l4", Box::new(ListBoxPanel { widget: lb4 }));
                     let mut lb5 = emListBox::new(look);
-                    lb5.set_selection_mode(SelectionMode::Toggle);
+                    lb5.SetSelectionType(SelectionMode::Toggle);
                     lb5.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l5", Box::new(ListBoxPanel { widget: lb5 }));
                 }
             }
         }
-        self.group.layout_children(ctx);
+        self.group.LayoutChildren(ctx);
     }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// TkTestPanel — widget showcase (matches C++ TkTest)
+// TkTestPanel — widget showcase (Match C++ TkTest)
 // ═══════════════════════════════════════════════════════════════════════
 
 struct TkTestPanel {
@@ -1138,7 +1138,7 @@ impl TkTestPanel {
     fn new(look: Rc<emLook>) -> Self {
         let mut group = emRasterGroup::new();
         group.border.caption = "Toolkit Test".to_string();
-        group.border.set_border_scaling(2.5);
+        group.border.SetBorderScaling(2.5);
         group.layout.preferred_child_tallness = 0.3;
         group.look = (*look).clone();
         Self { group, look }
@@ -1146,7 +1146,7 @@ impl TkTestPanel {
 }
 
 impl PanelBehavior for TkTestPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
@@ -1154,12 +1154,12 @@ impl PanelBehavior for TkTestPanel {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.group.paint(p, w, h, s);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.group.PaintContent(p, w, h, s);
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if ctx.children().is_empty() {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if ctx.children().IsEmpty() {
             let look = self.look.clone();
 
             let groups: &[(&str, &str, WidgetCategory)] = &[
@@ -1179,7 +1179,7 @@ impl PanelBehavior for TkTestPanel {
                 );
             }
         }
-        self.group.layout_children(ctx);
+        self.group.LayoutChildren(ctx);
     }
 }
 
@@ -1221,11 +1221,11 @@ impl PolyDrawPanel {
 }
 
 impl PanelBehavior for PolyDrawPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn input(&mut self, event: &emInputEvent, _state: &PanelState, input_state: &emInputState) -> bool {
+    fn Input(&mut self, event: &emInputEvent, _state: &PanelState, input_state: &emInputState) -> bool {
         let mx = event.mouse_x;
         let my = event.mouse_y;
 
@@ -1253,7 +1253,7 @@ impl PanelBehavior for PolyDrawPanel {
             return best_i.is_some();
         }
 
-        if self.drag_idx.is_some() && !input_state.is_pressed(InputKey::MouseLeft) {
+        if self.drag_idx.is_some() && !input_state.IsPressed(InputKey::MouseLeft) {
             self.drag_idx = None;
             return false;
         }
@@ -1272,7 +1272,7 @@ impl PanelBehavior for PolyDrawPanel {
         false
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         // Background gradient
         p.paint_linear_gradient(
             0.0,

@@ -8,7 +8,7 @@ use crate::support::{MutatingBehavior, RecordingBehavior, TestHarness};
 
 #[test]
 fn add_child_during_layout_children() {
-    // Behavior adds children in layout_children() callback → no panic.
+    // Behavior adds children in LayoutChildren() callback → no panic.
     let mut h = TestHarness::new();
     let root = h.root();
 
@@ -26,19 +26,19 @@ fn add_child_during_layout_children() {
         }
     }));
 
-    let parent = h.add_panel_with(root, "parent", Box::new(behavior));
+    let GetParentContext = h.add_panel_with(root, "parent", Box::new(behavior));
     h.tick();
 
     let ids = created_ids.borrow();
     assert_eq!(ids.len(), 2, "Two children should have been created");
     assert!(h.tree.contains(ids[0]));
     assert!(h.tree.contains(ids[1]));
-    assert_eq!(h.tree.child_count(parent), 2);
+    assert_eq!(h.tree.child_count(GetParentContext), 2);
 }
 
 #[test]
 fn remove_sibling_during_layout_children() {
-    // Behavior removes a sibling in layout_children() → no panic.
+    // Behavior removes a sibling in LayoutChildren() → no panic.
     let mut h = TestHarness::new();
     let root = h.root();
 
@@ -47,11 +47,11 @@ fn remove_sibling_during_layout_children() {
 
     let mut behavior = MutatingBehavior::new();
     behavior.on_layout = Some(Box::new(move |ctx: &mut PanelCtx| {
-        // Delete sibling via parent
-        if let Some(parent) = ctx.parent() {
+        // Delete sibling via GetParentContext
+        if let Some(GetParentContext) = ctx.GetParentContext() {
             // We can't directly remove a sibling through PanelCtx (it's scoped to self).
             // Instead, we just verify the sibling is reachable.
-            let _ = parent;
+            let _ = GetParentContext;
         }
     }));
 
@@ -92,8 +92,8 @@ fn child_iter_snapshot_safety() {
 
 #[test]
 fn deliver_notices_with_new_panels() {
-    // Notice callback (via layout_children) creates new panels →
-    // new panels don't get notices this tick (not in snapshot) → get them next tick.
+    // Notice callback (via LayoutChildren) creates new panels →
+    // new panels don't GetRec notices this tick (not in snapshot) → GetRec them next tick.
     let mut h = TestHarness::new();
     let root = h.root();
     let new_panel_log = Rc::new(RefCell::new(Vec::new()));
@@ -110,7 +110,7 @@ fn deliver_notices_with_new_panels() {
     }));
 
     let _parent = h.add_panel_with(root, "parent", Box::new(behavior));
-    h.tick(); // First tick: parent's layout_children creates late_child
+    h.tick(); // First tick: GetParentContext's LayoutChildren creates late_child
 
     let child_id = created.borrow().expect("Child should have been created");
     assert!(h.tree.contains(child_id));
@@ -134,7 +134,7 @@ fn deliver_notices_with_new_panels() {
 
 #[test]
 fn delete_all_children_during_layout() {
-    // Deleting children during layout_children is safe — deliver_notices
+    // Deleting children during LayoutChildren is safe — deliver_notices
     // skips panels removed by prior callbacks in the same loop.
     let mut h = TestHarness::new();
     let root = h.root();
@@ -145,9 +145,9 @@ fn delete_all_children_during_layout() {
     let _a = h.add_panel(root, "pre_a");
     let _b = h.add_panel(root, "pre_b");
 
-    let parent = h.add_panel(root, "parent");
-    let _c1 = h.tree.create_child(parent, "c1");
-    let _c2 = h.tree.create_child(parent, "c2");
+    let GetParentContext = h.add_panel(root, "parent");
+    let _c1 = h.tree.create_child(GetParentContext, "c1");
+    let _c2 = h.tree.create_child(GetParentContext, "c2");
 
     let mut behavior = MutatingBehavior::new();
     behavior.on_layout = Some(Box::new(move |ctx: &mut PanelCtx| {
@@ -156,10 +156,10 @@ fn delete_all_children_during_layout() {
             *deleted_clone.borrow_mut() = true;
         }
     }));
-    h.tree.set_behavior(parent, Box::new(behavior));
+    h.tree.set_behavior(GetParentContext, Box::new(behavior));
 
     h.tick();
 
     assert!(*deleted.borrow(), "delete_all_children should have run");
-    assert_eq!(h.tree.child_count(parent), 0);
+    assert_eq!(h.tree.child_count(GetParentContext), 0);
 }

@@ -97,7 +97,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         if state.viewed_rect.w < 25.0 {
             return;
         }
@@ -121,7 +121,7 @@ impl PanelBehavior for TestPanel {
 
         let _state_str = format!(
             "State: InFocusedPath ViewFocused Pri={:.3} MemLim={}",
-            state.priority, state.memory_limit,
+            state.GetPriority, state.GetMemoryLimit,
         );
         painter.paint_rect(
             0.25,
@@ -555,7 +555,7 @@ impl PanelBehavior for TestPanel {
         painter.paint_polygon_textured(
             &star(0.240),
             &emTexture::emImage {
-                image: self.test_image.clone(),
+                GetImage: self.test_image.clone(),
                 extension: ImageExtension::Clamp,
                 quality: ImageQuality::Bilinear,
             },
@@ -639,7 +639,7 @@ impl PanelBehavior for TestPanel {
         painter.pop_state();
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -664,7 +664,7 @@ pub fn setup_tree_and_view(vw: u32, vh: u32) -> (PanelTree, emView, PanelId) {
     (tree, view, root)
 }
 
-/// Execute one complete frame cycle without timing instrumentation.
+/// Execute one complete frame Cycle without timing instrumentation.
 pub fn run_one_frame(
     tree: &mut PanelTree,
     view: &mut emView,
@@ -689,14 +689,14 @@ pub fn run_one_frame(
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(viewport_buf);
-        view.paint(tree, &mut painter);
+        view.PaintContent(tree, &mut painter);
     }
 
     // 5. Tile copy
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.image
+            tile.GetImage
                 .copy_from_rect(0, 0, viewport_buf, (col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE));
         }
     }

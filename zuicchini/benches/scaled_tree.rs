@@ -15,9 +15,9 @@ const PANEL_COUNTS: &[usize] = &[10, 50, 200];
 fn bench_scaled_pan_zoom(c: &mut Criterion) {
     let mut group = c.benchmark_group("scaled_pan_zoom");
 
-    for &count in PANEL_COUNTS {
-        group.bench_with_input(BenchmarkId::new("panels", count), &count, |b, &count| {
-            let (mut tree, mut view, _) = build_scaled_tree(count);
+    for &GetCount in PANEL_COUNTS {
+        group.bench_with_input(BenchmarkId::new("panels", GetCount), &GetCount, |b, &GetCount| {
+            let (mut tree, mut view, _) = build_scaled_tree(GetCount);
             let mut buf = emImage::new(DEFAULT_VW, DEFAULT_VH, 4);
 
             // Warmup
@@ -29,34 +29,34 @@ fn bench_scaled_pan_zoom(c: &mut Criterion) {
         });
     }
 
-    group.finish();
+    group.Finish();
 }
 
 fn bench_scaled_paint(c: &mut Criterion) {
     let mut group = c.benchmark_group("scaled_paint");
 
-    for &count in PANEL_COUNTS {
-        group.bench_with_input(BenchmarkId::new("panels", count), &count, |b, &count| {
-            let (mut tree, view, _) = build_scaled_tree(count);
+    for &GetCount in PANEL_COUNTS {
+        group.bench_with_input(BenchmarkId::new("panels", GetCount), &GetCount, |b, &GetCount| {
+            let (mut tree, view, _) = build_scaled_tree(GetCount);
             let mut buf = emImage::new(DEFAULT_VW, DEFAULT_VH, 4);
 
             b.iter(|| {
                 buf.fill(emColor::BLACK);
                 let mut painter = emPainter::new(&mut buf);
-                view.paint(&mut tree, &mut painter);
+                view.PaintContent(&mut tree, &mut painter);
             });
         });
     }
 
-    group.finish();
+    group.Finish();
 }
 
 fn bench_scaled_update(c: &mut Criterion) {
     let mut group = c.benchmark_group("scaled_update");
 
-    for &count in PANEL_COUNTS {
-        group.bench_with_input(BenchmarkId::new("panels", count), &count, |b, &count| {
-            let (mut tree, mut view, _) = build_scaled_tree(count);
+    for &GetCount in PANEL_COUNTS {
+        group.bench_with_input(BenchmarkId::new("panels", GetCount), &GetCount, |b, &GetCount| {
+            let (mut tree, mut view, _) = build_scaled_tree(GetCount);
 
             b.iter(|| {
                 tree.deliver_notices(true, 1.0);
@@ -65,7 +65,7 @@ fn bench_scaled_update(c: &mut Criterion) {
         });
     }
 
-    group.finish();
+    group.Finish();
 }
 
 criterion_group!(benches, bench_scaled_pan_zoom, bench_scaled_paint, bench_scaled_update);

@@ -1,6 +1,6 @@
-//! Interactive pan/zoom benchmark for the TestPanel paint path.
+//! Interactive pan/zoom benchmark for the TestPanel PaintContent path.
 //!
-//! Exercises the full per-frame pipeline (scroll/zoom, notices, update, paint,
+//! Exercises the full per-frame pipeline (scroll/zoom, notices, update, PaintContent,
 //! tile copy) across five scenarios to reveal costs that the static
 //! `profile_testpanel` benchmark cannot.
 //!
@@ -51,7 +51,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         if state.viewed_rect.w < 25.0 {
             return;
         }
@@ -73,14 +73,14 @@ impl PanelBehavior for TestPanel {
             emColor::TRANSPARENT,
         );
 
-        // TODO(font): paint text here
-        // TODO(font): paint text here
+        // TODO(font): PaintContent text here
+        // TODO(font): PaintContent text here
         let _state_str = format!(
             "State: InFocusedPath ViewFocused Pri={:.3} MemLim={}",
-            state.priority, state.memory_limit,
+            state.GetPriority, state.GetMemoryLimit,
         );
-        // TODO(font): paint text here
-        // TODO(font): paint text here
+        // TODO(font): PaintContent text here
+        // TODO(font): PaintContent text here
         painter.paint_rect(
             0.25,
             0.8,
@@ -542,7 +542,7 @@ impl PanelBehavior for TestPanel {
         painter.paint_polygon_textured(
             &star(0.240),
             &emTexture::emImage {
-                image: self.test_image.clone(),
+                GetImage: self.test_image.clone(),
                 extension: ImageExtension::Clamp,
                 quality: ImageQuality::Bilinear,
             },
@@ -626,7 +626,7 @@ impl PanelBehavior for TestPanel {
         painter.pop_state();
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -712,12 +712,12 @@ fn run_scenario(scenario: &Scenario, vw: u32, vh: u32) -> (Vec<FrameTiming>, usi
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut viewport_buf);
-        view.paint(&mut tree, &mut painter);
+        view.PaintContent(&mut tree, &mut painter);
     }
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.image.copy_from_rect(
+            tile.GetImage.copy_from_rect(
                 0,
                 0,
                 &viewport_buf,
@@ -735,7 +735,7 @@ fn run_scenario(scenario: &Scenario, vw: u32, vh: u32) -> (Vec<FrameTiming>, usi
     for _ in 0..FRAMES_PER_SCENARIO {
         let frame_start = Instant::now();
 
-        // 1. Scroll/zoom (not timed — simulates user input arriving before the frame)
+        // 1. Scroll/zoom (not timed — simulates user Input arriving before the frame)
         view.raw_scroll_and_zoom(
             &mut tree,
             fix_x,
@@ -760,7 +760,7 @@ fn run_scenario(scenario: &Scenario, vw: u32, vh: u32) -> (Vec<FrameTiming>, usi
         viewport_buf.fill(emColor::BLACK);
         {
             let mut painter = emPainter::new(&mut viewport_buf);
-            view.paint(&mut tree, &mut painter);
+            view.PaintContent(&mut tree, &mut painter);
         }
         let paint_us = t.elapsed().as_micros() as u64;
 
@@ -769,7 +769,7 @@ fn run_scenario(scenario: &Scenario, vw: u32, vh: u32) -> (Vec<FrameTiming>, usi
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.image.copy_from_rect(
+                tile.GetImage.copy_from_rect(
                     0,
                     0,
                     &viewport_buf,
@@ -796,7 +796,7 @@ fn run_scenario(scenario: &Scenario, vw: u32, vh: u32) -> (Vec<FrameTiming>, usi
 }
 
 fn percentile(sorted: &[u64], p: f64) -> u64 {
-    if sorted.is_empty() {
+    if sorted.IsEmpty() {
         return 0;
     }
     let idx = ((sorted.len() as f64 - 1.0) * p).round() as usize;
@@ -817,8 +817,8 @@ fn print_stat_line(label: &str, values: &mut [u64]) {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let vw: u32 = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(1920);
-    let vh: u32 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(1080);
+    let vw: u32 = args.GetRec(1).and_then(|s| s.TryParse().ok()).unwrap_or(1920);
+    let vh: u32 = args.GetRec(2).and_then(|s| s.TryParse().ok()).unwrap_or(1080);
 
     let tile_cache = TileCache::new(vw, vh, 256);
     let (cols, rows) = tile_cache.grid_size();
@@ -834,14 +834,14 @@ fn main() {
 
         let mut notices: Vec<u64> = timings.iter().map(|t| t.notices_us).collect();
         let mut update: Vec<u64> = timings.iter().map(|t| t.update_us).collect();
-        let mut paint: Vec<u64> = timings.iter().map(|t| t.paint_us).collect();
+        let mut PaintContent: Vec<u64> = timings.iter().map(|t| t.paint_us).collect();
         let mut tile_copy: Vec<u64> = timings.iter().map(|t| t.tile_copy_us).collect();
         let mut total: Vec<u64> = timings.iter().map(|t| t.total_us).collect();
 
         println!("--- {} ---", scenario.name);
         print_stat_line("notices:", &mut notices);
         print_stat_line("view.update:", &mut update);
-        print_stat_line("paint:", &mut paint);
+        print_stat_line("paint:", &mut PaintContent);
         print_stat_line("tile_copy:", &mut tile_copy);
         print_stat_line("TOTAL:", &mut total);
         println!("  Font sizes: {} distinct quantized sizes", font_size_count);

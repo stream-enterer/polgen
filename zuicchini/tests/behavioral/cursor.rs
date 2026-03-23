@@ -28,25 +28,25 @@ fn all_19_variants_exist() {
 
 #[test]
 fn as_str_returns_correct_names() {
-    assert_eq!(emCursor::Normal.as_str(), "Normal");
-    assert_eq!(emCursor::Invisible.as_str(), "Invisible");
-    assert_eq!(emCursor::Wait.as_str(), "Wait");
-    assert_eq!(emCursor::Crosshair.as_str(), "Crosshair");
-    assert_eq!(emCursor::Text.as_str(), "Text");
-    assert_eq!(emCursor::Hand.as_str(), "Hand");
-    assert_eq!(emCursor::ArrowN.as_str(), "ArrowN");
-    assert_eq!(emCursor::ArrowS.as_str(), "ArrowS");
-    assert_eq!(emCursor::ArrowE.as_str(), "ArrowE");
-    assert_eq!(emCursor::ArrowW.as_str(), "ArrowW");
-    assert_eq!(emCursor::ArrowNE.as_str(), "ArrowNE");
-    assert_eq!(emCursor::ArrowNW.as_str(), "ArrowNW");
-    assert_eq!(emCursor::ArrowSE.as_str(), "ArrowSE");
-    assert_eq!(emCursor::ArrowSW.as_str(), "ArrowSW");
-    assert_eq!(emCursor::ResizeNS.as_str(), "ResizeNS");
-    assert_eq!(emCursor::ResizeEW.as_str(), "ResizeEW");
-    assert_eq!(emCursor::ResizeNESW.as_str(), "ResizeNESW");
-    assert_eq!(emCursor::ResizeNWSE.as_str(), "ResizeNWSE");
-    assert_eq!(emCursor::Move.as_str(), "Move");
+    assert_eq!(emCursor::Normal.emInputKeyToString(), "Normal");
+    assert_eq!(emCursor::Invisible.emInputKeyToString(), "Invisible");
+    assert_eq!(emCursor::Wait.emInputKeyToString(), "Wait");
+    assert_eq!(emCursor::Crosshair.emInputKeyToString(), "Crosshair");
+    assert_eq!(emCursor::Text.emInputKeyToString(), "Text");
+    assert_eq!(emCursor::Hand.emInputKeyToString(), "Hand");
+    assert_eq!(emCursor::ArrowN.emInputKeyToString(), "ArrowN");
+    assert_eq!(emCursor::ArrowS.emInputKeyToString(), "ArrowS");
+    assert_eq!(emCursor::ArrowE.emInputKeyToString(), "ArrowE");
+    assert_eq!(emCursor::ArrowW.emInputKeyToString(), "ArrowW");
+    assert_eq!(emCursor::ArrowNE.emInputKeyToString(), "ArrowNE");
+    assert_eq!(emCursor::ArrowNW.emInputKeyToString(), "ArrowNW");
+    assert_eq!(emCursor::ArrowSE.emInputKeyToString(), "ArrowSE");
+    assert_eq!(emCursor::ArrowSW.emInputKeyToString(), "ArrowSW");
+    assert_eq!(emCursor::ResizeNS.emInputKeyToString(), "ResizeNS");
+    assert_eq!(emCursor::ResizeEW.emInputKeyToString(), "ResizeEW");
+    assert_eq!(emCursor::ResizeNESW.emInputKeyToString(), "ResizeNESW");
+    assert_eq!(emCursor::ResizeNWSE.emInputKeyToString(), "ResizeNWSE");
+    assert_eq!(emCursor::Move.emInputKeyToString(), "Move");
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn display_matches_as_str() {
         emCursor::Move,
     ];
     for v in &variants {
-        assert_eq!(format!("{v}"), v.as_str());
+        assert_eq!(format!("{v}"), v.emInputKeyToString());
     }
 }
 
@@ -121,7 +121,7 @@ fn all_as_str_values_unique() {
         emCursor::ResizeNWSE,
         emCursor::Move,
     ];
-    let mut names: Vec<&str> = variants.iter().map(|c| c.as_str()).collect();
+    let mut names: Vec<&str> = variants.iter().map(|c| c.emInputKeyToString()).collect();
     let original_len = names.len();
     names.sort();
     names.dedup();

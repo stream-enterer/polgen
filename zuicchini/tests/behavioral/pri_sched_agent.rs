@@ -20,34 +20,34 @@ fn highest_priority_gets_access_first() {
     let gc = Rc::clone(&got_c);
     let agent_c = model.add_agent(10.0, Box::new(move || *gc.borrow_mut() = true));
 
-    model.request_access(agent_a, &mut sched);
-    model.request_access(agent_b, &mut sched);
-    model.request_access(agent_c, &mut sched);
+    model.RequestAccess(agent_a, &mut sched);
+    model.RequestAccess(agent_b, &mut sched);
+    model.RequestAccess(agent_c, &mut sched);
 
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
-    // Agent C (priority 10) should get access
+    // Agent C (GetPriority 10) should GetRec access
     assert!(!*got_a.borrow());
     assert!(!*got_b.borrow());
     assert!(*got_c.borrow());
-    assert!(model.has_access(agent_c));
+    assert!(model.HasAccess(agent_c));
 
-    // Release C, B should get access next
-    model.release_access(agent_c, &mut sched);
-    sched.do_time_slice();
+    // Release C, B should GetRec access next
+    model.ReleaseAccess(agent_c, &mut sched);
+    sched.DoTimeSlice();
 
     assert!(!*got_a.borrow());
     assert!(*got_b.borrow());
-    assert!(model.has_access(agent_b));
+    assert!(model.HasAccess(agent_b));
 
-    // Release B, A should get access
-    model.release_access(agent_b, &mut sched);
-    sched.do_time_slice();
+    // Release B, A should GetRec access
+    model.ReleaseAccess(agent_b, &mut sched);
+    sched.DoTimeSlice();
 
     assert!(*got_a.borrow());
-    assert!(model.has_access(agent_a));
+    assert!(model.HasAccess(agent_a));
 
-    model.release_access(agent_a, &mut sched);
+    model.ReleaseAccess(agent_a, &mut sched);
     model.remove(&mut sched);
 }
 
@@ -56,25 +56,25 @@ fn request_while_active_requeues() {
     let mut sched = EngineScheduler::new();
     let mut model = PriSchedModel::new(&mut sched);
 
-    let count = Rc::new(RefCell::new(0u32));
-    let c = Rc::clone(&count);
+    let GetCount = Rc::new(RefCell::new(0u32));
+    let c = Rc::clone(&GetCount);
     let agent = model.add_agent(1.0, Box::new(move || *c.borrow_mut() += 1));
 
-    model.request_access(agent, &mut sched);
-    sched.do_time_slice();
-    assert_eq!(*count.borrow(), 1);
-    assert!(model.has_access(agent));
+    model.RequestAccess(agent, &mut sched);
+    sched.DoTimeSlice();
+    assert_eq!(*GetCount.borrow(), 1);
+    assert!(model.HasAccess(agent));
 
     // Re-request while active clears active and requeues
-    model.request_access(agent, &mut sched);
-    assert!(!model.has_access(agent));
-    assert!(model.is_waiting_for_access(agent));
+    model.RequestAccess(agent, &mut sched);
+    assert!(!model.HasAccess(agent));
+    assert!(model.IsWaitingForAccess(agent));
 
-    sched.do_time_slice();
-    assert_eq!(*count.borrow(), 2);
-    assert!(model.has_access(agent));
+    sched.DoTimeSlice();
+    assert_eq!(*GetCount.borrow(), 2);
+    assert!(model.HasAccess(agent));
 
-    model.release_access(agent, &mut sched);
+    model.ReleaseAccess(agent, &mut sched);
     model.remove(&mut sched);
 }
 
@@ -86,9 +86,9 @@ fn release_without_access_is_noop() {
     let agent = model.add_agent(1.0, Box::new(|| {}));
 
     // Release when not active and not waiting — should not panic
-    model.release_access(agent, &mut sched);
-    assert!(!model.has_access(agent));
-    assert!(!model.is_waiting_for_access(agent));
+    model.ReleaseAccess(agent, &mut sched);
+    assert!(!model.HasAccess(agent));
+    assert!(!model.IsWaitingForAccess(agent));
 
     model.remove(&mut sched);
 }
@@ -107,23 +107,23 @@ fn no_grant_when_active_exists() {
     let agent_b = model.add_agent(2.0, Box::new(move || *gb.borrow_mut() = true));
 
     // A gets access
-    model.request_access(agent_a, &mut sched);
-    sched.do_time_slice();
-    assert!(model.has_access(agent_a));
+    model.RequestAccess(agent_a, &mut sched);
+    sched.DoTimeSlice();
+    assert!(model.HasAccess(agent_a));
 
-    // B requests but A is still active — B should not get access
-    model.request_access(agent_b, &mut sched);
-    sched.do_time_slice();
+    // B requests but A is still active — B should not GetRec access
+    model.RequestAccess(agent_b, &mut sched);
+    sched.DoTimeSlice();
     assert!(!*got_b.borrow());
-    assert!(!model.has_access(agent_b));
-    assert!(model.is_waiting_for_access(agent_b));
+    assert!(!model.HasAccess(agent_b));
+    assert!(model.IsWaitingForAccess(agent_b));
 
-    model.release_access(agent_a, &mut sched);
-    sched.do_time_slice();
+    model.ReleaseAccess(agent_a, &mut sched);
+    sched.DoTimeSlice();
     assert!(*got_b.borrow());
-    assert!(model.has_access(agent_b));
+    assert!(model.HasAccess(agent_b));
 
-    model.release_access(agent_b, &mut sched);
+    model.ReleaseAccess(agent_b, &mut sched);
     model.remove(&mut sched);
 }
 
@@ -141,19 +141,19 @@ fn set_access_priority_changes_grant_order() {
     let agent_b = model.add_agent(10.0, Box::new(move || *gb.borrow_mut() = true));
 
     // Boost A above B
-    model.set_access_priority(agent_a, 20.0);
+    model.SetAccessPriority(agent_a, 20.0);
 
-    model.request_access(agent_a, &mut sched);
-    model.request_access(agent_b, &mut sched);
-    sched.do_time_slice();
+    model.RequestAccess(agent_a, &mut sched);
+    model.RequestAccess(agent_b, &mut sched);
+    sched.DoTimeSlice();
 
     // A should win now despite originally being lower
     assert!(*got_a.borrow());
     assert!(!*got_b.borrow());
-    assert!(model.has_access(agent_a));
+    assert!(model.HasAccess(agent_a));
 
-    model.release_access(agent_a, &mut sched);
-    model.release_access(agent_b, &mut sched);
+    model.ReleaseAccess(agent_a, &mut sched);
+    model.ReleaseAccess(agent_b, &mut sched);
     model.remove(&mut sched);
 }
 
@@ -164,16 +164,16 @@ fn is_waiting_tracks_state() {
 
     let agent = model.add_agent(1.0, Box::new(|| {}));
 
-    assert!(!model.is_waiting_for_access(agent));
+    assert!(!model.IsWaitingForAccess(agent));
 
-    model.request_access(agent, &mut sched);
-    assert!(model.is_waiting_for_access(agent));
+    model.RequestAccess(agent, &mut sched);
+    assert!(model.IsWaitingForAccess(agent));
 
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     // After grant, no longer waiting
-    assert!(!model.is_waiting_for_access(agent));
-    assert!(model.has_access(agent));
+    assert!(!model.IsWaitingForAccess(agent));
+    assert!(model.HasAccess(agent));
 
-    model.release_access(agent, &mut sched);
+    model.ReleaseAccess(agent, &mut sched);
     model.remove(&mut sched);
 }

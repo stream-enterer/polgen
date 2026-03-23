@@ -12,7 +12,7 @@ struct RecordingEngine {
 }
 
 impl emEngine for RecordingEngine {
-    fn cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
         self.log.borrow_mut().push(self.label);
         self.stay_awake
     }
@@ -51,7 +51,7 @@ fn engines_execute_in_priority_order() {
     sched.wake_up(low);
     sched.wake_up(med);
     sched.wake_up(high);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
     let executed = log.borrow();
     assert_eq!(*executed, vec!["very_high", "medium", "very_low"]);
@@ -69,7 +69,7 @@ fn signal_chaining_within_time_slice() {
 
     let sig = sched.create_signal();
 
-    // emEngine B: low priority, woken by signal
+    // emEngine B: low GetPriority, woken by signal
     let eng_b = sched.register_engine(
         Priority::Low,
         Box::new(RecordingEngine {
@@ -82,7 +82,7 @@ fn signal_chaining_within_time_slice() {
 
     // Fire signal before time slice — the signal phase wakes emEngine B
     sched.fire(sig);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
     let executed = log.borrow();
     assert_eq!(*executed, vec!["B"]);
@@ -109,7 +109,7 @@ fn timer_fires_signal() {
     // Create a timer and start it with 0ms interval (fires immediately)
     let timer = sched.create_timer(sig);
     sched.start_timer(timer, 0, false);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
     let executed = log.borrow();
     assert_eq!(*executed, vec!["timer_target"]);
@@ -132,14 +132,14 @@ fn remove_engine_cleans_up() {
     );
     sched.wake_up(eng);
     sched.remove_engine(eng);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
-    assert!(log.borrow().is_empty());
+    assert!(log.borrow().IsEmpty());
 }
 
 #[test]
 fn instant_signal_chaining_via_engine() {
-    // emEngine A fires a signal during its cycle. emEngine B (connected to that signal)
+    // emEngine A fires a signal during its Cycle. emEngine B (connected to that signal)
     // must run within the SAME time slice.
     let mut sched = EngineScheduler::new();
     let sig = sched.create_signal();
@@ -150,7 +150,7 @@ fn instant_signal_chaining_via_engine() {
         log: Rc<RefCell<Vec<&'static str>>>,
     }
     impl emEngine for FiringEngine {
-        fn cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
+        fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
             self.log.borrow_mut().push("A_fires");
             ctx.fire(self.sig);
             false
@@ -176,7 +176,7 @@ fn instant_signal_chaining_via_engine() {
     );
     sched.wake_up(eng_a);
 
-    sched.do_time_slice();
+    sched.DoTimeSlice();
 
     let executed = log.borrow();
     assert_eq!(*executed, vec!["A_fires", "B_runs"]);
@@ -198,9 +198,9 @@ fn is_signaled_distinguishes_signals() {
         b_fired: Rc<RefCell<bool>>,
     }
     impl emEngine for CheckSignalEngine {
-        fn cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
-            *self.a_fired.borrow_mut() = ctx.is_signaled(self.sig_a);
-            *self.b_fired.borrow_mut() = ctx.is_signaled(self.sig_b);
+        fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
+            *self.a_fired.borrow_mut() = ctx.IsSignaled(self.sig_a);
+            *self.b_fired.borrow_mut() = ctx.IsSignaled(self.sig_b);
             false
         }
     }
@@ -221,7 +221,7 @@ fn is_signaled_distinguishes_signals() {
 
     // Fire only signal A
     sched.fire(sig_a);
-    sched.do_time_slice();
+    sched.DoTimeSlice();
     assert!(*a_fired.borrow(), "Signal A should have been detected");
     assert!(!*b_fired.borrow(), "Signal B should NOT have been detected");
     sched.remove_engine(eng);

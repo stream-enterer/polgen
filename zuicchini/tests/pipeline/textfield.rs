@@ -1,8 +1,8 @@
 //! Systematic interaction tests for emTextField at 1x and 2x zoom.
 //!
-//! These tests drive input through the full PipelineTestHarness dispatch
+//! These tests drive Input through the full PipelineTestHarness dispatch
 //! pipeline (VIF chain, hit test, coordinate transform, keyboard suppression)
-//! and assert on widget STATE (text content, cursor position), not pixels.
+//! and assert on widget STATE (text content, cursor GetPos), not pixels.
 
 
 use std::cell::RefCell;
@@ -24,23 +24,23 @@ use super::support::pipeline::PipelineTestHarness;
 // ---------------------------------------------------------------------------
 
 /// PanelBehavior wrapper for emTextField. The widget is stored behind
-/// Rc<RefCell> so the test can inspect state after input dispatch.
+/// Rc<RefCell> so the test can inspect state after Input dispatch.
 struct SharedTextFieldPanel {
     inner: Rc<RefCell<emTextField>>,
 }
 
 impl PanelBehavior for SharedTextFieldPanel {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.inner.borrow_mut().paint(painter, w, h, state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.inner.borrow_mut().PaintContent(painter, w, h, state.enabled);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         state: &PanelState,
         input_state: &emInputState,
     ) -> bool {
-        self.inner.borrow_mut().input(event, state, input_state)
+        self.inner.borrow_mut().Input(event, state, input_state)
     }
 
     fn notice(&mut self, flags: NoticeFlags, state: &PanelState) {
@@ -51,11 +51,11 @@ impl PanelBehavior for SharedTextFieldPanel {
         }
     }
 
-    fn get_cursor(&self) -> emCursor {
-        self.inner.borrow().get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.inner.borrow().GetCursor()
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -69,7 +69,7 @@ impl PanelBehavior for SharedTextFieldPanel {
 fn setup_textfield_harness() -> (PipelineTestHarness, Rc<RefCell<emTextField>>) {
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_editable(true);
+    tf.SetEditable(true);
 
     let tf_ref = Rc::new(RefCell::new(tf));
 
@@ -89,9 +89,9 @@ fn setup_textfield_harness() -> (PipelineTestHarness, Rc<RefCell<emTextField>>) 
     (h, tf_ref)
 }
 
-/// Render the harness at the given viewport size so that paint() is called on
+/// Render the harness at the given viewport size so that PaintContent() is called on
 /// the emTextField, populating its cached last_w / last_h dimensions (required
-/// for mouse hit-testing and the min_ext guard in input()).
+/// for mouse hit-testing and the min_ext guard in Input()).
 fn render(h: &mut PipelineTestHarness, width: u32, height: u32) {
     let mut compositor = SoftwareCompositor::new(width, height);
     compositor.render(&mut h.tree, &h.view);
@@ -118,7 +118,7 @@ fn textfield_type_1x_and_2x() {
     render(&mut h, 800, 600);
 
     // Click at viewport center to focus the text field panel.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // Type "abc" through the full pipeline.
     type_string(&mut h, "abc");
@@ -150,7 +150,7 @@ fn textfield_type_1x_and_2x() {
     render(&mut h, 800, 600);
 
     // Click at viewport center to re-focus.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // Type "xyz" at 2x zoom.
     type_string(&mut h, "xyz");
@@ -179,7 +179,7 @@ fn textfield_backspace_1x_and_2x() {
     render(&mut h, 800, 600);
 
     // Focus
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // ── 1x: type "hello", backspace twice → "hel" ─────────────────────
     type_string(&mut h, "hello");
@@ -199,14 +199,14 @@ fn textfield_backspace_1x_and_2x() {
         assert_eq!(tf.cursor_pos(), 3);
     }
 
-    // ── 2x: clear, type "world", backspace once → "worl" ──────────────
+    // ── 2x: Clear, type "world", backspace once → "worl" ──────────────
     tf_ref.borrow_mut().set_text("");
 
     h.set_zoom(2.0);
     h.tick_n(5);
     render(&mut h, 800, 600);
 
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
     type_string(&mut h, "world");
     assert_eq!(tf_ref.borrow().text(), "world");
 
@@ -229,11 +229,11 @@ fn textfield_arrow_navigation() {
     render(&mut h, 800, 600);
 
     // Focus and type initial text.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
     type_string(&mut h, "abcde");
     assert_eq!(tf_ref.borrow().cursor_pos(), 5);
 
-    // ArrowLeft 3 times → cursor at position 2.
+    // ArrowLeft 3 times → cursor at GetPos 2.
     h.press_key(InputKey::ArrowLeft);
     h.press_key(InputKey::ArrowLeft);
     h.press_key(InputKey::ArrowLeft);
@@ -268,13 +268,13 @@ fn textfield_arrow_navigation() {
     );
 }
 
-/// Verify that typing inserts at the cursor position (mid-string insertion).
+/// Verify that typing inserts at the cursor GetPos (mid-string insertion).
 #[test]
 fn textfield_insert_at_cursor() {
     let (mut h, tf_ref) = setup_textfield_harness();
     render(&mut h, 800, 600);
 
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
     type_string(&mut h, "ac");
     assert_eq!(tf_ref.borrow().text(), "ac");
 
@@ -301,10 +301,10 @@ fn textfield_delete_key() {
     let (mut h, tf_ref) = setup_textfield_harness();
     render(&mut h, 800, 600);
 
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
     type_string(&mut h, "abcd");
 
-    // Move to position 1 (after 'a').
+    // Move to GetPos 1 (after 'a').
     h.press_key(InputKey::Home);
     h.press_key(InputKey::ArrowRight);
     assert_eq!(tf_ref.borrow().cursor_pos(), 1);
@@ -333,10 +333,10 @@ fn textfield_non_editable_rejects_input() {
     let (mut h, tf_ref) = setup_textfield_harness();
 
     // Make the field non-editable.
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     render(&mut h, 800, 600);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     type_string(&mut h, "abc");
 
@@ -356,9 +356,9 @@ fn textfield_prepopulated_text() {
     tf_ref.borrow_mut().set_text("hello");
 
     render(&mut h, 800, 600);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
-    // The click positions the cursor at the click location within the text,
+    // The Click positions the cursor at the Click location within the text,
     // so move to the end explicitly before typing.
     h.press_key(InputKey::End);
     assert_eq!(tf_ref.borrow().cursor_pos(), 5);
@@ -384,7 +384,7 @@ fn textfield_type_across_zoom_levels() {
 
     // ── 1x: type "foo" ─────────────────────────────────────────────────
     render(&mut h, 800, 600);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
     type_string(&mut h, "foo");
     assert_eq!(tf_ref.borrow().text(), "foo");
 
@@ -393,10 +393,10 @@ fn textfield_type_across_zoom_levels() {
     h.tick_n(5);
     render(&mut h, 800, 600);
 
-    // Click at a slightly different position to avoid double-click detection
-    // with the prior click (same coords within 500ms would trigger word
+    // Click at a slightly different GetPos to avoid double-Click detection
+    // with the prior Click (same coords within 500ms would trigger word
     // selection, replacing existing text on the next typed character).
-    h.click(410.0, 310.0);
+    h.Click(410.0, 310.0);
 
     // Move cursor to end so we append after "foo".
     h.press_key(InputKey::End);
@@ -426,12 +426,12 @@ fn setup_nav_harness(text: &str, cursor_pos: usize) -> (PipelineTestHarness, Rc<
     tf_ref.borrow_mut().set_cursor_index(cursor_pos);
 
     render(&mut h, 800, 600);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
-    // After click, cursor may have moved to click position; restore it.
+    // After Click, cursor may have moved to Click GetPos; restore it.
     tf_ref.borrow_mut().set_cursor_index(cursor_pos);
-    // Clear any selection that the click may have created.
-    tf_ref.borrow_mut().deselect();
+    // Clear any selection that the Click may have created.
+    tf_ref.borrow_mut().Deselect();
 
     (h, tf_ref)
 }
@@ -447,10 +447,10 @@ fn setup_multiline_nav_harness(
     tf_ref.borrow_mut().set_cursor_index(cursor_pos);
 
     render(&mut h, 800, 600);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     tf_ref.borrow_mut().set_cursor_index(cursor_pos);
-    tf_ref.borrow_mut().deselect();
+    tf_ref.borrow_mut().Deselect();
 
     (h, tf_ref)
 }
@@ -755,7 +755,7 @@ fn textfield_right_clears_selection() {
 }
 
 // ---------------------------------------------------------------------------
-// Up / Down in multi-line mode
+// Up / Down in multi-line GetMode
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -855,7 +855,7 @@ fn textfield_shift_up_extends_selection_multiline() {
 }
 
 // ---------------------------------------------------------------------------
-// Up / Down ignored in single-line mode (C++: guarded by MultiLineMode)
+// Up / Down ignored in single-line GetMode (C++: guarded by MultiLineMode)
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -881,7 +881,7 @@ fn textfield_up_ignored_single_line() {
 }
 
 // ---------------------------------------------------------------------------
-// Ctrl+Home / Ctrl+End in multi-line mode
+// Ctrl+Home / Ctrl+End in multi-line GetMode
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -903,7 +903,7 @@ fn textfield_ctrl_end_multiline_goes_to_len() {
 }
 
 // ---------------------------------------------------------------------------
-// Home / End in multi-line mode → row start / row end
+// Home / End in multi-line GetMode → row start / row end
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -925,7 +925,7 @@ fn textfield_end_multiline_goes_to_row_end() {
     h.press_key(InputKey::End);
     {
         let tf = tf_ref.borrow();
-        // row_end for row 1 ("def\n") should be 7 (the position of '\n')
+        // row_end for row 1 ("def\n") should be 7 (the GetPos of '\n')
         assert_eq!(
             tf.cursor_pos(),
             7,
@@ -1222,7 +1222,7 @@ fn textfield_typing_with_selection_replaces_selection() {
 }
 
 // ---------------------------------------------------------------------------
-// Insert key toggles overwrite mode (C++ EM_KEY_INSERT + IsNoMod)
+// Insert key toggles overwrite GetMode (C++ EM_KEY_INSERT + IsNoMod)
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -1244,13 +1244,13 @@ fn textfield_insert_toggles_overwrite_mode() {
 }
 
 // ---------------------------------------------------------------------------
-// Typing in overwrite mode replaces char at cursor
+// Typing in overwrite GetMode replaces char at cursor
 // (C++ OverwriteMode && CursorIndex < GetRowEndIndex path)
 // ---------------------------------------------------------------------------
 
 #[test]
 fn textfield_overwrite_mode_replaces_char() {
-    // "abcde" with overwrite mode, cursor at 1 → type 'X' → "aXcde", cursor at 2
+    // "abcde" with overwrite GetMode, cursor at 1 → type 'X' → "aXcde", cursor at 2
     let (mut h, tf_ref) = setup_nav_harness("abcde", 1);
     tf_ref.borrow_mut().set_overwrite_mode(true);
 
@@ -1269,7 +1269,7 @@ fn textfield_overwrite_mode_replaces_char() {
 
 #[test]
 fn textfield_overwrite_mode_at_end_inserts() {
-    // "abc" with overwrite mode, cursor at 3 (end) → type 'X' → "abcX"
+    // "abc" with overwrite GetMode, cursor at 3 (end) → type 'X' → "abcX"
     // C++: OverwriteMode && CursorIndex < GetRowEndIndex → false at end, so insert
     let (mut h, tf_ref) = setup_nav_harness("abc", 3);
     tf_ref.borrow_mut().set_overwrite_mode(true);
@@ -1295,7 +1295,7 @@ fn textfield_overwrite_mode_at_end_inserts() {
 #[test]
 fn textfield_non_editable_rejects_backspace() {
     let (mut h, tf_ref) = setup_nav_harness("hello", 5);
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     h.press_key(InputKey::Backspace);
     assert_eq!(
@@ -1308,7 +1308,7 @@ fn textfield_non_editable_rejects_backspace() {
 #[test]
 fn textfield_non_editable_rejects_delete() {
     let (mut h, tf_ref) = setup_nav_harness("hello", 2);
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     h.press_key(InputKey::Delete);
     assert_eq!(
@@ -1321,7 +1321,7 @@ fn textfield_non_editable_rejects_delete() {
 #[test]
 fn textfield_non_editable_rejects_ctrl_backspace() {
     let (mut h, tf_ref) = setup_nav_harness("hello world", 5);
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Backspace);
@@ -1336,7 +1336,7 @@ fn textfield_non_editable_rejects_ctrl_backspace() {
 #[test]
 fn textfield_non_editable_rejects_ctrl_delete() {
     let (mut h, tf_ref) = setup_nav_harness("hello world", 5);
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Delete);
@@ -1351,9 +1351,9 @@ fn textfield_non_editable_rejects_ctrl_delete() {
 #[test]
 fn textfield_non_editable_allows_insert_toggle() {
     // C++ Insert key toggle is NOT guarded by IsEditable — it's in the
-    // non-editable block. So overwrite mode toggles even when not editable.
+    // non-editable block. So overwrite GetMode toggles even when not editable.
     let (mut h, tf_ref) = setup_nav_harness("hello", 0);
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     assert!(!tf_ref.borrow().is_overwrite_mode());
     h.press_key(InputKey::Insert);
@@ -1424,14 +1424,14 @@ fn textfield_ctrl_delete_with_selection_deletes_selection() {
 // ===========================================================================
 
 // ---------------------------------------------------------------------------
-// Single click positions cursor
-// C++ ref: emTextField.cpp:391-397 (repeat==0 single click branch)
+// Single Click positions cursor
+// C++ ref: emTextField.cpp:391-397 (repeat==0 single Click branch)
 // ---------------------------------------------------------------------------
 
-/// A single (first) click positions cursor within text range and creates no
-/// selection. This is the very first click on the text field so there's no
-/// prior click to form a double-click with.
-/// C++ ref: emTextField.cpp:391-397 (repeat==0 single click)
+/// A single (first) Click positions cursor within text range and creates no
+/// selection. This is the very first Click on the text field so there's no
+/// prior Click to form a double-Click with.
+/// C++ ref: emTextField.cpp:391-397 (repeat==0 single Click)
 #[test]
 fn textfield_single_click_positions_cursor() {
     let (mut h, tf_ref) = setup_textfield_harness();
@@ -1439,8 +1439,8 @@ fn textfield_single_click_positions_cursor() {
 
     render(&mut h, 800, 600);
 
-    // First click ever on this widget — guaranteed single click (no prior click_time).
-    h.click(400.0, 300.0);
+    // First Click ever on this widget — guaranteed single Click (no prior click_time).
+    h.Click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     // The cursor should be positioned somewhere within the text range.
@@ -1455,9 +1455,9 @@ fn textfield_single_click_positions_cursor() {
     );
 }
 
-/// Single click clears any existing selection (C++ EmptySelection path).
-/// Uses setup_nav_harness so the widget is already focused. The first click
-/// on this harness instance is guaranteed to be a single-click (no prior
+/// Single Click clears any existing selection (C++ EmptySelection path).
+/// Uses setup_nav_harness so the widget is already focused. The first Click
+/// on this harness instance is guaranteed to be a single-Click (no prior
 /// click_time).
 #[test]
 fn textfield_single_click_clears_selection() {
@@ -1470,9 +1470,9 @@ fn textfield_single_click_clears_selection() {
     tf_ref.borrow_mut().select(0, 5);
     assert!(!tf_ref.borrow().is_selection_empty());
 
-    // First click on this widget instance — guaranteed single click.
-    // Single click without Shift should clear existing selection.
-    h.click(400.0, 300.0);
+    // First Click on this widget instance — guaranteed single Click.
+    // Single Click without Shift should Clear existing selection.
+    h.Click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     assert!(
@@ -1482,11 +1482,11 @@ fn textfield_single_click_clears_selection() {
 }
 
 // ---------------------------------------------------------------------------
-// Double-click selects word
-// C++ ref: emTextField.cpp:398-413 (repeat==1, double-click word selection)
+// Double-Click selects word
+// C++ ref: emTextField.cpp:398-413 (repeat==1, double-Click word selection)
 // ---------------------------------------------------------------------------
 
-/// Double-click (two rapid clicks at same position) selects the word under cursor.
+/// Double-Click (two rapid clicks at same GetPos) selects the word under cursor.
 #[test]
 fn textfield_double_click_selects_word() {
     let (mut h, tf_ref) = setup_textfield_harness();
@@ -1495,23 +1495,23 @@ fn textfield_double_click_selects_word() {
     render(&mut h, 800, 600);
 
     // Click at center — this should be roughly in "bar" given the text layout.
-    // Two rapid clicks at the same position trigger double-click via time-based
+    // Two rapid clicks at the same GetPos trigger double-Click via time-based
     // detection (click_count increments from 1 to 2).
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
-    // Double-click selects a word boundary segment. The selected text should
+    // Double-Click selects a word boundary segment. The GetChecked text should
     // be a contiguous word or delimiter segment.
     let sel_text = tf.selected_text();
     assert!(
         !tf.is_selection_empty(),
         "Double-click should create a selection"
     );
-    // The selected text should be either a word or a delimiter segment,
+    // The GetChecked text should be either a word or a delimiter segment,
     // not a mix. Verify it's non-empty and bounded by word boundaries.
     assert!(
-        !sel_text.is_empty(),
+        !sel_text.IsEmpty(),
         "Double-click should select a non-empty segment"
     );
     // Verify the selection boundaries are word boundaries: all chars should be
@@ -1526,11 +1526,11 @@ fn textfield_double_click_selects_word() {
 }
 
 // ---------------------------------------------------------------------------
-// Triple-click selects entire line/row
-// C++ ref: emTextField.cpp:415-431 (repeat==2, triple-click row selection)
+// Triple-Click selects entire line/row
+// C++ ref: emTextField.cpp:415-431 (repeat==2, triple-Click row selection)
 // ---------------------------------------------------------------------------
 
-/// Triple-click selects the entire row. In single-line mode, this means the
+/// Triple-Click selects the entire row. In single-line GetMode, this means the
 /// whole text (row_start=0, row_end=len for single-line).
 #[test]
 fn textfield_triple_click_selects_line() {
@@ -1539,13 +1539,13 @@ fn textfield_triple_click_selects_line() {
 
     render(&mut h, 800, 600);
 
-    // Three rapid clicks at the same position.
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
+    // Three rapid clicks at the same GetPos.
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
-    // In single-line mode, triple-click should select the entire text (full row).
+    // In single-line GetMode, triple-Click should select the entire text (full row).
     assert_eq!(
         tf.selection_start(),
         0,
@@ -1559,7 +1559,7 @@ fn textfield_triple_click_selects_line() {
     assert_eq!(tf.selected_text(), "hello world");
 }
 
-/// Triple-click in multi-line mode selects just the clicked row.
+/// Triple-Click in multi-line GetMode selects just the clicked row.
 #[test]
 fn textfield_triple_click_selects_row_multiline() {
     let (mut h, tf_ref) = setup_textfield_harness();
@@ -1568,20 +1568,20 @@ fn textfield_triple_click_selects_row_multiline() {
 
     render(&mut h, 800, 600);
 
-    // Triple-click — the exact row depends on the y coordinate, but at center
+    // Triple-Click — the exact row depends on the y coordinate, but at center
     // of the viewport, in multi-line with 3 rows, it should hit one of the rows.
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     // Selection should cover exactly one row (including the trailing \n for non-last rows).
     let sel = tf.selected_text();
     assert!(
-        !sel.is_empty(),
+        !sel.IsEmpty(),
         "Triple-click in multi-line should select a row"
     );
-    // The selected text should be one of: "abc\n", "def\n", or "ghi"
+    // The GetChecked text should be one of: "abc\n", "def\n", or "ghi"
     let valid_rows = ["abc\n", "def\n", "ghi"];
     assert!(
         valid_rows.contains(&sel),
@@ -1591,11 +1591,11 @@ fn textfield_triple_click_selects_row_multiline() {
 }
 
 // ---------------------------------------------------------------------------
-// Drag from position A to B selects text between A and B
+// Drag from GetPos A to B selects text between A and B
 // C++ ref: emTextField.cpp:441-453 (DM_SELECT drag)
 // ---------------------------------------------------------------------------
 
-/// Drag from one position to another within the content area should select text.
+/// Drag from one GetPos to another within the content area should select text.
 /// Uses coordinates near the viewport center to ensure hit_test passes.
 #[test]
 fn textfield_drag_selects_text() {
@@ -1604,8 +1604,8 @@ fn textfield_drag_selects_text() {
 
     render(&mut h, 800, 600);
 
-    // Focus first with a click (at a different y to avoid double-click with drag).
-    h.click(400.0, 310.0);
+    // Focus first with a Click (at a different y to avoid double-Click with drag).
+    h.Click(400.0, 310.0);
 
     // Drag within content area: start left of center, end right of center.
     // Both points must be within the border's content round rect.
@@ -1618,7 +1618,7 @@ fn textfield_drag_selects_text() {
     );
     let sel = tf.selected_text();
     assert!(
-        !sel.is_empty(),
+        !sel.IsEmpty(),
         "Drag across the text should select characters (got '{}')",
         sel
     );
@@ -1639,8 +1639,8 @@ fn textfield_drag_right_to_left_selects_text() {
 
     render(&mut h, 800, 600);
 
-    // Focus at offset y to avoid double-click detection.
-    h.click(400.0, 310.0);
+    // Focus at offset y to avoid double-Click detection.
+    h.Click(400.0, 310.0);
 
     // Drag right to left within content area.
     h.drag(500.0, 300.0, 300.0, 300.0);
@@ -1696,7 +1696,7 @@ fn textfield_ctrl_a_empty_text() {
 #[test]
 fn textfield_ctrl_a_non_editable() {
     let (mut h, tf_ref) = setup_nav_harness("Hello", 0);
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Key('a'));
@@ -1719,10 +1719,10 @@ fn textfield_shift_ctrl_a_deselects() {
     let (mut h, tf_ref) = setup_nav_harness("Hello World", 5);
 
     // First select all.
-    tf_ref.borrow_mut().select_all();
+    tf_ref.borrow_mut().SelectAll();
     assert!(!tf_ref.borrow().is_selection_empty());
 
-    // Shift+Ctrl+A to deselect.
+    // Shift+Ctrl+A to Deselect.
     h.input_state.press(InputKey::Shift);
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Key('a'));
@@ -1758,12 +1758,12 @@ fn textfield_shift_ctrl_a_noop_when_no_selection() {
 }
 
 // ---------------------------------------------------------------------------
-// Shift+click extends selection from cursor to click position
+// Shift+Click extends selection from cursor to Click GetPos
 // C++ ref: emTextField.cpp:393 (Shift pressed → ModifySelection)
 // ---------------------------------------------------------------------------
 
-/// Shift+click extends selection from current cursor to clicked position.
-/// Use setup_nav_harness to set a known cursor position, then Shift+click
+/// Shift+Click extends selection from current cursor to clicked GetPos.
+/// Use setup_nav_harness to set a known cursor GetPos, then Shift+Click
 /// at a different location to extend.
 #[test]
 fn textfield_shift_click_extends_selection() {
@@ -1773,18 +1773,18 @@ fn textfield_shift_click_extends_selection() {
     render(&mut h, 800, 600);
 
     // Click at center to focus.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
     let initial_pos = tf_ref.borrow().cursor_pos();
 
-    // Shift+click at a distinctly different x within content area.
-    // Use offset y to avoid double-click detection.
+    // Shift+Click at a distinctly different x within content area.
+    // Use offset y to avoid double-Click detection.
     h.input_state.press(InputKey::Shift);
-    h.click(550.0, 300.0);
+    h.Click(550.0, 300.0);
     h.input_state.release(InputKey::Shift);
 
     let tf = tf_ref.borrow();
-    // If shift+click lands at a different position than initial cursor, we get
-    // a selection. If same position, selection is empty (degenerate case).
+    // If shift+Click lands at a different GetPos than initial cursor, we GetRec
+    // a selection. If same GetPos, selection is empty (degenerate case).
     let shift_pos = tf.cursor_pos();
     if shift_pos != initial_pos {
         assert!(
@@ -1800,22 +1800,22 @@ fn textfield_shift_click_extends_selection() {
             tf.selection_end()
         );
     }
-    // If same position (unlikely but possible): selection is empty, which is correct.
+    // If same GetPos (unlikely but possible): selection is empty, which is correct.
 }
 
-/// Shift+click via keyboard nav: position cursor at 2, then Shift+click extends.
-/// This uses keyboard to set a known anchor and verifies shift+click extends from it.
+/// Shift+Click via keyboard nav: GetPos cursor at 2, then Shift+Click extends.
+/// This uses keyboard to set a known anchor and verifies shift+Click extends from it.
 #[test]
 fn textfield_shift_click_from_known_cursor() {
     let (mut h, tf_ref) = setup_nav_harness("Hello World", 2);
 
-    // Now Shift+click at center of viewport.
+    // Now Shift+Click at center of viewport.
     h.input_state.press(InputKey::Shift);
-    h.click(500.0, 300.0);
+    h.Click(500.0, 300.0);
     h.input_state.release(InputKey::Shift);
 
     let tf = tf_ref.borrow();
-    // The click should extend selection from cursor pos 2 to wherever the click lands.
+    // The Click should extend selection from cursor pos 2 to wherever the Click lands.
     let click_pos = tf.cursor_pos();
     if click_pos != 2 {
         assert!(
@@ -1827,11 +1827,11 @@ fn textfield_shift_click_from_known_cursor() {
 }
 
 // ---------------------------------------------------------------------------
-// Quad-click (4x) selects all text
+// Quad-Click (4x) selects all text
 // C++ ref: emTextField.cpp:432-435 (repeat>=3 → SelectAll)
 // ---------------------------------------------------------------------------
 
-/// Four rapid clicks selects all text (quad-click).
+/// Four rapid clicks selects all text (quad-Click).
 #[test]
 fn textfield_quad_click_selects_all() {
     let (mut h, tf_ref) = setup_textfield_harness();
@@ -1839,10 +1839,10 @@ fn textfield_quad_click_selects_all() {
 
     render(&mut h, 800, 600);
 
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     assert_eq!(tf.selection_start(), 0);
@@ -1915,17 +1915,17 @@ fn setup_clipboard_harness(
     tf_ref.borrow_mut().on_clipboard_paste = Some(Box::new(move || paste_text.clone()));
 
     render(&mut h, 800, 600);
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
-    // Restore cursor position and clear any selection the click created.
+    // Restore cursor GetPos and Clear any selection the Click created.
     tf_ref.borrow_mut().set_cursor_index(cursor_pos);
-    tf_ref.borrow_mut().deselect();
+    tf_ref.borrow_mut().Deselect();
 
     (h, tf_ref, copy_recorder)
 }
 
 // ---------------------------------------------------------------------------
-// Ctrl+C with selection -> copies selected text
+// Ctrl+C with selection -> copies GetChecked text
 // C++ ref: emTextField.cpp:666-671 (EM_KEY_C + IsCtrlMod -> CopySelectedTextToClipboard)
 // ---------------------------------------------------------------------------
 
@@ -1967,14 +1967,14 @@ fn textfield_ctrl_c_without_selection_no_copy() {
 
     let copies = copy_recorder.borrow();
     assert!(
-        copies.is_empty(),
+        copies.IsEmpty(),
         "Copy callback should NOT fire without a selection, but got {:?}",
         *copies
     );
 }
 
 // ---------------------------------------------------------------------------
-// Ctrl+X with selection -> cuts selected text (text removed + captured)
+// Ctrl+X with selection -> cuts GetChecked text (text removed + captured)
 // C++ ref: emTextField.cpp:726-731 (EM_KEY_X + IsCtrlMod -> CutSelectedTextToClipboard)
 // ---------------------------------------------------------------------------
 
@@ -2022,7 +2022,7 @@ fn textfield_ctrl_x_without_selection_no_effect() {
 
     let copies = copy_recorder.borrow();
     assert!(
-        copies.is_empty(),
+        copies.IsEmpty(),
         "Cut callback should NOT fire without a selection"
     );
     assert_eq!(
@@ -2085,8 +2085,8 @@ fn textfield_ctrl_v_with_selection_replaces_selection() {
 }
 
 // ---------------------------------------------------------------------------
-// Ctrl+V at mid-cursor inserts at position
-// C++ ref: same paste path, verifying insertion at non-end position
+// Ctrl+V at mid-cursor inserts at GetPos
+// C++ ref: same paste path, verifying insertion at non-end GetPos
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -2185,11 +2185,11 @@ fn textfield_drag_publishes_selection() {
     let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 0, "");
 
     // Drag to select some text. The drag uses view-space coords.
-    // Focus click at offset y to avoid double-click with drag.
-    h.click(400.0, 310.0);
+    // Focus Click at offset y to avoid double-Click with drag.
+    h.Click(400.0, 310.0);
 
-    // Clear any copy events from the focus click.
-    copy_recorder.borrow_mut().clear();
+    // Clear any copy events from the focus Click.
+    copy_recorder.borrow_mut().Clear();
 
     // Drag within content area to select text.
     h.drag(300.0, 300.0, 500.0, 300.0);
@@ -2198,11 +2198,11 @@ fn textfield_drag_publishes_selection() {
     if !tf.is_selection_empty() {
         let copies = copy_recorder.borrow();
         assert!(
-            !copies.is_empty(),
+            !copies.IsEmpty(),
             "Drag selection should publish to clipboard (selection = '{}')",
             tf.selected_text()
         );
-        // The published text should match the selected text.
+        // The published text should match the GetChecked text.
         let last_copy = copies.last().unwrap();
         assert_eq!(
             last_copy,
@@ -2220,7 +2220,7 @@ fn textfield_drag_publishes_selection() {
 #[test]
 fn textfield_ctrl_c_works_when_non_editable() {
     let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     tf_ref.borrow_mut().select(0, 5);
     tf_ref.borrow_mut().set_cursor_index(5);
@@ -2248,7 +2248,7 @@ fn textfield_ctrl_c_works_when_non_editable() {
 #[test]
 fn textfield_ctrl_x_noop_when_non_editable() {
     let (mut h, tf_ref, copy_recorder) = setup_clipboard_harness("Hello World", 5, "");
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     tf_ref.borrow_mut().select(0, 5);
     tf_ref.borrow_mut().set_cursor_index(5);
@@ -2259,7 +2259,7 @@ fn textfield_ctrl_x_noop_when_non_editable() {
 
     let copies = copy_recorder.borrow();
     assert!(
-        copies.is_empty(),
+        copies.IsEmpty(),
         "Cut should not fire on non-editable field"
     );
     assert_eq!(
@@ -2277,7 +2277,7 @@ fn textfield_ctrl_x_noop_when_non_editable() {
 #[test]
 fn textfield_ctrl_v_noop_when_non_editable() {
     let (mut h, tf_ref, _copy_recorder) = setup_clipboard_harness("Hello", 5, "World");
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Key('v'));
@@ -2294,10 +2294,10 @@ fn textfield_ctrl_v_noop_when_non_editable() {
 // BP-14: emTextField drag-move (DM_MOVE)
 // ===========================================================================
 //
-// C++ ref: emTextField.cpp:526-560 (DM_MOVE) and :374-389 (Ctrl+click
-// enters DM_MOVE when click is inside selection).
+// C++ ref: emTextField.cpp:526-560 (DM_MOVE) and :374-389 (Ctrl+Click
+// enters DM_MOVE when Click is inside selection).
 //
-// DM_MOVE: Ctrl+click on selected text, then drag to new position → text
+// DM_MOVE: Ctrl+Click on GetChecked text, then drag to new GetPos → text
 // moves. Uses drag offset tracking (DragPosC/DragPosR in C++, drag_offset
 // in Rust) so the text follows the cursor naturally.
 
@@ -2319,12 +2319,12 @@ fn ctrl_drag(h: &mut PipelineTestHarness, from_x: f64, from_y: f64, to_x: f64, t
 }
 
 // ---------------------------------------------------------------------------
-// Select text, Ctrl+drag to new position → text moves
+// Select text, Ctrl+drag to new GetPos → text moves
 // C++ ref: emTextField.cpp:526-556 (DM_MOVE drag handler)
 // ---------------------------------------------------------------------------
 
 /// Select "bar" in "foo bar baz", then Ctrl+drag it to after "baz".
-/// The text should rearrange to move "bar" to the new position.
+/// The text should rearrange to move "bar" to the new GetPos.
 #[test]
 fn textfield_drag_move_selected_text_moves() {
     let (mut h, tf_ref) = setup_textfield_harness();
@@ -2333,7 +2333,7 @@ fn textfield_drag_move_selected_text_moves() {
     render(&mut h, 800, 600);
 
     // Focus the field.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // Select "bar" (indices 4..7) via API.
     tf_ref.borrow_mut().select(4, 7);
@@ -2343,34 +2343,34 @@ fn textfield_drag_move_selected_text_moves() {
     assert_eq!(before_text, "foo bar baz");
     assert_eq!(tf_ref.borrow().selected_text(), "bar");
 
-    // Ctrl+drag from within selection to a position after "baz".
+    // Ctrl+drag from within selection to a GetPos after "baz".
     // We use the internal API to move: set up the move directly since
     // pixel coordinates depend on font metrics and layout.
     //
     // Instead of relying on exact pixel coords, we test via the
     // programmatic move path: manually invoke the move by simulating
-    // what DM_MOVE does: cut the selected text and re-insert at a
-    // new position.
+    // what DM_MOVE does: cut the GetChecked text and re-insert at a
+    // new GetPos.
     //
     // But the real test should go through the pipeline. Since
     // pixel coords are unreliable in tests (no real font metrics),
     // we verify the core logic: after the Ctrl+drag sequence completes,
     // the text should have changed if the drag target differs from the
-    // selection position.
+    // selection GetPos.
 
     // The text field uses pos_from_event to determine positions.
     // At 800x600 with "foo bar baz", the text is laid out horizontally.
-    // A Ctrl+click within the selection range (char positions 4-7)
-    // should enter DM_MOVE. Then dragging to a different position
+    // A Ctrl+Click within the selection range (char positions 4-7)
+    // should enter DM_MOVE. Then dragging to a different GetPos
     // should move the text.
 
     // We need to know approximately where chars are rendered.
-    // char_positions are populated during paint. Let's just verify
+    // char_positions are populated during PaintContent. Let's just verify
     // the move logic works by doing the ctrl+drag within content area.
-    // The exact text result depends on where the coordinates map, but
+    // The exact text GetResult depends on where the coordinates map, but
     // the key assertion is that the text changed from the original.
 
-    // Approach: Ctrl+click at the same viewport position (which is
+    // Approach: Ctrl+Click at the same viewport GetPos (which is
     // inside the selection since we clicked there to focus), then
     // drag far to the right (near end of text).
 
@@ -2401,7 +2401,7 @@ fn textfield_drag_move_selected_text_moves() {
 // C++ ref: emTextField.cpp:364 (CheckMouse → inArea guard on DM_NONE press)
 // ---------------------------------------------------------------------------
 
-/// Ctrl+click outside the text content area should not enter DM_MOVE,
+/// Ctrl+Click outside the text content area should not enter DM_MOVE,
 /// so the text and selection remain unchanged.
 #[test]
 fn textfield_drag_move_outside_widget_no_effect() {
@@ -2411,7 +2411,7 @@ fn textfield_drag_move_outside_widget_no_effect() {
     render(&mut h, 800, 600);
 
     // Focus the field.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // Select "World" (indices 6..11).
     tf_ref.borrow_mut().select(6, 11);
@@ -2435,10 +2435,10 @@ fn textfield_drag_move_outside_widget_no_effect() {
 
 // ---------------------------------------------------------------------------
 // Drag with no selection → no move (enters DM_INSERT, not DM_MOVE)
-// C++ ref: emTextField.cpp:374-389 (Ctrl+click outside selection → DM_INSERT)
+// C++ ref: emTextField.cpp:374-389 (Ctrl+Click outside selection → DM_INSERT)
 // ---------------------------------------------------------------------------
 
-/// Ctrl+click with no selection should enter DM_INSERT mode, not DM_MOVE.
+/// Ctrl+Click with no selection should enter DM_INSERT GetMode, not DM_MOVE.
 /// The text should remain unchanged after the drag (unless a paste occurs,
 /// which requires a clipboard callback — we don't wire one here).
 #[test]
@@ -2449,10 +2449,10 @@ fn textfield_drag_move_no_selection_no_move() {
     render(&mut h, 800, 600);
 
     // Focus the field.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // Ensure no selection.
-    tf_ref.borrow_mut().deselect();
+    tf_ref.borrow_mut().Deselect();
     assert!(tf_ref.borrow().is_selection_empty());
 
     let text_before = tf_ref.borrow().text().to_string();
@@ -2472,11 +2472,11 @@ fn textfield_drag_move_no_selection_no_move() {
 }
 
 // ---------------------------------------------------------------------------
-// Drag in non-editable mode → no effect
+// Drag in non-editable GetMode → no effect
 // C++ ref: emTextField.cpp:375 (IsEditable() && IsEnabled() guard)
 // ---------------------------------------------------------------------------
 
-/// In non-editable mode, Ctrl+click should not enter DM_MOVE even with
+/// In non-editable GetMode, Ctrl+Click should not enter DM_MOVE even with
 /// a selection, so the text and selection remain unchanged.
 #[test]
 fn textfield_drag_move_non_editable_no_effect() {
@@ -2486,14 +2486,14 @@ fn textfield_drag_move_non_editable_no_effect() {
     render(&mut h, 800, 600);
 
     // Focus the field while still editable.
-    h.click(400.0, 300.0);
+    h.Click(400.0, 300.0);
 
     // Select "World" (indices 6..11).
     tf_ref.borrow_mut().select(6, 11);
     tf_ref.borrow_mut().set_cursor_index(11);
 
     // Now make it non-editable.
-    tf_ref.borrow_mut().set_editable(false);
+    tf_ref.borrow_mut().SetEditable(false);
 
     let text_before = tf_ref.borrow().text().to_string();
 
@@ -2501,10 +2501,10 @@ fn textfield_drag_move_non_editable_no_effect() {
     ctrl_drag(&mut h, 400.0, 300.0, 600.0, 300.0);
 
     let tf = tf_ref.borrow();
-    // The primary invariant: text must NOT change in non-editable mode.
+    // The primary invariant: text must NOT change in non-editable GetMode.
     // C++ ref: emTextField.cpp:375 — IsEditable() && IsEnabled() guard
-    // prevents entering DM_MOVE. The Ctrl+click falls through to regular
-    // click handling (which may reposition cursor / change selection), but
+    // prevents entering DM_MOVE. The Ctrl+Click falls through to regular
+    // Click handling (which may reposition cursor / change selection), but
     // text content is never modified.
     assert_eq!(
         tf.text(),

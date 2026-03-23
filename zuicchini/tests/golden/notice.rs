@@ -26,7 +26,7 @@ fn attach_notice(tree: &mut PanelTree, id: PanelId) -> Rc<RefCell<NoticeFlags>> 
 }
 
 /// Reset accumulated flags to empty.
-fn reset(acc: &Rc<RefCell<NoticeFlags>>) {
+fn HardResetFileState(acc: &Rc<RefCell<NoticeFlags>>) {
     *acc.borrow_mut() = NoticeFlags::empty();
 }
 
@@ -64,9 +64,9 @@ fn notice_active_changed() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_child2);
 
     // Action: activate child1
     view.set_active_panel(&mut tree, child1, false);
@@ -115,9 +115,9 @@ fn notice_focus_changed() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_child2);
 
     // Action: focus child1 (sets view focused + activates)
     view.focus_panel(&mut tree, child1);
@@ -164,9 +164,9 @@ fn notice_layout_changed() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_child2);
 
     // Action: change child1's layout rect
     tree.set_layout_rect(child1, 0.1, 0.1, 0.3, 0.5);
@@ -189,7 +189,7 @@ fn notice_layout_changed() {
 }
 
 // ─── Test 4: notice_children_changed ────────────────────────────
-// Add new child after settling → CHILDREN_CHANGED on parent.
+// Add new child after settling → CHILDREN_CHANGED on GetParentContext.
 
 #[test]
 fn notice_children_changed() {
@@ -210,8 +210,8 @@ fn notice_children_changed() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
 
     // Action: add new child
     let child2 = tree.create_child(root, "child2");
@@ -264,8 +264,8 @@ fn notice_window_focus_gained() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
 
     // Action: gain window focus
     view.set_window_focused(&mut tree, true);
@@ -305,8 +305,8 @@ fn notice_window_focus_lost() {
 
     // Settle
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
 
     // Action: lose window focus
     view.set_window_focused(&mut tree, false);
@@ -345,9 +345,9 @@ fn notice_window_resize() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_child2);
 
     // Action: resize viewport (triggers root layout update via ROOT_SAME_TALLNESS)
     view.set_viewport(&mut tree, 1200.0, 800.0);
@@ -396,10 +396,10 @@ fn notice_recursive_enable() {
     let acc_child2 = attach_notice(&mut tree, child2);
 
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_gc);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_gc);
+    HardResetFileState(&acc_child2);
 
     tree.set_enable_switch(child1, false);
 
@@ -447,19 +447,19 @@ fn notice_re_enable() {
     let acc_child2 = attach_notice(&mut tree, child2);
 
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_gc);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_gc);
+    HardResetFileState(&acc_child2);
 
     // Disable first
     tree.set_enable_switch(child1, false);
 
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_gc);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_gc);
+    HardResetFileState(&acc_child2);
 
     // Re-enable
     tree.set_enable_switch(child1, true);
@@ -504,8 +504,8 @@ fn notice_remove_child() {
     let acc_child1 = attach_notice(&mut tree, child1);
 
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
 
     // Remove child2 (using tree.remove, not view.remove_panel)
     tree.remove(child2);
@@ -540,9 +540,9 @@ fn notice_focus_and_layout() {
     let acc_child2 = attach_notice(&mut tree, child2);
 
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_child2);
 
     // Two actions before settle: focus + layout change
     view.focus_panel(&mut tree, child1);
@@ -585,8 +585,8 @@ fn notice_add_and_activate() {
     let acc_child1 = attach_notice(&mut tree, child1);
 
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
 
     // Add new child and activate it before settling
     let child2 = tree.create_child(root, "child2");
@@ -635,9 +635,9 @@ fn notice_enable_changed() {
 
     // Settle initial notices
     settle(&mut tree, &mut view);
-    reset(&acc_root);
-    reset(&acc_child1);
-    reset(&acc_child2);
+    HardResetFileState(&acc_root);
+    HardResetFileState(&acc_child1);
+    HardResetFileState(&acc_child2);
 
     // Action: disable child1
     tree.set_enable_switch(child1, false);

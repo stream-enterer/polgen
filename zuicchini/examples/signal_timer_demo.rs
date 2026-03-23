@@ -1,13 +1,13 @@
 //! Signal/timer demo derived from C++ `SignalExample.cpp`.
 //!
 //! Demonstrates the scheduler's signal and timer system:
-//! - A button panel fires a signal on each left-click.
+//! - A button panel fires a signal on each left-Click.
 //! - A periodic timer fires every second.
 //! - An emEngine watches both signals and increments counters.
 //! - A display panel paints the counter values.
 //!
 //! The key architectural difference from C++ (which used `Cycle()` on panels)
-//! is that Rust routes signals through `emEngine::cycle()` on the scheduler.
+//! is that Rust routes signals through `emEngine::Cycle()` on the scheduler.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -40,12 +40,12 @@ struct CounterEngine {
 }
 
 impl emEngine for CounterEngine {
-    fn cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
         let mut s = self.state.borrow_mut();
-        if ctx.is_signaled(self.button_signal) {
+        if ctx.IsSignaled(self.button_signal) {
             s.button_count += 1;
         }
-        if ctx.is_signaled(self.timer_signal) {
+        if ctx.IsSignaled(self.timer_signal) {
             s.timer_count += 1;
         }
         false // sleep until next signal
@@ -59,11 +59,11 @@ struct CounterPanel {
 }
 
 impl PanelBehavior for CounterPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _ps: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _ps: &PanelState) {
         p.paint_rect(
             0.0,
             0.0,
@@ -95,29 +95,29 @@ impl PanelBehavior for CounterPanel {
         );
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let children = ctx.children();
         let rect = ctx.layout_rect();
         let h = rect.h / rect.w;
-        if !children.is_empty() {
+        if !children.IsEmpty() {
             ctx.layout_child(children[0], 0.1, 0.1 * h, 0.8, 0.15 * h);
         }
         // emButton child is created by main — just layout if it exists.
     }
 }
 
-// ── emButton panel: fires a signal on left-click ──
+// ── emButton panel: fires a signal on left-Click ──
 
 struct ClickPanel {
     pressed: bool,
 }
 
 impl PanelBehavior for ClickPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         let bg = if self.pressed {
             emColor::rgba(0x80, 0xA0, 0x80, 0xFF)
         } else {
@@ -142,18 +142,18 @@ impl PanelBehavior for ClickPanel {
         );
     }
 
-    fn input(&mut self, event: &emInputEvent, _state: &PanelState, input_state: &emInputState) -> bool {
+    fn Input(&mut self, event: &emInputEvent, _state: &PanelState, input_state: &emInputState) -> bool {
         if event.key == InputKey::MouseLeft && event.variant == InputVariant::Press {
             self.pressed = true;
             // Signal is fired by the App scheduler — we store the signal ID
             // and the main loop fires it. But we can't access the scheduler
             // from here directly. Instead, we use a closure-like pattern:
-            // mark pressed and handle in the engine via notice or repaint cycle.
+            // mark pressed and handle in the engine via notice or repaint Cycle.
             // Actually, the simplest approach: the engine polls. But that defeats
             // the purpose. Let's store a "pending fire" flag.
             return false; // let focus handling proceed
         }
-        if self.pressed && !input_state.is_pressed(InputKey::MouseLeft) {
+        if self.pressed && !input_state.IsPressed(InputKey::MouseLeft) {
             self.pressed = false;
         }
         false
@@ -197,7 +197,7 @@ fn main() {
         );
         app.tree.set_layout_rect(root, 0.0, 0.0, 1.0, 1.0);
 
-        // Create button child — fires the button signal on click
+        // Create button child — fires the button signal on Click
         let button = app.tree.create_child(root, "button");
         app.tree
             .set_behavior(button, Box::new(ClickPanel { pressed: false }));

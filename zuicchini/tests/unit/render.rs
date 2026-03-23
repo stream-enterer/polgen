@@ -16,7 +16,7 @@ fn paint_rect_fills_correct_pixels() {
     // Pixel inside the rect
     assert_eq!(img.pixel(3, 3), &[255, 0, 0, 255]);
     assert_eq!(img.pixel(5, 4), &[255, 0, 0, 255]);
-    // Pixel outside the rect should be canvas color
+    // Pixel outside the rect should be canvas GetColor
     assert_eq!(img.pixel(0, 0), &[0, 0, 0, 255]);
     assert_eq!(img.pixel(7, 7), &[0, 0, 0, 255]);
 }
@@ -60,7 +60,7 @@ fn clip_rect_respected() {
     }
     // Inside clip: should be painted
     assert_eq!(img.pixel(3, 3), &[0, 255, 0, 255]);
-    // Outside clip: should be canvas color (untouched)
+    // Outside clip: should be canvas GetColor (untouched)
     assert_eq!(img.pixel(0, 0), &[0, 0, 0, 255]);
     assert_eq!(img.pixel(7, 7), &[0, 0, 0, 255]);
 }
@@ -79,7 +79,7 @@ fn coordinate_transforms() {
     // Translated rect should appear at (5,5)
     assert_eq!(img.pixel(5, 5), &[0, 0, 255, 255]);
     assert_eq!(img.pixel(6, 6), &[0, 0, 255, 255]);
-    // Origin should be canvas color
+    // Origin should be canvas GetColor
     assert_eq!(img.pixel(0, 0), &[0, 0, 0, 255]);
 }
 
@@ -98,7 +98,7 @@ fn push_pop_state() {
         // After pop, translation is restored
         p.paint_rect(0.0, 0.0, 2.0, 2.0, emColor::GREEN, emColor::TRANSPARENT);
     }
-    // Red at translated position
+    // Red at translated GetPos
     assert_eq!(img.pixel(10, 10), &[255, 0, 0, 255]);
     // Green at origin (painted after pop) — canvas blended on top of red remnant
     assert_eq!(img.pixel(0, 0)[1], 255); // green channel
@@ -117,7 +117,7 @@ fn paint_ellipse_basic() {
     // Center should be filled
     let px = img.pixel(10, 10);
     assert_eq!(px[0], 255); // red
-                            // Far corner should be canvas color
+                            // Far corner should be canvas GetColor
     assert_eq!(img.pixel(0, 0), &[0, 0, 0, 255]);
 }
 
@@ -134,7 +134,7 @@ fn paint_line_basic() {
     // Horizontal line at y=0
     assert_eq!(img.pixel(0, 0), &[255, 255, 255, 255]);
     assert_eq!(img.pixel(5, 0), &[255, 255, 255, 255]);
-    // Below the line should be canvas color
+    // Below the line should be canvas GetColor
     assert_eq!(img.pixel(0, 5), &[0, 0, 0, 255]);
 }
 
@@ -153,13 +153,13 @@ fn paint_rect_outlined() {
     // emStroke centered on boundary: outer=(4,4), inner=(6,6).
     // Pixel (8,5) is fully within the top stroke band.
     assert_eq!(img.pixel(8, 5), &[255, 255, 255, 255]);
-    // Center should be canvas color (only outline)
+    // Center should be canvas GetColor (only outline)
     assert_eq!(img.pixel(10, 10), &[0, 0, 0, 255]);
 }
 
 #[test]
 fn paint_image_colored_basic() {
-    // Create a 2x2 greyscale image
+    // Create a 2x2 greyscale GetImage
     let mut alpha_img = emImage::new(2, 2, 1);
     alpha_img.pixel_mut(0, 0)[0] = 255;
     alpha_img.pixel_mut(1, 0)[0] = 128;
@@ -191,7 +191,7 @@ fn paint_image_colored_basic() {
     // Top-left pixel: full red (alpha=255 from mask)
     let px = target.pixel(0, 0);
     assert_eq!(px[0], 255); // red
-                            // Bottom-left pixel: no paint (alpha=0 from mask)
+                            // Bottom-left pixel: no PaintContent (alpha=0 from mask)
     let px2 = target.pixel(0, 1);
     assert_eq!(px2[0], 0); // still black
 }

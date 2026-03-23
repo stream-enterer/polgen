@@ -1,7 +1,7 @@
 #[path = "../support/mod.rs"]
 mod support;
 
-mod input;
+mod Input;
 mod layout;
 mod lifecycle;
 mod mutation;

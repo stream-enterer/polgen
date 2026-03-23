@@ -1,9 +1,9 @@
 //! Focus and activation parity tests (BP-15 through BP-19).
 //!
 //! BP-15/16/18: Tab focus cycling — Tab and Shift+Tab key handlers call
-//! `visit_next`/`visit_prev` in the input dispatch pipeline.
+//! `visit_next`/`visit_prev` in the Input dispatch pipeline.
 //!
-//! BP-17: Activation on click — tests that clicking a panel sets `is_active`
+//! BP-17: Activation on Click — tests that clicking a panel sets `is_active`
 //! and `in_active_path` correctly, matching C++ `SetActivePanel`.
 //!
 //! BP-19: Arrow key navigation — arrow key handlers call
@@ -32,8 +32,8 @@ fn active_state(tree: &PanelTree, id: PanelId) -> (bool, bool) {
 ///    leaf_a     leaf_b
 /// ```
 ///
-/// Each child occupies a distinct horizontal half of its parent so that
-/// click hit-testing can target them by view-space coordinates.
+/// Each child occupies a distinct horizontal half of its GetParentContext so that
+/// Click hit-testing can target them by view-space coordinates.
 ///
 /// Returns (harness, root, branch_a, leaf_a, branch_b, leaf_b).
 fn two_branch_tree() -> (PipelineTestHarness, PanelId, PanelId, PanelId, PanelId, PanelId) {
@@ -134,7 +134,7 @@ fn shift_tab_cycles_backward_through_focusable_panels() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// BP-17: Activation on click
+// BP-17: Activation on Click
 // ═══════════════════════════════════════════════════════════════════════
 
 // BP-17a: Click non-active panel → it becomes active.
@@ -149,17 +149,17 @@ fn click_non_active_panel_becomes_active() {
 
     // Click in the right half (branch_b territory). Use y=150 to stay well
     // inside leaf_b (whose bottom edge is ≈y=300 due to geometric-mean zoom).
-    h.click(600.0, 150.0);
+    h.Click(600.0, 150.0);
     h.tick();
 
-    // The deepest focusable panel under the click should now be active.
+    // The deepest focusable panel under the Click should now be active.
     // That's leaf_b (fills branch_b, which fills right half).
     let (lb_active, lb_path) = active_state(&h.tree, leaf_b);
     assert!(lb_active, "leaf_b should be active after click");
     assert!(lb_path, "leaf_b should be in active path after click");
 }
 
-// BP-17b: Old active panel loses is_active after click on different panel.
+// BP-17b: Old active panel loses is_active after Click on different panel.
 #[test]
 fn old_active_loses_is_active_on_click() {
     let (mut h, _root, _branch_a, leaf_a, _branch_b, leaf_b) = two_branch_tree();
@@ -170,7 +170,7 @@ fn old_active_loses_is_active_on_click() {
     assert!(active_state(&h.tree, leaf_a).0, "leaf_a should start active");
 
     // Click on right half → activates leaf_b (y=150 avoids leaf_b boundary).
-    h.click(600.0, 150.0);
+    h.Click(600.0, 150.0);
     h.tick();
 
     let (la_active, _) = active_state(&h.tree, leaf_a);
@@ -180,7 +180,7 @@ fn old_active_loses_is_active_on_click() {
     assert!(lb_active, "leaf_b should gain is_active");
 }
 
-// BP-17c: Ancestors of the new active panel get in_active_path=true.
+// BP-17c: Ancestors of the new active panel GetRec in_active_path=true.
 #[test]
 fn new_active_ancestors_get_in_active_path() {
     let (mut h, root, branch_a, leaf_a, branch_b, leaf_b) = two_branch_tree();
@@ -190,7 +190,7 @@ fn new_active_ancestors_get_in_active_path() {
     h.tick();
 
     // Click on right half → activates leaf_b.
-    h.click(600.0, 150.0);
+    h.Click(600.0, 150.0);
     h.tick();
 
     // leaf_b and its ancestors (branch_b, root) should be in_active_path.
@@ -239,7 +239,7 @@ fn old_active_non_shared_ancestors_lose_in_active_path() {
     );
 
     // Click on right half → activates leaf_b.
-    h.click(600.0, 150.0);
+    h.Click(600.0, 150.0);
     h.tick();
 
     // branch_a was a unique ancestor of old active (leaf_a) → loses in_active_path.
@@ -269,11 +269,11 @@ fn old_active_non_shared_ancestors_lose_in_active_path() {
 fn click_already_active_panel_no_change() {
     let (mut h, root, branch_a, _leaf_a, branch_b, leaf_b) = two_branch_tree();
 
-    // Activate leaf_b via click on right half.
-    h.click(600.0, 150.0);
+    // Activate leaf_b via Click on right half.
+    h.Click(600.0, 150.0);
     h.tick();
 
-    // Record state before re-click.
+    // Record state before re-Click.
     let lb_before = active_state(&h.tree, leaf_b);
     let bb_before = active_state(&h.tree, branch_b);
     let root_before = active_state(&h.tree, root);
@@ -281,7 +281,7 @@ fn click_already_active_panel_no_change() {
     let active_before = h.view.active();
 
     // Click again in the same spot.
-    h.click(600.0, 150.0);
+    h.Click(600.0, 150.0);
     h.tick();
 
     // Everything should remain identical.
@@ -312,7 +312,7 @@ fn click_already_active_panel_no_change() {
     );
 }
 
-// BP-17f: Activation via set_active_panel directly matches click behavior.
+// BP-17f: Activation via set_active_panel directly Match Click behavior.
 #[test]
 fn programmatic_activation_matches_click_behavior() {
     let (mut h, root, branch_a, leaf_a, branch_b, leaf_b) = two_branch_tree();

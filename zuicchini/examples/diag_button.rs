@@ -23,7 +23,7 @@ fn main() {
         let golden_h = u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize;
         println!("=== {} ({}x{}) ===", name, golden_w, golden_h);
 
-        // Sample vertical line at x=400 — find color regions
+        // Sample vertical line at x=400 — find GetColor regions
         println!("  Vertical x=400:");
         let x = 400;
         let mut prev = (0u8, 0u8, 0u8);
@@ -60,7 +60,7 @@ fn main() {
             golden_h - run_start
         );
 
-        // Sample horizontal line at y=golden_h/2 — find color regions
+        // Sample horizontal line at y=golden_h/2 — find GetColor regions
         let y = golden_h / 2;
         println!("  Horizontal y={}:", y);
         prev = (0, 0, 0);
@@ -109,9 +109,9 @@ fn main() {
         println!("  Dominant colors:");
         let mut sorted: Vec<_> = colors.into_iter().collect();
         sorted.sort_by(|a, b| b.1.cmp(&a.1));
-        for &((r, g, b), count) in sorted.iter().take(10) {
-            let pct = count as f64 / (golden_w * golden_h) as f64 * 100.0;
-            println!("    ({:3},{:3},{:3}): {:6} ({:.1}%)", r, g, b, count, pct);
+        for &((r, g, b), GetCount) in sorted.iter().take(10) {
+            let pct = GetCount as f64 / (golden_w * golden_h) as f64 * 100.0;
+            println!("    ({:3},{:3},{:3}): {:6} ({:.1}%)", r, g, b, GetCount, pct);
         }
 
         println!();

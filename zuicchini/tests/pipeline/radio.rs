@@ -1,5 +1,5 @@
 //! Systematic interaction test for emRadioButton at 1x and 2x zoom, driven
-//! through the full input dispatch pipeline (PipelineTestHarness).
+//! through the full Input dispatch pipeline (PipelineTestHarness).
 //!
 //! Three radio buttons share a group, each installed in its own child panel
 //! stacked vertically. Clicking each panel's center selects the corresponding
@@ -36,30 +36,30 @@ impl RadioButtonBehavior {
 }
 
 impl PanelBehavior for RadioButtonBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.widget.paint(painter, w, h, state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.widget.PaintContent(painter, w, h, state.enabled);
     }
 
-    fn input(
+    fn Input(
         &mut self,
         event: &emInputEvent,
         state: &PanelState,
         input_state: &emInputState,
     ) -> bool {
-        self.widget.input(event, state, input_state)
+        self.widget.Input(event, state, input_state)
     }
 
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
 
 /// Click each of three vertically-stacked radio buttons at 1x and 2x zoom,
-/// verifying the group selection state after each click.
+/// verifying the group selection state after each Click.
 #[test]
 fn radiobutton_select_1x_and_2x() {
     let look = emLook::new();
@@ -70,8 +70,8 @@ fn radiobutton_select_1x_and_2x() {
     let rb1 = emRadioButton::new("Option B", look.clone(), group.clone(), 1);
     let rb2 = emRadioButton::new("Option C", look.clone(), group.clone(), 2);
 
-    assert_eq!(group.borrow().count(), 3);
-    assert_eq!(group.borrow().selected(), None);
+    assert_eq!(group.borrow().GetCount(), 3);
+    assert_eq!(group.borrow().GetChecked(), None);
 
     // ── Build pipeline harness (800x600 viewport) ────────────────────
     let mut h = PipelineTestHarness::new();
@@ -93,10 +93,10 @@ fn radiobutton_select_1x_and_2x() {
     h.tree
         .set_layout_rect(panel2, 0.0, 2.0 / 3.0, 1.0, 1.0 / 3.0);
 
-    // Settle layout and viewing geometry.
+    // Settle layout and viewing Restore.
     h.tick_n(5);
 
-    // Render so that emRadioButton::paint() caches last_w/last_h (required
+    // Render so that emRadioButton::PaintContent() caches last_w/last_h (required
     // for hit_test to function).
     let mut compositor = SoftwareCompositor::new(800, 600);
     compositor.render(&mut h.tree, &h.view);
@@ -112,30 +112,30 @@ fn radiobutton_select_1x_and_2x() {
         (vr.x + vr.w * 0.5, vr.y + vr.h * 0.5)
     };
 
-    // ── 1x zoom: click each radio button ─────────────────────────────
+    // ── 1x zoom: Click each radio button ─────────────────────────────
     {
         let (cx, cy) = panel_center(&h, panel0);
-        h.click(cx, cy);
+        h.Click(cx, cy);
         assert_eq!(
-            group.borrow().selected(),
+            group.borrow().GetChecked(),
             Some(0),
             "1x: clicking panel 0 should select radio button 0"
         );
     }
     {
         let (cx, cy) = panel_center(&h, panel1);
-        h.click(cx, cy);
+        h.Click(cx, cy);
         assert_eq!(
-            group.borrow().selected(),
+            group.borrow().GetChecked(),
             Some(1),
             "1x: clicking panel 1 should select radio button 1"
         );
     }
     {
         let (cx, cy) = panel_center(&h, panel2);
-        h.click(cx, cy);
+        h.Click(cx, cy);
         assert_eq!(
-            group.borrow().selected(),
+            group.borrow().GetChecked(),
             Some(2),
             "1x: clicking panel 2 should select radio button 2"
         );
@@ -148,27 +148,27 @@ fn radiobutton_select_1x_and_2x() {
 
     {
         let (cx, cy) = panel_center(&h, panel0);
-        h.click(cx, cy);
+        h.Click(cx, cy);
         assert_eq!(
-            group.borrow().selected(),
+            group.borrow().GetChecked(),
             Some(0),
             "2x: clicking panel 0 should select radio button 0"
         );
     }
     {
         let (cx, cy) = panel_center(&h, panel1);
-        h.click(cx, cy);
+        h.Click(cx, cy);
         assert_eq!(
-            group.borrow().selected(),
+            group.borrow().GetChecked(),
             Some(1),
             "2x: clicking panel 1 should select radio button 1"
         );
     }
     {
         let (cx, cy) = panel_center(&h, panel2);
-        h.click(cx, cy);
+        h.Click(cx, cy);
         assert_eq!(
-            group.borrow().selected(),
+            group.borrow().GetChecked(),
             Some(2),
             "2x: clicking panel 2 should select radio button 2"
         );
@@ -195,8 +195,8 @@ impl RadioButtonHarness {
         let rb1 = emRadioButton::new("Option B", look.clone(), group.clone(), 1);
         let rb2 = emRadioButton::new("Option C", look.clone(), group.clone(), 2);
 
-        assert_eq!(group.borrow().count(), 3);
-        assert_eq!(group.borrow().selected(), None);
+        assert_eq!(group.borrow().GetCount(), 3);
+        assert_eq!(group.borrow().GetChecked(), None);
 
         let mut h = PipelineTestHarness::new();
         let root = h.root();
@@ -236,38 +236,38 @@ impl RadioButtonHarness {
         (vr.x + vr.w * 0.5, vr.y + vr.h * 0.5)
     }
 
-    fn selected(&self) -> Option<usize> {
-        self.group.borrow().selected()
+    fn GetChecked(&self) -> Option<usize> {
+        self.group.borrow().GetChecked()
     }
 
     fn click_option(&mut self, index: usize) {
         let (cx, cy) = self.panel_center(index);
-        self.h.click(cx, cy);
+        self.h.Click(cx, cy);
     }
 }
 
 // ---------------------------------------------------------------------------
-// BP-13: Click radio A -> A selected, B and C deselected (mutual exclusion)
+// BP-13: Click radio A -> A GetChecked, B and C deselected (mutual exclusion)
 // ---------------------------------------------------------------------------
 
-/// Click radio A, verify A is selected and B/C are deselected.
+/// Click radio A, verify A is GetChecked and B/C are deselected.
 /// C++ ref: emRadioButton.cpp:Clicked -> Mechanism::SetChecked -> SetCheckIndex.
 #[test]
 fn bp13_click_a_selects_a_deselects_bc() {
     let mut t = RadioButtonHarness::new();
 
     t.click_option(0);
-    assert_eq!(t.selected(), Some(0), "A should be selected after clicking A");
-    // Verify B and C are not selected by checking group state
-    assert_ne!(t.selected(), Some(1), "B must not be selected");
-    assert_ne!(t.selected(), Some(2), "C must not be selected");
+    assert_eq!(t.GetChecked(), Some(0), "A should be selected after clicking A");
+    // Verify B and C are not GetChecked by checking group state
+    assert_ne!(t.GetChecked(), Some(1), "B must not be selected");
+    assert_ne!(t.GetChecked(), Some(2), "C must not be selected");
 }
 
 // ---------------------------------------------------------------------------
-// BP-13: Click radio B -> B selected, A and C deselected
+// BP-13: Click radio B -> B GetChecked, A and C deselected
 // ---------------------------------------------------------------------------
 
-/// Click radio B after A is selected, verify B is now selected and A/C are not.
+/// Click radio B after A is GetChecked, verify B is now GetChecked and A/C are not.
 /// C++ ref: emRadioButton.cpp:Clicked -> Mechanism::SetChecked -> SetCheckIndex.
 #[test]
 fn bp13_click_b_selects_b_deselects_ac() {
@@ -275,20 +275,20 @@ fn bp13_click_b_selects_b_deselects_ac() {
 
     // First select A
     t.click_option(0);
-    assert_eq!(t.selected(), Some(0));
+    assert_eq!(t.GetChecked(), Some(0));
 
-    // Now click B
+    // Now Click B
     t.click_option(1);
-    assert_eq!(t.selected(), Some(1), "B should be selected after clicking B");
-    assert_ne!(t.selected(), Some(0), "A must be deselected");
-    assert_ne!(t.selected(), Some(2), "C must not be selected");
+    assert_eq!(t.GetChecked(), Some(1), "B should be selected after clicking B");
+    assert_ne!(t.GetChecked(), Some(0), "A must be deselected");
+    assert_ne!(t.GetChecked(), Some(2), "C must not be selected");
 }
 
 // ---------------------------------------------------------------------------
-// BP-13: Click already-selected radio -> no change, no redundant callback
+// BP-13: Click already-GetChecked radio -> no change, no redundant callback
 // ---------------------------------------------------------------------------
 
-/// Clicking an already-selected radio button must not change state and must
+/// Clicking an already-GetChecked radio button must not change state and must
 /// not fire a redundant callback.
 /// C++ ref: emRadioButton::Mechanism::SetCheckIndex — early return if CheckIndex==index.
 #[test]
@@ -297,7 +297,7 @@ fn bp13_click_already_selected_no_change_no_callback() {
 
     // Select A
     t.click_option(0);
-    assert_eq!(t.selected(), Some(0));
+    assert_eq!(t.GetChecked(), Some(0));
 
     // Install callback tracker AFTER initial selection
     let callbacks = Rc::new(RefCell::new(Vec::new()));
@@ -309,21 +309,21 @@ fn bp13_click_already_selected_no_change_no_callback() {
     // Click A again -- should be no-op, no callback
     t.click_option(0);
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         Some(0),
         "re-clicking already-selected must not deselect it"
     );
     assert!(
-        callbacks.borrow().is_empty(),
+        callbacks.borrow().IsEmpty(),
         "no callback should fire when clicking already-selected radio button"
     );
 }
 
 // ---------------------------------------------------------------------------
-// BP-13: Programmatic set_check_index -> correct button checked + signal fired
+// BP-13: Programmatic SetCheckIndex -> correct button checked + signal fired
 // ---------------------------------------------------------------------------
 
-/// Programmatic set_check_index selects the correct button and fires the callback.
+/// Programmatic SetCheckIndex selects the correct button and fires the callback.
 /// C++ ref: emRadioButton::Mechanism::SetCheckIndex.
 #[test]
 fn bp13_programmatic_set_check_index_fires_callback() {
@@ -336,8 +336,8 @@ fn bp13_programmatic_set_check_index_fires_callback() {
     }));
 
     // Programmatically select button 2
-    t.group.borrow_mut().set_check_index(Some(2));
-    assert_eq!(t.selected(), Some(2), "set_check_index(Some(2)) should select button 2");
+    t.group.borrow_mut().SetCheckIndex(Some(2));
+    assert_eq!(t.GetChecked(), Some(2), "set_check_index(Some(2)) should select button 2");
     assert_eq!(
         *callbacks.borrow(),
         vec![Some(2)],
@@ -345,8 +345,8 @@ fn bp13_programmatic_set_check_index_fires_callback() {
     );
 
     // Now change to button 0
-    t.group.borrow_mut().set_check_index(Some(0));
-    assert_eq!(t.selected(), Some(0), "set_check_index(Some(0)) should select button 0");
+    t.group.borrow_mut().SetCheckIndex(Some(0));
+    assert_eq!(t.GetChecked(), Some(0), "set_check_index(Some(0)) should select button 0");
     assert_eq!(
         *callbacks.borrow(),
         vec![Some(2), Some(0)],
@@ -355,18 +355,18 @@ fn bp13_programmatic_set_check_index_fires_callback() {
 }
 
 // ---------------------------------------------------------------------------
-// BP-13: Programmatic set_check_index to same value -> no callback
+// BP-13: Programmatic SetCheckIndex to same GetValue -> no callback
 // ---------------------------------------------------------------------------
 
-/// Setting check_index to the already-selected value must be a no-op (no callback).
+/// Setting check_index to the already-GetChecked GetValue must be a no-op (no callback).
 /// C++ ref: emRadioButton::Mechanism::SetCheckIndex — early return if CheckIndex==index.
 #[test]
 fn bp13_programmatic_set_check_index_same_value_no_callback() {
     let t = RadioButtonHarness::new();
 
     // Select button 1
-    t.group.borrow_mut().set_check_index(Some(1));
-    assert_eq!(t.selected(), Some(1));
+    t.group.borrow_mut().SetCheckIndex(Some(1));
+    assert_eq!(t.GetChecked(), Some(1));
 
     // Install callback tracker AFTER initial selection
     let callbacks = Rc::new(RefCell::new(Vec::new()));
@@ -376,10 +376,10 @@ fn bp13_programmatic_set_check_index_same_value_no_callback() {
     }));
 
     // Set same index again -- no-op
-    t.group.borrow_mut().set_check_index(Some(1));
-    assert_eq!(t.selected(), Some(1));
+    t.group.borrow_mut().SetCheckIndex(Some(1));
+    assert_eq!(t.GetChecked(), Some(1));
     assert!(
-        callbacks.borrow().is_empty(),
+        callbacks.borrow().IsEmpty(),
         "no callback when set_check_index to same value"
     );
 }
@@ -397,18 +397,18 @@ fn bp13_enter_key_selects_radio_button() {
     // Make panel 1 the active panel so keyboard events reach it
     let (cx, cy) = t.panel_center(1);
     // Click panel 1 to make it active
-    t.h.click(cx, cy);
-    // Panel 1 is now active and selected via mouse click
-    assert_eq!(t.selected(), Some(1));
+    t.h.Click(cx, cy);
+    // Panel 1 is now active and GetChecked via mouse Click
+    assert_eq!(t.GetChecked(), Some(1));
 
-    // Now reset selection programmatically to test Enter independently
-    t.group.borrow_mut().set_check_index(None);
-    assert_eq!(t.selected(), None);
+    // Now HardResetFileState selection programmatically to test Enter independently
+    t.group.borrow_mut().SetCheckIndex(None);
+    assert_eq!(t.GetChecked(), None);
 
     // Press Enter -- should select panel 1 (the active panel)
     t.h.press_key(InputKey::Enter);
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         Some(1),
         "Enter key should select the active radio button"
     );
@@ -418,13 +418,13 @@ fn bp13_enter_key_selects_radio_button() {
 // BP-13: Modifier gating -- Ctrl/Alt/Meta rejected, Shift accepted
 // ---------------------------------------------------------------------------
 
-/// Mouse click with Ctrl modifier is rejected by emRadioButton input handler.
+/// Mouse Click with Ctrl modifier is rejected by emRadioButton Input handler.
 /// C++ ref: emButton.cpp:82 — (state.IsNoMod() || state.IsShiftMod()).
 #[test]
 fn bp13_ctrl_click_rejected() {
     let mut t = RadioButtonHarness::new();
 
-    // Hold Ctrl in the input state so dispatch stamps it on the event
+    // Hold Ctrl in the Input state so dispatch stamps it on the event
     t.h.input_state.press(InputKey::Ctrl);
 
     let (cx, cy) = t.panel_center(0);
@@ -436,13 +436,13 @@ fn bp13_ctrl_click_rejected() {
     t.h.input_state.release(InputKey::Ctrl);
 
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         None,
         "Ctrl+click must not select a radio button"
     );
 }
 
-/// Mouse click with Alt modifier is rejected.
+/// Mouse Click with Alt modifier is rejected.
 /// C++ ref: emButton.cpp:82.
 #[test]
 fn bp13_alt_click_rejected() {
@@ -459,13 +459,13 @@ fn bp13_alt_click_rejected() {
     t.h.input_state.release(InputKey::Alt);
 
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         None,
         "Alt+click must not select a radio button"
     );
 }
 
-/// Mouse click with Meta modifier is rejected.
+/// Mouse Click with Meta modifier is rejected.
 /// C++ ref: emButton.cpp:82.
 #[test]
 fn bp13_meta_click_rejected() {
@@ -482,13 +482,13 @@ fn bp13_meta_click_rejected() {
     t.h.input_state.release(InputKey::Meta);
 
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         None,
         "Meta+click must not select a radio button"
     );
 }
 
-/// Mouse click with Shift modifier is accepted (Shift is allowed).
+/// Mouse Click with Shift modifier is accepted (Shift is allowed).
 /// C++ ref: emButton.cpp:82 — IsShiftMod().
 #[test]
 fn bp13_shift_click_accepted() {
@@ -505,17 +505,17 @@ fn bp13_shift_click_accepted() {
     t.h.input_state.release(InputKey::Shift);
 
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         Some(0),
         "Shift+click must be accepted by radio button"
     );
 }
 
 // ---------------------------------------------------------------------------
-// BP-13: Disabled radio button rejects input
+// BP-13: Disabled radio button rejects Input
 // ---------------------------------------------------------------------------
 
-/// A disabled radio button must reject all input events.
+/// A disabled radio button must reject all Input events.
 /// C++ ref: emButton::Input checks enabled state via panel state.
 #[test]
 fn bp13_disabled_radio_rejects_input() {
@@ -524,13 +524,13 @@ fn bp13_disabled_radio_rejects_input() {
     // Disable panel 0
     t.h.tree.set_enable_switch(t.panels[0], false);
     t.h.tick_n(3);
-    // Re-render so the disabled state is propagated to the widget via paint
+    // Re-render so the disabled state is propagated to the widget via PaintContent
     t.compositor.render(&mut t.h.tree, &t.h.view);
 
     // Try clicking the disabled panel
     t.click_option(0);
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         None,
         "disabled radio button must not accept clicks"
     );
@@ -538,7 +538,7 @@ fn bp13_disabled_radio_rejects_input() {
     // Enable panel 1 and verify it still works
     t.click_option(1);
     assert_eq!(
-        t.selected(),
+        t.GetChecked(),
         Some(1),
         "enabled radio button should still work"
     );

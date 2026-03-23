@@ -21,8 +21,8 @@ fn mouse_click_activates_correct_panel() {
     h.tick();
 
     // Click in right half (panel B territory) — 600px is 75% of 800px viewport
-    let click = emInputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
-    h.inject_input(&click);
+    let Click = emInputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
+    h.inject_input(&Click);
 
     assert_eq!(
         h.view.active(),
@@ -54,10 +54,10 @@ fn vif_consumes_prevents_behavior() {
         .with_mouse(400.0, 300.0)
         .with_alt();
 
-    log.borrow_mut().clear();
+    log.borrow_mut().Clear();
     h.inject_input(&event);
 
-    // Behavior should NOT have received input — VIF consumed it
+    // Behavior should NOT have received Input — VIF consumed it
     let entries = log.borrow();
     assert!(
         !entries.iter().any(|e| e.starts_with("input:")),
@@ -107,8 +107,8 @@ fn focus_change_routes_keyboard() {
     );
 
     // Click B to activate it, then type
-    log_a.borrow_mut().clear();
-    log_b.borrow_mut().clear();
+    log_a.borrow_mut().Clear();
+    log_b.borrow_mut().Clear();
 
     let click_b = emInputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
     h.inject_input(&click_b);

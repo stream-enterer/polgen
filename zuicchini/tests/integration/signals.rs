@@ -6,7 +6,7 @@ use zuicchini::emCore::emSignal::SignalId;
 
 use crate::support::TestHarness;
 
-/// emEngine that fires a signal on first cycle and logs its label.
+/// emEngine that fires a signal on first Cycle and logs its label.
 struct SignalFiringEngine {
     label: &'static str,
     log: Rc<RefCell<Vec<String>>>,
@@ -15,7 +15,7 @@ struct SignalFiringEngine {
 }
 
 impl emEngine for SignalFiringEngine {
-    fn cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
         self.log.borrow_mut().push(format!("cycle:{}", self.label));
         if !self.fired {
             if let Some(sig) = self.signal {
@@ -34,7 +34,7 @@ struct CounterEngine {
 }
 
 impl emEngine for CounterEngine {
-    fn cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
         *self.counter.borrow_mut() += self.delta;
         false
     }
@@ -102,7 +102,7 @@ struct FlagEngine {
 }
 
 impl emEngine for FlagEngine {
-    fn cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
+    fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
         *self.flag.borrow_mut() = true;
         false
     }
@@ -140,7 +140,7 @@ fn engine_fires_signal_waking_sibling() {
 
     let sig = h.scheduler.create_signal();
 
-    // emEngine A: high priority, fires signal on first cycle
+    // emEngine A: high GetPriority, fires signal on first Cycle
     let _eng_a = h.scheduler.register_engine(
         Priority::High,
         Box::new(SignalFiringEngine {
@@ -152,7 +152,7 @@ fn engine_fires_signal_waking_sibling() {
     );
     h.scheduler.wake_up(_eng_a);
 
-    // emEngine B: low priority, woken by signal
+    // emEngine B: low GetPriority, woken by signal
     let eng_b = h.scheduler.register_engine(
         Priority::Low,
         Box::new(SignalFiringEngine {
@@ -167,7 +167,7 @@ fn engine_fires_signal_waking_sibling() {
     h.tick();
 
     let entries = log.borrow();
-    // A runs first (higher priority), fires signal, B wakes and runs in same slice
+    // A runs first (higher GetPriority), fires signal, B wakes and runs in same slice
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[0], "cycle:A");
     assert_eq!(entries[1], "cycle:B");

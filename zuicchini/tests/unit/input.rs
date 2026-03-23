@@ -4,7 +4,7 @@ use zuicchini::emCore::emInputState::emInputState;
 
 #[test]
 fn hotkey_parse_ctrl_c() {
-    let hk = Hotkey::parse("Ctrl+C").unwrap();
+    let hk = Hotkey::TryParse("Ctrl+C").unwrap();
     assert!(hk.ctrl);
     assert!(!hk.alt);
     assert!(!hk.shift);
@@ -13,7 +13,7 @@ fn hotkey_parse_ctrl_c() {
 
 #[test]
 fn hotkey_parse_ctrl_shift_s() {
-    let hk = Hotkey::parse("Ctrl+Shift+S").unwrap();
+    let hk = Hotkey::TryParse("Ctrl+Shift+S").unwrap();
     assert!(hk.ctrl);
     assert!(hk.shift);
     assert!(!hk.alt);
@@ -22,14 +22,14 @@ fn hotkey_parse_ctrl_shift_s() {
 
 #[test]
 fn hotkey_parse_alt_f4() {
-    let hk = Hotkey::parse("Alt+F4").unwrap();
+    let hk = Hotkey::TryParse("Alt+F4").unwrap();
     assert!(hk.alt);
     assert_eq!(hk.key, InputKey::F4);
 }
 
 #[test]
 fn hotkey_parse_single_key() {
-    let hk = Hotkey::parse("Escape").unwrap();
+    let hk = Hotkey::TryParse("Escape").unwrap();
     assert!(!hk.ctrl);
     assert!(!hk.alt);
     assert!(!hk.shift);
@@ -38,21 +38,21 @@ fn hotkey_parse_single_key() {
 
 #[test]
 fn hotkey_parse_invalid() {
-    assert!(Hotkey::parse("").is_none());
-    assert!(Hotkey::parse("NotAKey+X").is_none());
+    assert!(Hotkey::TryParse("").is_none());
+    assert!(Hotkey::TryParse("NotAKey+X").is_none());
 }
 
 #[test]
 fn hotkey_matches() {
-    let hk = Hotkey::parse("Ctrl+C").unwrap();
+    let hk = Hotkey::TryParse("Ctrl+C").unwrap();
 
     let mut state = emInputState::new();
     state.press(InputKey::Ctrl);
-    assert!(hk.matches(InputKey::Key('c'), &state));
+    assert!(hk.Match(InputKey::Key('c'), &state));
 
     // Without Ctrl held, should not match
     let state2 = emInputState::new();
-    assert!(!hk.matches(InputKey::Key('c'), &state2));
+    assert!(!hk.Match(InputKey::Key('c'), &state2));
 }
 
 #[test]
@@ -87,11 +87,11 @@ fn input_state_mouse() {
 fn input_state_key_tracking() {
     let mut state = emInputState::new();
     state.press(InputKey::Key('a'));
-    assert!(state.is_pressed(InputKey::Key('a')));
-    assert!(!state.is_pressed(InputKey::Key('b')));
+    assert!(state.IsPressed(InputKey::Key('a')));
+    assert!(!state.IsPressed(InputKey::Key('b')));
 
     state.release(InputKey::Key('a'));
-    assert!(!state.is_pressed(InputKey::Key('a')));
+    assert!(!state.IsPressed(InputKey::Key('a')));
 }
 
 #[test]
@@ -108,10 +108,10 @@ fn input_state_touches() {
 
 #[test]
 fn hotkey_parse_meta() {
-    let hk = Hotkey::parse("Meta+A").unwrap();
+    let hk = Hotkey::TryParse("Meta+A").unwrap();
     assert!(hk.meta);
     assert_eq!(hk.key, InputKey::Key('a'));
 
-    let hk2 = Hotkey::parse("Cmd+A").unwrap();
+    let hk2 = Hotkey::TryParse("Cmd+A").unwrap();
     assert!(hk2.meta);
 }

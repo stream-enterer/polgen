@@ -4,10 +4,10 @@ use zuicchini::emCore::emRecRecord::Record;
 
 // ── Helper ──────────────────────────────────────────────────────────
 
-fn make_plugin(file_types: &[&str], priority: f64, library: &str, function: &str) -> emFpPlugin {
+fn make_plugin(file_types: &[&str], GetPriority: f64, library: &str, function: &str) -> emFpPlugin {
     let mut p = emFpPlugin::new();
     p.file_types = file_types.iter().map(|s| s.to_string()).collect();
-    p.priority = priority;
+    p.GetPriority = GetPriority;
     p.library = library.to_string();
     p.function = function.to_string();
     p
@@ -15,13 +15,13 @@ fn make_plugin(file_types: &[&str], priority: f64, library: &str, function: &str
 
 fn make_plugin_full(
     file_types: &[&str],
-    priority: f64,
+    GetPriority: f64,
     library: &str,
     function: &str,
     model_classes: &[&str],
     model_able_to_save: bool,
 ) -> emFpPlugin {
-    let mut p = make_plugin(file_types, priority, library, function);
+    let mut p = make_plugin(file_types, GetPriority, library, function);
     p.model_function = "model_fn".to_string();
     p.model_classes = model_classes.iter().map(|s| s.to_string()).collect();
     p.model_able_to_save = model_able_to_save;
@@ -38,7 +38,7 @@ fn record_round_trip_default() {
 
     assert_eq!(restored.file_types, plugin.file_types);
     assert_eq!(restored.file_format_name, plugin.file_format_name);
-    assert_eq!(restored.priority, plugin.priority);
+    assert_eq!(restored.GetPriority, plugin.GetPriority);
     assert_eq!(restored.library, plugin.library);
     assert_eq!(restored.function, plugin.function);
     assert_eq!(restored.model_function, plugin.model_function);
@@ -52,7 +52,7 @@ fn record_round_trip_with_data() {
     let mut plugin = emFpPlugin::new();
     plugin.file_types = vec![".png".to_string(), ".jpg".to_string()];
     plugin.file_format_name = "Image File".to_string();
-    plugin.priority = 5.0;
+    plugin.GetPriority = 5.0;
     plugin.library = "libImageViewer".to_string();
     plugin.function = "CreateImagePanel".to_string();
     plugin.model_function = "AcquireImageModel".to_string();
@@ -61,11 +61,11 @@ fn record_round_trip_with_data() {
     plugin.properties = vec![
         FpPluginProperty {
             name: "MaxWidth".to_string(),
-            value: "4096".to_string(),
+            GetValue: "4096".to_string(),
         },
         FpPluginProperty {
             name: "Format".to_string(),
-            value: "RGBA".to_string(),
+            GetValue: "RGBA".to_string(),
         },
     ];
     let plugin = plugin;
@@ -75,7 +75,7 @@ fn record_round_trip_with_data() {
 
     assert_eq!(restored.file_types, vec![".png", ".jpg"]);
     assert_eq!(restored.file_format_name, "Image File");
-    assert_eq!(restored.priority, 5.0);
+    assert_eq!(restored.GetPriority, 5.0);
     assert_eq!(restored.library, "libImageViewer");
     assert_eq!(restored.function, "CreateImagePanel");
     assert_eq!(restored.model_function, "AcquireImageModel");
@@ -83,9 +83,9 @@ fn record_round_trip_with_data() {
     assert!(restored.model_able_to_save);
     assert_eq!(restored.properties.len(), 2);
     assert_eq!(restored.properties[0].name, "MaxWidth");
-    assert_eq!(restored.properties[0].value, "4096");
+    assert_eq!(restored.properties[0].GetValue, "4096");
     assert_eq!(restored.properties[1].name, "Format");
-    assert_eq!(restored.properties[1].value, "RGBA");
+    assert_eq!(restored.properties[1].GetValue, "RGBA");
 }
 
 #[test]
@@ -93,30 +93,30 @@ fn from_rec_missing_fields_uses_defaults() {
     let rec = RecStruct::new();
     let plugin = emFpPlugin::from_rec(&rec).unwrap();
 
-    assert!(plugin.file_types.is_empty());
-    assert_eq!(plugin.priority, 1.0);
+    assert!(plugin.file_types.IsEmpty());
+    assert_eq!(plugin.GetPriority, 1.0);
     assert_eq!(plugin.library, "unknown");
     assert_eq!(plugin.function, "unknown");
     assert!(!plugin.model_able_to_save);
 }
 
-// ── is_default / set_to_default ─────────────────────────────────────
+// ── IsSetToDefault / SetToDefault ─────────────────────────────────────
 
 #[test]
 fn default_is_default() {
     let plugin = emFpPlugin::default();
-    assert!(plugin.is_default());
+    assert!(plugin.IsSetToDefault());
 }
 
 #[test]
 fn set_to_default_restores() {
     let mut plugin = emFpPlugin::new();
     plugin.file_types = vec![".txt".to_string()];
-    plugin.priority = 10.0;
+    plugin.GetPriority = 10.0;
     plugin.library = "foo".to_string();
-    assert!(!plugin.is_default());
-    plugin.set_to_default();
-    assert!(plugin.is_default());
+    assert!(!plugin.IsSetToDefault());
+    plugin.SetToDefault();
+    assert!(plugin.IsSetToDefault());
 }
 
 // ── GetProperty ─────────────────────────────────────────────────────
@@ -127,58 +127,58 @@ fn get_property_found() {
     plugin.properties = vec![
         FpPluginProperty {
             name: "A".to_string(),
-            value: "1".to_string(),
+            GetValue: "1".to_string(),
         },
         FpPluginProperty {
             name: "B".to_string(),
-            value: "2".to_string(),
+            GetValue: "2".to_string(),
         },
     ];
-    let prop = plugin.get_property("B").unwrap();
-    assert_eq!(prop.value, "2");
+    let prop = plugin.GetProperty("B").unwrap();
+    assert_eq!(prop.GetValue, "2");
 }
 
 #[test]
 fn get_property_not_found() {
     let plugin = emFpPlugin::default();
-    assert!(plugin.get_property("missing").is_none());
+    assert!(plugin.GetProperty("missing").is_none());
 }
 
-// ── is_matching ─────────────────────────────────────────────────────
+// ── IsMatchingPlugin ─────────────────────────────────────────────────────
 
 #[test]
 fn matches_by_extension() {
     let plugin = make_plugin(&[".png", ".jpg"], 1.0, "lib", "fn");
 
-    assert!(plugin.is_matching(None, Some("photo.png"), false, FileStatMode::Regular));
-    assert!(plugin.is_matching(None, Some("photo.JPG"), false, FileStatMode::Regular));
-    assert!(!plugin.is_matching(None, Some("photo.gif"), false, FileStatMode::Regular));
+    assert!(plugin.IsMatchingPlugin(None, Some("photo.png"), false, FileStatMode::Regular));
+    assert!(plugin.IsMatchingPlugin(None, Some("photo.JPG"), false, FileStatMode::Regular));
+    assert!(!plugin.IsMatchingPlugin(None, Some("photo.gif"), false, FileStatMode::Regular));
     // Extension match only for regular files.
-    assert!(!plugin.is_matching(None, Some("photo.png"), false, FileStatMode::Directory));
+    assert!(!plugin.IsMatchingPlugin(None, Some("photo.png"), false, FileStatMode::Directory));
 }
 
 #[test]
 fn matches_file_wildcard() {
     let plugin = make_plugin(&["file"], 1.0, "lib", "fn");
 
-    assert!(plugin.is_matching(None, Some("anything.xyz"), false, FileStatMode::Regular));
-    assert!(!plugin.is_matching(None, Some("anything.xyz"), false, FileStatMode::Directory));
+    assert!(plugin.IsMatchingPlugin(None, Some("anything.xyz"), false, FileStatMode::Regular));
+    assert!(!plugin.IsMatchingPlugin(None, Some("anything.xyz"), false, FileStatMode::Directory));
 }
 
 #[test]
 fn matches_directory_wildcard() {
     let plugin = make_plugin(&["directory"], 1.0, "lib", "fn");
 
-    assert!(plugin.is_matching(None, Some("somedir"), false, FileStatMode::Directory));
-    assert!(!plugin.is_matching(None, Some("somedir"), false, FileStatMode::Regular));
+    assert!(plugin.IsMatchingPlugin(None, Some("somedir"), false, FileStatMode::Directory));
+    assert!(!plugin.IsMatchingPlugin(None, Some("somedir"), false, FileStatMode::Regular));
 }
 
 #[test]
 fn matches_model_class() {
     let plugin = make_plugin_full(&[".png"], 1.0, "lib", "fn", &["ImageModel"], false);
 
-    assert!(plugin.is_matching(Some("ImageModel"), None, false, FileStatMode::Regular));
-    assert!(!plugin.is_matching(Some("OtherModel"), None, false, FileStatMode::Regular));
+    assert!(plugin.IsMatchingPlugin(Some("ImageModel"), None, false, FileStatMode::Regular));
+    assert!(!plugin.IsMatchingPlugin(Some("OtherModel"), None, false, FileStatMode::Regular));
 }
 
 #[test]
@@ -186,16 +186,16 @@ fn matches_require_able_to_save() {
     let saveable = make_plugin_full(&[".png"], 1.0, "lib", "fn", &["M"], true);
     let read_only = make_plugin_full(&[".png"], 1.0, "lib", "fn", &["M"], false);
 
-    assert!(saveable.is_matching(None, None, true, FileStatMode::Regular));
-    assert!(!read_only.is_matching(None, None, true, FileStatMode::Regular));
+    assert!(saveable.IsMatchingPlugin(None, None, true, FileStatMode::Regular));
+    assert!(!read_only.IsMatchingPlugin(None, None, true, FileStatMode::Regular));
     // Without the flag, both match.
-    assert!(read_only.is_matching(None, None, false, FileStatMode::Regular));
+    assert!(read_only.IsMatchingPlugin(None, None, false, FileStatMode::Regular));
 }
 
 #[test]
 fn no_filters_matches_everything() {
     let plugin = make_plugin(&[".png"], 1.0, "lib", "fn");
-    assert!(plugin.is_matching(None, None, false, FileStatMode::Regular));
+    assert!(plugin.IsMatchingPlugin(None, None, false, FileStatMode::Regular));
 }
 
 #[test]
@@ -203,9 +203,9 @@ fn extension_must_be_shorter_than_filename() {
     // C++ requires typeLen < fileNameLen (strict less-than).
     let plugin = make_plugin(&[".png"], 1.0, "lib", "fn");
     // File name is exactly ".png" — length 4, extension ".png" length 4 → no match.
-    assert!(!plugin.is_matching(None, Some(".png"), false, FileStatMode::Regular));
+    assert!(!plugin.IsMatchingPlugin(None, Some(".png"), false, FileStatMode::Regular));
     // "a.png" — length 5 > 4 → match.
-    assert!(plugin.is_matching(None, Some("a.png"), false, FileStatMode::Regular));
+    assert!(plugin.IsMatchingPlugin(None, Some("a.png"), false, FileStatMode::Regular));
 }
 
 // ── emFpPluginList search ─────────────────────────────────────────────
@@ -218,7 +218,7 @@ fn search_plugin_by_extension() {
     ]);
 
     let found = list
-        .search_plugin(
+        .SearchPlugin(
             None,
             Some("/path/to/file.png"),
             false,
@@ -229,7 +229,7 @@ fn search_plugin_by_extension() {
     assert_eq!(found.library, "libA");
 
     let found = list
-        .search_plugin(
+        .SearchPlugin(
             None,
             Some("/path/to/file.txt"),
             false,
@@ -240,7 +240,7 @@ fn search_plugin_by_extension() {
     assert_eq!(found.library, "libB");
 
     assert!(list
-        .search_plugin(
+        .SearchPlugin(
             None,
             Some("/path/to/file.gif"),
             false,
@@ -258,27 +258,27 @@ fn search_plugin_priority_ordering() {
         make_plugin(&[".png"], 3.0, "libMid", "fn"),
     ]);
 
-    // alternative=0 should return highest priority.
+    // alternative=0 should return highest GetPriority.
     let found = list
-        .search_plugin(None, Some("img.png"), false, 0, FileStatMode::Regular)
+        .SearchPlugin(None, Some("img.png"), false, 0, FileStatMode::Regular)
         .unwrap();
     assert_eq!(found.library, "libHigh");
 
     // alternative=1 should return second highest.
     let found = list
-        .search_plugin(None, Some("img.png"), false, 1, FileStatMode::Regular)
+        .SearchPlugin(None, Some("img.png"), false, 1, FileStatMode::Regular)
         .unwrap();
     assert_eq!(found.library, "libMid");
 
     // alternative=2 should return lowest.
     let found = list
-        .search_plugin(None, Some("img.png"), false, 2, FileStatMode::Regular)
+        .SearchPlugin(None, Some("img.png"), false, 2, FileStatMode::Regular)
         .unwrap();
     assert_eq!(found.library, "libLow");
 
     // alternative=3 should return None (only 3 plugins).
     assert!(list
-        .search_plugin(None, Some("img.png"), false, 3, FileStatMode::Regular)
+        .SearchPlugin(None, Some("img.png"), false, 3, FileStatMode::Regular)
         .is_none());
 }
 
@@ -291,7 +291,7 @@ fn search_plugins_returns_all_sorted() {
         make_plugin(&[".png"], 3.0, "libMid", "fn"),
     ]);
 
-    let results = list.search_plugins(None, Some("img.png"), false, FileStatMode::Regular);
+    let results = list.SearchPlugins(None, Some("img.png"), false, FileStatMode::Regular);
     assert_eq!(results.len(), 3);
     assert_eq!(results[0].library, "libHigh");
     assert_eq!(results[1].library, "libMid");
@@ -305,9 +305,9 @@ fn search_plugin_no_file_path_matches_all() {
         make_plugin(&[".txt"], 2.0, "libB", "fn"),
     ]);
 
-    // No file path filter: all plugins match, highest priority first.
+    // No file path filter: all plugins match, highest GetPriority first.
     let found = list
-        .search_plugin(None, None, false, 0, FileStatMode::Regular)
+        .SearchPlugin(None, None, false, 0, FileStatMode::Regular)
         .unwrap();
     assert_eq!(found.library, "libB");
 }
@@ -320,7 +320,7 @@ fn search_plugin_with_model_class_filter() {
     ]);
 
     let found = list
-        .search_plugin(
+        .SearchPlugin(
             Some("TextModel"),
             Some("x.png"),
             false,
@@ -336,7 +336,7 @@ fn search_plugin_case_insensitive_extension() {
     let list = emFpPluginList::from_plugins(vec![make_plugin(&[".PNG"], 1.0, "lib", "fn")]);
 
     // File has lowercase extension, plugin has uppercase — should still match.
-    let found = list.search_plugin(None, Some("image.png"), false, 0, FileStatMode::Regular);
+    let found = list.SearchPlugin(None, Some("image.png"), false, 0, FileStatMode::Regular);
     assert_eq!(found.unwrap().library, "lib", "case-insensitive match should find the plugin");
 }
 
@@ -345,7 +345,7 @@ fn search_plugin_extracts_filename_from_path() {
     let list = emFpPluginList::from_plugins(vec![make_plugin(&[".txt"], 1.0, "lib", "fn")]);
 
     // Full path — extension matching should use just the file name.
-    let found = list.search_plugin(
+    let found = list.SearchPlugin(
         None,
         Some("/deep/nested/path/readme.txt"),
         false,
@@ -369,9 +369,9 @@ fn empty_plugin_list() {
     let list = emFpPluginList::from_plugins(vec![]);
     assert_eq!(list.plugin_count(), 0);
     assert!(list
-        .search_plugin(None, Some("x.txt"), false, 0, FileStatMode::Regular)
+        .SearchPlugin(None, Some("x.txt"), false, 0, FileStatMode::Regular)
         .is_none());
     assert!(list
-        .search_plugins(None, Some("x.txt"), false, FileStatMode::Regular)
-        .is_empty());
+        .SearchPlugins(None, Some("x.txt"), false, FileStatMode::Regular)
+        .IsEmpty());
 }

@@ -21,39 +21,39 @@ use zuicchini::emCore::emScheduler::EngineScheduler;
 #[derive(Default, Clone, PartialEq, Debug)]
 struct TestRecord {
     name: String,
-    count: i32,
+    GetCount: i32,
 }
 
 impl Record for TestRecord {
     fn from_rec(rec: &RecStruct) -> Result<Self, RecError> {
         Ok(Self {
             name: rec.get_str("name").unwrap_or("").to_string(),
-            count: rec.get_int("count").unwrap_or(0),
+            GetCount: rec.get_int("count").unwrap_or(0),
         })
     }
 
     fn to_rec(&self) -> RecStruct {
         let mut r = RecStruct::new();
         r.set_str("name", &self.name);
-        r.set_int("count", self.count);
+        r.set_int("count", self.GetCount);
         r
     }
 
-    fn set_to_default(&mut self) {
+    fn SetToDefault(&mut self) {
         *self = Self::default();
     }
 
-    fn is_default(&self) -> bool {
-        self.name.is_empty() && self.count == 0
+    fn IsSetToDefault(&self) -> bool {
+        self.name.IsEmpty() && self.GetCount == 0
     }
 }
 
-fn write_test_rec(path: &std::path::Path, name: &str, count: i32) {
+fn write_test_rec(path: &std::path::Path, name: &str, GetCount: i32) {
     let mut r = RecStruct::new();
     r.set_str("name", name);
-    r.set_int("count", count);
+    r.set_int("count", GetCount);
     let content = zuicchini::emCore::emRec::write_rec(&r);
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(path.GetParentContext().unwrap()).unwrap();
     std::fs::write(path, content).unwrap();
 }
 
@@ -71,14 +71,14 @@ fn watched_var_fires_on_change() {
 
     assert!(!var.set(10), "same value should return false");
     assert!(var.set(20), "different value should return true");
-    assert_eq!(*var.get(), 20);
+    assert_eq!(*var.GetRec(), 20);
 }
 
 #[test]
 fn resource_cache_deduplication() {
     let mut cache = ResourceCache::<String>::new();
-    let a = cache.get_or_insert_with("key", || "value".into());
-    let b = cache.get_or_insert_with("key", || "other".into());
+    let a = cache.GetOrInsertWith("key", || "value".into());
+    let b = cache.GetOrInsertWith("key", || "other".into());
     assert!(std::rc::Rc::ptr_eq(&a, &b));
     assert_eq!(cache.len(), 1);
 }
@@ -86,33 +86,33 @@ fn resource_cache_deduplication() {
 #[test]
 fn resource_cache_purge_unused() {
     let mut cache = ResourceCache::<String>::new();
-    let _held = cache.get_or_insert_with("keep", || "kept".into());
-    let _dropped = cache.get_or_insert_with("drop", || "gone".into());
+    let _held = cache.GetOrInsertWith("keep", || "kept".into());
+    let _dropped = cache.GetOrInsertWith("drop", || "gone".into());
     drop(_dropped);
-    cache.purge_unused();
+    cache.PurgeUnused();
     assert_eq!(cache.len(), 1);
-    assert!(cache.get("keep").is_some());
-    assert!(cache.get("drop").is_none());
+    assert!(cache.GetRec("keep").is_some());
+    assert!(cache.GetRec("drop").is_none());
 }
 
 #[test]
 fn context_parent_child_tree() {
-    let root = emContext::new_root();
-    assert!(root.parent().is_none());
+    let root = emContext::NewRoot();
+    assert!(root.GetParentContext().is_none());
     assert_eq!(root.child_count(), 0);
 
-    let child = emContext::new_child(&root);
+    let child = emContext::NewChild(&root);
     assert_eq!(root.child_count(), 1);
-    assert!(child.parent().is_some());
-    assert!(std::rc::Rc::ptr_eq(&child.parent().unwrap(), &root));
+    assert!(child.GetParentContext().is_some());
+    assert!(std::rc::Rc::ptr_eq(&child.GetParentContext().unwrap(), &root));
 }
 
 #[test]
 fn context_children_are_weak() {
     // Children stored as Weak references -- dropping the child Rc
-    // should reduce the parent's child_count.
-    let root = emContext::new_root();
-    let child = emContext::new_child(&root);
+    // should reduce the GetParentContext's child_count.
+    let root = emContext::NewRoot();
+    let child = emContext::NewChild(&root);
     assert_eq!(root.child_count(), 1);
     drop(child);
     // Weak ref is now dead
@@ -125,40 +125,40 @@ fn file_model_state_machine() {
     let mut fm = emFileModel::<Vec<u8>>::new(PathBuf::from("/tmp/test"), sig, sig);
 
     assert_eq!(*fm.state(), FileState::Waiting);
-    assert_eq!(fm.progress(), 0.0);
+    assert_eq!(fm.GetFileProgress(), 0.0);
 
     // Waiting -> Loading
-    assert!(fm.request_load());
-    assert!(matches!(*fm.state(), FileState::Loading { .. }));
+    assert!(fm.Load());
+    assert!(Match!(*fm.state(), FileState::Loading { .. }));
 
     // Loading -> LoadError
     fm.fail_load("test error".into());
-    assert!(matches!(*fm.state(), FileState::LoadError(_)));
+    assert!(Match!(*fm.state(), FileState::LoadError(_)));
 
     // LoadError -> Loading (retry)
-    assert!(fm.request_load());
-    assert!(matches!(*fm.state(), FileState::Loading { .. }));
+    assert!(fm.Load());
+    assert!(Match!(*fm.state(), FileState::Loading { .. }));
 
     // Loading -> Loaded
     fm.complete_load(vec![1, 2, 3]);
     assert_eq!(*fm.state(), FileState::Loaded);
     assert_eq!(fm.data().unwrap(), &vec![1, 2, 3]);
-    assert_eq!(fm.progress(), 100.0);
+    assert_eq!(fm.GetFileProgress(), 100.0);
 
     // Loaded -> Unsaved
-    fm.mark_unsaved();
+    fm.SetUnsavedState();
     assert_eq!(*fm.state(), FileState::Unsaved);
 
     // Unsaved -> Saving
-    assert!(fm.request_save());
+    assert!(fm.Save());
     assert_eq!(*fm.state(), FileState::Saving);
 
-    // Saving -> Loaded (save complete)
+    // Saving -> Loaded (Save complete)
     fm.complete_save();
     assert_eq!(*fm.state(), FileState::Loaded);
 
     // Reset
-    assert!(fm.reset());
+    assert!(fm.HardResetFileState());
     assert_eq!(*fm.state(), FileState::Waiting);
     assert!(fm.data().is_none());
 }
@@ -172,8 +172,8 @@ fn file_model_too_costly() {
     assert_eq!(*fm.state(), FileState::TooCostly);
 
     // Can retry from TooCostly
-    assert!(fm.request_load());
-    assert!(matches!(*fm.state(), FileState::Loading { .. }));
+    assert!(fm.Load());
+    assert!(Match!(*fm.state(), FileState::Loading { .. }));
 }
 
 #[test]
@@ -200,19 +200,19 @@ fn rec_file_model_load_roundtrip() {
     write_test_rec(&path, "hello", 42);
 
     let mut m = emRecFileModel::<TestRecord>::new(path);
-    m.load();
+    m.TryLoad();
 
     assert_eq!(*m.state(), FileState::Loaded);
     assert_eq!(m.data().name, "hello");
-    assert_eq!(m.data().count, 42);
+    assert_eq!(m.data().GetCount, 42);
 }
 
 #[test]
 fn rec_file_model_load_error_missing() {
     let path = PathBuf::from("/tmp/zuicchini_rfm_no_such_file_xyz.rec");
     let mut m = emRecFileModel::<TestRecord>::new(path);
-    m.load();
-    assert!(matches!(*m.state(), FileState::LoadError(_)));
+    m.TryLoad();
+    assert!(Match!(*m.state(), FileState::LoadError(_)));
 }
 
 #[test]
@@ -223,8 +223,8 @@ fn rec_file_model_load_error_bad_rec() {
     std::fs::write(&path, b"{{not valid rec content!!!").unwrap();
 
     let mut m = emRecFileModel::<TestRecord>::new(path);
-    m.load();
-    assert!(matches!(*m.state(), FileState::LoadError(_)));
+    m.TryLoad();
+    assert!(Match!(*m.state(), FileState::LoadError(_)));
 }
 
 #[test]
@@ -234,14 +234,14 @@ fn rec_file_model_save_roundtrip() {
     write_test_rec(&path, "original", 1);
 
     let mut m = emRecFileModel::<TestRecord>::new(path.clone());
-    m.load();
+    m.TryLoad();
     assert_eq!(*m.state(), FileState::Loaded);
 
     m.data_mut().name = "modified".to_string();
-    m.data_mut().count = 99;
+    m.data_mut().GetCount = 99;
     assert_eq!(*m.state(), FileState::Unsaved);
 
-    m.save();
+    m.Save();
     assert_eq!(*m.state(), FileState::Loaded);
 
     let content = std::fs::read_to_string(&path).unwrap();
@@ -256,7 +256,7 @@ fn rec_file_model_out_of_date() {
     write_test_rec(&path, "v1", 1);
 
     let mut m = emRecFileModel::<TestRecord>::new(path.clone());
-    m.load();
+    m.TryLoad();
     assert_eq!(*m.state(), FileState::Loaded);
 
     // Overwrite with significantly different size to avoid mtime collision
@@ -274,13 +274,13 @@ fn rec_file_model_hard_reset() {
     write_test_rec(&path, "data", 7);
 
     let mut m = emRecFileModel::<TestRecord>::new(path);
-    m.load();
+    m.TryLoad();
     assert_eq!(*m.state(), FileState::Loaded);
 
     m.hard_reset();
 
     assert_eq!(*m.state(), FileState::Waiting);
-    assert!(m.data().is_default());
+    assert!(m.data().IsSetToDefault());
 }
 
 #[test]
@@ -290,22 +290,22 @@ fn rec_file_model_clear_save_error() {
     write_test_rec(&path, "x", 0);
 
     let mut m = emRecFileModel::<TestRecord>::new(path.clone());
-    m.load();
+    m.TryLoad();
     assert_eq!(*m.state(), FileState::Loaded);
 
     // Mark unsaved via data_mut()
-    m.data_mut().count = 5;
+    m.data_mut().GetCount = 5;
     assert_eq!(*m.state(), FileState::Unsaved);
 
-    // Redirect to unwritable path (parent is a regular file)
+    // Redirect to unwritable path (GetParentContext is a regular file)
     let blocker = dir.join("blocker");
     std::fs::write(&blocker, b"").unwrap();
     let bad_path = blocker.join("sub.rec");
     m.set_path(bad_path);
 
-    m.save();
+    m.Save();
     assert!(
-        matches!(*m.state(), FileState::SaveError(_)),
+        Match!(*m.state(), FileState::SaveError(_)),
         "expected SaveError, got {:?}",
         m.state()
     );
@@ -322,7 +322,7 @@ fn rec_file_model_memory_limit() {
 
     let mut m = emRecFileModel::<TestRecord>::new(path);
     m.set_memory_limit(1);
-    m.load();
+    m.TryLoad();
 
     assert_eq!(*m.state(), FileState::TooCostly);
 }
@@ -334,10 +334,10 @@ fn rec_file_model_protect_file_state() {
     write_test_rec(&path, "protected", 3);
 
     let mut m = emRecFileModel::<TestRecord>::new(path);
-    m.load();
+    m.TryLoad();
 
     // Loading internally guards data mutations with protect_file_state,
-    // so the state after a clean load must be Loaded, not Unsaved.
+    // so the state after a clean TryLoad must be Loaded, not Unsaved.
     assert_eq!(*m.state(), FileState::Loaded);
 }
 
@@ -407,7 +407,7 @@ impl FileModelOps for MemOps {
 
 fn make_temp_file(subdir: &str) -> PathBuf {
     let path = std::env::temp_dir().join(subdir).join("fm.tmp");
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(path.GetParentContext().unwrap()).unwrap();
     std::fs::write(&path, b"placeholder").unwrap();
     path
 }
@@ -422,7 +422,7 @@ fn file_model_step_loading() {
     // First step: Waiting → Loading
     let changed = fm.step_loading(&mut ops);
     assert!(changed);
-    assert!(matches!(*fm.state(), FileState::Loading { .. }));
+    assert!(Match!(*fm.state(), FileState::Loading { .. }));
     assert!(ops.start_called);
     assert!(!ops.continue_called);
 
@@ -443,7 +443,7 @@ fn file_model_step_saving() {
     // Reach Loaded state manually
     fm.complete_load(());
     assert_eq!(*fm.state(), FileState::Loaded);
-    fm.mark_unsaved();
+    fm.SetUnsavedState();
     assert_eq!(*fm.state(), FileState::Unsaved);
 
     let mut ops = MemOps::new();
@@ -486,7 +486,7 @@ fn file_model_set_unsaved_state_aborts_loading() {
 
     // Step once: Waiting → Loading
     fm.step_loading(&mut ops);
-    assert!(matches!(*fm.state(), FileState::Loading { .. }));
+    assert!(Match!(*fm.state(), FileState::Loading { .. }));
 
     // set_unsaved_state should abort loading and move to Unsaved
     fm.set_unsaved_state(&mut ops);

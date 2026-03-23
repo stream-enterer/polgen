@@ -47,16 +47,16 @@ struct ButtonPanel {
     widget: emButton,
 }
 impl PanelBehavior for ButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -65,16 +65,16 @@ struct CheckButtonPanel {
     widget: emCheckButton,
 }
 impl PanelBehavior for CheckButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -83,16 +83,16 @@ struct CheckBoxPanel {
     widget: emCheckBox,
 }
 impl PanelBehavior for CheckBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -101,16 +101,16 @@ struct RadioButtonPanel {
     widget: emRadioButton,
 }
 impl PanelBehavior for RadioButtonPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -119,16 +119,16 @@ struct RadioBoxPanel {
     widget: emRadioBox,
 }
 impl PanelBehavior for RadioBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h, _s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -137,17 +137,17 @@ struct TextFieldPanel {
     widget: emTextField,
 }
 impl PanelBehavior for TextFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
         self.widget.cycle_blink(_s.in_focused_path());
-        self.widget.paint(p, w, h, _s.enabled);
+        self.widget.PaintContent(p, w, h, _s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
     fn notice(&mut self, flags: NoticeFlags, state: &PanelState) {
@@ -161,16 +161,16 @@ struct ScalarFieldPanel {
     widget: emScalarField,
 }
 impl PanelBehavior for ScalarFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.widget.paint(p, w, h, s.enabled);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.widget.PaintContent(p, w, h, s.enabled);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn get_cursor(&self) -> emCursor {
-        self.widget.get_cursor()
+    fn GetCursor(&self) -> emCursor {
+        self.widget.GetCursor()
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -179,13 +179,13 @@ struct ColorFieldPanel {
     widget: emColorField,
 }
 impl PanelBehavior for ColorFieldPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -194,13 +194,13 @@ struct ListBoxPanel {
     widget: emListBox,
 }
 impl PanelBehavior for ListBoxPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.paint(p, w, h);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.PaintContent(p, w, h);
     }
-    fn input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
-        self.widget.input(e, _s, _is)
+    fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
+        self.widget.Input(e, _s, _is)
     }
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -232,7 +232,7 @@ impl WidgetGroupPanel {
     fn new(category: WidgetCategory, caption: &str, look: Rc<emLook>) -> Self {
         let mut group = emRasterGroup::new();
         group.border.caption = caption.to_string();
-        group.border.set_border_scaling(2.5);
+        group.border.SetBorderScaling(2.5);
         group.look = (*look).clone();
         Self {
             group,
@@ -243,16 +243,16 @@ impl WidgetGroupPanel {
 }
 
 impl PanelBehavior for WidgetGroupPanel {
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.group.paint(p, w, h, s);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.group.PaintContent(p, w, h, s);
     }
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if ctx.children().is_empty() {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if ctx.children().IsEmpty() {
             let look = self.look.clone();
             match self.category {
                 WidgetCategory::Buttons => {
@@ -260,10 +260,10 @@ impl PanelBehavior for WidgetGroupPanel {
                     ctx.create_child_with("b1", Box::new(ButtonPanel { widget: bt1 }));
                     let mut bt2 = emButton::new("Long Desc", look.clone());
                     let long_desc = "This is a looooooooooooooooooooooooooooooooooooooooooooooooooooooong description of the button.\n".repeat(100);
-                    bt2.set_description(&long_desc);
+                    bt2.SetDescription(&long_desc);
                     ctx.create_child_with("b2", Box::new(ButtonPanel { widget: bt2 }));
                     let mut bt3 = emButton::new("NoEOI", look);
-                    bt3.set_no_eoi(true);
+                    bt3.SetNoEOI(true);
                     ctx.create_child_with("b3", Box::new(ButtonPanel { widget: bt3 }));
                 }
                 WidgetCategory::CheckWidgets => {
@@ -298,24 +298,24 @@ impl PanelBehavior for WidgetGroupPanel {
                 }
                 WidgetCategory::TextFields => {
                     let mut tf1 = emTextField::new(look.clone());
-                    tf1.set_editable(false);
-                    tf1.set_caption("Read-Only");
+                    tf1.SetEditable(false);
+                    tf1.SetCaption("Read-Only");
                     tf1.set_text("Read-Only");
                     ctx.create_child_with("tf1", Box::new(TextFieldPanel { widget: tf1 }));
                     let mut tf2 = emTextField::new(look.clone());
-                    tf2.set_editable(true);
-                    tf2.set_caption("Editable");
+                    tf2.SetEditable(true);
+                    tf2.SetCaption("Editable");
                     tf2.set_text("Editable");
                     ctx.create_child_with("tf2", Box::new(TextFieldPanel { widget: tf2 }));
                     let mut tf3 = emTextField::new(look.clone());
-                    tf3.set_editable(true);
-                    tf3.set_caption("Password");
+                    tf3.SetEditable(true);
+                    tf3.SetCaption("Password");
                     tf3.set_text("Password");
                     tf3.set_password_mode(true);
                     ctx.create_child_with("tf3", Box::new(TextFieldPanel { widget: tf3 }));
                     let mut tf4 = emTextField::new(look);
-                    tf4.set_editable(true);
-                    tf4.set_caption("Multi-Line");
+                    tf4.SetEditable(true);
+                    tf4.SetCaption("Multi-Line");
                     tf4.set_multi_line(true);
                     tf4.set_text("first line\nsecond line\n...");
                     ctx.create_child_with("mltf1", Box::new(TextFieldPanel { widget: tf4 }));
@@ -324,28 +324,28 @@ impl PanelBehavior for WidgetGroupPanel {
                     let sf1 = emScalarField::new(0.0, 100.0, look.clone());
                     ctx.create_child_with("sf1", Box::new(ScalarFieldPanel { widget: sf1 }));
                     let mut sf2 = emScalarField::new(0.0, 100.0, look.clone());
-                    sf2.set_editable(true);
+                    sf2.SetEditable(true);
                     ctx.create_child_with("sf2", Box::new(ScalarFieldPanel { widget: sf2 }));
                     let mut sf3 = emScalarField::new(-1000.0, 1000.0, look.clone());
-                    sf3.set_editable(true);
-                    sf3.set_scale_mark_intervals(&[1000, 100, 10, 5, 1]);
+                    sf3.SetEditable(true);
+                    sf3.SetScaleMarkIntervals(&[1000, 100, 10, 5, 1]);
                     ctx.create_child_with("sf3", Box::new(ScalarFieldPanel { widget: sf3 }));
                     // sf4: Level with custom formatter
                     let mut sf4 = emScalarField::new(1.0, 5.0, look.clone());
-                    sf4.set_editable(true);
-                    sf4.set_text_box_tallness(0.25);
-                    sf4.set_value(3.0);
-                    sf4.set_text_of_value_fn(Box::new(|val, _iv| format!("Level {}", val)));
+                    sf4.SetEditable(true);
+                    sf4.SetTextBoxTallness(0.25);
+                    sf4.SetValue(3.0);
+                    sf4.SetTextOfValueFunc(Box::new(|val, _iv| format!("Level {}", val)));
                     ctx.create_child_with("sf4", Box::new(ScalarFieldPanel { widget: sf4 }));
                     // sf5: Play Length with time formatter
                     let mut sf5 = emScalarField::new(0.0, 24.0 * 3600.0 * 1000.0, look.clone());
-                    sf5.set_editable(true);
-                    sf5.set_value(4.0 * 3600.0 * 1000.0);
-                    sf5.set_scale_mark_intervals(&[
+                    sf5.SetEditable(true);
+                    sf5.SetValue(4.0 * 3600.0 * 1000.0);
+                    sf5.SetScaleMarkIntervals(&[
                         3600000, 900000, 300000, 60000, 10000, 1000, 100, 10, 1,
                     ]);
-                    sf5.set_text_of_value_fn(Box::new(|value, mark_interval| {
-                        let v = value;
+                    sf5.SetTextOfValueFunc(Box::new(|GetValue, mark_interval| {
+                        let v = GetValue;
                         let h = v / 3600000;
                         let m = (v / 60000) % 60;
                         let s = (v / 1000) % 60;
@@ -365,12 +365,12 @@ impl PanelBehavior for WidgetGroupPanel {
                     ctx.create_child_with("sf5", Box::new(ScalarFieldPanel { widget: sf5 }));
                     // sf6: Play Position (same formatter, static 4h max)
                     let mut sf6 = emScalarField::new(0.0, 4.0 * 3600.0 * 1000.0, look);
-                    sf6.set_editable(true);
-                    sf6.set_scale_mark_intervals(&[
+                    sf6.SetEditable(true);
+                    sf6.SetScaleMarkIntervals(&[
                         3600000, 900000, 300000, 60000, 10000, 1000, 100, 10, 1,
                     ]);
-                    sf6.set_text_of_value_fn(Box::new(|value, mark_interval| {
-                        let v = value;
+                    sf6.SetTextOfValueFunc(Box::new(|GetValue, mark_interval| {
+                        let v = GetValue;
                         let h = v / 3600000;
                         let m = (v / 60000) % 60;
                         let s = (v / 1000) % 60;
@@ -391,48 +391,48 @@ impl PanelBehavior for WidgetGroupPanel {
                 }
                 WidgetCategory::ColorFields => {
                     let mut cf1 = emColorField::new(look.clone());
-                    cf1.set_color(emColor::rgba(0xBB, 0x22, 0x22, 0xFF));
+                    cf1.SetColor(emColor::rgba(0xBB, 0x22, 0x22, 0xFF));
                     ctx.create_child_with("cf1", Box::new(ColorFieldPanel { widget: cf1 }));
                     let mut cf2 = emColorField::new(look.clone());
-                    cf2.set_editable(true);
-                    cf2.set_color(emColor::rgba(0x22, 0xBB, 0x22, 0xFF));
+                    cf2.SetEditable(true);
+                    cf2.SetColor(emColor::rgba(0x22, 0xBB, 0x22, 0xFF));
                     ctx.create_child_with("cf2", Box::new(ColorFieldPanel { widget: cf2 }));
                     let mut cf3 = emColorField::new(look);
-                    cf3.set_editable(true);
-                    cf3.set_alpha_enabled(true);
-                    cf3.set_color(emColor::rgba(0x22, 0x22, 0xBB, 0xFF));
+                    cf3.SetEditable(true);
+                    cf3.SetAlphaEnabled(true);
+                    cf3.SetColor(emColor::rgba(0x22, 0x22, 0xBB, 0xFF));
                     ctx.create_child_with("cf3", Box::new(ColorFieldPanel { widget: cf3 }));
                 }
                 WidgetCategory::ListBoxes => {
                     let lb1 = emListBox::new(look.clone());
                     ctx.create_child_with("l1", Box::new(ListBoxPanel { widget: lb1 }));
                     let mut lb2 = emListBox::new(look.clone());
-                    lb2.set_selection_mode(SelectionMode::Single);
+                    lb2.SetSelectionType(SelectionMode::Single);
                     lb2.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l2", Box::new(ListBoxPanel { widget: lb2 }));
                     let mut lb3 = emListBox::new(look.clone());
-                    lb3.set_selection_mode(SelectionMode::ReadOnly);
+                    lb3.SetSelectionType(SelectionMode::ReadOnly);
                     lb3.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l3", Box::new(ListBoxPanel { widget: lb3 }));
                     let mut lb4 = emListBox::new(look.clone());
-                    lb4.set_selection_mode(SelectionMode::Multi);
+                    lb4.SetSelectionType(SelectionMode::Multi);
                     lb4.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l4", Box::new(ListBoxPanel { widget: lb4 }));
                     let mut lb5 = emListBox::new(look.clone());
-                    lb5.set_selection_mode(SelectionMode::Toggle);
+                    lb5.SetSelectionType(SelectionMode::Toggle);
                     lb5.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     ctx.create_child_with("l5", Box::new(ListBoxPanel { widget: lb5 }));
                     // l6: Single column
                     let mut lb6 = emListBox::new(look.clone());
-                    lb6.set_caption("Single Column");
+                    lb6.SetCaption("Single Column");
                     lb6.set_fixed_column_count(Some(1));
                     lb6.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     lb6.select(0, true);
                     ctx.create_child_with("l6", Box::new(ListBoxPanel { widget: lb6 }));
                     // l7: Custom List Box (Multi selection placeholder)
                     let mut lb7 = emListBox::new(look);
-                    lb7.set_caption("Custom List Box");
-                    lb7.set_selection_mode(SelectionMode::Multi);
+                    lb7.SetCaption("Custom List Box");
+                    lb7.SetSelectionType(SelectionMode::Multi);
                     lb7.set_items((1..=7).map(|i| format!("Item {i}")).collect());
                     lb7.select(0, true);
                     ctx.create_child_with("l7", Box::new(ListBoxPanel { widget: lb7 }));
@@ -443,21 +443,21 @@ impl PanelBehavior for WidgetGroupPanel {
                     ctx.create_child_with("t1", Box::new(t1));
                     // t2: deeper tunnel
                     let mut t2 = emTunnel::new(look.clone()).with_caption("Deeper Tunnel");
-                    t2.set_depth(30.0);
+                    t2.SetDepth(30.0);
                     ctx.create_child_with("t2", Box::new(t2));
                     // t3: square end
                     let mut t3 = emTunnel::new(look.clone()).with_caption("Square End");
-                    t3.set_child_tallness(1.0);
+                    t3.SetChildTallness(1.0);
                     ctx.create_child_with("t3", Box::new(t3));
-                    // t4: square end + zero depth
+                    // t4: square end + zero GetDepth
                     let mut t4 = emTunnel::new(look).with_caption("Square End, Zero Depth");
-                    t4.set_child_tallness(1.0);
-                    t4.set_depth(0.0);
+                    t4.SetChildTallness(1.0);
+                    t4.SetDepth(0.0);
                     ctx.create_child_with("t4", Box::new(t4));
                 }
             }
         }
-        self.group.layout_children(ctx);
+        self.group.LayoutChildren(ctx);
     }
 }
 
@@ -474,7 +474,7 @@ impl TkTestPanel {
     fn new(look: Rc<emLook>) -> Self {
         let mut group = emRasterGroup::new();
         group.border.caption = "Toolkit Test".to_string();
-        group.border.set_border_scaling(2.5);
+        group.border.SetBorderScaling(2.5);
         group.layout.preferred_child_tallness = 0.3;
         group.look = (*look).clone();
         Self { group, look }
@@ -482,7 +482,7 @@ impl TkTestPanel {
 }
 
 impl PanelBehavior for TkTestPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
@@ -490,12 +490,12 @@ impl PanelBehavior for TkTestPanel {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.group.paint(p, w, h, s);
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.group.PaintContent(p, w, h, s);
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
-        if ctx.children().is_empty() {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if ctx.children().IsEmpty() {
             let look = self.look.clone();
 
             let groups: &[(&str, &str, WidgetCategory)] = &[
@@ -516,7 +516,7 @@ impl PanelBehavior for TkTestPanel {
                 );
             }
         }
-        self.group.layout_children(ctx);
+        self.group.LayoutChildren(ctx);
     }
 }
 
@@ -528,7 +528,7 @@ impl PanelBehavior for TkTestPanel {
 fn main() {
     let look = emLook::new();
     let app = App::new(Box::new(move |app, event_loop| {
-        // SCAFFOLDING: mount a single TkTestPanel as root (matches C++ standalone)
+        // SCAFFOLDING: mount a single TkTestPanel as root (Match C++ standalone)
         let root = app.tree.create_root("root");
         app.tree
             .set_behavior(root, Box::new(TkTestPanel::new(look.clone())));
@@ -550,7 +550,7 @@ fn main() {
         app.windows.insert(wid, win);
         {
             let win = app.windows.get_mut(&wid).unwrap();
-            // SCAFFOLDING: ROOT_SAME_TALLNESS matches test_panel.rs window setup
+            // SCAFFOLDING: ROOT_SAME_TALLNESS Match test_panel.rs window setup
             let flags = win.view().flags | ViewFlags::ROOT_SAME_TALLNESS;
             win.view_mut().set_view_flags(flags, &mut app.tree);
         }

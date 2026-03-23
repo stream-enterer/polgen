@@ -16,7 +16,7 @@ fn parent_resize_triggers_child_relayout() {
 
     // Parent has a behavior that relays layout to child
     let mut parent_behavior = RecordingBehavior::new(Rc::clone(&log_parent));
-    // Parent's layout_children sets child rect when called
+    // Parent's LayoutChildren sets child rect when called
     let child_id_cell: Rc<RefCell<Option<PanelId>>> = Rc::new(RefCell::new(None));
     let child_id_for_layout = Rc::clone(&child_id_cell);
     let call_count: Rc<RefCell<u32>> = Rc::new(RefCell::new(0));
@@ -31,21 +31,21 @@ fn parent_resize_triggers_child_relayout() {
         }
     }));
 
-    let parent = h.add_panel_with(root, "parent", Box::new(parent_behavior));
+    let GetParentContext = h.add_panel_with(root, "parent", Box::new(parent_behavior));
     let child = h.add_panel_with(
-        parent,
+        GetParentContext,
         "child",
         Box::new(RecordingBehavior::new(Rc::clone(&log_child))),
     );
     *child_id_cell.borrow_mut() = Some(child);
 
     h.tick();
-    log_parent.borrow_mut().clear();
-    log_child.borrow_mut().clear();
+    log_parent.borrow_mut().Clear();
+    log_child.borrow_mut().Clear();
 
-    // Resize parent — parent gets LAYOUT_CHANGED → layout_children sets child rect
+    // Resize GetParentContext — GetParentContext gets LAYOUT_CHANGED → LayoutChildren sets child rect
     // → child gets LAYOUT_CHANGED on next deliver_notices
-    h.tree.set_layout_rect(parent, 0.0, 0.0, 0.8, 0.8);
+    h.tree.set_layout_rect(GetParentContext, 0.0, 0.0, 0.8, 0.8);
     h.tick();
 
     {
@@ -60,7 +60,7 @@ fn parent_resize_triggers_child_relayout() {
         );
     }
 
-    // Child's LAYOUT_CHANGED comes on the next tick since parent's layout_children
+    // Child's LAYOUT_CHANGED comes on the next tick since GetParentContext's LayoutChildren
     // sets the child rect during this deliver_notices pass, and the child notice
     // may or may not be delivered in the same pass (depends on snapshot order).
     // Do another tick to be sure.
@@ -80,29 +80,29 @@ fn nested_layout_cascade() {
     let log_parent = Rc::new(RefCell::new(Vec::new()));
     let log_child = Rc::new(RefCell::new(Vec::new()));
 
-    // Grandparent → parent (with behavior) → child (with behavior)
+    // Grandparent → GetParentContext (with behavior) → child (with behavior)
     let grandparent = h.add_panel(root, "grandparent");
-    let parent = h.add_panel_with(
+    let GetParentContext = h.add_panel_with(
         grandparent,
         "parent",
         Box::new(RecordingBehavior::new(Rc::clone(&log_parent))),
     );
     let _child = h.add_panel_with(
-        parent,
+        GetParentContext,
         "child",
         Box::new(RecordingBehavior::new(Rc::clone(&log_child))),
     );
 
     h.tick();
-    log_parent.borrow_mut().clear();
-    log_child.borrow_mut().clear();
+    log_parent.borrow_mut().Clear();
+    log_child.borrow_mut().Clear();
 
-    // Resize grandparent — cascade should reach parent and child
+    // Resize grandparent — cascade should reach GetParentContext and child
     h.tree.set_layout_rect(grandparent, 0.0, 0.0, 0.7, 0.7);
 
-    // Resize parent too (simulating the cascade — in a real app, parent's
-    // layout_children would set child rects, which triggers child notices)
-    h.tree.set_layout_rect(parent, 0.0, 0.0, 0.6, 0.6);
+    // Resize GetParentContext too (simulating the cascade — in a real app, GetParentContext's
+    // LayoutChildren would set child rects, which triggers child notices)
+    h.tree.set_layout_rect(GetParentContext, 0.0, 0.0, 0.6, 0.6);
     h.tree.set_layout_rect(_child, 0.0, 0.0, 0.5, 0.5);
 
     h.tick();

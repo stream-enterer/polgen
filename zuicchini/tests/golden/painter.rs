@@ -264,7 +264,7 @@ fn painter_gradient_radial() {
             emColor::TRANSPARENT,
         );
     }
-    // Residual: C++ uses integer sqrt lookup table for gradient; Rust uses f64 sqrt.
+    // Residual: C++ uses integer sqrt Lookup table for gradient; Rust uses f64 sqrt.
     // max_diff=50 at polygon boundary AA, 25.08% of pixels differ at ch_tol=1.
     // Gradient interior: pixel-perfect (integer sqrt table matching C++).
     // Residual: ellipse polygon boundary AA (~0.05% pixels, structural).
@@ -300,7 +300,7 @@ fn painter_line_thick() {
     {
         let mut p = white_painter(&mut img);
         let stroke = emStroke {
-            color: emColor::BLUE,
+            GetColor: emColor::BLUE,
             width: 8.0,
             join: LineJoin::Round,
             cap: LineCap::Round,
@@ -461,7 +461,7 @@ fn painter_outline_round_rect() {
             &emStroke::new(emColor::BLACK, 3.0),
         );
     }
-    // Residual: arc approximation segment count differs slightly from C++.
+    // Residual: arc approximation segment GetCount differs slightly from C++.
     // max_diff=162, 0.21% of pixels differ at ch_tol=1.
     compare_images("outline_round_rect", img.data(), &expected, ew, eh, 2, 0.5).unwrap();
 }
@@ -585,7 +585,7 @@ fn painter_image_scaled() {
         let mut p = white_painter(&mut img);
         p.paint_image_full(28.0, 28.0, 200.0, 200.0, &src, 255, emColor::TRANSPARENT);
     }
-    // Adaptive interpolation matches C++ UQ_ADAPTIVE; remaining ±1 diffs from
+    // Adaptive interpolation Match C++ UQ_ADAPTIVE; remaining ±1 diffs from
     // FP rounding in Hermite factor table computation.
     compare_images("image_scaled", img.data(), &expected, ew, eh, 1, 0.5).unwrap();
 }
@@ -649,7 +649,7 @@ fn painter_polyline() {
     {
         let mut p = white_painter(&mut img);
         let stroke = emStroke {
-            color: emColor::BLACK,
+            GetColor: emColor::BLACK,
             width: 4.0,
             join: LineJoin::Round,
             cap: LineCap::Round,
@@ -975,14 +975,14 @@ fn painter_transform_nested() {
     let mut img = white_canvas(ew, eh);
     {
         let mut p = white_painter(&mut img);
-        // Inner: translate(50,50) then scale(2,2), paint red rect
+        // Inner: translate(50,50) then scale(2,2), PaintContent red rect
         p.push_state();
         p.translate(50.0, 50.0);
         p.push_state();
         p.scale(2.0, 2.0);
         p.paint_rect(0.0, 0.0, 30.0, 30.0, emColor::RED, emColor::TRANSPARENT);
         p.pop_state();
-        // Outer: translate(50,50) only, paint blue rect
+        // Outer: translate(50,50) only, PaintContent blue rect
         p.paint_rect(
             0.0,
             0.0,

@@ -1,7 +1,7 @@
 //! Tree-expansion demo derived from C++ `TreeExpansionExample.cpp`.
 //!
-//! Each panel fills itself with its background color and, on auto-expand,
-//! creates four children whose color is the inverse of the parent's.
+//! Each panel fills itself with its background GetColor and, on auto-expand,
+//! creates four children whose GetColor is the inverse of the GetParentContext's.
 //! Zooming into any panel reveals the next level.
 
 use zuicchini::emCore::emColor::emColor;
@@ -17,11 +17,11 @@ struct MyPanel {
 }
 
 impl PanelBehavior for MyPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         self.bg.IsOpaque()
     }
 
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         painter.paint_rect(0.0, 0.0, w, h, self.bg, emColor::TRANSPARENT);
     }
 
@@ -29,12 +29,12 @@ impl PanelBehavior for MyPanel {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let children = ctx.children();
         let rect = ctx.layout_rect();
         let h = rect.h / rect.w;
 
-        if !children.is_empty() {
+        if !children.IsEmpty() {
             // Reposition existing children.
             for (idx, child) in children.iter().enumerate() {
                 let i = idx;
@@ -45,7 +45,7 @@ impl PanelBehavior for MyPanel {
             return;
         }
 
-        // Create four children with inverted color.
+        // Create four children with inverted GetColor.
         let inv = emColor::rgba(
             255 - self.bg.GetRed(),
             255 - self.bg.GetGreen(),

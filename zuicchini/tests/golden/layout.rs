@@ -19,7 +19,7 @@ macro_rules! require_golden {
 }
 
 /// Create a tree with a root + N children, set root rect, attach behavior,
-/// run layout_children, return child rects as (x,y,w,h) tuples.
+/// run LayoutChildren, return child rects as (x,y,w,h) tuples.
 fn run_layout(
     behavior: Box<dyn PanelBehavior>,
     n_children: usize,
@@ -43,7 +43,7 @@ fn run_layout(
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -88,13 +88,13 @@ fn run_linear_layout(
         .collect();
 
     for (i, &id) in child_ids.iter().enumerate() {
-        let cc = if tallnesses.is_empty() {
+        let cc = if tallnesses.IsEmpty() {
             ChildConstraint {
                 weight: weights[i],
                 ..Default::default()
             }
         } else {
-            // C++ SetChildTallness(i, t) sets both min and max to the same value,
+            // C++ SetChildTallness(i, t) sets both min and max to the same GetValue,
             // fixing the aspect ratio. Match that by setting min=max=tallness.
             ChildConstraint {
                 weight: weights[i],
@@ -111,7 +111,7 @@ fn run_linear_layout(
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -129,7 +129,7 @@ fn run_linear_layout(
 const PARENT: (f64, f64, f64, f64) = (0.0, 0.0, 1000.0, 500.0);
 // After normalization, ctx.layout_rect() returns (0,0,1.0,0.5) regardless
 // of PARENT dimensions. Golden rects from C++ are already in normalized
-// space (parent width = 1.0), so scale factor is 1.0.
+// space (GetParentContext width = 1.0), so scale factor is 1.0.
 const PARENT_WIDTH: f64 = 1.0;
 
 // ─── Test 1: linear_h_equal ─────────────────────────────────────
@@ -312,7 +312,7 @@ fn layout_pack_weighted() {
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -363,7 +363,7 @@ fn layout_pack_extreme() {
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -545,7 +545,7 @@ fn layout_linear_min_cell_count() {
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -622,7 +622,7 @@ fn layout_linear_min_max_tallness() {
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -735,7 +735,7 @@ fn layout_raster_min_max_tallness() {
 }
 
 // ─── Test 29: raster_auto_cols ─────────────────────────────────────
-// No fixed column/row count — auto-compute from preferred tallness
+// No fixed column/row GetCount — auto-compute from preferred tallness
 
 #[test]
 fn layout_raster_auto_cols() {
@@ -779,7 +779,7 @@ fn layout_pack_min_cell_count() {
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -798,7 +798,7 @@ fn layout_pack_min_cell_count() {
 }
 
 // ─── Test 31: pack_single ──────────────────────────────────────────
-// Single child should fill the entire parent
+// Single child should fill the entire GetParentContext
 
 #[test]
 fn layout_pack_single() {
@@ -824,7 +824,7 @@ fn layout_pack_single() {
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -871,7 +871,7 @@ fn run_linear_layout_with_spacing(
         .collect();
 
     for (i, &id) in child_ids.iter().enumerate() {
-        let cc = if tallnesses.is_empty() {
+        let cc = if tallnesses.IsEmpty() {
             ChildConstraint {
                 weight: weights[i],
                 ..Default::default()
@@ -892,7 +892,7 @@ fn run_linear_layout_with_spacing(
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -942,7 +942,7 @@ fn run_linear_layout_aligned(
         .collect();
 
     for (i, &id) in child_ids.iter().enumerate() {
-        let cc = if tallnesses.is_empty() {
+        let cc = if tallnesses.IsEmpty() {
             ChildConstraint {
                 weight: weights[i],
                 ..Default::default()
@@ -963,7 +963,7 @@ fn run_linear_layout_aligned(
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 
@@ -1015,7 +1015,7 @@ fn run_linear_layout_adaptive(
     let mut behavior = tree.take_behavior(root).unwrap();
     {
         let mut ctx = PanelCtx::new(&mut tree, root);
-        behavior.layout_children(&mut ctx);
+        behavior.LayoutChildren(&mut ctx);
     }
     tree.put_behavior(root, behavior);
 

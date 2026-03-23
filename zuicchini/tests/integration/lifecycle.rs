@@ -9,7 +9,7 @@ fn create_tree_tick_destroy() {
     let b = h.add_panel(root, "b");
     assert_eq!(h.tree.len(), 3);
 
-    // Tick delivers notices (children get LAYOUT_CHANGED from set_layout_rect)
+    // Tick delivers notices (children GetRec LAYOUT_CHANGED from set_layout_rect)
     h.tick();
 
     // Remove all children
@@ -56,7 +56,7 @@ fn remove_panel_with_engine() {
 
     struct DummyEngine;
     impl emEngine for DummyEngine {
-        fn cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
+        fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
             false
         }
     }

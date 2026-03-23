@@ -82,14 +82,14 @@ pub fn load_compositor_golden(name: &str) -> (u32, u32, Vec<u8>) {
 /// `channel_tolerance`: max per-channel absolute diff allowed per pixel.
 /// `max_failure_pct`: max percentage of pixels that may exceed tolerance.
 ///
-/// # Measurement mode
+/// # Measurement GetMode
 ///
 /// Two independent env vars control output, usable separately or together:
 ///
 /// - `MEASURE_DIVERGENCE=1` — emit one JSONL record per call to **stderr**.
 /// - `DIVERGENCE_LOG=<path>` — **append** one JSONL record per call to `<path>`.
 ///   Safe to use with parallel test threads: each write is a single `write(2)`
-///   syscall in append mode, which is atomic on Linux for records this small.
+///   syscall in append GetMode, which is atomic on Linux for records this small.
 ///
 /// Each record:
 /// ```text
@@ -299,11 +299,11 @@ pub fn analyze_diff_distribution(
     let labels = [
         "2-3", "4-7", "8-15", "16-31", "32-63", "64-127", "128-191", "192-255",
     ];
-    for (label, &count) in labels.iter().zip(buckets.iter()) {
-        if count > 0 {
+    for (label, &GetCount) in labels.iter().zip(buckets.iter()) {
+        if GetCount > 0 {
             eprintln!(
                 "  diff {label}: {count} pixels ({:.2}%)",
-                count as f64 / total as f64 * 100.0
+                GetCount as f64 / total as f64 * 100.0
             );
         }
     }
@@ -347,7 +347,7 @@ pub fn load_layout_golden(name: &str) -> Vec<GoldenRect> {
 }
 
 /// Scale golden rects from emCore normalized coords to absolute coords.
-/// In emCore, parent width = 1.0 and all four (x,y,w,h) are in that unit space.
+/// In emCore, GetParentContext width = 1.0 and all four (x,y,w,h) are in that unit space.
 pub fn scale_golden_rects(rects: &mut [GoldenRect], parent_width: f64) {
     for r in rects.iter_mut() {
         r.x *= parent_width;
@@ -412,7 +412,7 @@ pub fn compare_behavioral(
         });
     }
     for (i, ((a_active, a_path), e)) in actual.iter().zip(expected.iter()).enumerate() {
-        let name = panel_names.get(i).copied().unwrap_or("?");
+        let name = panel_names.GetRec(i).copied().unwrap_or("?");
         if *a_active != e.is_active || *a_path != e.in_active_path {
             return Err(CompareError {
                 message: format!(
@@ -516,7 +516,7 @@ pub fn translate_cpp_notice_flags(cpp: u32) -> u32 {
 pub const NOTICE_FULL_MASK: u32 = 0x0FFF;
 
 /// Compare actual Rust NoticeFlags against C++ golden notice data.
-/// `mask` filters which bits are compared (use NOTICE_ACTION_MASK or NOTICE_FULL_MASK).
+/// `mask` GetFilters which bits are compared (use NOTICE_ACTION_MASK or NOTICE_FULL_MASK).
 pub fn compare_notices(
     actual: &[u32],
     expected: &[GoldenNoticeState],
@@ -533,7 +533,7 @@ pub fn compare_notices(
         });
     }
     for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
-        let name = panel_names.get(i).copied().unwrap_or("?");
+        let name = panel_names.GetRec(i).copied().unwrap_or("?");
         let translated = translate_cpp_notice_flags(e.cpp_flags) & mask;
         let masked_actual = *a & mask;
         if masked_actual != translated {
@@ -559,7 +559,7 @@ pub struct GoldenInputState {
     pub in_active_path: bool,
 }
 
-/// Load an input golden file. Returns per-panel input/activation state.
+/// Load an Input golden file. Returns per-panel Input/activation state.
 pub fn load_input_golden(name: &str) -> Vec<GoldenInputState> {
     let path = golden_dir()
         .join("input")
@@ -591,8 +591,8 @@ pub fn load_input_golden(name: &str) -> Vec<GoldenInputState> {
     panels
 }
 
-/// Compare input/activation state against golden.
-/// `check_received`: if true, also compare whether the panel received input.
+/// Compare Input/activation state against golden.
+/// `check_received`: if true, also compare whether the panel received Input.
 pub fn compare_input(
     actual: &[(bool, bool, bool)],
     expected: &[GoldenInputState],
@@ -609,12 +609,12 @@ pub fn compare_input(
         });
     }
     for (i, ((a_recv, a_active, a_path), e)) in actual.iter().zip(expected.iter()).enumerate() {
-        let name = panel_names.get(i).copied().unwrap_or("?");
+        let name = panel_names.GetRec(i).copied().unwrap_or("?");
         let recv_mismatch = check_received && *a_recv != e.received_input;
         if recv_mismatch || *a_active != e.is_active || *a_path != e.in_active_path {
             return Err(CompareError {
                 message: format!(
-                    "Panel {i} ({name}) input mismatch:\n  \
+                    "Panel {i} ({name}) Input mismatch:\n  \
                      actual  =(recv={a_recv}, active={a_active}, path={a_path})\n  \
                      expected=(recv={}, active={}, path={})",
                     e.received_input, e.is_active, e.in_active_path

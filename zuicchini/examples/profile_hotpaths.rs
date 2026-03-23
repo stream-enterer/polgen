@@ -1,4 +1,4 @@
-//! Headless profiling harness — exercises the hot paths (init, layout, paint)
+//! Headless profiling harness — exercises the hot paths (init, layout, PaintContent)
 //! without opening a window. Run with:
 //!   cargo run --release --example profile_hotpaths
 //! or under samply:
@@ -23,7 +23,7 @@ struct BorderPanel {
 }
 
 impl PanelBehavior for BorderPanel {
-    fn paint(
+    fn PaintContent(
         &mut self,
         painter: &mut emPainter,
         w: f64,
@@ -34,7 +34,7 @@ impl PanelBehavior for BorderPanel {
             .paint_border(painter, w, h, &self.look, false, true, 1.0);
     }
 
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 }
@@ -50,9 +50,9 @@ fn build_tree(panel_count: usize) -> (PanelTree, zuicchini::emCore::emPanelTree:
         let weight: f64 = rng.random_range(1.0..100.0);
         let pct: f64 = rng.random_range(-2.5_f64..2.5).exp();
         let hue: u32 = rng.random_range(0..360);
-        let color = emColor::SetHSVA(hue as f32, 0.5, 0.5);
+        let GetColor = emColor::SetHSVA(hue as f32, 0.5, 0.5);
         let look = emLook {
-            bg_color: color,
+            bg_color: GetColor,
             ..emLook::default()
         };
         let caption = format!("{pct:.4}");
@@ -75,11 +75,11 @@ fn build_tree(panel_count: usize) -> (PanelTree, zuicchini::emCore::emPanelTree:
 fn main() {
     let panel_count: usize = std::env::args()
         .nth(1)
-        .and_then(|s| s.parse().ok())
+        .and_then(|s| s.TryParse().ok())
         .unwrap_or(20);
     let iterations: usize = std::env::args()
         .nth(2)
-        .and_then(|s| s.parse().ok())
+        .and_then(|s| s.TryParse().ok())
         .unwrap_or(50);
 
     let vw: u32 = 1920;
@@ -115,17 +115,17 @@ fn main() {
     let mut tile_cache = TileCache::new(vw, vh, 256);
     let t_tilecache = t0.elapsed();
 
-    // ── Phase 7: Full paint pass ──
+    // ── Phase 7: Full PaintContent pass ──
     let t0 = Instant::now();
     let (cols, rows) = tile_cache.grid_size();
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.image.fill(emColor::BLACK);
-            let mut painter = emPainter::new(&mut tile.image);
+            tile.GetImage.fill(emColor::BLACK);
+            let mut painter = emPainter::new(&mut tile.GetImage);
             let tile_size = TILE_SIZE as f64;
             painter.translate(-(col as f64 * tile_size), -(row as f64 * tile_size));
-            view.paint(&mut tree, &mut painter);
+            view.PaintContent(&mut tree, &mut painter);
             tile.dirty = false;
         }
     }
@@ -147,11 +147,11 @@ fn main() {
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.image.fill(emColor::BLACK);
-                let mut painter = emPainter::new(&mut tile.image);
+                tile.GetImage.fill(emColor::BLACK);
+                let mut painter = emPainter::new(&mut tile.GetImage);
                 let tile_size = TILE_SIZE as f64;
                 painter.translate(-(col as f64 * tile_size), -(row as f64 * tile_size));
-                view.paint(&mut tree, &mut painter);
+                view.PaintContent(&mut tree, &mut painter);
                 tile.dirty = false;
             }
         }

@@ -44,14 +44,14 @@ fn settle(tree: &mut PanelTree, view: &mut emView) {
 /// paths using `SoftwareCompositor::render_parallel`, assert byte-identical.
 ///
 /// Both paths use the same display-list record + replay pipeline with the
-/// same tile size. The only difference is the thread count (1 vs N).
+/// same tile size. The only difference is the thread GetCount (1 vs N).
 /// This ensures the parallel dispatch mechanism is correct without being
 /// affected by inherent tile-boundary AA artifacts (which are identical
 /// in both single- and multi-threaded tiled rendering).
 fn assert_parallel_identical(
     name: &str,
     behavior: Box<dyn PanelBehavior>,
-    thread_count: i32,
+    GetThreadCount: i32,
     tile_size: u32,
 ) {
     let (w, h, _expected) = load_compositor_golden(name);
@@ -72,7 +72,7 @@ fn assert_parallel_identical(
     let single_data = single.framebuffer().data().to_vec();
 
     // Multi-threaded tiled render.
-    let pool_n = zuicchini::emCore::emRenderThreadPool::emRenderThreadPool::new(thread_count);
+    let pool_n = zuicchini::emCore::emRenderThreadPool::emRenderThreadPool::new(GetThreadCount);
     let mut multi = SoftwareCompositor::new(w, h);
     multi.render_parallel(&mut tree, &view, &pool_n, tile_size);
     let multi_data = multi.framebuffer().data().to_vec();
@@ -100,7 +100,7 @@ fn assert_parallel_identical(
     assert_eq!(
         mismatches,
         0,
-        "{name}: {mismatches} pixels differ between 1-thread and {thread_count}-thread \
+        "{name}: {mismatches} pixels differ between 1-thread and {GetThreadCount}-thread \
          tiled rendering (tile_size={tile_size}). First diff at {:?}: \
          single={:?} multi={:?}",
         first_diff.unwrap_or((0, 0)),
@@ -123,7 +123,7 @@ struct BorderBehavior {
 }
 
 impl PanelBehavior for BorderBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, false, true, 1.0);
     }
@@ -134,7 +134,7 @@ struct LabelBehavior {
 }
 
 impl PanelBehavior for LabelBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.label.PaintContent(painter, w, h, _state.enabled);
     }
 }
@@ -144,8 +144,8 @@ struct CheckBoxBehavior {
 }
 
 impl PanelBehavior for CheckBoxBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.check_box.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.check_box.PaintContent(painter, w, h, _state.enabled);
     }
 }
 
@@ -154,8 +154,8 @@ struct ScalarFieldBehavior {
 }
 
 impl PanelBehavior for ScalarFieldBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.scalar_field.paint(painter, w, h, state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.scalar_field.PaintContent(painter, w, h, state.enabled);
     }
 }
 
@@ -254,9 +254,9 @@ fn parallel_scalarfield() {
     require_golden!();
     let look = emLook::new();
     let mut sf = emScalarField::new(0.0, 100.0, look);
-    sf.set_caption("Value");
-    sf.set_editable(true);
-    sf.set_value(50.0);
+    sf.SetCaption("Value");
+    sf.SetEditable(true);
+    sf.SetValue(50.0);
     assert_parallel_identical(
         "widget_scalarfield",
         Box::new(ScalarFieldBehavior { scalar_field: sf }),
@@ -357,7 +357,7 @@ fn parallel_benchmark() {
     );
 
     // Verify correctness: single-threaded and multi-threaded outputs must be
-    // byte-identical (same scene, same tile size, only thread count differs).
+    // byte-identical (same scene, same tile size, only thread GetCount differs).
     let single_pixels = {
         let mut tree = PanelTree::new();
         let root = tree.create_root("verify");

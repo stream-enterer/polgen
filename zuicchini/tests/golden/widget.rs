@@ -83,7 +83,7 @@ impl BorderBehavior {
 }
 
 impl PanelBehavior for BorderBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, false, true, 1.0);
     }
@@ -95,7 +95,7 @@ struct LabelBehavior {
 }
 
 impl PanelBehavior for LabelBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.label.PaintContent(painter, w, h, _state.enabled);
     }
 }
@@ -106,8 +106,8 @@ struct ButtonBehavior {
 }
 
 impl PanelBehavior for ButtonBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.button.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.button.PaintContent(painter, w, h, _state.enabled);
     }
 }
 
@@ -117,8 +117,8 @@ struct CheckBoxBehavior {
 }
 
 impl PanelBehavior for CheckBoxBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.check_box.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.check_box.PaintContent(painter, w, h, _state.enabled);
     }
 }
 
@@ -128,8 +128,8 @@ struct TextFieldBehavior {
 }
 
 impl PanelBehavior for TextFieldBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.text_field.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.text_field.PaintContent(painter, w, h, _state.enabled);
     }
 }
 
@@ -139,8 +139,8 @@ struct ScalarFieldBehavior {
 }
 
 impl PanelBehavior for ScalarFieldBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.scalar_field.paint(painter, w, h, state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.scalar_field.PaintContent(painter, w, h, state.enabled);
     }
 }
 
@@ -171,7 +171,7 @@ fn render_and_compare_tol(
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         name,
         actual,
         &expected,
@@ -180,11 +180,11 @@ fn render_and_compare_tol(
         channel_tolerance,
         max_failure_pct,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images(name, actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, channel_tolerance);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test 1: widget_border_rect ─────────────────────────────────
@@ -307,7 +307,7 @@ fn widget_button_normal() {
 fn widget_checkbox_unchecked() {
     require_golden!();
     let look = emLook::new();
-    // Residual from checkbox image 9-slice section boundary rounding (~4.8%)
+    // Residual from checkbox GetImage 9-slice section boundary rounding (~4.8%)
     render_and_compare_tol(
         "widget_checkbox_unchecked",
         Box::new(CheckBoxBehavior {
@@ -326,7 +326,7 @@ fn widget_checkbox_checked() {
     let look = emLook::new();
     let mut cb = emCheckBox::new("Check Option", look);
     cb.SetChecked(true);
-    // Residual from checkbox image + text rendering diffs (~5.1%)
+    // Residual from checkbox GetImage + text rendering diffs (~5.1%)
     render_and_compare_tol(
         "widget_checkbox_checked",
         Box::new(CheckBoxBehavior { check_box: cb }),
@@ -342,8 +342,8 @@ fn widget_textfield_empty() {
     require_golden!();
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_caption("Name");
-    tf.set_editable(true);
+    tf.SetCaption("Name");
+    tf.SetEditable(true);
     render_and_compare_tol(
         "widget_textfield_empty",
         Box::new(TextFieldBehavior { text_field: tf }),
@@ -359,8 +359,8 @@ fn widget_textfield_content() {
     require_golden!();
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_caption("Name");
-    tf.set_editable(true);
+    tf.SetCaption("Name");
+    tf.SetEditable(true);
     tf.set_text("Hello");
     // Residual from 9-slice border interpolation + text rendering diffs
     render_and_compare_tol(
@@ -378,9 +378,9 @@ fn widget_scalarfield() {
     require_golden!();
     let look = emLook::new();
     let mut sf = emScalarField::new(0.0, 100.0, look);
-    sf.set_caption("Value");
-    sf.set_editable(true);
-    sf.set_value(50.0);
+    sf.SetCaption("Value");
+    sf.SetEditable(true);
+    sf.SetValue(50.0);
     // Residual from 9-slice border interpolation + text rendering diffs (~4.7%)
     render_and_compare_tol(
         "widget_scalarfield",
@@ -398,8 +398,8 @@ struct RadioButtonBehavior {
 }
 
 impl PanelBehavior for RadioButtonBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.radio_button.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.radio_button.PaintContent(painter, w, h, _state.enabled);
     }
 }
 
@@ -409,8 +409,8 @@ struct ListBoxBehavior {
 }
 
 impl PanelBehavior for ListBoxBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.list_box.paint(painter, w, h);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.list_box.PaintContent(painter, w, h);
     }
 }
 
@@ -420,8 +420,8 @@ struct SplitterBehavior {
 }
 
 impl PanelBehavior for SplitterBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.splitter.paint(painter, w, h, _state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.splitter.PaintContent(painter, w, h, _state.enabled);
     }
 }
 
@@ -437,8 +437,8 @@ fn widget_colorfield() {
 
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    cf.set_caption("Color");
-    cf.set_color(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 255));
+    cf.SetCaption("Color");
+    cf.SetColor(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 255));
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -463,12 +463,12 @@ fn widget_colorfield() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("widget_colorfield", actual, &expected, w, h, 3, 3.5);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("widget_colorfield", actual, &expected, w, h, 3, 3.5);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test 13: widget_radiobutton ───────────────────────────────
@@ -496,13 +496,13 @@ fn widget_listbox() {
     require_golden!();
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_caption("Items");
-    lb.add_item("item0".to_string(), "Alpha".to_string());
-    lb.add_item("item1".to_string(), "Beta".to_string());
-    lb.add_item("item2".to_string(), "Gamma".to_string());
-    lb.add_item("item3".to_string(), "Delta".to_string());
-    lb.add_item("item4".to_string(), "Epsilon".to_string());
-    lb.set_selected_index(2);
+    lb.SetCaption("Items");
+    lb.AddItem("item0".to_string(), "Alpha".to_string());
+    lb.AddItem("item1".to_string(), "Beta".to_string());
+    lb.AddItem("item2".to_string(), "Gamma".to_string());
+    lb.AddItem("item3".to_string(), "Delta".to_string());
+    lb.AddItem("item4".to_string(), "Epsilon".to_string());
+    lb.SetSelectedIndex(2);
     // Residual from 9-slice boundary + text rendering + arch diff (~8.8%)
     render_and_compare_tol(
         "widget_listbox",
@@ -535,8 +535,8 @@ fn widget_splitter_v() {
     require_golden!();
     let look = emLook::new();
     let mut sp = emSplitter::new(Orientation::Vertical, look);
-    sp.set_position(0.3);
-    // Residual from 9-slice interpolation rounding + grip position (~1.7%)
+    sp.SetPos(0.3);
+    // Residual from 9-slice interpolation rounding + grip GetPos (~1.7%)
     render_and_compare_tol(
         "widget_splitter_v",
         Box::new(SplitterBehavior { splitter: sp }),
@@ -547,28 +547,28 @@ fn widget_splitter_v() {
 
 // ─── Test 17: colorfield_expanded ─────────────────────────────
 
-/// Wraps a emColorField as a PanelBehavior with layout_children delegation
+/// Wraps a emColorField as a PanelBehavior with LayoutChildren delegation
 /// for auto-expanded child panels.
 struct ColorFieldExpandedBehavior {
     color_field: emColorField,
 }
 
 impl PanelBehavior for ColorFieldExpandedBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.color_field.paint(painter, w, h);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.color_field.PaintContent(painter, w, h);
     }
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         // Create expansion children on first layout call (triggered by auto-expand).
-        if ctx.children().is_empty() {
+        if ctx.children().IsEmpty() {
             self.color_field.create_expansion_children(ctx);
         }
         let rect = ctx.layout_rect();
-        self.color_field.layout_children(ctx, rect.w, rect.h);
+        self.color_field.LayoutChildren(ctx, rect.w, rect.h);
     }
 }
 
@@ -581,10 +581,10 @@ fn colorfield_expanded() {
 
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    cf.set_caption("Color");
-    cf.set_editable(true);
-    cf.set_alpha_enabled(true);
-    cf.set_color(zuicchini::emCore::emColor::emColor::rgba(0xBB, 0x22, 0x22, 0xFF));
+    cf.SetCaption("Color");
+    cf.SetEditable(true);
+    cf.SetAlphaEnabled(true);
+    cf.SetColor(zuicchini::emCore::emColor::emColor::rgba(0xBB, 0x22, 0x22, 0xFF));
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -610,12 +610,12 @@ fn colorfield_expanded() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("colorfield_expanded", actual, &expected, w, h, 3, 4.0);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("colorfield_expanded", actual, &expected, w, h, 3, 4.0);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("colorfield_expanded", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test 18: listbox_expanded ────────────────────────────────
@@ -626,17 +626,17 @@ struct ListBoxExpandedBehavior {
 }
 
 impl PanelBehavior for ListBoxExpandedBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.list_box.paint(painter, w, h);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.list_box.PaintContent(painter, w, h);
     }
 
     fn auto_expand(&self) -> bool {
         true
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         // Create item child panels on first layout call.
-        if ctx.children().is_empty() {
+        if ctx.children().IsEmpty() {
             self.list_box.create_item_children(ctx);
         }
         let rect = ctx.layout_rect();
@@ -644,7 +644,7 @@ impl PanelBehavior for ListBoxExpandedBehavior {
     }
 }
 
-/// Expanded emListBox with 7 items, 3 multi-selected.
+/// Expanded emListBox with 7 items, 3 multi-GetChecked.
 /// C++ renders child DefaultItemPanel panels laid out by emRasterGroup grid.
 #[test]
 fn listbox_expanded() {
@@ -653,8 +653,8 @@ fn listbox_expanded() {
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_caption("Items");
-    lb.set_selection_mode(zuicchini::emCore::emListBox::SelectionMode::Multi);
+    lb.SetCaption("Items");
+    lb.SetSelectionType(zuicchini::emCore::emListBox::SelectionMode::Multi);
     lb.set_items(
         ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta", "Eta"]
             .iter()
@@ -685,12 +685,12 @@ fn listbox_expanded() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("listbox_expanded", actual, &expected, w, h, 3, 2.0);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("listbox_expanded", actual, &expected, w, h, 3, 2.0);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("listbox_expanded", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-1: widget_border_rect_extreme_tall ──────────────────────
@@ -721,7 +721,7 @@ fn golden_widget_border_rect_extreme_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_border_rect_extreme_tall",
         actual,
         &expected,
@@ -730,11 +730,11 @@ fn golden_widget_border_rect_extreme_tall() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_rect_extreme_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-2: widget_border_rect_extreme_wide ─────────────────────
@@ -765,7 +765,7 @@ fn golden_widget_border_rect_extreme_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_border_rect_extreme_wide",
         actual,
         &expected,
@@ -774,11 +774,11 @@ fn golden_widget_border_rect_extreme_wide() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_rect_extreme_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-3: widget_border_roundrect_thin ─────────────────────────
@@ -809,7 +809,7 @@ fn golden_widget_border_roundrect_thin() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_border_roundrect_thin",
         actual,
         &expected,
@@ -818,11 +818,11 @@ fn golden_widget_border_roundrect_thin() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_roundrect_thin", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-4: widget_border_instrument_cramped ─────────────────────
@@ -854,7 +854,7 @@ fn golden_widget_border_instrument_cramped() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_border_instrument_cramped",
         actual,
         &expected,
@@ -863,11 +863,11 @@ fn golden_widget_border_instrument_cramped() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_instrument_cramped", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-5: widget_label_single_char ─────────────────────────────
@@ -893,7 +893,7 @@ fn golden_widget_label_single_char() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_label_single_char",
         actual,
         &expected,
@@ -902,11 +902,11 @@ fn golden_widget_label_single_char() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_label_single_char", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-6: widget_label_empty ───────────────────────────────────
@@ -932,7 +932,7 @@ fn golden_widget_label_empty() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_label_empty",
         actual,
         &expected,
@@ -941,11 +941,11 @@ fn golden_widget_label_empty() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_label_empty", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-7: widget_label_long_narrow ─────────────────────────────
@@ -974,7 +974,7 @@ fn golden_widget_label_long_narrow() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_label_long_narrow",
         actual,
         &expected,
@@ -983,11 +983,11 @@ fn golden_widget_label_long_narrow() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_label_long_narrow", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1012,7 +1012,7 @@ struct TunnelBehavior {
 }
 
 impl PanelBehavior for TunnelBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.tunnel.paint_tunnel(painter, w, h);
     }
 }
@@ -1024,8 +1024,8 @@ fn widget_tunnel() {
 
     let look = emLook::new();
     let mut tunnel = emTunnel::new(look).with_caption("Tunnel Test");
-    tunnel.set_depth(10.0);
-    tunnel.set_child_tallness(0.75);
+    tunnel.SetDepth(10.0);
+    tunnel.SetChildTallness(0.75);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1040,12 +1040,12 @@ fn widget_tunnel() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("widget_tunnel", actual, &expected, w, h, 3, 10.0);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("widget_tunnel", actual, &expected, w, h, 3, 10.0);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_tunnel", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── CAP-0026: widget_file_panel ───────────────────────────────
@@ -1082,12 +1082,12 @@ fn widget_file_selection_box() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("widget_file_selection_box", actual, &expected, w, h, 3, 5.0);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("widget_file_selection_box", actual, &expected, w, h, 3, 5.0);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_file_selection_box", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-8: widget_textfield_empty_wide ──────────────────────────
@@ -1099,8 +1099,8 @@ fn golden_widget_textfield_empty_wide() {
 
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_caption("Name");
-    tf.set_editable(true);
+    tf.SetCaption("Name");
+    tf.SetEditable(true);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1115,7 +1115,7 @@ fn golden_widget_textfield_empty_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_textfield_empty_wide",
         actual,
         &expected,
@@ -1124,11 +1124,11 @@ fn golden_widget_textfield_empty_wide() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_textfield_empty_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-9: widget_textfield_single_char_square ──────────────────
@@ -1140,8 +1140,8 @@ fn golden_widget_textfield_single_char_square() {
 
     let look = emLook::new();
     let mut tf = emTextField::new(look);
-    tf.set_caption("Name");
-    tf.set_editable(true);
+    tf.SetCaption("Name");
+    tf.SetEditable(true);
     tf.set_text("A");
 
     let mut tree = PanelTree::new();
@@ -1157,7 +1157,7 @@ fn golden_widget_textfield_single_char_square() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_textfield_single_char_square",
         actual,
         &expected,
@@ -1166,11 +1166,11 @@ fn golden_widget_textfield_single_char_square() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_textfield_single_char_square", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-10: widget_scalarfield_min_value ────────────────────────
@@ -1182,9 +1182,9 @@ fn golden_widget_scalarfield_min_value() {
 
     let look = emLook::new();
     let mut sf = emScalarField::new(-1_000_000_000_000.0, 1_000_000_000_000.0, look);
-    sf.set_caption("Value");
-    sf.set_editable(true);
-    sf.set_value(-1_000_000_000_000.0);
+    sf.SetCaption("Value");
+    sf.SetEditable(true);
+    sf.SetValue(-1_000_000_000_000.0);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1199,7 +1199,7 @@ fn golden_widget_scalarfield_min_value() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_scalarfield_min_value",
         actual,
         &expected,
@@ -1208,11 +1208,11 @@ fn golden_widget_scalarfield_min_value() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_scalarfield_min_value", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-11: widget_scalarfield_max_value ────────────────────────
@@ -1224,9 +1224,9 @@ fn golden_widget_scalarfield_max_value() {
 
     let look = emLook::new();
     let mut sf = emScalarField::new(-1_000_000_000_000.0, 1_000_000_000_000.0, look);
-    sf.set_caption("Value");
-    sf.set_editable(true);
-    sf.set_value(1_000_000_000_000.0);
+    sf.SetCaption("Value");
+    sf.SetEditable(true);
+    sf.SetValue(1_000_000_000_000.0);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1241,7 +1241,7 @@ fn golden_widget_scalarfield_max_value() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_scalarfield_max_value",
         actual,
         &expected,
@@ -1250,11 +1250,11 @@ fn golden_widget_scalarfield_max_value() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_scalarfield_max_value", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-12: widget_scalarfield_zero_range ───────────────────────
@@ -1266,9 +1266,9 @@ fn golden_widget_scalarfield_zero_range() {
 
     let look = emLook::new();
     let mut sf = emScalarField::new(50.0, 50.0, look);
-    sf.set_caption("Value");
-    sf.set_editable(true);
-    sf.set_value(50.0);
+    sf.SetCaption("Value");
+    sf.SetEditable(true);
+    sf.SetValue(50.0);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1283,7 +1283,7 @@ fn golden_widget_scalarfield_zero_range() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_scalarfield_zero_range",
         actual,
         &expected,
@@ -1292,11 +1292,11 @@ fn golden_widget_scalarfield_zero_range() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_scalarfield_zero_range", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-13: widget_listbox_empty ────────────────────────────────
@@ -1308,7 +1308,7 @@ fn golden_widget_listbox_empty() {
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_caption("Items");
+    lb.SetCaption("Items");
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1323,7 +1323,7 @@ fn golden_widget_listbox_empty() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_listbox_empty",
         actual,
         &expected,
@@ -1332,11 +1332,11 @@ fn golden_widget_listbox_empty() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_listbox_empty", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-14: widget_listbox_single ───────────────────────────────
@@ -1348,8 +1348,8 @@ fn golden_widget_listbox_single() {
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_caption("Items");
-    lb.add_item("item0".to_string(), "Solo".to_string());
+    lb.SetCaption("Items");
+    lb.AddItem("item0".to_string(), "Solo".to_string());
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1364,7 +1364,7 @@ fn golden_widget_listbox_single() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_listbox_single",
         actual,
         &expected,
@@ -1373,11 +1373,11 @@ fn golden_widget_listbox_single() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_listbox_single", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-15: widget_listbox_extreme_wide ─────────────────────────
@@ -1389,10 +1389,10 @@ fn golden_widget_listbox_extreme_wide() {
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_caption("Items");
-    lb.add_item("item0".to_string(), "Alpha".to_string());
-    lb.add_item("item1".to_string(), "Beta".to_string());
-    lb.add_item("item2".to_string(), "Gamma".to_string());
+    lb.SetCaption("Items");
+    lb.AddItem("item0".to_string(), "Alpha".to_string());
+    lb.AddItem("item1".to_string(), "Beta".to_string());
+    lb.AddItem("item2".to_string(), "Gamma".to_string());
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1407,7 +1407,7 @@ fn golden_widget_listbox_extreme_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_listbox_extreme_wide",
         actual,
         &expected,
@@ -1416,11 +1416,11 @@ fn golden_widget_listbox_extreme_wide() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_listbox_extreme_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-16: widget_splitter_h_pos0 ──────────────────────────────
@@ -1432,7 +1432,7 @@ fn golden_widget_splitter_h_pos0() {
 
     let look = emLook::new();
     let mut sp = emSplitter::new(Orientation::Horizontal, look);
-    sp.set_position(0.0);
+    sp.SetPos(0.0);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1447,7 +1447,7 @@ fn golden_widget_splitter_h_pos0() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_splitter_h_pos0",
         actual,
         &expected,
@@ -1456,11 +1456,11 @@ fn golden_widget_splitter_h_pos0() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_splitter_h_pos0", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-17: widget_splitter_h_pos1 ──────────────────────────────
@@ -1472,7 +1472,7 @@ fn golden_widget_splitter_h_pos1() {
 
     let look = emLook::new();
     let mut sp = emSplitter::new(Orientation::Horizontal, look);
-    sp.set_position(1.0);
+    sp.SetPos(1.0);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1487,7 +1487,7 @@ fn golden_widget_splitter_h_pos1() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_splitter_h_pos1",
         actual,
         &expected,
@@ -1496,11 +1496,11 @@ fn golden_widget_splitter_h_pos1() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_splitter_h_pos1", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-18: widget_splitter_v_extreme_tall ──────────────────────
@@ -1512,7 +1512,7 @@ fn golden_widget_splitter_v_extreme_tall() {
 
     let look = emLook::new();
     let mut sp = emSplitter::new(Orientation::Vertical, look);
-    sp.set_position(0.5);
+    sp.SetPos(0.5);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1527,7 +1527,7 @@ fn golden_widget_splitter_v_extreme_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_splitter_v_extreme_tall",
         actual,
         &expected,
@@ -1536,11 +1536,11 @@ fn golden_widget_splitter_v_extreme_tall() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_splitter_v_extreme_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-21: widget_checkbox_extreme_tall ─────────────────────────
@@ -1566,7 +1566,7 @@ fn golden_widget_checkbox_extreme_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_checkbox_extreme_tall",
         actual,
         &expected,
@@ -1575,11 +1575,11 @@ fn golden_widget_checkbox_extreme_tall() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_checkbox_extreme_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-22: widget_tunnel_extreme_wide ──────────────────────────
@@ -1591,8 +1591,8 @@ fn golden_widget_tunnel_extreme_wide() {
 
     let look = emLook::new();
     let mut tunnel = emTunnel::new(look).with_caption("Tunnel");
-    tunnel.set_depth(10.0);
-    tunnel.set_child_tallness(0.75);
+    tunnel.SetDepth(10.0);
+    tunnel.SetChildTallness(0.75);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1607,7 +1607,7 @@ fn golden_widget_tunnel_extreme_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_tunnel_extreme_wide",
         actual,
         &expected,
@@ -1616,11 +1616,11 @@ fn golden_widget_tunnel_extreme_wide() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_tunnel_extreme_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-19: widget_colorfield_alpha_zero ─────────────────────────
@@ -1632,8 +1632,8 @@ fn golden_widget_colorfield_alpha_zero() {
 
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    cf.set_caption("Color");
-    cf.set_color(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 0));
+    cf.SetCaption("Color");
+    cf.SetColor(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 0));
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1656,7 +1656,7 @@ fn golden_widget_colorfield_alpha_zero() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_colorfield_alpha_zero",
         actual,
         &expected,
@@ -1665,11 +1665,11 @@ fn golden_widget_colorfield_alpha_zero() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield_alpha_zero", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-20a: widget_colorfield_alpha_opaque ──────────────────────
@@ -1681,8 +1681,8 @@ fn golden_widget_colorfield_alpha_opaque() {
 
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    cf.set_caption("Color");
-    cf.set_color(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 255));
+    cf.SetCaption("Color");
+    cf.SetColor(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 255));
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1705,7 +1705,7 @@ fn golden_widget_colorfield_alpha_opaque() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_colorfield_alpha_opaque",
         actual,
         &expected,
@@ -1714,11 +1714,11 @@ fn golden_widget_colorfield_alpha_opaque() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield_alpha_opaque", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── BV-20b: widget_colorfield_alpha_near ────────────────────────
@@ -1730,8 +1730,8 @@ fn golden_widget_colorfield_alpha_near() {
 
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    cf.set_caption("Color");
-    cf.set_color(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 1));
+    cf.SetCaption("Color");
+    cf.SetColor(zuicchini::emCore::emColor::emColor::rgba(255, 0, 0, 1));
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1754,7 +1754,7 @@ fn golden_widget_colorfield_alpha_near() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "widget_colorfield_alpha_near",
         actual,
         &expected,
@@ -1763,11 +1763,11 @@ fn golden_widget_colorfield_alpha_near() {
         1,
         0.5,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield_alpha_near", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test: composition_border_nest ──────────────────────────────
@@ -1828,8 +1828,8 @@ fn composition_border_nest() {
     // C++: new Testable<emTextField>(*inner, "textfield", "Field", "", emImage(), "Hello", true)
     let tf_id = tree.create_child(inner_id, "textfield");
     let mut tf = emTextField::new(look.clone());
-    tf.set_caption("Field");
-    tf.set_editable(true);
+    tf.SetCaption("Field");
+    tf.SetEditable(true);
     tf.set_text("Hello");
     tree.set_behavior(tf_id, Box::new(TextFieldBehavior { text_field: tf }));
 
@@ -1852,11 +1852,11 @@ fn composition_border_nest() {
     let actual = compositor.framebuffer().data();
 
     // Rust emLinearGroup positions children slightly differently from C++ emLinearLayout
-    // due to content_rect rounding in the OBT_ROUND_RECT/IBT_GROUP border hierarchy.
-    // This causes ~35% pixel mismatch at tol=3 (child position offsets ~40-60px).
+    // due to GetContentRect rounding in the OBT_ROUND_RECT/IBT_GROUP border hierarchy.
+    // This causes ~35% pixel mismatch at tol=3 (child GetPos offsets ~40-60px).
     // Tolerance relaxed to accommodate the structural layout difference while still
     // verifying the overall widget composition renders without crashes or corruption.
-    let result = compare_images(
+    let GetResult = compare_images(
         "composed_border_nest",
         actual,
         &expected,
@@ -1865,28 +1865,28 @@ fn composition_border_nest() {
         3,
         40.0,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("composed_border_nest", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test: composition_splitter_content ─────────────────────────
 
-/// Wraps a emSplitter with layout_children for composition tests.
+/// Wraps a emSplitter with LayoutChildren for composition tests.
 struct SplitterCompositionBehavior {
     splitter: emSplitter,
 }
 
 impl PanelBehavior for SplitterCompositionBehavior {
-    fn paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.splitter.paint(painter, w, h, state.enabled);
+    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.splitter.PaintContent(painter, w, h, state.enabled);
     }
 
-    fn layout_children(&mut self, ctx: &mut PanelCtx) {
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let rect = ctx.layout_rect();
-        self.splitter.layout_children(ctx, rect.w, rect.h);
+        self.splitter.LayoutChildren(ctx, rect.w, rect.h);
     }
 
     fn auto_expand(&self) -> bool {
@@ -1909,7 +1909,7 @@ fn composition_splitter_content() {
 
     // Root: horizontal splitter, pos=0.5, no border (OBT_NONE/IBT_NONE)
     let mut sp = emSplitter::new(Orientation::Horizontal, look.clone());
-    sp.set_position(0.5);
+    sp.SetPos(0.5);
 
     let mut tree = PanelTree::new();
     let root = tree.create_root("test");
@@ -1922,7 +1922,7 @@ fn composition_splitter_content() {
 
     // Left child: emBorder with OBT_Rect/IBT_None, caption "Left".
     // In C++, emBorder positions children at default off-screen — so they're invisible.
-    // We use BorderBehavior (paint-only, no child layout) to match.
+    // We use BorderBehavior (PaintContent-only, no child layout) to match.
     let left_id = tree.create_child(root, "left");
     tree.set_behavior(
         left_id,
@@ -1935,7 +1935,7 @@ fn composition_splitter_content() {
     );
 
     // C++ children exist in the tree but are never positioned/visible.
-    // Create them so the tree structure matches, but they'll remain off-screen.
+    // Create them so the tree structure Match, but they'll remain off-screen.
     let _cf_id = tree.create_child(left_id, "color");
     let _lb_id = tree.create_child(left_id, "list");
 
@@ -1968,7 +1968,7 @@ fn composition_splitter_content() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "composed_splitter_content",
         actual,
         &expected,
@@ -1977,11 +1977,11 @@ fn composition_splitter_content() {
         3,
         5.0,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("composed_splitter_content", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test: composition_scrolled_listbox_in_border ───────────────
@@ -2001,7 +2001,7 @@ fn composition_scrolled_listbox_in_border() {
     let root = tree.create_root("border");
 
     // C++: emBorder with OBT_ROUND_RECT/IBT_NONE, caption "Scrolled List"
-    // emBorder does not layout children — use paint-only BorderBehavior.
+    // emBorder does not layout children — use PaintContent-only BorderBehavior.
     tree.set_layout_rect(root, 0.0, 0.0, 800.0 / 600.0, 1.0);
     tree.set_behavior(
         root,
@@ -2016,11 +2016,11 @@ fn composition_scrolled_listbox_in_border() {
     // emListBox child exists in tree but won't be visible (emBorder default positions).
     let lb_id = tree.create_child(root, "list");
     let mut lb = emListBox::new(look);
-    lb.set_caption("Items");
+    lb.SetCaption("Items");
     for i in 1..=50 {
-        lb.add_item(format!("item{}", i - 1), format!("Item {}", i));
+        lb.AddItem(format!("item{}", i - 1), format!("Item {}", i));
     }
-    lb.set_selected_index(24); // Item 25 (0-based index 24)
+    lb.SetSelectedIndex(24); // Item 25 (0-based index 24)
     tree.set_behavior(lb_id, Box::new(ListBoxBehavior { list_box: lb }));
 
     let mut view = emView::new(root, 800.0, 600.0);
@@ -2037,7 +2037,7 @@ fn composition_scrolled_listbox_in_border() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images(
+    let GetResult = compare_images(
         "composed_scrolled_listbox",
         actual,
         &expected,
@@ -2046,11 +2046,11 @@ fn composition_scrolled_listbox_in_border() {
         1,
         2.0,
     );
-    if result.is_err() && dump_golden_enabled() {
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("composed_scrolled_listbox", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test: composition_colorfield_expansion_wide ────────────────
@@ -2058,7 +2058,7 @@ fn composition_scrolled_listbox_in_border() {
 /// emBorder (OBT_RoundRect, IBT_Group) containing a emColorField, rendered at 800x400
 /// (wide aspect ratio). In C++, emBorder doesn't auto-layout children, so the
 /// golden data shows only the border shape. Verifies border rendering differs
-/// correctly between wide and tall aspects after substance_round_rect fixes.
+/// correctly between wide and tall aspects after GetSubstanceRect fixes.
 #[test]
 fn composition_colorfield_expansion_wide() {
     require_golden!();
@@ -2099,19 +2099,19 @@ fn composition_colorfield_expansion_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("composed_colorfield_wide", actual, &expected, w, h, 1, 2.0);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("composed_colorfield_wide", actual, &expected, w, h, 1, 2.0);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("composed_colorfield_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 // ─── Test: composition_colorfield_expansion_tall ────────────────
 
 /// emBorder (OBT_RoundRect, IBT_Group) containing a emColorField, rendered at 400x800
 /// (tall aspect ratio). Same hierarchy as the wide variant, verifying that the
-/// border shape adapts correctly to tall geometry.
+/// border shape adapts correctly to tall Restore.
 #[test]
 fn composition_colorfield_expansion_tall() {
     require_golden!();
@@ -2152,12 +2152,12 @@ fn composition_colorfield_expansion_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().data();
 
-    let result = compare_images("composed_colorfield_tall", actual, &expected, w, h, 1, 2.0);
-    if result.is_err() && dump_golden_enabled() {
+    let GetResult = compare_images("composed_colorfield_tall", actual, &expected, w, h, 1, 2.0);
+    if GetResult.is_err() && dump_golden_enabled() {
         dump_test_images("composed_colorfield_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    result.unwrap();
+    GetResult.unwrap();
 }
 
 /// Golden test: render a view with STRESS_TEST active and verify the overlay
@@ -2196,9 +2196,9 @@ fn stress_test_overlay_golden() {
 
     // The overlay should make the images differ. compare_images returns Err
     // when images diverge beyond tolerance — we EXPECT divergence here.
-    let result = compare_images("stress_test_overlay", actual, &baseline, w, h, 0, 0.0);
+    let GetResult = compare_images("stress_test_overlay", actual, &baseline, w, h, 0, 0.0);
     assert!(
-        result.is_err(),
+        GetResult.is_err(),
         "stress test overlay should produce visible pixel differences vs baseline"
     );
 

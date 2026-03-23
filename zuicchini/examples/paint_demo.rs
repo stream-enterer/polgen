@@ -1,4 +1,4 @@
-//! Paint demo derived from C++ `PaintExample.cpp` and `emTestPanel.cpp` paint section.
+//! Paint demo derived from C++ `PaintExample.cpp` and `emTestPanel.cpp` PaintContent section.
 //!
 //! A single panel exercising every major emPainter drawing primitive:
 //! images, rectangles, ellipses, polygons, lines, beziers, gradients,
@@ -40,11 +40,11 @@ impl PaintPanel {
 }
 
 impl PanelBehavior for PaintPanel {
-    fn is_opaque(&self) -> bool {
+    fn IsOpaque(&self) -> bool {
         true
     }
 
-    fn paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         // Background
         p.paint_rect(0.0, 0.0, w, h, emColor::WHITE, emColor::TRANSPARENT);
 
@@ -258,7 +258,7 @@ impl PanelBehavior for PaintPanel {
         p.paint_polygon_textured(
             &star3,
             &emTexture::emImage {
-                image: self.test_image.clone(),
+                GetImage: self.test_image.clone(),
                 extension: ImageExtension::Repeat,
                 quality: ImageQuality::Bilinear,
             },
