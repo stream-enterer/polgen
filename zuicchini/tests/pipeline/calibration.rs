@@ -26,13 +26,13 @@ use super::support::pipeline::PipelineTestHarness;
 /// panel tree. Delegates PaintContent/Input to the underlying widget.
 struct ScalarFieldBehavior {
     sf: emScalarField,
-    /// Shared handle so the test can read the GetValue after interaction.
-    GetValue: Rc<RefCell<f64>>,
+    /// Shared handle so the test can read the value after interaction.
+    value: Rc<RefCell<f64>>,
 }
 
 impl ScalarFieldBehavior {
-    fn new(sf: emScalarField, GetValue: Rc<RefCell<f64>>) -> Self {
-        Self { sf, GetValue }
+    fn new(sf: emScalarField, value: Rc<RefCell<f64>>) -> Self {
+        Self { sf, value }
     }
 }
 
@@ -48,8 +48,8 @@ impl PanelBehavior for ScalarFieldBehavior {
         input_state: &emInputState,
     ) -> bool {
         let consumed = self.sf.Input(event, state, input_state);
-        // Sync the shared GetValue so the test can observe it.
-        *self.GetValue.borrow_mut() = self.sf.GetValue();
+        // Sync the shared value so the test can observe it.
+        *self.value.borrow_mut() = self.sf.GetValue();
         consumed
     }
 
@@ -62,10 +62,10 @@ impl PanelBehavior for ScalarFieldBehavior {
     }
 }
 
-/// Dragging on a emScalarField should change its GetValue. This test fails because
+/// Dragging on a emScalarField should change its value. This test fails because
 /// of a known bug where `CheckMouse` passes the wrong height to
 /// `GetContentRoundRect`, causing mouse hit-testing to reject all drag
-/// positions and leaving the GetValue unchanged.
+/// positions and leaving the value unchanged.
 #[test]
 fn scalarfield_drag_changes_value() {
     let look = emLook::new();
@@ -73,14 +73,14 @@ fn scalarfield_drag_changes_value() {
     sf.SetValue(50.0);
     sf.SetEditable(true);
 
-    let GetValue = Rc::new(RefCell::new(50.0));
-    let value_read = GetValue.clone();
+    let value = Rc::new(RefCell::new(50.0));
+    let value_read = value.clone();
 
-    let behavior = ScalarFieldBehavior::new(sf, GetValue);
+    let behavior = ScalarFieldBehavior::new(sf, value);
 
     // Set up the pipeline harness (800x600 viewport).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Add the emScalarField as a child panel filling the entire root.
     let _panel_id = h.add_panel_with(root, "scalar_field", Box::new(behavior));
@@ -97,7 +97,7 @@ fn scalarfield_drag_changes_value() {
 
     // At 1x zoom, the panel fills the 800x600 viewport. The emScalarField's
     // scale area is within the content rect (after border insets). We drag
-    // from the center (50% GetValue) to a point 80% across horizontally.
+    // from the center (50% value) to a point 80% across horizontally.
     //
     // emView-space coordinates: the panel maps to the full viewport.
     let center_x = 400.0; // 50% of 800
@@ -111,7 +111,7 @@ fn scalarfield_drag_changes_value() {
     let final_value = *value_read.borrow();
     assert!(
         (final_value - 50.0).abs() > 1.0,
-        "emScalarField GetValue should have changed from 50.0 after drag, but it is still {final_value:.1}. \
+        "emScalarField value should have changed from 50.0 after drag, but it is still {final_value:.1}. \
          This is a known bug: CheckMouse passes height=0.0 to GetContentRoundRect, \
          causing all mouse positions to fall outside the scale area."
     );
@@ -190,7 +190,7 @@ impl PanelBehavior for ColorFieldBehavior {
 #[test]
 fn colorfield_expansion_creates_child_sliders() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Create a emColorField panel with behavior.
     let look = emLook::new();
@@ -373,7 +373,7 @@ fn button_click_works_after_zoom() {
     }
 
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let _panel_id = h.add_panel_with(root, "button", Box::new(BtnPanel { widget: btn2 }));
     h.tick_n(5);
 
@@ -382,7 +382,7 @@ fn button_click_works_after_zoom() {
     compositor.render(&mut h.tree, &h.view);
 
     // Click at viewport center at 1x -- should work (calibration).
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         clicked.get(),
         "Pipeline calibration: button should fire at 1x zoom"
@@ -398,7 +398,7 @@ fn button_click_works_after_zoom() {
     // uses hit_test() which normalizes. The CheckMouse bug does not
     // affect the pipeline. If this assertion starts failing, the bug
     // has spread beyond CheckMouse into the pipeline.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         clicked.get(),
         "Pipeline: button should fire at 2x zoom (hit_test normalizes correctly). \
@@ -479,7 +479,7 @@ fn listbox_click_selects_correct_item() {
     let lb_ref = Rc::new(RefCell::new(lb));
 
     // ── 3. Add it as a panel with behavior ───────────────────────
-    let root = harness.GetRootPanel();
+    let root = harness.get_root_panel();
     let panel_id = harness.add_panel_with(
         root,
         "listbox",
@@ -520,20 +520,20 @@ fn listbox_click_selects_correct_item() {
     let click_y = vr.y + vr.h * (2.5 / 5.0);
 
     // ── 8. Click at the computed coordinates ─────────────────────
-    harness.Click(click_x, click_y);
+    harness.click(click_x, click_y);
 
     // ── 9. Assert that item 2 was GetChecked ───────────────────────
     // BUG: The Click always selects item 0 due to coordinate space
     // mismatch between normalized panel-local coords and pixel-space
     // GetContentRect computation.
-    let GetChecked = lb_ref.borrow().GetSelectedIndex();
+    let checked = lb_ref.borrow().GetSelectedIndex();
     assert_eq!(
-        GetChecked,
+        checked,
         Some(2),
         "Expected clicking on item 2 to select it, but got {:?}. \
          This is the known bug: emListBox Click always selects the first \
          item because GetContentRect is computed in pixel space while mouse \
          coordinates arrive in normalized panel-local space.",
-        GetChecked
+        checked
     );
 }

@@ -38,7 +38,7 @@ fn input_mouse_hit() {
     let expected = load_input_golden("input_mouse_hit");
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let child1 = h.add_panel(root, "child1");
     h.tree.Layout(child1, 0.0, 0.0, 0.5, 1.0);
@@ -81,7 +81,7 @@ fn input_key_to_focused() {
     let expected = load_input_golden("input_key_to_focused");
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let child1 = h.add_panel(root, "child1");
     h.tree.Layout(child1, 0.0, 0.0, 0.5, 1.0);
@@ -126,7 +126,7 @@ fn input_scroll_delta() {
     let expected = load_input_golden("input_scroll_delta");
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let child1 = h.add_panel(root, "child1");
     h.tree.Layout(child1, 0.0, 0.0, 0.5, 1.0);
@@ -169,7 +169,7 @@ fn input_mouse_miss() {
     let expected = load_input_golden("input_mouse_miss");
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     h.tree.Layout(root, 0.0, 0.0, 1.0, 0.5); // Only covers top half
     let child1 = h.add_panel(root, "child1");
@@ -210,7 +210,7 @@ fn input_nested_hit() {
     let expected = load_input_golden("input_nested_hit");
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     h.tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
     let child1 = h.add_panel(root, "child1");
@@ -265,7 +265,7 @@ fn input_drag_sequence() {
     let expected = load_input_golden("input_drag_sequence");
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let child1 = h.add_panel(root, "child1");
     h.tree.Layout(child1, 0.0, 0.0, 0.5, 1.0);

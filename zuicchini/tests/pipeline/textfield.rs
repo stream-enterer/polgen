@@ -74,7 +74,7 @@ fn setup_textfield_harness() -> (PipelineTestHarness, Rc<RefCell<emTextField>>) 
     let tf_ref = Rc::new(RefCell::new(tf));
 
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let _panel_id = h.add_panel_with(
         root,
         "text_field",
@@ -118,7 +118,7 @@ fn textfield_type_1x_and_2x() {
     render(&mut h, 800, 600);
 
     // Click at viewport center to focus the text field panel.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Type "abc" through the full pipeline.
     type_string(&mut h, "abc");
@@ -150,7 +150,7 @@ fn textfield_type_1x_and_2x() {
     render(&mut h, 800, 600);
 
     // Click at viewport center to re-focus.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Type "xyz" at 2x zoom.
     type_string(&mut h, "xyz");
@@ -179,7 +179,7 @@ fn textfield_backspace_1x_and_2x() {
     render(&mut h, 800, 600);
 
     // Focus
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // ── 1x: type "hello", backspace twice → "hel" ─────────────────────
     type_string(&mut h, "hello");
@@ -206,7 +206,7 @@ fn textfield_backspace_1x_and_2x() {
     h.tick_n(5);
     render(&mut h, 800, 600);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     type_string(&mut h, "world");
     assert_eq!(tf_ref.borrow().GetText(), "world");
 
@@ -229,7 +229,7 @@ fn textfield_arrow_navigation() {
     render(&mut h, 800, 600);
 
     // Focus and type initial text.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     type_string(&mut h, "abcde");
     assert_eq!(tf_ref.borrow().GetCursorIndex(), 5);
 
@@ -274,7 +274,7 @@ fn textfield_insert_at_cursor() {
     let (mut h, tf_ref) = setup_textfield_harness();
     render(&mut h, 800, 600);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     type_string(&mut h, "ac");
     assert_eq!(tf_ref.borrow().GetText(), "ac");
 
@@ -301,7 +301,7 @@ fn textfield_delete_key() {
     let (mut h, tf_ref) = setup_textfield_harness();
     render(&mut h, 800, 600);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     type_string(&mut h, "abcd");
 
     // Move to GetPos 1 (after 'a').
@@ -336,7 +336,7 @@ fn textfield_non_editable_rejects_input() {
     tf_ref.borrow_mut().SetEditable(false);
 
     render(&mut h, 800, 600);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     type_string(&mut h, "abc");
 
@@ -356,7 +356,7 @@ fn textfield_prepopulated_text() {
     tf_ref.borrow_mut().SetText("hello");
 
     render(&mut h, 800, 600);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // The Click positions the cursor at the Click location within the text,
     // so move to the end explicitly before typing.
@@ -384,7 +384,7 @@ fn textfield_type_across_zoom_levels() {
 
     // ── 1x: type "foo" ─────────────────────────────────────────────────
     render(&mut h, 800, 600);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     type_string(&mut h, "foo");
     assert_eq!(tf_ref.borrow().GetText(), "foo");
 
@@ -396,7 +396,7 @@ fn textfield_type_across_zoom_levels() {
     // Click at a slightly different GetPos to avoid double-Click detection
     // with the prior Click (same coords within 500ms would trigger word
     // selection, replacing existing text on the next typed character).
-    h.Click(410.0, 310.0);
+    h.click(410.0, 310.0);
 
     // Move cursor to end so we append after "foo".
     h.press_key(InputKey::End);
@@ -426,7 +426,7 @@ fn setup_nav_harness(text: &str, cursor_pos: usize) -> (PipelineTestHarness, Rc<
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
 
     render(&mut h, 800, 600);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // After Click, cursor may have moved to Click GetPos; restore it.
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
@@ -447,7 +447,7 @@ fn setup_multiline_nav_harness(
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
 
     render(&mut h, 800, 600);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
     tf_ref.borrow_mut().EmptySelection();
@@ -1440,7 +1440,7 @@ fn textfield_single_click_positions_cursor() {
     render(&mut h, 800, 600);
 
     // First Click ever on this widget — guaranteed single Click (no prior click_time).
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     // The cursor should be positioned somewhere within the text range.
@@ -1472,7 +1472,7 @@ fn textfield_single_click_clears_selection() {
 
     // First Click on this widget instance — guaranteed single Click.
     // Single Click without Shift should Clear existing selection.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     assert!(
@@ -1497,8 +1497,8 @@ fn textfield_double_click_selects_word() {
     // Click at center — this should be roughly in "bar" given the text layout.
     // Two rapid clicks at the same GetPos trigger double-Click via time-based
     // detection (click_count increments from 1 to 2).
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     // Double-Click selects a word boundary segment. The GetChecked text should
@@ -1540,9 +1540,9 @@ fn textfield_triple_click_selects_line() {
     render(&mut h, 800, 600);
 
     // Three rapid clicks at the same GetPos.
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     // In single-line GetMode, triple-Click should select the entire text (full row).
@@ -1570,9 +1570,9 @@ fn textfield_triple_click_selects_row_multiline() {
 
     // Triple-Click — the exact row depends on the y coordinate, but at center
     // of the viewport, in multi-line with 3 rows, it should hit one of the rows.
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     // Selection should cover exactly one row (including the trailing \n for non-last rows).
@@ -1605,7 +1605,7 @@ fn textfield_drag_selects_text() {
     render(&mut h, 800, 600);
 
     // Focus first with a Click (at a different y to avoid double-Click with drag).
-    h.Click(400.0, 310.0);
+    h.click(400.0, 310.0);
 
     // Drag within content area: start left of center, end right of center.
     // Both points must be within the border's content round rect.
@@ -1640,7 +1640,7 @@ fn textfield_drag_right_to_left_selects_text() {
     render(&mut h, 800, 600);
 
     // Focus at offset y to avoid double-Click detection.
-    h.Click(400.0, 310.0);
+    h.click(400.0, 310.0);
 
     // Drag right to left within content area.
     h.drag(500.0, 300.0, 300.0, 300.0);
@@ -1773,13 +1773,13 @@ fn textfield_shift_click_extends_selection() {
     render(&mut h, 800, 600);
 
     // Click at center to focus.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     let initial_pos = tf_ref.borrow().GetCursorIndex();
 
     // Shift+Click at a distinctly different x within content area.
     // Use offset y to avoid double-Click detection.
     h.input_state.press(InputKey::Shift);
-    h.Click(550.0, 300.0);
+    h.click(550.0, 300.0);
     h.input_state.release(InputKey::Shift);
 
     let tf = tf_ref.borrow();
@@ -1811,7 +1811,7 @@ fn textfield_shift_click_from_known_cursor() {
 
     // Now Shift+Click at center of viewport.
     h.input_state.press(InputKey::Shift);
-    h.Click(500.0, 300.0);
+    h.click(500.0, 300.0);
     h.input_state.release(InputKey::Shift);
 
     let tf = tf_ref.borrow();
@@ -1839,10 +1839,10 @@ fn textfield_quad_click_selects_all() {
 
     render(&mut h, 800, 600);
 
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     let tf = tf_ref.borrow();
     assert_eq!(tf.GetSelectionStartIndex(), 0);
@@ -1915,7 +1915,7 @@ fn setup_clipboard_harness(
     tf_ref.borrow_mut().on_clipboard_paste = Some(Box::new(move || paste_text.clone()));
 
     render(&mut h, 800, 600);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Restore cursor GetPos and Clear any selection the Click created.
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
@@ -2186,7 +2186,7 @@ fn textfield_drag_publishes_selection() {
 
     // Drag to select some text. The drag uses view-space coords.
     // Focus Click at offset y to avoid double-Click with drag.
-    h.Click(400.0, 310.0);
+    h.click(400.0, 310.0);
 
     // Clear any copy events from the focus Click.
     copy_recorder.borrow_mut().clear();
@@ -2333,7 +2333,7 @@ fn textfield_drag_move_selected_text_moves() {
     render(&mut h, 800, 600);
 
     // Focus the field.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Select "bar" (indices 4..7) via API.
     tf_ref.borrow_mut().Select(4, 7);
@@ -2411,7 +2411,7 @@ fn textfield_drag_move_outside_widget_no_effect() {
     render(&mut h, 800, 600);
 
     // Focus the field.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Select "World" (indices 6..11).
     tf_ref.borrow_mut().Select(6, 11);
@@ -2449,7 +2449,7 @@ fn textfield_drag_move_no_selection_no_move() {
     render(&mut h, 800, 600);
 
     // Focus the field.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Ensure no selection.
     tf_ref.borrow_mut().EmptySelection();
@@ -2486,7 +2486,7 @@ fn textfield_drag_move_non_editable_no_effect() {
     render(&mut h, 800, 600);
 
     // Focus the field while still editable.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     // Select "World" (indices 6..11).
     tf_ref.borrow_mut().Select(6, 11);

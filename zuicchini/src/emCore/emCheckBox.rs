@@ -73,8 +73,8 @@ impl emCheckBox {
         &self,
         cr: &Rect,
     ) -> (f64, f64, f64, f64, f64, f64, f64) {
-        let HasLabel = self.border.HasLabel();
-        if HasLabel {
+        let has_label = self.border.HasLabel();
+        if has_label {
             let label_tallness = self.border.GetBestLabelTallness().max(0.2);
             let mut box_w = label_tallness;
             let mut d = box_w * 0.1;

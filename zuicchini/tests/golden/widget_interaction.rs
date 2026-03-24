@@ -603,7 +603,7 @@ impl PanelBehavior for SplitterLayoutBehavior {
 fn parse_splitter_layout_golden(data: &[u8]) -> Vec<[f64; 9]> {
     let steps = u32::from_le_bytes(data[0..4].try_into().unwrap()) as usize;
     assert_eq!(data.len(), 4 + steps * 72, "golden size mismatch");
-    let mut GetResult = Vec::with_capacity(steps);
+    let mut result = Vec::with_capacity(steps);
     for s in 0..steps {
         let base = 4 + s * 72;
         let mut vals = [0.0f64; 9];
@@ -611,9 +611,9 @@ fn parse_splitter_layout_golden(data: &[u8]) -> Vec<[f64; 9]> {
             let off = base + i * 8;
             vals[i] = f64::from_le_bytes(data[off..off + 8].try_into().unwrap());
         }
-        GetResult.push(vals);
+        result.push(vals);
     }
-    GetResult
+    result
 }
 
 /// Run splitter layout for a single GetPos, return [pos, c0_x, c0_y, c0_w, c0_h, c1_x, c1_y, c1_w, c1_h].

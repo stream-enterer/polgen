@@ -10,7 +10,7 @@ use crate::support::{RecordingBehavior, TestHarness};
 #[test]
 fn parent_resize_triggers_child_relayout() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log_parent = Rc::new(RefCell::new(Vec::new()));
     let log_child = Rc::new(RefCell::new(Vec::new()));
 
@@ -43,7 +43,7 @@ fn parent_resize_triggers_child_relayout() {
     log_parent.borrow_mut().clear();
     log_child.borrow_mut().clear();
 
-    // Resize GetParentContext — GetParentContext gets LAYOUT_CHANGED → LayoutChildren sets child rect
+    // Resize parent_context — parent_context gets LAYOUT_CHANGED → LayoutChildren sets child rect
     // → child gets LAYOUT_CHANGED on next deliver_notices
     h.tree.Layout(parent, 0.0, 0.0, 0.8, 0.8);
     h.tick();
@@ -60,7 +60,7 @@ fn parent_resize_triggers_child_relayout() {
         );
     }
 
-    // Child's LAYOUT_CHANGED comes on the next tick since GetParentContext's LayoutChildren
+    // Child's LAYOUT_CHANGED comes on the next tick since parent_context's LayoutChildren
     // sets the child rect during this deliver_notices pass, and the child notice
     // may or may not be delivered in the same pass (depends on snapshot order).
     // Do another tick to be sure.
@@ -76,11 +76,11 @@ fn parent_resize_triggers_child_relayout() {
 #[test]
 fn nested_layout_cascade() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log_parent = Rc::new(RefCell::new(Vec::new()));
     let log_child = Rc::new(RefCell::new(Vec::new()));
 
-    // Grandparent → GetParentContext (with behavior) → child (with behavior)
+    // Grandparent → parent_context (with behavior) → child (with behavior)
     let grandparent = h.add_panel(root, "grandparent");
     let parent = h.add_panel_with(
         grandparent,
@@ -97,10 +97,10 @@ fn nested_layout_cascade() {
     log_parent.borrow_mut().clear();
     log_child.borrow_mut().clear();
 
-    // Resize grandparent — cascade should reach GetParentContext and child
+    // Resize grandparent — cascade should reach parent_context and child
     h.tree.Layout(grandparent, 0.0, 0.0, 0.7, 0.7);
 
-    // Resize GetParentContext too (simulating the cascade — in a real app, GetParentContext's
+    // Resize parent_context too (simulating the cascade — in a real app, parent_context's
     // LayoutChildren would set child rects, which triggers child notices)
     h.tree.Layout(parent, 0.0, 0.0, 0.6, 0.6);
     h.tree.Layout(_child, 0.0, 0.0, 0.5, 0.5);
@@ -123,7 +123,7 @@ fn nested_layout_cascade() {
 #[test]
 fn layout_affects_hit_test() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Panel at left side initially
     let panel = h.add_panel(root, "movable");

@@ -2783,7 +2783,7 @@ mod tests {
 
     #[test]
     fn test_svp_selection() {
-        let (mut tree, root, child1, child2) = setup_tree();
+        let (mut tree, root, _child1, _child2) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
         view.Update(&mut tree);
 
@@ -3372,7 +3372,7 @@ mod tests {
     fn tree_dump_produces_valid_emrec() {
         use crate::emCore::emRec::parse_rec_with_format;
 
-        let (mut tree, root, child1, child2) = setup_tree();
+        let (mut tree, root, _child1, _child2) = setup_tree();
         let view = emView::new(root, 800.0, 600.0);
 
         let path = view.dump_tree(&mut tree);

@@ -53,12 +53,12 @@ pub fn build_scaled_tree(panel_count: usize) -> (PanelTree, emView, PanelId) {
 
         'outer: while created < panel_count {
             let mut next_parents = Vec::new();
-            for &GetParentContext in &parents {
+            for &parent in &parents {
                 for child_idx in 0..branching {
                     if created >= panel_count {
                         break 'outer;
                     }
-                    let child = tree.create_child(GetParentContext, &format!("p{created}"));
+                    let child = tree.create_child(parent, &format!("p{created}"));
                     let siblings = branching.min(panel_count - created + child_idx);
                     let x = child_idx as f64 / siblings as f64;
                     let w = 1.0 / siblings as f64;
@@ -104,7 +104,7 @@ pub fn run_one_scaled_frame(
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(viewport_buf);
-        view.PaintContent(tree, &mut painter);
+        view.Paint(tree, &mut painter);
     }
 
     view.clear_viewport_changed();

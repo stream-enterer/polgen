@@ -75,7 +75,7 @@ fn radiobutton_select_1x_and_2x() {
 
     // ── Build pipeline harness (800x600 viewport) ────────────────────
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Each radio button gets its own child panel, stacked vertically:
     //   panel 0: y=0.00..0.33  (top third)
@@ -115,7 +115,7 @@ fn radiobutton_select_1x_and_2x() {
     // ── 1x zoom: Click each radio button ─────────────────────────────
     {
         let (cx, cy) = panel_center(&h, panel0);
-        h.Click(cx, cy);
+        h.click(cx, cy);
         assert_eq!(
             group.borrow().GetChecked(),
             Some(0),
@@ -124,7 +124,7 @@ fn radiobutton_select_1x_and_2x() {
     }
     {
         let (cx, cy) = panel_center(&h, panel1);
-        h.Click(cx, cy);
+        h.click(cx, cy);
         assert_eq!(
             group.borrow().GetChecked(),
             Some(1),
@@ -133,7 +133,7 @@ fn radiobutton_select_1x_and_2x() {
     }
     {
         let (cx, cy) = panel_center(&h, panel2);
-        h.Click(cx, cy);
+        h.click(cx, cy);
         assert_eq!(
             group.borrow().GetChecked(),
             Some(2),
@@ -148,7 +148,7 @@ fn radiobutton_select_1x_and_2x() {
 
     {
         let (cx, cy) = panel_center(&h, panel0);
-        h.Click(cx, cy);
+        h.click(cx, cy);
         assert_eq!(
             group.borrow().GetChecked(),
             Some(0),
@@ -157,7 +157,7 @@ fn radiobutton_select_1x_and_2x() {
     }
     {
         let (cx, cy) = panel_center(&h, panel1);
-        h.Click(cx, cy);
+        h.click(cx, cy);
         assert_eq!(
             group.borrow().GetChecked(),
             Some(1),
@@ -166,7 +166,7 @@ fn radiobutton_select_1x_and_2x() {
     }
     {
         let (cx, cy) = panel_center(&h, panel2);
-        h.Click(cx, cy);
+        h.click(cx, cy);
         assert_eq!(
             group.borrow().GetChecked(),
             Some(2),
@@ -199,7 +199,7 @@ impl RadioButtonHarness {
         assert_eq!(group.borrow().GetChecked(), None);
 
         let mut h = PipelineTestHarness::new();
-        let root = h.GetRootPanel();
+        let root = h.get_root_panel();
 
         let panel0 = h.add_panel_with(root, "radio0", Box::new(RadioButtonBehavior::new(rb0)));
         h.tree
@@ -236,13 +236,13 @@ impl RadioButtonHarness {
         (vr.x + vr.w * 0.5, vr.y + vr.h * 0.5)
     }
 
-    fn GetChecked(&self) -> Option<usize> {
+    fn checked(&self) -> Option<usize> {
         self.group.borrow().GetChecked()
     }
 
     fn click_option(&mut self, index: usize) {
         let (cx, cy) = self.panel_center(index);
-        self.h.Click(cx, cy);
+        self.h.click(cx, cy);
     }
 }
 
@@ -257,10 +257,10 @@ fn bp13_click_a_selects_a_deselects_bc() {
     let mut t = RadioButtonHarness::new();
 
     t.click_option(0);
-    assert_eq!(t.GetChecked(), Some(0), "A should be selected after clicking A");
+    assert_eq!(t.checked(), Some(0), "A should be selected after clicking A");
     // Verify B and C are not GetChecked by checking group state
-    assert_ne!(t.GetChecked(), Some(1), "B must not be selected");
-    assert_ne!(t.GetChecked(), Some(2), "C must not be selected");
+    assert_ne!(t.checked(), Some(1), "B must not be selected");
+    assert_ne!(t.checked(), Some(2), "C must not be selected");
 }
 
 // ---------------------------------------------------------------------------
@@ -275,13 +275,13 @@ fn bp13_click_b_selects_b_deselects_ac() {
 
     // First select A
     t.click_option(0);
-    assert_eq!(t.GetChecked(), Some(0));
+    assert_eq!(t.checked(), Some(0));
 
     // Now Click B
     t.click_option(1);
-    assert_eq!(t.GetChecked(), Some(1), "B should be selected after clicking B");
-    assert_ne!(t.GetChecked(), Some(0), "A must be deselected");
-    assert_ne!(t.GetChecked(), Some(2), "C must not be selected");
+    assert_eq!(t.checked(), Some(1), "B should be selected after clicking B");
+    assert_ne!(t.checked(), Some(0), "A must be deselected");
+    assert_ne!(t.checked(), Some(2), "C must not be selected");
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +297,7 @@ fn bp13_click_already_selected_no_change_no_callback() {
 
     // Select A
     t.click_option(0);
-    assert_eq!(t.GetChecked(), Some(0));
+    assert_eq!(t.checked(), Some(0));
 
     // Install callback tracker AFTER initial selection
     let callbacks = Rc::new(RefCell::new(Vec::new()));
@@ -309,7 +309,7 @@ fn bp13_click_already_selected_no_change_no_callback() {
     // Click A again -- should be no-op, no callback
     t.click_option(0);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(0),
         "re-clicking already-selected must not deselect it"
     );
@@ -337,7 +337,7 @@ fn bp13_programmatic_set_check_index_fires_callback() {
 
     // Programmatically select button 2
     t.group.borrow_mut().SetCheckIndex(Some(2));
-    assert_eq!(t.GetChecked(), Some(2), "set_check_index(Some(2)) should select button 2");
+    assert_eq!(t.checked(), Some(2), "set_check_index(Some(2)) should select button 2");
     assert_eq!(
         *callbacks.borrow(),
         vec![Some(2)],
@@ -346,7 +346,7 @@ fn bp13_programmatic_set_check_index_fires_callback() {
 
     // Now change to button 0
     t.group.borrow_mut().SetCheckIndex(Some(0));
-    assert_eq!(t.GetChecked(), Some(0), "set_check_index(Some(0)) should select button 0");
+    assert_eq!(t.checked(), Some(0), "set_check_index(Some(0)) should select button 0");
     assert_eq!(
         *callbacks.borrow(),
         vec![Some(2), Some(0)],
@@ -366,7 +366,7 @@ fn bp13_programmatic_set_check_index_same_value_no_callback() {
 
     // Select button 1
     t.group.borrow_mut().SetCheckIndex(Some(1));
-    assert_eq!(t.GetChecked(), Some(1));
+    assert_eq!(t.checked(), Some(1));
 
     // Install callback tracker AFTER initial selection
     let callbacks = Rc::new(RefCell::new(Vec::new()));
@@ -377,7 +377,7 @@ fn bp13_programmatic_set_check_index_same_value_no_callback() {
 
     // Set same index again -- no-op
     t.group.borrow_mut().SetCheckIndex(Some(1));
-    assert_eq!(t.GetChecked(), Some(1));
+    assert_eq!(t.checked(), Some(1));
     assert!(
         callbacks.borrow().is_empty(),
         "no callback when set_check_index to same value"
@@ -397,18 +397,18 @@ fn bp13_enter_key_selects_radio_button() {
     // Make panel 1 the active panel so keyboard events reach it
     let (cx, cy) = t.panel_center(1);
     // Click panel 1 to make it active
-    t.h.Click(cx, cy);
+    t.h.click(cx, cy);
     // Panel 1 is now active and GetChecked via mouse Click
-    assert_eq!(t.GetChecked(), Some(1));
+    assert_eq!(t.checked(), Some(1));
 
     // Now HardResetFileState selection programmatically to test Enter independently
     t.group.borrow_mut().SetCheckIndex(None);
-    assert_eq!(t.GetChecked(), None);
+    assert_eq!(t.checked(), None);
 
     // Press Enter -- should select panel 1 (the active panel)
     t.h.press_key(InputKey::Enter);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "Enter key should select the active radio button"
     );
@@ -436,7 +436,7 @@ fn bp13_ctrl_click_rejected() {
     t.h.input_state.release(InputKey::Ctrl);
 
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         None,
         "Ctrl+click must not select a radio button"
     );
@@ -459,7 +459,7 @@ fn bp13_alt_click_rejected() {
     t.h.input_state.release(InputKey::Alt);
 
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         None,
         "Alt+click must not select a radio button"
     );
@@ -482,7 +482,7 @@ fn bp13_meta_click_rejected() {
     t.h.input_state.release(InputKey::Meta);
 
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         None,
         "Meta+click must not select a radio button"
     );
@@ -505,7 +505,7 @@ fn bp13_shift_click_accepted() {
     t.h.input_state.release(InputKey::Shift);
 
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(0),
         "Shift+click must be accepted by radio button"
     );
@@ -530,7 +530,7 @@ fn bp13_disabled_radio_rejects_input() {
     // Try clicking the disabled panel
     t.click_option(0);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         None,
         "disabled radio button must not accept clicks"
     );
@@ -538,7 +538,7 @@ fn bp13_disabled_radio_rejects_input() {
     // Enable panel 1 and verify it still works
     t.click_option(1);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "enabled radio button should still work"
     );

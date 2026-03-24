@@ -139,7 +139,7 @@ fn paint_line_basic() {
 }
 
 #[test]
-fn PaintRectOutline() {
+fn paint_rect_outline() {
     let mut img = emImage::new(20, 20, 4);
     img.fill(emColor::BLACK);
 

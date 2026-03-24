@@ -225,10 +225,11 @@ pub fn dump_golden_enabled() -> bool {
 /// Dump actual, expected, and diff images for a test.
 pub fn dump_test_images(name: &str, actual: &[u8], expected: &[u8], w: u32, h: u32) {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("golden")
-        .join("debug");
-    std::fs::create_dir_all(&dir).expect("Cannot create tests/golden/debug/");
+        .parent()
+        .unwrap()
+        .join("target")
+        .join("golden-debug");
+    std::fs::create_dir_all(&dir).expect("Cannot create target/golden-debug/");
     let dir = dir.to_str().unwrap();
     dump_ppm(&format!("{dir}/actual_{name}.ppm"), actual, w, h);
     dump_ppm(&format!("{dir}/expected_{name}.ppm"), expected, w, h);
@@ -347,7 +348,7 @@ pub fn load_layout_golden(name: &str) -> Vec<GoldenRect> {
 }
 
 /// Scale golden rects from emCore normalized coords to absolute coords.
-/// In emCore, GetParentContext width = 1.0 and all four (x,y,w,h) are in that unit space.
+/// In emCore, parent_context width = 1.0 and all four (x,y,w,h) are in that unit space.
 pub fn scale_golden_rects(rects: &mut [GoldenRect], parent_width: f64) {
     for r in rects.iter_mut() {
         r.x *= parent_width;

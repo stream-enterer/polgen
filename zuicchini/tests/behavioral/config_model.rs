@@ -10,7 +10,7 @@ use zuicchini::emCore::emScheduler::EngineScheduler;
 #[derive(Clone, Debug, PartialEq)]
 struct TestConfig {
     name: String,
-    GetCount: i32,
+    count: i32,
     ratio: f64,
     enabled: bool,
 }
@@ -19,7 +19,7 @@ impl Default for TestConfig {
     fn default() -> Self {
         Self {
             name: "default".to_string(),
-            GetCount: 0,
+            count: 0,
             ratio: 1.0,
             enabled: false,
         }
@@ -33,7 +33,7 @@ impl Record for TestConfig {
                 .get_str("name")
                 .ok_or_else(|| RecError::MissingField("name".into()))?
                 .to_string(),
-            GetCount: rec
+            count: rec
                 .get_int("count")
                 .ok_or_else(|| RecError::MissingField("count".into()))?,
             ratio: rec
@@ -46,7 +46,7 @@ impl Record for TestConfig {
     fn to_rec(&self) -> RecStruct {
         let mut s = RecStruct::new();
         s.set_str("name", &self.name);
-        s.set_int("count", self.GetCount);
+        s.set_int("count", self.count);
         s.set_double("ratio", self.ratio);
         s.set_bool("enabled", self.enabled);
         s
@@ -75,7 +75,7 @@ fn config_model_round_trip_save_load() {
 
     let original = TestConfig {
         name: "hello world".to_string(),
-        GetCount: 42,
+        count: 42,
         ratio: 3.14,
         enabled: true,
     };
@@ -122,7 +122,7 @@ fn config_model_load_or_install_reads_existing() {
     // Write a custom config first
     let custom = TestConfig {
         name: "custom".to_string(),
-        GetCount: 99,
+        count: 99,
         ratio: 2.718,
         enabled: true,
     };
@@ -160,9 +160,9 @@ fn config_model_modify_marks_dirty() {
     let sig = sched.create_signal();
 
     let mut model = emConfigModel::new(TestConfig::default(), path, sig);
-    model.modify(|c| c.GetCount = 7);
+    model.modify(|c| c.count = 7);
     assert!(model.IsUnsaved());
-    assert_eq!(model.GetRec().GetCount, 7);
+    assert_eq!(model.GetRec().count, 7);
 }
 
 #[test]
@@ -173,7 +173,7 @@ fn config_model_reset_to_default() {
 
     let custom = TestConfig {
         name: "non-default".to_string(),
-        GetCount: 100,
+        count: 100,
         ratio: 9.9,
         enabled: true,
     };
@@ -187,7 +187,7 @@ fn config_model_reset_to_default() {
 fn record_round_trip_through_rec_text() {
     let original = TestConfig {
         name: "serialized".to_string(),
-        GetCount: -5,
+        count: -5,
         ratio: 0.001,
         enabled: false,
     };

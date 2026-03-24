@@ -90,7 +90,7 @@ impl PanelBehavior for SharedCheckBoxPanel {
 fn checkbutton_toggle_1x_and_2x() {
     // 1. Create PipelineTestHarness (800x600 viewport).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // 2. Create emCheckButton (initially unchecked).
     let look = emLook::new();
@@ -116,14 +116,14 @@ fn checkbutton_toggle_1x_and_2x() {
     );
 
     // 4. At 1x: Click center -> assert checked() == true.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         cb_ref.borrow().IsChecked(),
         "CheckButton should be checked after first click at 1x"
     );
 
     // 5. Click again -> assert checked() == false (toggle back).
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         !cb_ref.borrow().IsChecked(),
         "CheckButton should be unchecked after second click at 1x"
@@ -134,14 +134,14 @@ fn checkbutton_toggle_1x_and_2x() {
     h.tick_n(5);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         cb_ref.borrow().IsChecked(),
         "CheckButton should be checked after first click at 2x"
     );
 
     // 7. Click again -> assert checked() == false.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         !cb_ref.borrow().IsChecked(),
         "CheckButton should be unchecked after second click at 2x"
@@ -156,7 +156,7 @@ fn checkbutton_toggle_1x_and_2x() {
 fn checkbox_toggle_1x_and_2x() {
     // 1. Create PipelineTestHarness (800x600 viewport).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // 2. Create emCheckBox (initially unchecked).
     let look = emLook::new();
@@ -182,14 +182,14 @@ fn checkbox_toggle_1x_and_2x() {
     );
 
     // 4. At 1x: Click center -> assert is_checked() == true.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         cb_ref.borrow().IsChecked(),
         "CheckBox should be checked after first click at 1x"
     );
 
     // 5. Click again -> assert is_checked() == false (toggle back).
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         !cb_ref.borrow().IsChecked(),
         "CheckBox should be unchecked after second click at 1x"
@@ -200,14 +200,14 @@ fn checkbox_toggle_1x_and_2x() {
     h.tick_n(5);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         cb_ref.borrow().IsChecked(),
         "CheckBox should be checked after first click at 2x"
     );
 
     // 7. Click again -> assert is_checked() == false.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         !cb_ref.borrow().IsChecked(),
         "CheckBox should be unchecked after second click at 2x"
@@ -225,7 +225,7 @@ fn setup_checkbutton_harness() -> (
     zuicchini::emCore::emPanelTree::PanelId,
 ) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let look = emLook::new();
     let cb = emCheckButton::new("Test", look);
     let cb_ref = Rc::new(RefCell::new(cb));
@@ -249,7 +249,7 @@ fn setup_checkbutton_with_recorder() -> (
     zuicchini::emCore::emPanelTree::PanelId,
 ) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let look = emLook::new();
     let mut cb = emCheckButton::new("Test", look);
     let states = Rc::new(RefCell::new(Vec::new()));
@@ -281,11 +281,11 @@ fn checkbutton_click_fires_on_check_callback() {
     let (mut h, _cb_ref, states, _panel_id) = setup_checkbutton_with_recorder();
 
     // First Click: unchecked -> checked, callback receives true
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(*states.borrow(), vec![true]);
 
     // Second Click: checked -> unchecked, callback receives false
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(*states.borrow(), vec![true, false]);
 }
 
@@ -356,8 +356,8 @@ fn checkbutton_double_click_toggles_twice() {
     let (mut h, cb_ref, states, _panel_id) = setup_checkbutton_with_recorder();
 
     // Two clicks in rapid succession
-    h.Click(400.0, 300.0);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     assert!(
         !cb_ref.borrow().IsChecked(),
@@ -380,7 +380,7 @@ fn checkbutton_enter_key_toggles() {
     let (mut h, cb_ref, states, _panel_id) = setup_checkbutton_with_recorder();
 
     // First Click to activate the panel (put it in active path for keyboard dispatch)
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(cb_ref.borrow().IsChecked());
     states.borrow_mut().clear();
 
@@ -412,7 +412,7 @@ fn checkbutton_shift_click_accepted() {
 
     // Set Shift in emInputState so dispatch's with_modifiers stamps it onto events
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Shift);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Shift);
 
     assert!(
@@ -431,7 +431,7 @@ fn checkbutton_shift_enter_accepted() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     // First Click to activate the panel (keyboard dispatch requires active path)
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(cb_ref.borrow().IsChecked());
 
     // Now Shift+Enter should toggle back
@@ -455,7 +455,7 @@ fn checkbutton_ctrl_click_rejected() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Ctrl);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Ctrl);
 
     assert!(
@@ -474,7 +474,7 @@ fn checkbutton_alt_click_rejected() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Alt);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Alt);
 
     assert!(
@@ -493,7 +493,7 @@ fn checkbutton_meta_click_rejected() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Meta);
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     h.input_state.release(zuicchini::emCore::emInput::InputKey::Meta);
 
     assert!(
@@ -512,7 +512,7 @@ fn checkbutton_ctrl_enter_rejected() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     // Activate via Click first
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(cb_ref.borrow().IsChecked());
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Ctrl);
@@ -535,7 +535,7 @@ fn checkbutton_alt_enter_rejected() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     // Activate via Click first
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(cb_ref.borrow().IsChecked());
 
     h.input_state.press(zuicchini::emCore::emInput::InputKey::Alt);
@@ -565,7 +565,7 @@ fn checkbutton_disabled_rejects_click() {
     let mut compositor = SoftwareCompositor::new(800, 600);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         !cb_ref.borrow().IsChecked(),
         "Disabled CheckButton should reject click"
@@ -608,7 +608,7 @@ fn checkbutton_reenable_accepts_input() {
     let mut compositor = SoftwareCompositor::new(800, 600);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(!cb_ref.borrow().IsChecked(), "disabled: click rejected");
 
     // Re-enable
@@ -616,7 +616,7 @@ fn checkbutton_reenable_accepts_input() {
     h.tick_n(3);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert!(
         cb_ref.borrow().IsChecked(),
         "re-enabled: click should toggle"
@@ -633,7 +633,7 @@ fn checkbutton_click_outside_no_toggle() {
     let (mut h, cb_ref, _panel_id) = setup_checkbutton_harness();
 
     // Click far outside (top-left corner, well outside content area)
-    h.Click(1.0, 1.0);
+    h.click(1.0, 1.0);
     assert!(
         !cb_ref.borrow().IsChecked(),
         "Click outside button face should not toggle"

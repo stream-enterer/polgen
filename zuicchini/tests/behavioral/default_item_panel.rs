@@ -4,7 +4,7 @@ use zuicchini::emCore::emLook::emLook;
 struct CustomPanel {
     index: usize,
     label: String,
-    GetChecked: bool,
+    checked: bool,
 }
 
 impl ItemPanelInterface for CustomPanel {
@@ -14,8 +14,8 @@ impl ItemPanelInterface for CustomPanel {
 
     fn item_data_changed(&mut self) {}
 
-    fn item_selection_changed(&mut self, GetChecked: bool) {
-        self.GetChecked = GetChecked;
+    fn item_selection_changed(&mut self, checked: bool) {
+        self.checked = checked;
     }
 
     fn item_index(&self) -> usize {
@@ -31,7 +31,7 @@ impl ItemPanelInterface for CustomPanel {
     }
 
     fn IsSelected(&self) -> bool {
-        self.GetChecked
+        self.checked
     }
 }
 
@@ -136,11 +136,11 @@ fn get_item_panel_interface_text_sync() {
 fn custom_factory_creates_custom_panels() {
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.set_item_panel_factory(|index, text, GetChecked| {
+    lb.set_item_panel_factory(|index, text, checked| {
         Box::new(CustomPanel {
             index,
             label: format!("Custom: {}", text),
-            GetChecked,
+            checked,
         })
     });
     lb.AddItem("a".to_string(), "Alpha".to_string());

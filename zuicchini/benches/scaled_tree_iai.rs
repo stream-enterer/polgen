@@ -19,22 +19,22 @@ use common::{DEFAULT_VH, DEFAULT_VW};
 
 type FrameState = (PanelTree, emView, emImage);
 
-fn setup_pan_zoom(GetCount: usize) -> FrameState {
-    let (mut tree, mut view, _) = build_scaled_tree(GetCount);
+fn setup_pan_zoom(count: usize) -> FrameState {
+    let (mut tree, mut view, _) = build_scaled_tree(count);
     let mut buf = emImage::new(DEFAULT_VW, DEFAULT_VH, 4);
     // Warmup
     run_one_scaled_frame(&mut tree, &mut view, &mut buf, 3.0, 0.0, 0.015);
     (tree, view, buf)
 }
 
-fn setup_paint(GetCount: usize) -> FrameState {
-    let (tree, view, _) = build_scaled_tree(GetCount);
+fn setup_paint(count: usize) -> FrameState {
+    let (tree, view, _) = build_scaled_tree(count);
     let buf = emImage::new(DEFAULT_VW, DEFAULT_VH, 4);
     (tree, view, buf)
 }
 
-fn setup_update(GetCount: usize) -> (PanelTree, emView) {
-    let (tree, view, _) = build_scaled_tree(GetCount);
+fn setup_update(count: usize) -> (PanelTree, emView) {
+    let (tree, view, _) = build_scaled_tree(count);
     (tree, view)
 }
 
@@ -73,7 +73,7 @@ fn paint_10(state: FrameState) {
     let (mut tree, view, mut buf) = state;
     buf.fill(emColor::BLACK);
     let mut painter = emPainter::new(&mut buf);
-    view.PaintContent(&mut tree, &mut painter);
+    view.Paint(&mut tree, &mut painter);
 }
 
 #[library_benchmark]
@@ -82,7 +82,7 @@ fn paint_50(state: FrameState) {
     let (mut tree, view, mut buf) = state;
     buf.fill(emColor::BLACK);
     let mut painter = emPainter::new(&mut buf);
-    view.PaintContent(&mut tree, &mut painter);
+    view.Paint(&mut tree, &mut painter);
 }
 
 #[library_benchmark]
@@ -91,7 +91,7 @@ fn paint_200(state: FrameState) {
     let (mut tree, view, mut buf) = state;
     buf.fill(emColor::BLACK);
     let mut painter = emPainter::new(&mut buf);
-    view.PaintContent(&mut tree, &mut painter);
+    view.Paint(&mut tree, &mut painter);
 }
 
 // ---------------------------------------------------------------------------

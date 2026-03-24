@@ -51,7 +51,7 @@ fn settle(tree: &mut PanelTree, view: &mut emView) {
 fn assert_parallel_identical(
     name: &str,
     behavior: Box<dyn PanelBehavior>,
-    GetThreadCount: i32,
+    thread_count: i32,
     tile_size: u32,
 ) {
     let (w, h, _expected) = load_compositor_golden(name);
@@ -72,7 +72,7 @@ fn assert_parallel_identical(
     let single_data = single.framebuffer().GetMap().to_vec();
 
     // Multi-threaded tiled render.
-    let pool_n = zuicchini::emCore::emRenderThreadPool::emRenderThreadPool::new(GetThreadCount);
+    let pool_n = zuicchini::emCore::emRenderThreadPool::emRenderThreadPool::new(thread_count);
     let mut multi = SoftwareCompositor::new(w, h);
     multi.render_parallel(&mut tree, &view, &pool_n, tile_size);
     let multi_data = multi.framebuffer().GetMap().to_vec();
@@ -100,7 +100,7 @@ fn assert_parallel_identical(
     assert_eq!(
         mismatches,
         0,
-        "{name}: {mismatches} pixels differ between 1-thread and {GetThreadCount}-thread \
+        "{name}: {mismatches} pixels differ between 1-thread and {thread_count}-thread \
          tiled rendering (tile_size={tile_size}). First diff at {:?}: \
          single={:?} multi={:?}",
         first_diff.unwrap_or((0, 0)),

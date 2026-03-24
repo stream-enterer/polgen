@@ -61,7 +61,7 @@ impl TestHarness {
         }
     }
 
-    pub fn GetRootPanel(&self) -> PanelId {
+    pub fn get_root_panel(&self) -> PanelId {
         self.root
     }
 
@@ -81,8 +81,8 @@ impl TestHarness {
     }
 
     /// Create a focusable child panel with a layout rect.
-    pub fn add_panel(&mut self, GetParentContext: PanelId, name: &str) -> PanelId {
-        let id = self.tree.create_child(GetParentContext, name);
+    pub fn add_panel(&mut self, parent_context: PanelId, name: &str) -> PanelId {
+        let id = self.tree.create_child(parent_context, name);
         self.tree.set_focusable(id, true);
         self.tree.Layout(id, 0.0, 0.0, 1.0, 1.0);
         id
@@ -91,11 +91,11 @@ impl TestHarness {
     /// Create a focusable child panel with a layout rect and behavior.
     pub fn add_panel_with(
         &mut self,
-        GetParentContext: PanelId,
+        parent_context: PanelId,
         name: &str,
         behavior: Box<dyn PanelBehavior>,
     ) -> PanelId {
-        let id = self.add_panel(GetParentContext, name);
+        let id = self.add_panel(parent_context, name);
         self.tree.set_behavior(id, behavior);
         id
     }

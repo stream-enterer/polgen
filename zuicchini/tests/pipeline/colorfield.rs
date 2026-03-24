@@ -71,11 +71,11 @@ impl PanelBehavior for ColorFieldBehavior {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: collect child panel names under a given GetParentContext
+// Helper: collect child panel names under a given parent_context
 // ---------------------------------------------------------------------------
-fn child_names(h: &PipelineTestHarness, GetParentContext: zuicchini::emCore::emPanelTree::PanelId) -> Vec<String> {
+fn child_names(h: &PipelineTestHarness, parent_context: zuicchini::emCore::emPanelTree::PanelId) -> Vec<String> {
     h.tree
-        .children(GetParentContext)
+        .children(parent_context)
         .filter_map(|id| h.tree.name(id).map(|n| n.to_string()))
         .collect()
 }
@@ -102,7 +102,7 @@ fn child_names(h: &PipelineTestHarness, GetParentContext: zuicchini::emCore::emP
 #[test]
 fn colorfield_expanded_has_correct_child_structure() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look);
@@ -161,7 +161,7 @@ fn colorfield_expanded_has_correct_child_structure() {
 #[test]
 fn colorfield_expanded_data_matches_initial_color() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let color = emColor::rgba(100, 150, 200, 180);
@@ -268,7 +268,7 @@ fn colorfield_expanded_various_colors() {
 
     for (label, color, check) in &test_cases {
         let mut h = PipelineTestHarness::new();
-        let root = h.GetRootPanel();
+        let root = h.get_root_panel();
 
         let look = emLook::new();
         let behavior = ColorFieldBehavior::new(look).with_color(*color);
@@ -330,7 +330,7 @@ fn colorfield_no_children_before_expansion() {
     use zuicchini::emCore::emPanelTree::ViewConditionType;
 
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look);
@@ -375,7 +375,7 @@ fn colorfield_no_children_before_expansion() {
 #[test]
 fn colorfield_expanded_name_field_initialized() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let color = emColor::rgba(0xAB, 0xCD, 0xEF, 0xFF);
@@ -436,7 +436,7 @@ fn colorfield_expanded_name_field_initialized() {
 #[test]
 fn colorfield_cycle_red_slider_updates_color_and_syncs() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
@@ -492,7 +492,7 @@ fn colorfield_cycle_red_slider_updates_color_and_syncs() {
 #[test]
 fn colorfield_cycle_green_slider_updates_color() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
@@ -531,7 +531,7 @@ fn colorfield_cycle_green_slider_updates_color() {
 #[test]
 fn colorfield_cycle_blue_slider_updates_color() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
@@ -571,7 +571,7 @@ fn colorfield_cycle_blue_slider_updates_color() {
 #[test]
 fn colorfield_cycle_hex_text_updates_color() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
@@ -629,7 +629,7 @@ fn colorfield_cycle_hex_text_updates_color() {
 #[test]
 fn colorfield_cycle_hsv_change_syncs_rgb_fields() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     // Start with black so any HSV change is detectable.
@@ -695,7 +695,7 @@ fn colorfield_cycle_hsv_change_syncs_rgb_fields() {
 #[test]
 fn colorfield_cycle_rgb_change_syncs_hsv_fields() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
@@ -754,7 +754,7 @@ fn colorfield_cycle_rgb_change_syncs_hsv_fields() {
 #[test]
 fn colorfield_cycle_fires_on_color_callback() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
@@ -804,7 +804,7 @@ fn colorfield_cycle_fires_on_color_callback() {
 #[test]
 fn colorfield_cycle_no_change_returns_false() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let color = emColor::rgba(100, 150, 200, 255);
@@ -844,7 +844,7 @@ fn colorfield_cycle_no_change_returns_false() {
 #[test]
 fn colorfield_cycle_invalid_hex_preserves_color() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let original = emColor::rgba(100, 150, 200, 255);
@@ -907,7 +907,7 @@ fn colorfield_click_red_slider_updates_color_e2e() {
     // and ColorFieldBehavior::Cycle() to propagate changes.
     // C++ ref: emColorField.cpp:116-122 (SfRed signal -> emColor.SetRed).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
     let _panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
@@ -927,7 +927,7 @@ fn colorfield_type_hex_in_text_field_updates_color_e2e() {
     // and ColorFieldBehavior::Cycle() to propagate changes.
     // C++ ref: emColorField.cpp:187-200 (TfName signal -> emColor.TryParse).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::BLACK);
     let _panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
@@ -947,7 +947,7 @@ fn colorfield_drag_hue_slider_updates_rgb_e2e() {
     // and ColorFieldBehavior::Cycle() to propagate changes.
     // C++ ref: emColorField.cpp:148-159 (SfHue signal -> emColor.SetHSVA).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let look = emLook::new();
     let behavior = ColorFieldBehavior::new(look).with_color(emColor::rgba(255, 0, 0, 255));
     let _panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));

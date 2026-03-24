@@ -435,16 +435,16 @@ impl PanelBehavior for CanvasPanel {
 struct TestPanel {
     bg_color_shared: Rc<Cell<emColor>>,
     test_image: emImage,
-    GetDepth: u32,
+    depth: u32,
 }
 
 impl TestPanel {
-    fn new(GetDepth: u32, bg_color_shared: Rc<Cell<emColor>>) -> Self {
+    fn new(depth: u32, bg_color_shared: Rc<Cell<emColor>>) -> Self {
         let img = load_tga(include_bytes!("assets/teddy.tga")).expect("failed to load teddy.tga");
         Self {
             bg_color_shared,
             test_image: img,
-            GetDepth,
+            depth,
         }
     }
 
@@ -953,12 +953,12 @@ impl PanelBehavior for TestPanel {
 
         ctx.create_child_with("tktest", Box::new(TkTestGrpPanel::new()));
 
-        if self.GetDepth < MAX_DEPTH {
+        if self.depth < MAX_DEPTH {
             for i in 1..=4 {
                 let child_bg = Rc::new(Cell::new(DEFAULT_BG));
                 let tp_id = ctx.create_child_with(
                     &format!("tp{i}"),
-                    Box::new(TestPanel::new(self.GetDepth + 1, child_bg)),
+                    Box::new(TestPanel::new(self.depth + 1, child_bg)),
                 );
                 ctx.tree
                     .SetAutoExpansionThreshold(tp_id, 900.0, ViewConditionType::Area);
@@ -1116,10 +1116,10 @@ impl TkTestPanel {
         }
     }
 
-    /// Helper: create a emRasterGroup category under `GetParentContext`.
+    /// Helper: create a emRasterGroup category under `parent_context`.
     fn make_category(
         tree: &mut PanelTree,
-        GetParentContext: PanelId,
+        parent_context: PanelId,
         name: &str,
         caption: &str,
         pct: Option<f64>,
@@ -1134,7 +1134,7 @@ impl TkTestPanel {
         if let Some(c) = fixed_cols {
             rg.layout.fixed_columns = Some(c);
         }
-        let id = tree.create_child(GetParentContext, name);
+        let id = tree.create_child(parent_context, name);
         tree.set_behavior(id, Box::new(rg));
         id
     }
@@ -1610,12 +1610,12 @@ impl PolyDrawPanel {
     }
 
     /// Create the 16-method emRadioBox group under a parent.
-    fn create_method_radio(tree: &mut PanelTree, GetParentContext: PanelId, look: &Rc<emLook>) -> PanelId {
+    fn create_method_radio(tree: &mut PanelTree, parent_context: PanelId, look: &Rc<emLook>) -> PanelId {
         let mut rg = emRasterGroup::new();
         rg.border.SetBorderScaling(1.5);
         rg.border.caption = "Method".to_string();
         rg.layout.preferred_child_tallness = 0.07;
-        let mid = tree.create_child(GetParentContext, "Method");
+        let mid = tree.create_child(parent_context, "Method");
 
         let method_group = RadioGroup::new();
         let names = [
@@ -1650,12 +1650,12 @@ impl PolyDrawPanel {
     }
 
     /// Create a 4-option dash type emRadioBox group.
-    fn create_dash_radio(tree: &mut PanelTree, GetParentContext: PanelId, look: &Rc<emLook>) -> PanelId {
+    fn create_dash_radio(tree: &mut PanelTree, parent_context: PanelId, look: &Rc<emLook>) -> PanelId {
         let mut rg = emRasterGroup::new();
         rg.border.SetBorderScaling(1.5);
         rg.border.caption = "Dash Type".to_string();
         rg.layout.preferred_child_tallness = 0.08;
-        let did = tree.create_child(GetParentContext, "StrokeDashType");
+        let did = tree.create_child(parent_context, "StrokeDashType");
 
         let dash_group = RadioGroup::new();
         let names = ["Solid", "Dashed", "Dotted", "DashDotted"];
@@ -1675,7 +1675,7 @@ impl PolyDrawPanel {
     /// Create a 17-option stroke end type emRadioBox group.
     fn create_stroke_end_radio(
         tree: &mut PanelTree,
-        GetParentContext: PanelId,
+        parent_context: PanelId,
         name: &str,
         caption: &str,
         look: &Rc<emLook>,
@@ -1684,7 +1684,7 @@ impl PolyDrawPanel {
         rg.border.SetBorderScaling(1.5);
         rg.border.caption = caption.to_string();
         rg.layout.preferred_child_tallness = 0.08;
-        let sid = tree.create_child(GetParentContext, name);
+        let sid = tree.create_child(parent_context, name);
 
         let group = RadioGroup::new();
         let names = [
@@ -1722,14 +1722,14 @@ impl PolyDrawPanel {
     /// Create a horizontal emLinearLayout with 2 children (emTextField + widget).
     fn create_horizontal_pair(
         tree: &mut PanelTree,
-        GetParentContext: PanelId,
+        parent_context: PanelId,
         name: &str,
         child1_name: &str,
         child1: Box<dyn PanelBehavior>,
         child2_name: &str,
         child2: Box<dyn PanelBehavior>,
     ) -> PanelId {
-        let ll_id = tree.create_child(GetParentContext, name);
+        let ll_id = tree.create_child(parent_context, name);
         let c1 = tree.create_child(ll_id, child1_name);
         tree.set_behavior(c1, child1);
         let c2 = tree.create_child(ll_id, child2_name);
@@ -2065,7 +2065,7 @@ fn render_testpanel(
     compositor.render(tree, view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         name,
         actual,
         expected_data,
@@ -2074,11 +2074,11 @@ fn render_testpanel(
         channel_tolerance,
         max_failure_pct,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images(name, actual, expected_data, w, h);
         analyze_diff_distribution(actual, expected_data, w, h, channel_tolerance);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ═══════════════════════════════════════════════════════════════════

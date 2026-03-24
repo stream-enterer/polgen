@@ -28,7 +28,7 @@ where
         unsafe { std::env::remove_var(k) };
     }
 
-    let GetResult = f();
+    let result = f();
 
     // Restore
     for (k, original) in saved {
@@ -38,7 +38,7 @@ where
         }
     }
 
-    GetResult
+    result
 }
 
 #[test]
@@ -182,10 +182,10 @@ fn empty_sub_path_ignored() {
 #[test]
 fn missing_em_dir_returns_error() {
     with_envs(&[], &["EM_DIR"], || {
-        let GetResult = emGetInstallPath(InstallDirType::Bin, "emCore", None);
-        assert!(GetResult.is_err());
+        let result = emGetInstallPath(InstallDirType::Bin, "emCore", None);
+        assert!(result.is_err());
         assert!(matches!(
-            GetResult.unwrap_err(),
+            result.unwrap_err(),
             InstallInfoError::EnvNotSet(ref v) if v == "EM_DIR"
         ));
     });

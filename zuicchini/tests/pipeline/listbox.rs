@@ -65,7 +65,7 @@ impl PanelBehavior for SharedListBoxPanel {
 }
 
 /// Compute the view-space Y coordinate for the vertical center of item `n`
-/// (0-indexed) in a emListBox with `GetItemCount` items.
+/// (0-indexed) in a emListBox with `item_count` items.
 ///
 /// The items are positioned within the border's content rect in panel-local
 /// space (x in [0,1], y in [0,tallness]). This function:
@@ -77,7 +77,7 @@ fn item_center_view_y(
     vr: &zuicchini::emCore::rect::Rect,
     pixel_tallness: f64,
     n: usize,
-    GetItemCount: usize,
+    item_count: usize,
 ) -> f64 {
     let look = emLook::new();
 
@@ -93,7 +93,7 @@ fn item_center_view_y(
     let cr = border.GetContentRectUnobscured(1.0, tallness, &look);
 
     // Item N's center Y in panel-local space.
-    let item_local_y = cr.y + (n as f64 + 0.5) / GetItemCount as f64 * cr.h;
+    let item_local_y = cr.y + (n as f64 + 0.5) / item_count as f64 * cr.h;
 
     // Map panel-local Y to view-space Y.
     // panel-local y in [0, tallness] maps to view-space [vr.y, vr.y + vr.h].
@@ -122,7 +122,7 @@ fn content_center_view_x(
 fn listbox_click_items_1x_and_2x() {
     // 1. Create PipelineTestHarness (800x600 viewport).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // 2. Create emListBox with 5 items, SelectionMode::Single.
     let look = emLook::new();
@@ -163,7 +163,7 @@ fn listbox_click_items_1x_and_2x() {
     let click_x = content_center_view_x(&vr, pt);
 
     // Click item 0
-    h.Click(click_x, item_center_view_y(&vr, pt, 0, 5));
+    h.click(click_x, item_center_view_y(&vr, pt, 0, 5));
     assert_eq!(
         lb_ref.borrow().GetSelectedIndex(),
         Some(0),
@@ -171,7 +171,7 @@ fn listbox_click_items_1x_and_2x() {
     );
 
     // Click item 2
-    h.Click(click_x, item_center_view_y(&vr, pt, 2, 5));
+    h.click(click_x, item_center_view_y(&vr, pt, 2, 5));
     assert_eq!(
         lb_ref.borrow().GetSelectedIndex(),
         Some(2),
@@ -179,7 +179,7 @@ fn listbox_click_items_1x_and_2x() {
     );
 
     // Click item 4
-    h.Click(click_x, item_center_view_y(&vr, pt, 4, 5));
+    h.click(click_x, item_center_view_y(&vr, pt, 4, 5));
     assert_eq!(
         lb_ref.borrow().GetSelectedIndex(),
         Some(4),
@@ -201,7 +201,7 @@ fn listbox_click_items_1x_and_2x() {
     let click_x_2x = content_center_view_x(&vr2, pt);
 
     // Click item 0
-    h.Click(click_x_2x, item_center_view_y(&vr2, pt, 0, 5));
+    h.click(click_x_2x, item_center_view_y(&vr2, pt, 0, 5));
     assert_eq!(
         lb_ref.borrow().GetSelectedIndex(),
         Some(0),
@@ -209,7 +209,7 @@ fn listbox_click_items_1x_and_2x() {
     );
 
     // Click item 2
-    h.Click(click_x_2x, item_center_view_y(&vr2, pt, 2, 5));
+    h.click(click_x_2x, item_center_view_y(&vr2, pt, 2, 5));
     assert_eq!(
         lb_ref.borrow().GetSelectedIndex(),
         Some(2),
@@ -217,7 +217,7 @@ fn listbox_click_items_1x_and_2x() {
     );
 
     // Click item 4
-    h.Click(click_x_2x, item_center_view_y(&vr2, pt, 4, 5));
+    h.click(click_x_2x, item_center_view_y(&vr2, pt, 4, 5));
     assert_eq!(
         lb_ref.borrow().GetSelectedIndex(),
         Some(4),
@@ -225,7 +225,7 @@ fn listbox_click_items_1x_and_2x() {
     );
 }
 
-// ── BP-1: emListBox selection GetMode behavioral parity tests ─────────────────
+// ── BP-1: emListBox selection mode behavioral parity tests ─────────────────
 //
 // These tests exercise every branch in C++ emListBox::SelectByInput across
 // all four SelectionMode variants (ReadOnly, Single, Multi, Toggle), driven
@@ -238,7 +238,7 @@ fn listbox_click_items_1x_and_2x() {
 /// in the given SelectionMode, render once to populate Restore, and return
 /// (harness, lb_ref, panel_id, click_x, item_ys).
 fn setup_listbox_harness(
-    GetMode: SelectionMode,
+    mode: SelectionMode,
 ) -> (
     PipelineTestHarness,
     Rc<RefCell<emListBox>>,
@@ -247,11 +247,11 @@ fn setup_listbox_harness(
     [f64; 5],
 ) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
-    lb.SetSelectionType(GetMode);
+    lb.SetSelectionType(mode);
     lb.AddItem("i0".to_string(), "Alpha".to_string());
     lb.AddItem("i1".to_string(), "Beta".to_string());
     lb.AddItem("i2".to_string(), "Gamma".to_string());
@@ -286,18 +286,18 @@ fn setup_listbox_harness(
     (h, lb_ref, panel_id, click_x, item_ys)
 }
 
-// ── Single GetMode ──────────────────────────────────────────────────────────
+// ── Single mode ──────────────────────────────────────────────────────────
 
 #[test]
 fn listbox_single_mode_click_selects() {
     // C++ ref: SelectByInput SINGLE_SELECTION branch — Select(itemIndex, true)
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(2));
 
     // Clicking another item replaces the selection (solely=true).
-    h.Click(cx, ys[4]);
+    h.click(cx, ys[4]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(4));
     assert!(!lb.borrow().IsSelected(2));
 }
@@ -307,12 +307,12 @@ fn listbox_single_mode_shift_click_still_selects_solely() {
     // C++ ref: SINGLE_SELECTION ignores shift/ctrl — always Select(itemIndex, true).
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(1));
 
-    // Shift+Click in Single GetMode still selects solely.
+    // Shift+Click in Single mode still selects solely.
     h.input_state.press(InputKey::Shift);
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     h.input_state.release(InputKey::Shift);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(3));
     assert!(!lb.borrow().IsSelected(1));
@@ -323,25 +323,25 @@ fn listbox_single_mode_ctrl_click_still_selects_solely() {
     // C++ ref: SINGLE_SELECTION ignores ctrl — always Select(itemIndex, true).
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     h.input_state.press(InputKey::Ctrl);
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     h.input_state.release(InputKey::Ctrl);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(2));
     assert!(!lb.borrow().IsSelected(0));
 }
 
-// ── Multi GetMode ──────────────────────────────────────────────────────────
+// ── Multi mode ──────────────────────────────────────────────────────────
 
 #[test]
 fn listbox_multi_mode_click_selects_solely() {
     // C++ ref: MULTI_SELECTION, no shift, no ctrl -> Select(itemIndex, true)
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(1));
 
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(3));
     assert!(!lb.borrow().IsSelected(1), "plain click in Multi replaces selection");
 }
@@ -353,13 +353,13 @@ fn listbox_multi_shift_click_extends_range() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 1 to set prev_input_index.
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(1));
 
     // Shift+Click item 3: should select range 2..=3 (prev+1..=clicked),
     // and item 1 stays GetChecked since those were Select(i, false) calls.
     h.input_state.press(InputKey::Shift);
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     h.input_state.release(InputKey::Shift);
 
     assert!(lb.borrow().IsSelected(1), "item 1 still selected");
@@ -376,12 +376,12 @@ fn listbox_multi_shift_click_extends_range_backward() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 3 to set prev_input_index.
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(3));
 
     // Shift+Click item 1: range is 1..=2 (item..=prev-1).
     h.input_state.press(InputKey::Shift);
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     h.input_state.release(InputKey::Shift);
 
     assert!(lb.borrow().IsSelected(1), "item 1 in backward range");
@@ -397,17 +397,17 @@ fn listbox_multi_ctrl_click_toggles() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 1 (solely selects it).
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[1]);
 
     // Ctrl+Click item 3: toggles item 3 on.
     h.input_state.press(InputKey::Ctrl);
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     assert!(lb.borrow().IsSelected(1), "item 1 stays");
     assert!(lb.borrow().IsSelected(3), "item 3 toggled on");
 
     // Ctrl+Click item 1 again: toggles item 1 off.
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     h.input_state.release(InputKey::Ctrl);
     assert!(!lb.borrow().IsSelected(1), "item 1 toggled off");
     assert!(lb.borrow().IsSelected(3), "item 3 remains");
@@ -420,12 +420,12 @@ fn listbox_multi_shift_ctrl_click_toggles_range() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 1 (sets prev_input_index, selects solely).
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
 
     // Shift+Ctrl Click item 3: toggles items 2..=3.
     h.input_state.press(InputKey::Shift);
     h.input_state.press(InputKey::Ctrl);
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     h.input_state.release(InputKey::Shift);
     h.input_state.release(InputKey::Ctrl);
 
@@ -435,22 +435,22 @@ fn listbox_multi_shift_ctrl_click_toggles_range() {
     assert!(lb.borrow().IsSelected(3), "item 3 toggled on");
 }
 
-// ── Toggle GetMode ──────────────────────────────────────────────────────────
+// ── Toggle mode ──────────────────────────────────────────────────────────
 
 #[test]
 fn listbox_toggle_mode_click_toggles() {
     // C++ ref: TOGGLE_SELECTION, no shift -> ToggleSelection(itemIndex)
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
 
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert!(lb.borrow().IsSelected(0), "first click toggles on");
 
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     assert!(lb.borrow().IsSelected(0), "item 0 stays on");
     assert!(lb.borrow().IsSelected(2), "item 2 toggled on");
 
     // Click item 0 again to toggle it off.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert!(!lb.borrow().IsSelected(0), "second click toggles off");
     assert!(lb.borrow().IsSelected(2), "item 2 unaffected");
 }
@@ -461,12 +461,12 @@ fn listbox_toggle_mode_ctrl_click_also_toggles() {
     // goes to the else branch which calls ToggleSelection(itemIndex).
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
 
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert!(lb.borrow().IsSelected(1));
 
-    // Ctrl+Click should still toggle (ctrl is not special in Toggle GetMode).
+    // Ctrl+Click should still toggle (ctrl is not special in Toggle mode).
     h.input_state.press(InputKey::Ctrl);
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     h.input_state.release(InputKey::Ctrl);
     assert!(!lb.borrow().IsSelected(1), "ctrl+click still toggles off");
 }
@@ -478,12 +478,12 @@ fn listbox_toggle_shift_click_toggles_range() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
 
     // Click item 1 (toggles on, sets prev).
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert!(lb.borrow().IsSelected(1));
 
     // Shift+Click item 4: toggles range 2..=4.
     h.input_state.press(InputKey::Shift);
-    h.Click(cx, ys[4]);
+    h.click(cx, ys[4]);
     h.input_state.release(InputKey::Shift);
 
     assert!(lb.borrow().IsSelected(1), "item 1 from initial click");
@@ -493,14 +493,14 @@ fn listbox_toggle_shift_click_toggles_range() {
     assert!(!lb.borrow().IsSelected(0));
 }
 
-// ── ReadOnly GetMode ────────────────────────────────────────────────────────
+// ── ReadOnly mode ────────────────────────────────────────────────────────
 
 #[test]
 fn listbox_readonly_rejects_click() {
     // C++ ref: READ_ONLY_SELECTION branch is empty (break), so no selection change.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::ReadOnly);
 
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly rejects click");
 }
 
@@ -509,7 +509,7 @@ fn listbox_readonly_rejects_shift_click() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::ReadOnly);
 
     h.input_state.press(InputKey::Shift);
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     h.input_state.release(InputKey::Shift);
     assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly rejects shift+click");
 }
@@ -519,7 +519,7 @@ fn listbox_readonly_rejects_ctrl_click() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::ReadOnly);
 
     h.input_state.press(InputKey::Ctrl);
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     h.input_state.release(InputKey::Ctrl);
     assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly rejects ctrl+click");
 }
@@ -620,7 +620,7 @@ fn listbox_single_mode_enter_triggers() {
     }));
 
     // First Click to select and focus item 2.
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(2));
 
     // Enter triggers the focused item.
@@ -651,7 +651,7 @@ fn listbox_multi_ctrl_a_selects_all() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click first to activate the panel (keyboard events require active path).
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
 
     h.input_state.press(InputKey::Ctrl);
     let press = emInputEvent::press(InputKey::Key('a')).with_chars("a");
@@ -669,7 +669,7 @@ fn listbox_multi_shift_ctrl_a_clears() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Select some items first.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[0]);
 
     h.input_state.press(InputKey::Shift);
@@ -689,7 +689,7 @@ fn listbox_toggle_ctrl_a_selects_all() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
 
     // Click first to activate the panel (keyboard events require active path).
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
 
     h.input_state.press(InputKey::Ctrl);
     let press = emInputEvent::press(InputKey::Key('a')).with_chars("a");
@@ -706,7 +706,7 @@ fn listbox_single_ctrl_a_no_effect() {
     // C++ ref: Ctrl+A only works in Multi/Toggle modes.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[1]);
 
     h.input_state.press(InputKey::Ctrl);
@@ -716,7 +716,7 @@ fn listbox_single_ctrl_a_no_effect() {
     h.dispatch(&release);
     h.input_state.release(InputKey::Ctrl);
 
-    // Single GetMode: Ctrl+A should not select all.
+    // Single mode: Ctrl+A should not select all.
     assert_eq!(
         lb.borrow().GetSelectedIndices(),
         &[1],
@@ -729,11 +729,11 @@ fn listbox_single_ctrl_a_no_effect() {
 #[test]
 fn listbox_multi_space_selects_solely() {
     // C++ ref: EM_KEY_SPACE -> SelectByInput(idx, shift=false, ctrl=false, trigger=false)
-    // In Multi GetMode without modifiers -> Select(itemIndex, true)
+    // In Multi mode without modifiers -> Select(itemIndex, true)
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 1 to set focus.
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[1]);
 
     // Press ArrowDown to move focus to item 2 (no selection change in Multi).
@@ -749,7 +749,7 @@ fn listbox_toggle_space_toggles() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
 
     // Click item 0 to focus and toggle on.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert!(lb.borrow().IsSelected(0));
 
     // Space toggles off.
@@ -767,7 +767,7 @@ fn listbox_multi_shift_space_extends_range() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 1 to set prev_input_index and select.
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
 
     // Move focus to item 3 without selecting.
     h.press_key(InputKey::ArrowDown); // focus 2
@@ -786,10 +786,10 @@ fn listbox_multi_shift_space_extends_range() {
 #[test]
 fn listbox_multi_ctrl_space_toggles() {
     // C++ ref: EM_KEY_SPACE + Ctrl -> SelectByInput(idx, shift=false, ctrl=true, false)
-    // In Multi GetMode, ctrl=true -> ToggleSelection
+    // In Multi mode, ctrl=true -> ToggleSelection
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
-    h.Click(cx, ys[1]);
+    h.click(cx, ys[1]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[1]);
 
     // Ctrl+Space on same item toggles it off.
@@ -825,7 +825,7 @@ fn setup_keywalk_harness(
     f64,
 ) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
@@ -854,7 +854,7 @@ fn setup_keywalk_harness(
     let first_y = item_center_view_y(&vr, pt, 0, items.len());
 
     // Click to activate the panel so keyboard events are delivered.
-    h.Click(click_x, first_y);
+    h.click(click_x, first_y);
 
     (h, lb_ref, panel_id, click_x, first_y)
 }
@@ -1101,9 +1101,9 @@ fn listbox_keywalk_ctrl_chars_rejected() {
 #[test]
 fn listbox_keywalk_readonly_no_selection_change() {
     // C++ ref: emListBox.cpp:912 — if (IsEnabled() && SelType != READ_ONLY_SELECTION)
-    // In ReadOnly GetMode, keywalk finds the item but does NOT change selection.
+    // In ReadOnly mode, keywalk finds the item but does NOT change selection.
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let mut lb = emListBox::new(look);
@@ -1131,11 +1131,11 @@ fn listbox_keywalk_readonly_no_selection_change() {
     let vr = state.viewed_rect;
     let cx = content_center_view_x(&vr, pt);
     let fy = item_center_view_y(&vr, pt, 0, 3);
-    h.Click(cx, fy);
+    h.click(cx, fy);
 
     assert!(lb_ref.borrow().GetSelectedIndices().is_empty());
 
-    // Type 'b' -> keywalk finds "Banana" but does not select in ReadOnly GetMode.
+    // Type 'b' -> keywalk finds "Banana" but does not select in ReadOnly mode.
     h.press_char('b');
     assert!(
         lb_ref.borrow().GetSelectedIndices().is_empty(),
@@ -1199,16 +1199,16 @@ fn listbox_keywalk_timeout_clears_accumulator() {
 // Behavior:
 // - ArrowDown: focus_index += 1 (clamped to last item)
 // - ArrowUp:   focus_index -= 1 (clamped to 0)
-// - In Single GetMode: arrow keys auto-select the focused item
+// - In Single mode: arrow keys auto-select the focused item
 // - In Multi/Toggle/ReadOnly modes: arrows move focus without selecting
 
 #[test]
 fn listbox_arrow_down_moves_focus_single() {
-    // In Single GetMode, ArrowDown moves focus AND auto-selects.
+    // In Single mode, ArrowDown moves focus AND auto-selects.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
     // Click item 0 to activate panel and set initial state.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().focus_index(), 0);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(0));
 
@@ -1227,11 +1227,11 @@ fn listbox_arrow_down_moves_focus_single() {
 
 #[test]
 fn listbox_arrow_up_moves_focus_single() {
-    // In Single GetMode, ArrowUp moves focus AND auto-selects.
+    // In Single mode, ArrowUp moves focus AND auto-selects.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
     // Click item 2 to focus there.
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     assert_eq!(lb.borrow().focus_index(), 2);
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(2));
 
@@ -1250,7 +1250,7 @@ fn listbox_arrow_down_clamps_at_last() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
     // Click last item (index 4).
-    h.Click(cx, ys[4]);
+    h.click(cx, ys[4]);
     assert_eq!(lb.borrow().focus_index(), 4);
 
     h.press_key(InputKey::ArrowDown);
@@ -1268,7 +1268,7 @@ fn listbox_arrow_up_clamps_at_first() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
     // Click item 0.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().focus_index(), 0);
 
     h.press_key(InputKey::ArrowUp);
@@ -1282,11 +1282,11 @@ fn listbox_arrow_up_clamps_at_first() {
 
 #[test]
 fn listbox_arrow_down_multi_mode_no_auto_select() {
-    // In Multi GetMode, ArrowDown moves focus but does NOT auto-select.
+    // In Multi mode, ArrowDown moves focus but does NOT auto-select.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 0 to activate and select it.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[0]);
 
     h.press_key(InputKey::ArrowDown);
@@ -1300,11 +1300,11 @@ fn listbox_arrow_down_multi_mode_no_auto_select() {
 
 #[test]
 fn listbox_arrow_up_multi_mode_no_auto_select() {
-    // In Multi GetMode, ArrowUp moves focus but does NOT auto-select.
+    // In Multi mode, ArrowUp moves focus but does NOT auto-select.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 2 to set focus there.
-    h.Click(cx, ys[2]);
+    h.click(cx, ys[2]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[2]);
 
     h.press_key(InputKey::ArrowUp);
@@ -1318,11 +1318,11 @@ fn listbox_arrow_up_multi_mode_no_auto_select() {
 
 #[test]
 fn listbox_arrow_down_toggle_mode_no_auto_select() {
-    // In Toggle GetMode, ArrowDown moves focus but does NOT auto-select.
+    // In Toggle mode, ArrowDown moves focus but does NOT auto-select.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Toggle);
 
     // Click item 0 (toggles on).
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert!(lb.borrow().IsSelected(0));
 
     h.press_key(InputKey::ArrowDown);
@@ -1339,11 +1339,11 @@ fn listbox_arrow_down_toggle_mode_no_auto_select() {
 
 #[test]
 fn listbox_arrow_down_readonly_mode_moves_focus() {
-    // In ReadOnly GetMode, ArrowDown moves focus but cannot select anything.
+    // In ReadOnly mode, ArrowDown moves focus but cannot select anything.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::ReadOnly);
 
     // Click to activate panel (ReadOnly won't select).
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert!(lb.borrow().GetSelectedIndices().is_empty());
     assert_eq!(lb.borrow().focus_index(), 0);
 
@@ -1364,7 +1364,7 @@ fn listbox_arrow_traverse_full_list() {
     // Traverse all 5 items with ArrowDown, then back up with ArrowUp.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().focus_index(), 0);
 
     // Down through all items.
@@ -1384,12 +1384,12 @@ fn listbox_arrow_traverse_full_list() {
 
 #[test]
 fn listbox_arrow_then_space_selects_focused_multi() {
-    // In Multi GetMode: arrow to move focus, then Space to select the focused item.
-    // This is the typical keyboard-only workflow for Multi GetMode.
+    // In Multi mode: arrow to move focus, then Space to select the focused item.
+    // This is the typical keyboard-only workflow for Multi mode.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Multi);
 
     // Click item 0 to activate.
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().GetSelectedIndices(), &[0]);
 
     // Arrow to item 3.
@@ -1415,7 +1415,7 @@ fn listbox_home_jumps_to_first() {
     // not handle Home/End.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[3]);
+    h.click(cx, ys[3]);
     assert_eq!(lb.borrow().focus_index(), 3);
 
     h.press_key(InputKey::Home);
@@ -1429,7 +1429,7 @@ fn listbox_end_jumps_to_last() {
     // not handle Home/End.
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::Single);
 
-    h.Click(cx, ys[0]);
+    h.click(cx, ys[0]);
     assert_eq!(lb.borrow().focus_index(), 0);
 
     h.press_key(InputKey::End);

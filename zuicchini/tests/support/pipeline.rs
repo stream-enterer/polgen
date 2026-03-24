@@ -60,7 +60,7 @@ impl PipelineTestHarness {
         }
     }
 
-    pub fn GetRootPanel(&self) -> PanelId {
+    pub fn get_root_panel(&self) -> PanelId {
         self.root
     }
 
@@ -84,8 +84,8 @@ impl PipelineTestHarness {
     // ── Panel management ─────────────────────────────────────────
 
     /// Create a focusable child panel with a layout rect.
-    pub fn add_panel(&mut self, GetParentContext: PanelId, name: &str) -> PanelId {
-        let id = self.tree.create_child(GetParentContext, name);
+    pub fn add_panel(&mut self, parent_context: PanelId, name: &str) -> PanelId {
+        let id = self.tree.create_child(parent_context, name);
         self.tree.set_focusable(id, true);
         self.tree.Layout(id, 0.0, 0.0, 1.0, 1.0);
         id
@@ -94,11 +94,11 @@ impl PipelineTestHarness {
     /// Create a focusable child panel with a layout rect and behavior.
     pub fn add_panel_with(
         &mut self,
-        GetParentContext: PanelId,
+        parent_context: PanelId,
         name: &str,
         behavior: Box<dyn PanelBehavior>,
     ) -> PanelId {
-        let id = self.add_panel(GetParentContext, name);
+        let id = self.add_panel(parent_context, name);
         self.tree.set_behavior(id, behavior);
         id
     }
@@ -245,7 +245,7 @@ impl PipelineTestHarness {
     // ── High-level Input helpers ─────────────────────────────────
 
     /// Click (press + release) the left mouse button at view-space coordinates.
-    pub fn Click(&mut self, view_x: f64, view_y: f64) {
+    pub fn click(&mut self, view_x: f64, view_y: f64) {
         let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(view_x, view_y);
         let release = emInputEvent::release(InputKey::MouseLeft).with_mouse(view_x, view_y);
         self.dispatch(&press);

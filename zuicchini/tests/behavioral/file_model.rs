@@ -169,9 +169,9 @@ fn loading_error() {
     }
 
     let mut loader = FailLoader;
-    let GetResult = loader.try_start_loading();
-    assert!(GetResult.is_err());
-    assert_eq!(GetResult.unwrap_err(), "cannot open file");
+    let result = loader.try_start_loading();
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), "cannot open file");
 }
 
 struct TestSaver {

@@ -1,6 +1,4 @@
 /target
-zuicchini/_verify/
-zuicchini/_fix/
-zuicchini/_stale/
-zuicchini/golden/
-zuicchini/golden_gen/gen_golden
+
+# Cargo cache file that leaks into src/
+zuicchini/src/.rustc_info.json

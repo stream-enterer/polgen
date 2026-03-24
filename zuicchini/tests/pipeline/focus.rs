@@ -32,13 +32,13 @@ fn active_state(tree: &PanelTree, id: PanelId) -> (bool, bool) {
 ///    leaf_a     leaf_b
 /// ```
 ///
-/// Each child occupies a distinct horizontal half of its GetParentContext so that
+/// Each child occupies a distinct horizontal half of its parent_context so that
 /// Click hit-testing can target them by view-space coordinates.
 ///
 /// Returns (harness, root, branch_a, leaf_a, branch_b, leaf_b).
 fn two_branch_tree() -> (PipelineTestHarness, PanelId, PanelId, PanelId, PanelId, PanelId) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // branch_a occupies left half: layout (0, 0, 0.5, 1)
     let branch_a = h.add_panel(root, "branch_a");
@@ -72,7 +72,7 @@ fn tab_forward_cycles_through_focusable_panels() {
     // Build a tree with 5 focusable panels, press Tab 6 times,
     // assert focus sequence wraps around matching C++ order.
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let p1 = h.add_panel(root, "p1");
     let p2 = h.add_panel(root, "p2");
     let p3 = h.add_panel(root, "p3");
@@ -106,7 +106,7 @@ fn tab_forward_cycles_through_focusable_panels() {
 fn shift_tab_cycles_backward_through_focusable_panels() {
     // Same tree, press Shift+Tab 6 times, assert reverse sequence.
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let p1 = h.add_panel(root, "p1");
     let p2 = h.add_panel(root, "p2");
     let p3 = h.add_panel(root, "p3");
@@ -149,7 +149,7 @@ fn click_non_active_panel_becomes_active() {
 
     // Click in the right half (branch_b territory). Use y=150 to stay well
     // inside leaf_b (whose bottom edge is ≈y=300 due to geometric-mean zoom).
-    h.Click(600.0, 150.0);
+    h.click(600.0, 150.0);
     h.tick();
 
     // The deepest focusable panel under the Click should now be active.
@@ -170,7 +170,7 @@ fn old_active_loses_is_active_on_click() {
     assert!(active_state(&h.tree, leaf_a).0, "leaf_a should start active");
 
     // Click on right half → activates leaf_b (y=150 avoids leaf_b boundary).
-    h.Click(600.0, 150.0);
+    h.click(600.0, 150.0);
     h.tick();
 
     let (la_active, _) = active_state(&h.tree, leaf_a);
@@ -190,7 +190,7 @@ fn new_active_ancestors_get_in_active_path() {
     h.tick();
 
     // Click on right half → activates leaf_b.
-    h.Click(600.0, 150.0);
+    h.click(600.0, 150.0);
     h.tick();
 
     // leaf_b and its ancestors (branch_b, root) should be in_active_path.
@@ -239,7 +239,7 @@ fn old_active_non_shared_ancestors_lose_in_active_path() {
     );
 
     // Click on right half → activates leaf_b.
-    h.Click(600.0, 150.0);
+    h.click(600.0, 150.0);
     h.tick();
 
     // branch_a was a unique ancestor of old active (leaf_a) → loses in_active_path.
@@ -270,7 +270,7 @@ fn click_already_active_panel_no_change() {
     let (mut h, root, branch_a, _leaf_a, branch_b, leaf_b) = two_branch_tree();
 
     // Activate leaf_b via Click on right half.
-    h.Click(600.0, 150.0);
+    h.click(600.0, 150.0);
     h.tick();
 
     // Record state before re-Click.
@@ -281,7 +281,7 @@ fn click_already_active_panel_no_change() {
     let active_before = h.view.GetActivePanel();
 
     // Click again in the same spot.
-    h.Click(600.0, 150.0);
+    h.click(600.0, 150.0);
     h.tick();
 
     // Everything should remain identical.
@@ -343,7 +343,7 @@ fn programmatic_activation_matches_click_behavior() {
 #[test]
 fn deep_tree_activation_propagates_in_active_path() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Build: root → mid → deep → leaf
     let mid = h.add_panel(root, "mid");
@@ -409,7 +409,7 @@ fn tab_skips_disabled_and_unfocusable_panels() {
     // Build tree with mix of focusable and unfocusable panels,
     // tab through, assert unfocusable panels are skipped.
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let p1 = h.add_panel(root, "p1");
     let p2_unfocusable = h.add_panel(root, "p2_unfocusable");
     let p3 = h.add_panel(root, "p3");
@@ -448,7 +448,7 @@ fn tab_skips_disabled_and_unfocusable_panels() {
 #[test]
 fn arrow_right_moves_focus_to_right_sibling() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Three children laid out left-to-right: [p1 | p2 | p3]
     let p1 = h.add_panel(root, "p1");
@@ -486,7 +486,7 @@ fn arrow_right_moves_focus_to_right_sibling() {
 #[test]
 fn arrow_left_moves_focus_to_left_sibling() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Three children laid out left-to-right: [p1 | p2 | p3]
     let p1 = h.add_panel(root, "p1");
@@ -526,7 +526,7 @@ fn arrow_left_moves_focus_to_left_sibling() {
 #[test]
 fn arrow_down_moves_focus_to_lower_sibling() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Three children laid out top-to-bottom (tall, narrow panels):
     let p1 = h.add_panel(root, "p1");
@@ -561,7 +561,7 @@ fn arrow_down_moves_focus_to_lower_sibling() {
 #[test]
 fn arrow_up_moves_focus_to_upper_sibling() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let p1 = h.add_panel(root, "p1");
     h.tree.Layout(p1, 0.0, 0.0, 1.0, 0.333);
@@ -597,7 +597,7 @@ fn arrow_up_moves_focus_to_upper_sibling() {
 #[test]
 fn arrow_up_down_no_effect_on_horizontal_layout() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let p1 = h.add_panel(root, "p1");
     h.tree.Layout(p1, 0.0, 0.0, 0.5, 1.0);
@@ -628,7 +628,7 @@ fn arrow_up_down_no_effect_on_horizontal_layout() {
 #[test]
 fn arrow_left_right_no_effect_on_vertical_layout() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let p1 = h.add_panel(root, "p1");
     h.tree.Layout(p1, 0.0, 0.0, 1.0, 0.5);
@@ -661,7 +661,7 @@ fn arrow_left_right_no_effect_on_vertical_layout() {
 #[test]
 fn arrow_at_boundary_stays_on_current_panel() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let p1 = h.add_panel(root, "p1");
     h.tree.Layout(p1, 0.0, 0.0, 0.333, 1.0);
@@ -699,7 +699,7 @@ fn arrow_at_boundary_stays_on_current_panel() {
 #[test]
 fn arrow_with_modifier_does_not_navigate() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let p1 = h.add_panel(root, "p1");
     h.tree.Layout(p1, 0.0, 0.0, 0.5, 1.0);

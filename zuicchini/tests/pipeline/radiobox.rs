@@ -83,7 +83,7 @@ impl RadioBoxHarness {
         assert_eq!(group.borrow().GetChecked(), None);
 
         let mut h = PipelineTestHarness::new();
-        let root = h.GetRootPanel();
+        let root = h.get_root_panel();
 
         // Each radio box gets its own child panel, stacked vertically:
         //   panel 0: y=0.00..0.33  (top third)
@@ -135,13 +135,13 @@ impl RadioBoxHarness {
         self.compositor.render(&mut self.h.tree, &self.h.view);
     }
 
-    fn GetChecked(&self) -> Option<usize> {
+    fn checked(&self) -> Option<usize> {
         self.group.borrow().GetChecked()
     }
 
     fn click_option(&mut self, index: usize) {
         let (cx, cy) = self.panel_center(index);
-        self.h.Click(cx, cy);
+        self.h.click(cx, cy);
     }
 }
 
@@ -158,21 +158,21 @@ fn radiobox_select_1x_and_2x() {
     // ── 1x zoom: Click each radio box ─────────────────────────────────
     t.click_option(0);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(0),
         "1x: clicking option 0 should select radio box 0"
     );
 
     t.click_option(1);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "1x: clicking option 1 should select radio box 1"
     );
 
     t.click_option(2);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(2),
         "1x: clicking option 2 should select radio box 2"
     );
@@ -182,21 +182,21 @@ fn radiobox_select_1x_and_2x() {
 
     t.click_option(0);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(0),
         "2x: clicking option 0 should select radio box 0"
     );
 
     t.click_option(1);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "2x: clicking option 1 should select radio box 1"
     );
 
     t.click_option(2);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(2),
         "2x: clicking option 2 should select radio box 2"
     );
@@ -210,12 +210,12 @@ fn radiobox_reclick_selected_is_noop() {
 
     // Select option 1.
     t.click_option(1);
-    assert_eq!(t.GetChecked(), Some(1));
+    assert_eq!(t.checked(), Some(1));
 
     // Click option 1 again -- should remain GetChecked.
     t.click_option(1);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "re-clicking already-selected radio box must not deselect it"
     );
@@ -225,7 +225,7 @@ fn radiobox_reclick_selected_is_noop() {
 
     t.click_option(1);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "2x: re-clicking already-selected radio box must not deselect it"
     );
@@ -241,7 +241,7 @@ fn radiobox_cycle_forward_and_backward() {
     for i in 0..3 {
         t.click_option(i);
         assert_eq!(
-            t.GetChecked(),
+            t.checked(),
             Some(i),
             "1x forward: expected selection {i}"
         );
@@ -251,7 +251,7 @@ fn radiobox_cycle_forward_and_backward() {
     for i in (0..3).rev() {
         t.click_option(i);
         assert_eq!(
-            t.GetChecked(),
+            t.checked(),
             Some(i),
             "1x backward: expected selection {i}"
         );
@@ -262,7 +262,7 @@ fn radiobox_cycle_forward_and_backward() {
     for i in 0..3 {
         t.click_option(i);
         assert_eq!(
-            t.GetChecked(),
+            t.checked(),
             Some(i),
             "2x forward: expected selection {i}"
         );
@@ -272,7 +272,7 @@ fn radiobox_cycle_forward_and_backward() {
     for i in (0..3).rev() {
         t.click_option(i);
         assert_eq!(
-            t.GetChecked(),
+            t.checked(),
             Some(i),
             "2x backward: expected selection {i}"
         );
@@ -285,7 +285,7 @@ fn radiobox_cycle_forward_and_backward() {
 fn radiobox_initial_state_is_none() {
     let t = RadioBoxHarness::new();
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         None,
         "no radio box should be selected initially"
     );
@@ -299,24 +299,24 @@ fn radiobox_selection_survives_zoom_change() {
 
     // Select option 1 at 1x.
     t.click_option(1);
-    assert_eq!(t.GetChecked(), Some(1));
+    assert_eq!(t.checked(), Some(1));
 
     // Zoom to 2x -- selection must persist.
     t.zoom_to(2.0);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(1),
         "selection must survive zoom change from 1x to 2x"
     );
 
     // Select option 2 at 2x.
     t.click_option(2);
-    assert_eq!(t.GetChecked(), Some(2));
+    assert_eq!(t.checked(), Some(2));
 
     // Zoom back to 1x -- selection must persist.
     t.zoom_to(1.0);
     assert_eq!(
-        t.GetChecked(),
+        t.checked(),
         Some(2),
         "selection must survive zoom change from 2x to 1x"
     );

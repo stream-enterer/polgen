@@ -93,8 +93,8 @@ mod linux {
 
     #[test]
     fn server_not_found() {
-        let GetResult = emMiniIpcClient::TrySend("nonexistent_test_server_12345", &["hello"]);
-        assert!(GetResult.is_err());
+        let result = emMiniIpcClient::TrySend("nonexistent_test_server_12345", &["hello"]);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -163,8 +163,8 @@ mod linux {
         assert!(!server.IsServing());
 
         // Verify FIFO is removed — sending should fail
-        let GetResult = emMiniIpcClient::TrySend(&name, &["test"]);
-        assert!(GetResult.is_err());
+        let result = emMiniIpcClient::TrySend(&name, &["test"]);
+        assert!(result.is_err());
 
         server.cleanup(&mut sched);
     }

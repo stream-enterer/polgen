@@ -49,7 +49,7 @@ impl PanelBehavior for ButtonPanel {
 fn button_click_1x_and_2x() {
     // 1. Create PipelineTestHarness (800x600 viewport).
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // 2. Create emButton with on_click callback incrementing a shared counter.
     let counter = Rc::new(Cell::new(0u32));
@@ -70,7 +70,7 @@ fn button_click_1x_and_2x() {
     compositor.render(&mut h.tree, &h.view);
 
     // 5. At 1x zoom: Click at viewport center (400, 300).
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(
         counter.get(),
         1,
@@ -82,7 +82,7 @@ fn button_click_1x_and_2x() {
     h.tick_n(5);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(
         counter.get(),
         2,
@@ -107,7 +107,7 @@ fn make_button_harness() -> (
     Rc<std::cell::RefCell<Vec<bool>>>,
 ) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let counter = Rc::new(Cell::new(0u32));
     let press_log: Rc<std::cell::RefCell<Vec<bool>>> = Rc::new(std::cell::RefCell::new(Vec::new()));
@@ -153,7 +153,7 @@ fn bp9_mouse_release_inside_fires_click() {
     let (mut h, _panel_id, counter, press_log) = make_button_harness();
 
     // Full Click at viewport center.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     assert_eq!(counter.get(), 1, "click callback should fire on release inside");
     let log = press_log.borrow();
@@ -192,7 +192,7 @@ fn bp9_enter_key_instant_click_no_press_state() {
     let (mut h, _panel_id, counter, press_log) = make_button_harness();
 
     // First Click to activate the panel (put it in the active path).
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(counter.get(), 1, "setup click");
     press_log.borrow_mut().clear();
 
@@ -274,7 +274,7 @@ fn bp9_ctrl_enter_rejected() {
     let (mut h, _panel_id, counter, _press_log) = make_button_harness();
 
     // Activate the panel first so keyboard events reach it.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(counter.get(), 1, "setup click");
 
     h.input_state.press(InputKey::Ctrl);
@@ -291,7 +291,7 @@ fn bp9_shift_enter_accepted() {
     let (mut h, _panel_id, counter, _press_log) = make_button_harness();
 
     // Activate the panel first so keyboard events reach it.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(counter.get(), 1, "setup click");
 
     h.input_state.press(InputKey::Shift);
@@ -314,7 +314,7 @@ fn bp9_disabled_button_ignores_press() {
     let mut compositor = SoftwareCompositor::new(800, 600);
     compositor.render(&mut h.tree, &h.view);
 
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
 
     assert_eq!(counter.get(), 0, "disabled button should not fire click");
     assert!(
@@ -346,7 +346,7 @@ fn bp9_disabled_button_ignores_enter() {
 #[test]
 fn bp9_vct_min_ext_guard_mouse() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let counter = Rc::new(Cell::new(0u32));
     let counter_c = counter.clone();
@@ -369,7 +369,7 @@ fn bp9_vct_min_ext_guard_mouse() {
     compositor.render(&mut h.tree, &h.view);
 
     // Click near top-left where the tiny panel lives.
-    h.Click(0.4, 0.3);
+    h.click(0.4, 0.3);
 
     assert_eq!(
         counter.get(),
@@ -384,7 +384,7 @@ fn bp9_vct_min_ext_guard_mouse() {
 #[test]
 fn bp9_vct_min_ext_guard_enter() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let counter = Rc::new(Cell::new(0u32));
     let counter_c = counter.clone();
@@ -441,7 +441,7 @@ fn bp9_space_key_does_not_activate() {
     let (mut h, _panel_id, counter, _press_log) = make_button_harness();
 
     // Activate the panel first so keyboard events reach it.
-    h.Click(400.0, 300.0);
+    h.click(400.0, 300.0);
     assert_eq!(counter.get(), 1, "setup click");
 
     h.press_key(InputKey::Space);

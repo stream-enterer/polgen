@@ -8,7 +8,7 @@ use crate::support::{RecordingBehavior, TestHarness};
 #[test]
 fn mouse_click_activates_correct_panel() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     // Panel A: left half
     let a = h.add_panel(root, "a");
@@ -21,8 +21,8 @@ fn mouse_click_activates_correct_panel() {
     h.tick();
 
     // Click in right half (panel B territory) — 600px is 75% of 800px viewport
-    let Click = emInputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
-    h.inject_input(&Click);
+    let click = emInputEvent::press(InputKey::MouseLeft).with_mouse(600.0, 300.0);
+    h.inject_input(&click);
 
     assert_eq!(
         h.view.GetActivePanel(),
@@ -34,7 +34,7 @@ fn mouse_click_activates_correct_panel() {
 #[test]
 fn vif_consumes_prevents_behavior() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log = Rc::new(RefCell::new(Vec::new()));
 
     let _child = h.add_panel_with(
@@ -68,7 +68,7 @@ fn vif_consumes_prevents_behavior() {
 #[test]
 fn focus_change_routes_keyboard() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log_a = Rc::new(RefCell::new(Vec::new()));
     let log_b = Rc::new(RefCell::new(Vec::new()));
 

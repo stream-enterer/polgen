@@ -3,7 +3,7 @@ use crate::support::TestHarness;
 #[test]
 fn create_tree_tick_destroy() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let a = h.add_panel(root, "a");
     let b = h.add_panel(root, "b");
@@ -27,7 +27,7 @@ fn create_tree_tick_destroy() {
 #[test]
 fn remove_active_panel_reselects() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let a = h.add_panel(root, "a");
     h.tree.Layout(a, 0.0, 0.0, 0.5, 1.0);
@@ -62,7 +62,7 @@ fn remove_panel_with_engine() {
     }
 
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let child = h.add_panel(root, "child");
 
     // Register an engine associated with this panel
@@ -84,7 +84,7 @@ fn remove_panel_with_engine() {
 #[test]
 fn rapid_create_remove() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     for i in 0..100 {
         let name = format!("panel_{i}");
@@ -101,7 +101,7 @@ fn rapid_create_remove() {
 #[test]
 fn stale_panel_id_after_remove() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let child = h.add_panel(root, "child");
     h.tree.remove(child);

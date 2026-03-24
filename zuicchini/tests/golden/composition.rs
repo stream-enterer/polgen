@@ -321,10 +321,10 @@ impl TkTestPanel {
         }
     }
 
-    /// Helper: create a emRasterGroup category under `GetParentContext`.
+    /// Helper: create a emRasterGroup category under `parent_context`.
     fn make_category(
         tree: &mut PanelTree,
-        GetParentContext: PanelId,
+        parent_context: PanelId,
         name: &str,
         caption: &str,
         pct: Option<f64>,
@@ -339,7 +339,7 @@ impl TkTestPanel {
         if let Some(c) = fixed_cols {
             rg.layout.fixed_columns = Some(c);
         }
-        let id = tree.create_child(GetParentContext, name);
+        let id = tree.create_child(parent_context, name);
         tree.set_behavior(id, Box::new(rg));
         id
     }
@@ -816,7 +816,7 @@ fn composition_tktest_1x() {
     // TkTestPanel with emRasterGroup categories has layout GetPos differences
     // from C++ emTestPanel::TkTest due to GetContentRect vs border rounding.
     // Same tolerance band as testpanel_expanded which uses the same structure.
-    let GetResult = compare_images(
+    let result = compare_images(
         "tktest_1x",
         actual,
         expected_data,
@@ -825,11 +825,11 @@ fn composition_tktest_1x() {
         3,
         28.0,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("tktest_1x", actual, expected_data, w, h);
         analyze_diff_distribution(actual, expected_data, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 /// TkTestPanel (all widget types in emRasterGroup grid) at 2x zoom (800x600).
@@ -870,7 +870,7 @@ fn composition_tktest_2x() {
 
     // TkTestPanel at 2x zoom amplifies layout GetPos differences.
     // Zoom shifts expose border-rounding rects that differ from C++ at sub-pixel level.
-    let GetResult = compare_images(
+    let result = compare_images(
         "tktest_2x",
         actual,
         expected_data,
@@ -879,9 +879,9 @@ fn composition_tktest_2x() {
         3,
         75.0,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("tktest_2x", actual, expected_data, w, h);
         analyze_diff_distribution(actual, expected_data, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }

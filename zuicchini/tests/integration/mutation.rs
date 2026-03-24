@@ -10,7 +10,7 @@ use crate::support::{MutatingBehavior, RecordingBehavior, TestHarness};
 fn add_child_during_layout_children() {
     // Behavior adds children in LayoutChildren() callback → no panic.
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let created_ids: Rc<RefCell<Vec<PanelId>>> = Rc::new(RefCell::new(Vec::new()));
     let ids_clone = Rc::clone(&created_ids);
@@ -40,14 +40,14 @@ fn add_child_during_layout_children() {
 fn remove_sibling_during_layout_children() {
     // Behavior removes a sibling in LayoutChildren() → no panic.
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let sibling = h.add_panel(root, "sibling");
     let sibling_id = sibling;
 
     let mut behavior = MutatingBehavior::new();
     behavior.on_layout = Some(Box::new(move |ctx: &mut PanelCtx| {
-        // Delete sibling via GetParentContext
+        // Delete sibling via parent_context
         if let Some(parent) = ctx.GetParentContext() {
             // We can't directly remove a sibling through PanelCtx (it's scoped to self).
             // Instead, we just verify the sibling is reachable.
@@ -70,7 +70,7 @@ fn remove_sibling_during_layout_children() {
 fn child_iter_snapshot_safety() {
     // Collect children to Vec → remove during Vec iteration → safe.
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let a = h.add_panel(root, "a");
     let b = h.add_panel(root, "b");
@@ -95,7 +95,7 @@ fn deliver_notices_with_new_panels() {
     // Notice callback (via LayoutChildren) creates new panels →
     // new panels don't GetRec notices this tick (not in snapshot) → GetRec them next tick.
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let new_panel_log = Rc::new(RefCell::new(Vec::new()));
     let created: Rc<RefCell<Option<PanelId>>> = Rc::new(RefCell::new(None));
     let created_clone = Rc::clone(&created);
@@ -110,7 +110,7 @@ fn deliver_notices_with_new_panels() {
     }));
 
     let _parent = h.add_panel_with(root, "parent", Box::new(behavior));
-    h.tick(); // First tick: GetParentContext's LayoutChildren creates late_child
+    h.tick(); // First tick: parent_context's LayoutChildren creates late_child
 
     let child_id = created.borrow().expect("Child should have been created");
     assert!(h.tree.contains(child_id));
@@ -137,7 +137,7 @@ fn delete_all_children_during_layout() {
     // Deleting children during LayoutChildren is safe — deliver_notices
     // skips panels removed by prior callbacks in the same loop.
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let deleted = Rc::new(RefCell::new(false));
     let deleted_clone = Rc::clone(&deleted);
 

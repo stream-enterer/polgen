@@ -171,7 +171,7 @@ fn render_and_compare_tol(
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         name,
         actual,
         &expected,
@@ -180,11 +180,11 @@ fn render_and_compare_tol(
         channel_tolerance,
         max_failure_pct,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images(name, actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, channel_tolerance);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test 1: widget_border_rect ─────────────────────────────────
@@ -463,12 +463,12 @@ fn widget_colorfield() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("widget_colorfield", actual, &expected, w, h, 3, 3.5);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("widget_colorfield", actual, &expected, w, h, 3, 3.5);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test 13: widget_radiobutton ───────────────────────────────
@@ -610,12 +610,12 @@ fn colorfield_expanded() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("colorfield_expanded", actual, &expected, w, h, 3, 4.0);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("colorfield_expanded", actual, &expected, w, h, 3, 4.0);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("colorfield_expanded", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test 18: listbox_expanded ────────────────────────────────
@@ -685,12 +685,12 @@ fn listbox_expanded() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("listbox_expanded", actual, &expected, w, h, 3, 2.0);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("listbox_expanded", actual, &expected, w, h, 3, 2.0);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("listbox_expanded", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-1: widget_border_rect_extreme_tall ──────────────────────
@@ -721,7 +721,7 @@ fn golden_widget_border_rect_extreme_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_border_rect_extreme_tall",
         actual,
         &expected,
@@ -730,11 +730,11 @@ fn golden_widget_border_rect_extreme_tall() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_rect_extreme_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-2: widget_border_rect_extreme_wide ─────────────────────
@@ -765,7 +765,7 @@ fn golden_widget_border_rect_extreme_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_border_rect_extreme_wide",
         actual,
         &expected,
@@ -774,11 +774,11 @@ fn golden_widget_border_rect_extreme_wide() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_rect_extreme_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-3: widget_border_roundrect_thin ─────────────────────────
@@ -809,7 +809,7 @@ fn golden_widget_border_roundrect_thin() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_border_roundrect_thin",
         actual,
         &expected,
@@ -818,11 +818,11 @@ fn golden_widget_border_roundrect_thin() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_roundrect_thin", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-4: widget_border_instrument_cramped ─────────────────────
@@ -854,7 +854,7 @@ fn golden_widget_border_instrument_cramped() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_border_instrument_cramped",
         actual,
         &expected,
@@ -863,11 +863,11 @@ fn golden_widget_border_instrument_cramped() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_border_instrument_cramped", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-5: widget_label_single_char ─────────────────────────────
@@ -893,7 +893,7 @@ fn golden_widget_label_single_char() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_label_single_char",
         actual,
         &expected,
@@ -902,11 +902,11 @@ fn golden_widget_label_single_char() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_label_single_char", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-6: widget_label_empty ───────────────────────────────────
@@ -932,7 +932,7 @@ fn golden_widget_label_empty() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_label_empty",
         actual,
         &expected,
@@ -941,11 +941,11 @@ fn golden_widget_label_empty() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_label_empty", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-7: widget_label_long_narrow ─────────────────────────────
@@ -974,7 +974,7 @@ fn golden_widget_label_long_narrow() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_label_long_narrow",
         actual,
         &expected,
@@ -983,11 +983,11 @@ fn golden_widget_label_long_narrow() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_label_long_narrow", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1040,12 +1040,12 @@ fn widget_tunnel() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("widget_tunnel", actual, &expected, w, h, 3, 10.0);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("widget_tunnel", actual, &expected, w, h, 3, 10.0);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_tunnel", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── CAP-0026: widget_file_panel ───────────────────────────────
@@ -1082,12 +1082,12 @@ fn widget_file_selection_box() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("widget_file_selection_box", actual, &expected, w, h, 3, 5.0);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("widget_file_selection_box", actual, &expected, w, h, 3, 5.0);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_file_selection_box", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-8: widget_textfield_empty_wide ──────────────────────────
@@ -1115,7 +1115,7 @@ fn golden_widget_textfield_empty_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_textfield_empty_wide",
         actual,
         &expected,
@@ -1124,11 +1124,11 @@ fn golden_widget_textfield_empty_wide() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_textfield_empty_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-9: widget_textfield_single_char_square ──────────────────
@@ -1157,7 +1157,7 @@ fn golden_widget_textfield_single_char_square() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_textfield_single_char_square",
         actual,
         &expected,
@@ -1166,11 +1166,11 @@ fn golden_widget_textfield_single_char_square() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_textfield_single_char_square", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-10: widget_scalarfield_min_value ────────────────────────
@@ -1199,7 +1199,7 @@ fn golden_widget_scalarfield_min_value() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_scalarfield_min_value",
         actual,
         &expected,
@@ -1208,11 +1208,11 @@ fn golden_widget_scalarfield_min_value() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_scalarfield_min_value", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-11: widget_scalarfield_max_value ────────────────────────
@@ -1241,7 +1241,7 @@ fn golden_widget_scalarfield_max_value() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_scalarfield_max_value",
         actual,
         &expected,
@@ -1250,11 +1250,11 @@ fn golden_widget_scalarfield_max_value() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_scalarfield_max_value", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-12: widget_scalarfield_zero_range ───────────────────────
@@ -1283,7 +1283,7 @@ fn golden_widget_scalarfield_zero_range() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_scalarfield_zero_range",
         actual,
         &expected,
@@ -1292,11 +1292,11 @@ fn golden_widget_scalarfield_zero_range() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_scalarfield_zero_range", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-13: widget_listbox_empty ────────────────────────────────
@@ -1323,7 +1323,7 @@ fn golden_widget_listbox_empty() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_listbox_empty",
         actual,
         &expected,
@@ -1332,11 +1332,11 @@ fn golden_widget_listbox_empty() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_listbox_empty", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-14: widget_listbox_single ───────────────────────────────
@@ -1364,7 +1364,7 @@ fn golden_widget_listbox_single() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_listbox_single",
         actual,
         &expected,
@@ -1373,11 +1373,11 @@ fn golden_widget_listbox_single() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_listbox_single", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-15: widget_listbox_extreme_wide ─────────────────────────
@@ -1407,7 +1407,7 @@ fn golden_widget_listbox_extreme_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_listbox_extreme_wide",
         actual,
         &expected,
@@ -1416,11 +1416,11 @@ fn golden_widget_listbox_extreme_wide() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_listbox_extreme_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-16: widget_splitter_h_pos0 ──────────────────────────────
@@ -1447,7 +1447,7 @@ fn golden_widget_splitter_h_pos0() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_splitter_h_pos0",
         actual,
         &expected,
@@ -1456,11 +1456,11 @@ fn golden_widget_splitter_h_pos0() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_splitter_h_pos0", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-17: widget_splitter_h_pos1 ──────────────────────────────
@@ -1487,7 +1487,7 @@ fn golden_widget_splitter_h_pos1() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_splitter_h_pos1",
         actual,
         &expected,
@@ -1496,11 +1496,11 @@ fn golden_widget_splitter_h_pos1() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_splitter_h_pos1", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-18: widget_splitter_v_extreme_tall ──────────────────────
@@ -1527,7 +1527,7 @@ fn golden_widget_splitter_v_extreme_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_splitter_v_extreme_tall",
         actual,
         &expected,
@@ -1536,11 +1536,11 @@ fn golden_widget_splitter_v_extreme_tall() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_splitter_v_extreme_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-21: widget_checkbox_extreme_tall ─────────────────────────
@@ -1566,7 +1566,7 @@ fn golden_widget_checkbox_extreme_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_checkbox_extreme_tall",
         actual,
         &expected,
@@ -1575,11 +1575,11 @@ fn golden_widget_checkbox_extreme_tall() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_checkbox_extreme_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-22: widget_tunnel_extreme_wide ──────────────────────────
@@ -1607,7 +1607,7 @@ fn golden_widget_tunnel_extreme_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_tunnel_extreme_wide",
         actual,
         &expected,
@@ -1616,11 +1616,11 @@ fn golden_widget_tunnel_extreme_wide() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_tunnel_extreme_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-19: widget_colorfield_alpha_zero ─────────────────────────
@@ -1656,7 +1656,7 @@ fn golden_widget_colorfield_alpha_zero() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_colorfield_alpha_zero",
         actual,
         &expected,
@@ -1665,11 +1665,11 @@ fn golden_widget_colorfield_alpha_zero() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield_alpha_zero", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-20a: widget_colorfield_alpha_opaque ──────────────────────
@@ -1705,7 +1705,7 @@ fn golden_widget_colorfield_alpha_opaque() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_colorfield_alpha_opaque",
         actual,
         &expected,
@@ -1714,11 +1714,11 @@ fn golden_widget_colorfield_alpha_opaque() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield_alpha_opaque", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── BV-20b: widget_colorfield_alpha_near ────────────────────────
@@ -1754,7 +1754,7 @@ fn golden_widget_colorfield_alpha_near() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "widget_colorfield_alpha_near",
         actual,
         &expected,
@@ -1763,11 +1763,11 @@ fn golden_widget_colorfield_alpha_near() {
         1,
         0.5,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("widget_colorfield_alpha_near", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test: composition_border_nest ──────────────────────────────
@@ -1856,7 +1856,7 @@ fn composition_border_nest() {
     // This causes ~35% pixel mismatch at tol=3 (child GetPos offsets ~40-60px).
     // Tolerance relaxed to accommodate the structural layout difference while still
     // verifying the overall widget composition renders without crashes or corruption.
-    let GetResult = compare_images(
+    let result = compare_images(
         "composed_border_nest",
         actual,
         &expected,
@@ -1865,11 +1865,11 @@ fn composition_border_nest() {
         3,
         40.0,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("composed_border_nest", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test: composition_splitter_content ─────────────────────────
@@ -1968,7 +1968,7 @@ fn composition_splitter_content() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "composed_splitter_content",
         actual,
         &expected,
@@ -1977,11 +1977,11 @@ fn composition_splitter_content() {
         3,
         5.0,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("composed_splitter_content", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 3);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test: composition_scrolled_listbox_in_border ───────────────
@@ -2037,7 +2037,7 @@ fn composition_scrolled_listbox_in_border() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images(
+    let result = compare_images(
         "composed_scrolled_listbox",
         actual,
         &expected,
@@ -2046,11 +2046,11 @@ fn composition_scrolled_listbox_in_border() {
         1,
         2.0,
     );
-    if GetResult.is_err() && dump_golden_enabled() {
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("composed_scrolled_listbox", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test: composition_colorfield_expansion_wide ────────────────
@@ -2099,12 +2099,12 @@ fn composition_colorfield_expansion_wide() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("composed_colorfield_wide", actual, &expected, w, h, 1, 2.0);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("composed_colorfield_wide", actual, &expected, w, h, 1, 2.0);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("composed_colorfield_wide", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 // ─── Test: composition_colorfield_expansion_tall ────────────────
@@ -2152,12 +2152,12 @@ fn composition_colorfield_expansion_tall() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    let GetResult = compare_images("composed_colorfield_tall", actual, &expected, w, h, 1, 2.0);
-    if GetResult.is_err() && dump_golden_enabled() {
+    let result = compare_images("composed_colorfield_tall", actual, &expected, w, h, 1, 2.0);
+    if result.is_err() && dump_golden_enabled() {
         dump_test_images("composed_colorfield_tall", actual, &expected, w, h);
         analyze_diff_distribution(actual, &expected, w, h, 1);
     }
-    GetResult.unwrap();
+    result.unwrap();
 }
 
 /// Golden test: render a view with STRESS_TEST active and verify the overlay
@@ -2196,9 +2196,9 @@ fn stress_test_overlay_golden() {
 
     // The overlay should make the images differ. compare_images returns Err
     // when images diverge beyond tolerance — we EXPECT divergence here.
-    let GetResult = compare_images("stress_test_overlay", actual, &baseline, w, h, 0, 0.0);
+    let result = compare_images("stress_test_overlay", actual, &baseline, w, h, 0, 0.0);
     assert!(
-        GetResult.is_err(),
+        result.is_err(),
         "stress test overlay should produce visible pixel differences vs baseline"
     );
 

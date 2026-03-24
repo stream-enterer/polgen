@@ -21,21 +21,21 @@ use zuicchini::emCore::emScheduler::EngineScheduler;
 #[derive(Default, Clone, PartialEq, Debug)]
 struct TestRecord {
     name: String,
-    GetCount: i32,
+    count: i32,
 }
 
 impl Record for TestRecord {
     fn from_rec(rec: &RecStruct) -> Result<Self, RecError> {
         Ok(Self {
             name: rec.get_str("name").unwrap_or("").to_string(),
-            GetCount: rec.get_int("count").unwrap_or(0),
+            count: rec.get_int("count").unwrap_or(0),
         })
     }
 
     fn to_rec(&self) -> RecStruct {
         let mut r = RecStruct::new();
         r.set_str("name", &self.name);
-        r.set_int("count", self.GetCount);
+        r.set_int("count", self.count);
         r
     }
 
@@ -44,14 +44,14 @@ impl Record for TestRecord {
     }
 
     fn IsSetToDefault(&self) -> bool {
-        self.name.is_empty() && self.GetCount == 0
+        self.name.is_empty() && self.count == 0
     }
 }
 
-fn write_test_rec(path: &std::path::Path, name: &str, GetCount: i32) {
+fn write_test_rec(path: &std::path::Path, name: &str, count: i32) {
     let mut r = RecStruct::new();
     r.set_str("name", name);
-    r.set_int("count", GetCount);
+    r.set_int("count", count);
     let content = zuicchini::emCore::emRec::write_rec(&r);
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, content).unwrap();
@@ -204,7 +204,7 @@ fn rec_file_model_load_roundtrip() {
 
     assert_eq!(*m.GetFileState(), FileState::Loaded);
     assert_eq!(m.GetMap().name, "hello");
-    assert_eq!(m.GetMap().GetCount, 42);
+    assert_eq!(m.GetMap().count, 42);
 }
 
 #[test]
@@ -238,7 +238,7 @@ fn rec_file_model_save_roundtrip() {
     assert_eq!(*m.GetFileState(), FileState::Loaded);
 
     m.GetWritableMap().name = "modified".to_string();
-    m.GetWritableMap().GetCount = 99;
+    m.GetWritableMap().count = 99;
     assert_eq!(*m.GetFileState(), FileState::Unsaved);
 
     m.Save();
@@ -294,7 +294,7 @@ fn rec_file_model_clear_save_error() {
     assert_eq!(*m.GetFileState(), FileState::Loaded);
 
     // Mark unsaved via data_mut()
-    m.GetWritableMap().GetCount = 5;
+    m.GetWritableMap().count = 5;
     assert_eq!(*m.GetFileState(), FileState::Unsaved);
 
     // Redirect to unwritable path (GetParentContext is a regular file)

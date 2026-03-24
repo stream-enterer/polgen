@@ -60,7 +60,7 @@ fn setup_splitter(
     initial_pos: f64,
 ) -> (PipelineTestHarness, Rc<RefCell<emSplitter>>, SoftwareCompositor) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let mut sp = emSplitter::new(orientation, look);
@@ -309,7 +309,7 @@ fn setup_splitter_with_id(
     initial_pos: f64,
 ) -> (PipelineTestHarness, Rc<RefCell<emSplitter>>, SoftwareCompositor, zuicchini::emCore::emPanelTree::PanelId) {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let look = emLook::new();
     let mut sp = emSplitter::new(orientation, look);

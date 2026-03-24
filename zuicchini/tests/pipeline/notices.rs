@@ -152,7 +152,7 @@ fn build_labeled_tree(
     PanelId,
     Rc<RefCell<NoticeFlags>>,
 ) {
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let root_acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     h.tree.set_behavior(
         root,
@@ -241,7 +241,7 @@ fn flush_and_clear(
 #[test]
 fn layout_change_fires_on_panel() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let flags = Rc::new(RefCell::new(NoticeFlags::empty()));
     let panel = h.add_panel_with(
@@ -265,7 +265,7 @@ fn layout_change_fires_on_panel() {
 #[test]
 fn layout_change_propagates_to_child() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let flags_parent = Rc::new(RefCell::new(NoticeFlags::empty()));
     let parent = h.add_panel_with(
@@ -301,7 +301,7 @@ fn layout_change_propagates_to_child() {
 #[test]
 fn layout_change_propagates_to_grandchild() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let flags_parent = Rc::new(RefCell::new(NoticeFlags::empty()));
     let parent = h.add_panel_with(
@@ -351,7 +351,7 @@ fn layout_change_propagates_to_grandchild() {
 #[test]
 fn layout_change_does_not_leak_to_sibling() {
     let mut h = PipelineTestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let flags_a = Rc::new(RefCell::new(NoticeFlags::empty()));
     let sibling_a = h.add_panel_with(
@@ -393,7 +393,7 @@ fn layout_change_does_not_leak_to_sibling() {
 #[test]
 fn focus_change_fires_active_and_focus_changed_on_both_panels() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     let panel_a = h.add_panel_with(
@@ -461,7 +461,7 @@ fn focus_change_fires_active_and_focus_changed_on_both_panels() {
 #[test]
 fn focus_change_old_panel_notified_before_new_panel() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     let panel_a = h.add_panel_with(
@@ -515,7 +515,7 @@ fn focus_change_old_panel_notified_before_new_panel() {
 #[test]
 fn focus_change_ancestor_receives_active_changed() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     let parent = h.add_panel_with(
@@ -581,7 +581,7 @@ fn focus_change_ancestor_receives_active_changed() {
 #[test]
 fn focus_change_no_focus_changed_when_window_unfocused() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     let panel_a = h.add_panel_with(
@@ -633,7 +633,7 @@ fn focus_change_no_focus_changed_when_window_unfocused() {
 #[test]
 fn focus_change_same_panel_is_noop() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     let panel_a = h.add_panel_with(
@@ -665,7 +665,7 @@ fn focus_change_same_panel_is_noop() {
 #[test]
 fn focus_change_shared_ancestor_receives_notice() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
     let mid = h.add_panel_with(
@@ -726,7 +726,7 @@ fn focus_change_shared_ancestor_receives_notice() {
 #[test]
 fn disable_parent_fires_enable_changed_on_parent() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -745,7 +745,7 @@ fn disable_parent_fires_enable_changed_on_parent() {
 #[test]
 fn disable_parent_propagates_enable_changed_to_descendants() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -778,7 +778,7 @@ fn disable_parent_propagates_enable_changed_to_descendants() {
 #[test]
 fn reenable_parent_fires_enable_changed_on_parent_and_descendants() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -816,7 +816,7 @@ fn reenable_parent_fires_enable_changed_on_parent_and_descendants() {
 #[test]
 fn sibling_branch_does_not_get_enable_changed() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (branch_a_acc, branch_a_beh) = notice_pair();
     let branch_a = h.add_panel_with(root, "branch_a", branch_a_beh);
@@ -854,7 +854,7 @@ fn sibling_branch_does_not_get_enable_changed() {
 #[test]
 fn disable_already_disabled_is_noop() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -876,7 +876,7 @@ fn disable_already_disabled_is_noop() {
 #[test]
 fn enable_already_enabled_is_noop() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -896,7 +896,7 @@ fn enable_already_enabled_is_noop() {
 #[test]
 fn child_with_own_disable_stays_disabled_on_parent_reenable() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -928,7 +928,7 @@ fn child_with_own_disable_stays_disabled_on_parent_reenable() {
     assert!(
         !has_enable_changed(&child_acc),
         "Child with own enable_switch=false must NOT GetRec ENABLE_CHANGED \
-         when GetParentContext is re-enabled"
+         when parent_context is re-enabled"
     );
     assert!(
         !has_enable_changed(&grandchild_acc),
@@ -940,7 +940,7 @@ fn child_with_own_disable_stays_disabled_on_parent_reenable() {
 #[test]
 fn disable_propagates_to_all_children_not_just_first() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let (parent_acc, parent_beh) = notice_pair();
     let parent = h.add_panel_with(root, "parent", parent_beh);
@@ -976,7 +976,7 @@ fn disable_propagates_to_all_children_not_just_first() {
 #[test]
 fn add_child_fires_children_changed_on_parent() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let parent = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
@@ -995,7 +995,7 @@ fn add_child_fires_children_changed_on_parent() {
 #[test]
 fn remove_child_fires_children_changed_on_parent() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let parent = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
@@ -1015,7 +1015,7 @@ fn remove_child_fires_children_changed_on_parent() {
 #[test]
 fn add_child_does_not_fire_children_changed_on_grandparent() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let gp_acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let grandparent =
@@ -1036,7 +1036,7 @@ fn add_child_does_not_fire_children_changed_on_grandparent() {
 #[test]
 fn remove_child_does_not_fire_children_changed_on_grandparent() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let gp_acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let grandparent =
@@ -1058,7 +1058,7 @@ fn remove_child_does_not_fire_children_changed_on_grandparent() {
 #[test]
 fn add_multiple_children_fires_children_changed_on_parent() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let parent = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
@@ -1079,7 +1079,7 @@ fn add_multiple_children_fires_children_changed_on_parent() {
 #[test]
 fn children_changed_is_pending_immediately_after_add() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let parent = h.add_panel(root, "parent");
     h.tick();
@@ -1097,7 +1097,7 @@ fn children_changed_is_pending_immediately_after_add() {
 #[test]
 fn children_changed_is_pending_immediately_after_remove() {
     let mut h = TestHarness::new();
-    let root = h.GetRootPanel();
+    let root = h.get_root_panel();
 
     let parent = h.add_panel(root, "parent");
     let child = h.add_panel(parent, "child");

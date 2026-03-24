@@ -3327,7 +3327,7 @@ mod tests {
         let mut view = emView::new(root, 800.0, 600.0);
         view.Update(&mut tree);
 
-        let (dx, dy, _dz, abs_dist) = emMagneticViewAnimator::calculate_distance(&view, &tree);
+        let (dx, _dy, _dz, abs_dist) = emMagneticViewAnimator::calculate_distance(&view, &tree);
         // The center panel should be nearest to the viewport center
         assert!(
             abs_dist > 0.0,

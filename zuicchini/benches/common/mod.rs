@@ -689,7 +689,7 @@ pub fn run_one_frame(
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(viewport_buf);
-        view.PaintContent(tree, &mut painter);
+        view.Paint(tree, &mut painter);
     }
 
     // 5. Tile copy

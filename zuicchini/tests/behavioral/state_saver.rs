@@ -72,8 +72,8 @@ fn window_geometry_from_rec_missing_x_fails() {
     rec.set_int("width", 800);
     rec.set_int("height", 600);
 
-    let GetResult = WindowGeometry::from_rec(&rec);
-    assert!(matches!(GetResult, Err(RecError::MissingField(_))));
+    let result = WindowGeometry::from_rec(&rec);
+    assert!(matches!(result, Err(RecError::MissingField(_))));
 }
 
 #[test]
@@ -83,8 +83,8 @@ fn window_geometry_from_rec_missing_width_fails() {
     rec.set_int("y", 100);
     rec.set_int("height", 600);
 
-    let GetResult = WindowGeometry::from_rec(&rec);
-    assert!(matches!(GetResult, Err(RecError::MissingField(_))));
+    let result = WindowGeometry::from_rec(&rec);
+    assert!(matches!(result, Err(RecError::MissingField(_))));
 }
 
 #[test]
