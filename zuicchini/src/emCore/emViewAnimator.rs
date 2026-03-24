@@ -1899,11 +1899,10 @@ impl emVisitingViewAnimator {
         // Rust rel_a = 1/C++relA, so relA = 1/target_a.
         let vw = (hw * hh * hp * target_a / panel_height).sqrt();
         let vh = vw * panel_height / hp;
-        // Target panel left edge in viewport pixels.
-        // Rust rel_x is viewport-fraction (not panel-fraction like C++ relX),
-        // so: vcx = hw*(0.5 - target_x), panel_left = vcx - 0.5*vw.
-        let vx = hx + hw * (0.5 - target_x) - vw * 0.5;
-        let vy = hy + hh * (0.5 - target_y) - vh * 0.5;
+        // C++ emViewAnimator.cpp:1530-1531 (panel-fraction, 1:1 transcription):
+        //   vx = HomeX + HomeWidth*0.5 - (relX+0.5)*vw
+        let vx = hx + hw * 0.5 - (target_x + 0.5) * vw;
+        let vy = hy + hh * 0.5 - (target_y + 0.5) * vh;
         let mut bx = (sx - vx) / vw;
         let mut by = (sy - vy) / vw * hp;
         let mut bw = sw / vw;
@@ -3404,4 +3403,143 @@ mod tests {
         );
     }
 
+    // --- Coordinate-system invariant tests ---
+    // These test physical behavior, not coordinate values, so they
+    // survive a convention change (viewport-fraction → panel-fraction).
+
+    fn setup_scrolled(factor: f64) -> (PanelTree, emView) {
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("root");
+        tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
+        let mut view = emView::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::ROOT_SAME_TALLNESS);
+        view.Update(&mut tree);
+        view.Zoom(factor, 400.0, 300.0);
+        view.Update(&mut tree);
+        // Scroll off-center so rel_x != 0
+        view.Scroll(80.0, 40.0);
+        view.Update(&mut tree);
+        (tree, view)
+    }
+
+    #[test]
+    fn invariant_equilibrium_at_target() {
+        // When the visiting animator targets the current view state, it should
+        // not move: get_distance_to must return 0 at the current position.
+        // Also verifies that viewed_x is consistent with the visit state
+        // (catches correlated errors between Update and get_distance_to).
+        for &factor in &[1.0, 2.0, 4.0, 16.0, 100.0] {
+            let (mut tree, mut view) = setup_scrolled(factor);
+            let root = view.GetRootPanel();
+
+            let state = view.current_visit().clone();
+            let viewed_x_before = tree.GetRec(root).unwrap().viewed_x;
+            let viewed_y_before = tree.GetRec(root).unwrap().viewed_y;
+
+            // Create animator targeting exactly the current state
+            let mut anim =
+                emVisitingViewAnimator::new(state.rel_x, state.rel_y, state.rel_a, 0.0);
+            anim.set_identity("root", "");
+            anim.SetAnimated(true);
+            anim.SetAcceleration(5.0);
+            anim.SetMaxAbsoluteSpeed(5.0);
+
+            // Drive several steps — view should not move
+            for step in 0..10 {
+                anim.animate(&mut view, &mut tree, 1.0 / 60.0);
+                let after = view.current_visit();
+                assert!(
+                    (after.rel_x - state.rel_x).abs() < 1e-10,
+                    "factor={factor} step={step}: rel_x moved from {:.15e} to {:.15e}",
+                    state.rel_x,
+                    after.rel_x
+                );
+                assert!(
+                    (after.rel_y - state.rel_y).abs() < 1e-10,
+                    "factor={factor} step={step}: rel_y moved from {:.15e} to {:.15e}",
+                    state.rel_y,
+                    after.rel_y
+                );
+                assert!(
+                    (after.rel_a - state.rel_a).abs() < 1e-10,
+                    "factor={factor} step={step}: rel_a moved from {:.15e} to {:.15e}",
+                    state.rel_a,
+                    after.rel_a
+                );
+            }
+
+            // Viewed position should also be unchanged
+            let viewed_x_after = tree.GetRec(root).unwrap().viewed_x;
+            let viewed_y_after = tree.GetRec(root).unwrap().viewed_y;
+            assert!(
+                (viewed_x_after - viewed_x_before).abs() < 1e-6,
+                "factor={factor}: viewed_x drifted by {:.3e}",
+                (viewed_x_after - viewed_x_before).abs()
+            );
+            assert!(
+                (viewed_y_after - viewed_y_before).abs() < 1e-6,
+                "factor={factor}: viewed_y drifted by {:.3e}",
+                (viewed_y_after - viewed_y_before).abs()
+            );
+        }
+    }
+
+    #[test]
+    fn invariant_animator_convergence() {
+        // Visiting animator reaches CalcVisitCoords target within 120 frames.
+        // Tests the full pipeline: get_distance_to → curve solver → RawScrollAndZoom → Update.
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("root");
+        tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
+        let child = tree.create_child(root, "child");
+        tree.Layout(child, 0.1, 0.1, 0.4, 0.5);
+
+        let mut view = emView::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::ROOT_SAME_TALLNESS);
+        view.Update(&mut tree);
+        // Start zoomed in, off-center
+        view.Zoom(4.0, 400.0, 300.0);
+        view.Update(&mut tree);
+        view.Scroll(100.0, 50.0);
+        view.Update(&mut tree);
+
+        // Target: CalcVisitCoords for root (centered)
+        let (tx, ty, ta) = view.CalcVisitCoords(&tree, root);
+
+        let mut anim = emVisitingViewAnimator::new(tx, ty, ta, 0.0);
+        anim.set_identity("root", "");
+        anim.SetAnimated(true);
+        anim.SetAcceleration(5.0);
+        anim.SetMaxAbsoluteSpeed(5.0);
+        anim.SetMaxCuspSpeed(2.5);
+
+        for _ in 0..120 {
+            if !anim.animate(&mut view, &mut tree, 1.0 / 60.0) {
+                break;
+            }
+        }
+
+        let final_state = view.current_visit();
+        assert!(
+            (final_state.rel_x - tx).abs() < 1e-4,
+            "rel_x did not converge: final={:.8} target={:.8} diff={:.3e}",
+            final_state.rel_x,
+            tx,
+            (final_state.rel_x - tx).abs()
+        );
+        assert!(
+            (final_state.rel_y - ty).abs() < 1e-4,
+            "rel_y did not converge: final={:.8} target={:.8} diff={:.3e}",
+            final_state.rel_y,
+            ty,
+            (final_state.rel_y - ty).abs()
+        );
+        assert!(
+            (final_state.rel_a - ta).abs() < 1e-4,
+            "rel_a did not converge: final={:.8} target={:.8} diff={:.3e}",
+            final_state.rel_a,
+            ta,
+            (final_state.rel_a - ta).abs()
+        );
+    }
 }

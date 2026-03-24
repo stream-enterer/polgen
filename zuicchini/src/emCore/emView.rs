@@ -549,28 +549,21 @@ impl emView {
             if (new_a - old_a).abs() < 1e-15 {
                 return;
             }
-            // Fix-point zoom: the screen point (center_x, center_y) must map to
-            // the same panel-space point before and after the zoom.
+            // C++ emView::Zoom (emView.cpp:794-796):
+            //   reFac = 1/factor
+            //   rx += (fixX - hmx) * (1 - reFac) / pvw
+            //   ry += (fixY - hmy) * (1 - reFac) / pvh
+            //   ra *= reFac^2
             //
-            // Panel center in viewport: vcx = vw*(0.5 - rel_x) (C++ convention:
-            // relX > 0 means panel LEFT of viewport center).
-            // Visited panel width scales as sqrt(rel_a), so after zoom the
-            // panel grows by inv_ratio = sqrt(new_a)/sqrt(old_a).
-            // Solving the fix-point constraint gives:
-            //   rel_x_new = anchor_x + (rel_x - anchor_x) * inv_ratio
-            // where anchor_x = 0.5 - center_x/vw (fix point in viewport fraction).
-            //
-            // C++ emView::Zoom divides by ViewedWidth/ViewedHeight; here we
-            // work in viewport-fraction space so the panel geometry cancels out.
-            let sqrt_old = old_a.sqrt();
-            let sqrt_new = new_a.sqrt();
-            let inv_ratio = sqrt_new / sqrt_old;
+            // Rust rel_a = 1/ra, new_a = old_a * factor, so
+            // reFac = 1/sqrt(factor) (since ra *= reFac^2 ↔ rel_a /= reFac^2).
+            let re_fac = 1.0 / factor.sqrt();
             let vw = self.viewport_width.max(1.0);
             let vh = self.viewport_height.max(1.0);
-            let anchor_x = 0.5 - center_x / vw;
-            let anchor_y = 0.5 - center_y / vh;
-            state.rel_x = anchor_x + (state.rel_x - anchor_x) * inv_ratio;
-            state.rel_y = anchor_y + (state.rel_y - anchor_y) * inv_ratio;
+            let pvw = self.visited_vw.max(1.0);
+            let pvh = self.visited_vh.max(1.0);
+            state.rel_x += (center_x - vw * 0.5) * (1.0 - re_fac) / pvw;
+            state.rel_y += (center_y - vh * 0.5) * (1.0 - re_fac) / pvh;
             state.rel_a = new_a;
             self.viewport_changed = true;
             self.viewing_dirty = true;
@@ -756,7 +749,7 @@ impl emView {
             rects.push((x, y, w, h));
         }
 
-        let (px, py, pw, ph) = *rects.last().unwrap_or(&(0.0, 0.0, 1.0, 1.0));
+        let (_px, _py, pw, ph) = *rects.last().unwrap_or(&(0.0, 0.0, 1.0, 1.0));
 
         // We want the panel to be nicely visible. Compute rel_a so panel fills
         // a good portion of the viewport.
@@ -775,10 +768,11 @@ impl emView {
         };
         let rel_a = rel_a.clamp(0.001, MAX_SVP_SIZE);
 
-        // Center the panel in the viewport (C++ emView.cpp:1520)
-        let scale = rel_a.sqrt();
-        let rel_x = (px + pw * 0.5) * scale - 0.5;
-        let rel_y = (py + ph * 0.5) * scale - 0.5;
+        // In panel-fraction, centering is always relX=0, relY=0.
+        // The panel's position within the root is encoded in the tree walk,
+        // not in rel_x/rel_y (C++ emView.cpp:1484-1486).
+        let rel_x = 0.0;
+        let rel_y = 0.0;
 
         (rel_x, rel_y, rel_a)
     }
@@ -819,7 +813,7 @@ impl emView {
             rects.push((px + lr.x * pw, py + lr.y * pw, lr.w * pw, lr.h * pw));
         }
 
-        let (px, py, pw, ph) = *rects.last().unwrap_or(&(0.0, 0.0, 1.0, 1.0));
+        let (_px, _py, pw, ph) = *rects.last().unwrap_or(&(0.0, 0.0, 1.0, 1.0));
         let panel_aspect = if ph > 0.0 { pw / ph } else { 1.0 };
 
         // Fill: panel covers viewport. Fit: panel fits inside viewport.
@@ -837,9 +831,9 @@ impl emView {
 
         let rel_a = (scale * scale * (pw * ph).max(MIN_DIMENSION * MIN_DIMENSION))
             .clamp(0.001, MAX_SVP_SIZE);
-        let s = rel_a.sqrt();
-        let rel_x = (px + pw * 0.5) * s - 0.5;
-        let rel_y = (py + ph * 0.5) * s - 0.5;
+        // Panel-fraction: centering is relX=0, relY=0.
+        let rel_x = 0.0;
+        let rel_y = 0.0;
 
         (rel_x, rel_y, rel_a)
     }
@@ -1115,7 +1109,7 @@ impl emView {
         // But visited_vw = vnw * root_vw and visited_vh = vnh * root_vh
         // => root_vw = visited_vw / vnw, root_vh = visited_vh / vnh
         //
-        // visited center in viewport: (vw * (0.5 - rel_x), vh * (0.5 - rel_y))
+        // visited center in viewport: vw/2 - rel_x*visited_vw (panel-fraction)
         // visited center = root_vx + (vnx + vnw/2) * root_vw
 
         let vnw_safe = vnw.max(MIN_DIMENSION);
@@ -1135,10 +1129,11 @@ impl emView {
         // algebraically, but we keep the derivation clear.
         let root_vh_center = visited_vh / vnh_safe;
 
-        // Visited center in viewport
-        // C++ emView.cpp:1537: vx = hmx - (relX+0.5)*vw
-        let vcx = vw * (0.5 - visit.rel_x);
-        let vcy = vh * (0.5 - visit.rel_y);
+        // Visited panel center in viewport.
+        // C++ emView.cpp:1537: panel_center = hmx - relX * pvw
+        // Panel-fraction: relX is in visited-panel-widths, so multiply by visited_vw.
+        let vcx = vw * 0.5 - visit.rel_x * visited_vw;
+        let vcy = vh * 0.5 - visit.rel_y * visited_vh;
 
         // Root position (centering uses root_vh_center)
         let root_vx = vcx - (vnx + vnw_safe * 0.5) * root_vw;
@@ -3406,5 +3401,165 @@ mod tests {
 
         // Clean up
         let _ = std::fs::remove_file(&path);
+    }
+
+    // --- Coordinate-system invariant tests ---
+    // These test physical behavior, not coordinate values, so they
+    // survive a convention change (viewport-fraction → panel-fraction).
+
+    /// Helper: convert viewport pixel to panel-local coordinates using
+    /// viewed_x/viewed_width from the panel tree. Convention-independent.
+    fn panel_space_at_pixel(
+        tree: &PanelTree,
+        panel: PanelId,
+        px: f64,
+        py: f64,
+    ) -> (f64, f64) {
+        let rec = tree.GetRec(panel).unwrap();
+        (
+            (px - rec.viewed_x) / rec.viewed_width,
+            (py - rec.viewed_y) / rec.viewed_height,
+        )
+    }
+
+    #[test]
+    fn invariant_zoom_fixpoint() {
+        // The pixel under the cursor maps to the same panel-space point
+        // before and after zoom, at various cursor positions and zoom factors.
+        let (mut tree, root, _child1, _child2) = setup_tree();
+        let mut view = emView::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::ROOT_SAME_TALLNESS);
+        view.Update(&mut tree);
+
+        // Start at a moderate zoom so there's room to zoom in and out
+        view.Zoom(4.0, 400.0, 300.0);
+        view.Update(&mut tree);
+
+        let cursors = [(200.0, 150.0), (400.0, 300.0), (700.0, 50.0), (50.0, 550.0)];
+        let factors = [0.01, 0.5, 2.0, 4.0, 100.0];
+
+        for &(cx, cy) in &cursors {
+            for &factor in &factors {
+                // Save and restore state for each combo
+                let saved = view.current_visit().clone();
+
+                let before = panel_space_at_pixel(&tree, root, cx, cy);
+                view.Zoom(factor, cx, cy);
+                view.Update(&mut tree);
+                let after = panel_space_at_pixel(&tree, root, cx, cy);
+
+                assert!(
+                    (before.0 - after.0).abs() < 1e-9,
+                    "fix-point X violated: cursor=({cx},{cy}) factor={factor} \
+                     before={:.12} after={:.12} diff={:.3e}",
+                    before.0,
+                    after.0,
+                    (before.0 - after.0).abs()
+                );
+                assert!(
+                    (before.1 - after.1).abs() < 1e-9,
+                    "fix-point Y violated: cursor=({cx},{cy}) factor={factor} \
+                     before={:.12} after={:.12} diff={:.3e}",
+                    before.1,
+                    after.1,
+                    (before.1 - after.1).abs()
+                );
+
+                // Restore
+                if let Some(state) = view.visit_stack.last_mut() {
+                    *state = saved;
+                }
+                view.Update(&mut tree);
+            }
+        }
+    }
+
+    #[test]
+    fn invariant_calc_visit_round_trip() {
+        // rel_x=0, rel_y=0 → Update → panel center at viewport center.
+        // Verifies the core coord-system invariant: zero offset means centered.
+        // Tested at multiple zoom levels to catch convention/scaling errors.
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("root");
+        tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
+        let mut view = emView::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::ROOT_SAME_TALLNESS);
+        view.Update(&mut tree);
+
+        let (vw, vh) = view.viewport_size();
+
+        for &rel_a in &[1.0, 2.0, 4.0, 16.0] {
+            if let Some(state) = view.visit_stack.last_mut() {
+                state.rel_x = 0.0;
+                state.rel_y = 0.0;
+                state.rel_a = rel_a;
+            }
+            view.Update(&mut tree);
+
+            let rec = tree.GetRec(root).unwrap();
+            let panel_cx = rec.viewed_x + rec.viewed_width * 0.5;
+            let panel_cy = rec.viewed_y + rec.viewed_height * 0.5;
+
+            assert!(
+                (panel_cx - vw * 0.5).abs() < 0.5,
+                "rel_a={rel_a}: root not centered X: panel_cx={panel_cx:.4} \
+                 viewport_cx={:.4} diff={:.4}",
+                vw * 0.5,
+                (panel_cx - vw * 0.5).abs()
+            );
+            assert!(
+                (panel_cy - vh * 0.5).abs() < 0.5,
+                "rel_a={rel_a}: root not centered Y: panel_cy={panel_cy:.4} \
+                 viewport_cy={:.4} diff={:.4}",
+                vh * 0.5,
+                (panel_cy - vh * 0.5).abs()
+            );
+        }
+    }
+
+    #[test]
+    fn invariant_scroll_direction() {
+        // Scroll(+50, 0) moves the panel in the SAME direction at every zoom
+        // level. The specific direction depends on convention (positive dx
+        // scrolls the view rightward, so panel viewed_x decreases), but the
+        // invariant is consistency across zoom levels.
+        let (mut tree, root, _child1, _child2) = setup_tree();
+        let mut view = emView::new(root, 800.0, 600.0);
+        view.flags.insert(ViewFlags::ROOT_SAME_TALLNESS);
+        view.Update(&mut tree);
+
+        let mut deltas = Vec::new();
+        for &factor in &[1.0, 4.0, 16.0] {
+            // Reset to center
+            if let Some(state) = view.visit_stack.last_mut() {
+                state.rel_x = 0.0;
+                state.rel_y = 0.0;
+                state.rel_a = 1.0;
+            }
+            view.Zoom(factor, 400.0, 300.0);
+            view.Update(&mut tree);
+
+            let before_vx = tree.GetRec(root).unwrap().viewed_x;
+            view.Scroll(50.0, 0.0);
+            view.Update(&mut tree);
+            let after_vx = tree.GetRec(root).unwrap().viewed_x;
+
+            let delta = after_vx - before_vx;
+            assert!(
+                delta.abs() > 1e-6,
+                "Scroll(+50) had no effect at factor={factor}"
+            );
+            deltas.push((factor, delta));
+        }
+
+        // All deltas must have the same sign
+        let first_sign = deltas[0].1.signum();
+        for &(factor, delta) in &deltas {
+            assert!(
+                delta.signum() == first_sign,
+                "Scroll direction inconsistent: factor={factor} delta={delta:.4}, \
+                 expected sign={first_sign}"
+            );
+        }
     }
 }

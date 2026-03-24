@@ -312,12 +312,9 @@ fn animator_visiting_short() {
         eprintln!("step {i:2}: actual=({:.10e}, {:.10e}, {:.10e})  golden=({:.10e}, {:.10e}, {:.10e})  diff=({dx:.3e}, {dy:.3e}, {dz:.3e}){flag}",
             a.vel_x, a.vel_y, a.vel_z, g.vel_x, g.vel_y, g.vel_z);
     }
-    // Tolerance 7e-2: Rust rel_x is in viewport-fraction space while C++
-    // relX is in panel-fraction space. Both converge to the correct numerical
-    // target (0.1), but the intermediate zoom curve takes a different physical
-    // path because `dist_xy` is computed from different coordinate spaces,
-    // causing up to ~6.5e-2 divergence in the rel_a component mid-trajectory.
-    compare_trajectory(&actual, &golden, 7e-2)
+    // Rust rel_x now uses panel-fraction convention matching C++ relX.
+    // Trajectory matches C++ to machine epsilon (~1e-12).
+    compare_trajectory(&actual, &golden, 1e-10)
         .unwrap_or_else(|e| panic!("animator_visiting_short: {e}"));
 }
 
