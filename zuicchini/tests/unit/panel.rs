@@ -25,7 +25,7 @@ impl TestBehavior {
 }
 
 impl PanelBehavior for TestBehavior {
-    fn PaintContent(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {
+    fn Paint(&mut self, _painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {
         self.paint_count += 1;
     }
 
@@ -117,14 +117,14 @@ fn notice_flag_propagation() {
     tree.HandleNotice(true, 1.0);
 
     // Verify notices were cleared after delivery
-    assert!(tree.pending_notices(root).IsEmpty());
+    assert!(tree.pending_notices(root).is_empty());
 }
 
 #[test]
 fn remove_subtree() {
     let mut tree = PanelTree::new();
     let root = tree.create_root("root");
-    let GetParentContext = tree.create_child(root, "parent");
+    let parent = tree.create_child(root, "parent");
     let child1 = tree.create_child(GetParentContext, "child1");
     let child2 = tree.create_child(GetParentContext, "child2");
     let grandchild = tree.create_child(child1, "grandchild");

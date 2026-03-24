@@ -36,7 +36,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         use std::f64::consts::PI;
         use zuicchini::emCore::emStroke::emStroke;
 
@@ -139,7 +139,7 @@ fn measure_at_zoom(zoom_factor: f64) -> (f64, f64, f64) {
     buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut buf);
-        view.PaintContent(&mut tree, &mut painter);
+        view.Paint(&mut tree, &mut painter);
     }
 
     // Measure
@@ -149,7 +149,7 @@ fn measure_at_zoom(zoom_factor: f64) -> (f64, f64, f64) {
         let t = Instant::now();
         {
             let mut painter = emPainter::new(&mut buf);
-            view.PaintContent(&mut tree, &mut painter);
+            view.Paint(&mut tree, &mut painter);
         }
         times.push(t.elapsed().as_micros() as f64);
     }
@@ -220,7 +220,7 @@ fn measure_nested_at_zoom(panel_count: usize, zoom_factor: f64) -> (f64, f64, f6
     buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut buf);
-        view.PaintContent(&mut tree, &mut painter);
+        view.Paint(&mut tree, &mut painter);
     }
 
     // Measure
@@ -230,7 +230,7 @@ fn measure_nested_at_zoom(panel_count: usize, zoom_factor: f64) -> (f64, f64, f6
         let t = Instant::now();
         {
             let mut painter = emPainter::new(&mut buf);
-            view.PaintContent(&mut tree, &mut painter);
+            view.Paint(&mut tree, &mut painter);
         }
         times.push(t.elapsed().as_micros() as f64);
     }

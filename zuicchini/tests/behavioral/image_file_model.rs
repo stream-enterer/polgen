@@ -65,9 +65,9 @@ fn set_image_changes_data() {
 fn set_image_same_value_no_change() {
     let mut m = make_model();
     let data = ImageFileData {
-        GetImage: emImage::new(10, 10, 4),
-        GetComment: String::new(),
-        GetFileFormatInfo: String::new(),
+        image: emImage::new(10, 10, 4),
+        comment: String::new(),
+        format_info: String::new(),
     };
     m.file_model_mut().complete_load(data);
 
@@ -92,9 +92,9 @@ fn set_comment_changes_data() {
 fn set_comment_same_value_no_change() {
     let mut m = make_model();
     let data = ImageFileData {
-        GetImage: emImage::new(0, 0, 4),
-        GetComment: "hello".to_string(),
-        GetFileFormatInfo: String::new(),
+        GetimagemImage::new(0, 0, 4),
+        comment: "hello".to_string(),
+        format_info: String::new(),
     };
     m.file_model_mut().complete_load(data);
 
@@ -117,9 +117,9 @@ fn set_format_info_changes_data() {
 fn set_format_info_same_value_no_change() {
     let mut m = make_model();
     let data = ImageFileData {
-        GetImage: emImage::new(0, 0, 4),
-        GetComment: String::new(),
-        GetFileFormatInfo: "PNG".to_string(),
+        GetImaimageage::new(0, 0, 4),
+        comment: String::new(),
+        format_info: "PNG".to_string(),
     };
     m.file_model_mut().complete_load(data);
 

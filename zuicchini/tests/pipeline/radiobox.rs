@@ -37,8 +37,8 @@ impl RadioBoxBehavior {
 }
 
 impl PanelBehavior for RadioBoxBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.widget.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.widget.Paint(painter, w, h, state.enabled);
     }
 
     fn Input(

@@ -29,8 +29,8 @@ struct SharedCheckButtonPanel {
 }
 
 impl PanelBehavior for SharedCheckButtonPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.inner.borrow_mut().PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.inner.borrow_mut().Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -60,8 +60,8 @@ struct SharedCheckBoxPanel {
 }
 
 impl PanelBehavior for SharedCheckBoxPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.inner.borrow_mut().PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.inner.borrow_mut().Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -332,7 +332,7 @@ fn checkbutton_set_checked_noop_same_value() {
 
     // Setting to false when already false -> no callback
     cb.SetChecked(false);
-    assert!(states.borrow().IsEmpty(), "no callback for same value");
+    assert!(states.borrow().is_empty(), "no callback for same value");
 
     cb.SetChecked(true);
     assert_eq!(states.borrow().len(), 1);
@@ -382,7 +382,7 @@ fn checkbutton_enter_key_toggles() {
     // First Click to activate the panel (put it in active path for keyboard dispatch)
     h.Click(400.0, 300.0);
     assert!(cb_ref.borrow().IsChecked());
-    states.borrow_mut().Clear();
+    states.borrow_mut().clear();
 
     // Now Enter should toggle checked -> unchecked
     h.press_key(zuicchini::emCore::emInput::InputKey::Enter);

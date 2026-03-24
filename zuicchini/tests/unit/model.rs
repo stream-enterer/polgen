@@ -44,7 +44,7 @@ impl Record for TestRecord {
     }
 
     fn IsSetToDefault(&self) -> bool {
-        self.name.IsEmpty() && self.GetCount == 0
+        self.name.is_empty() && self.GetCount == 0
     }
 }
 
@@ -53,7 +53,7 @@ fn write_test_rec(path: &std::path::Path, name: &str, GetCount: i32) {
     r.set_str("name", name);
     r.set_int("count", GetCount);
     let content = zuicchini::emCore::emRec::write_rec(&r);
-    std::fs::create_dir_all(path.GetParentContext().unwrap()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(path, content).unwrap();
 }
 
@@ -407,7 +407,7 @@ impl FileModelOps for MemOps {
 
 fn make_temp_file(subdir: &str) -> PathBuf {
     let path = std::env::temp_dir().join(subdir).join("fm.tmp");
-    std::fs::create_dir_all(path.GetParentContext().unwrap()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, b"placeholder").unwrap();
     path
 }

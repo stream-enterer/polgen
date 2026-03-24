@@ -412,7 +412,7 @@ pub fn compare_behavioral(
         });
     }
     for (i, ((a_active, a_path), e)) in actual.iter().zip(expected.iter()).enumerate() {
-        let name = panel_names.GetRec(i).copied().unwrap_or("?");
+        let name = panel_names.get(i).copied().unwrap_or("?");
         if *a_active != e.is_active || *a_path != e.in_active_path {
             return Err(CompareError {
                 message: format!(
@@ -533,7 +533,7 @@ pub fn compare_notices(
         });
     }
     for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
-        let name = panel_names.GetRec(i).copied().unwrap_or("?");
+        let name = panel_names.get(i).copied().unwrap_or("?");
         let translated = translate_cpp_notice_flags(e.cpp_flags) & mask;
         let masked_actual = *a & mask;
         if masked_actual != translated {
@@ -609,7 +609,7 @@ pub fn compare_input(
         });
     }
     for (i, ((a_recv, a_active, a_path), e)) in actual.iter().zip(expected.iter()).enumerate() {
-        let name = panel_names.GetRec(i).copied().unwrap_or("?");
+        let name = panel_names.get(i).copied().unwrap_or("?");
         let recv_mismatch = check_received && *a_recv != e.received_input;
         if recv_mismatch || *a_active != e.is_active || *a_path != e.in_active_path {
             return Err(CompareError {

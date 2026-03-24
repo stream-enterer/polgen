@@ -1,4 +1,4 @@
-mod Input;
+mod input;
 mod model;
 mod panel;
 mod render;

@@ -30,8 +30,8 @@ struct SharedTextFieldPanel {
 }
 
 impl PanelBehavior for SharedTextFieldPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.inner.borrow_mut().PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.inner.borrow_mut().Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -126,10 +126,10 @@ fn textfield_type_1x_and_2x() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abc",
             "After typing 'abc' at 1x zoom, text should be 'abc' but got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(
             tf.GetCursorIndex(),
@@ -142,7 +142,7 @@ fn textfield_type_1x_and_2x() {
     // ── 2x zoom ────────────────────────────────────────────────────────
     // Clear the field via direct API (dispatch doesn't expose modifier keys).
     tf_ref.borrow_mut().SetText("");
-    assert_eq!(tf_ref.borrow().text(), "", "Text should be cleared");
+    assert_eq!(tf_ref.borrow().GetText(), "", "Text should be cleared");
 
     // Zoom to 2x.
     h.set_zoom(2.0);
@@ -158,10 +158,10 @@ fn textfield_type_1x_and_2x() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "xyz",
             "After typing 'xyz' at 2x zoom, text should be 'xyz' but got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(
             tf.GetCursorIndex(),
@@ -183,7 +183,7 @@ fn textfield_backspace_1x_and_2x() {
 
     // ── 1x: type "hello", backspace twice → "hel" ─────────────────────
     type_string(&mut h, "hello");
-    assert_eq!(tf_ref.borrow().text(), "hello");
+    assert_eq!(tf_ref.borrow().GetText(), "hello");
 
     h.press_key(InputKey::Backspace);
     h.press_key(InputKey::Backspace);
@@ -191,10 +191,10 @@ fn textfield_backspace_1x_and_2x() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "hel",
             "After 2 backspaces from 'hello', expected 'hel' but got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 3);
     }
@@ -208,16 +208,16 @@ fn textfield_backspace_1x_and_2x() {
 
     h.Click(400.0, 300.0);
     type_string(&mut h, "world");
-    assert_eq!(tf_ref.borrow().text(), "world");
+    assert_eq!(tf_ref.borrow().GetText(), "world");
 
     h.press_key(InputKey::Backspace);
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "worl",
             "After 1 backspace from 'world' at 2x, expected 'worl' but got '{}'",
-            tf.text()
+            tf.GetText()
         );
     }
 }
@@ -276,7 +276,7 @@ fn textfield_insert_at_cursor() {
 
     h.Click(400.0, 300.0);
     type_string(&mut h, "ac");
-    assert_eq!(tf_ref.borrow().text(), "ac");
+    assert_eq!(tf_ref.borrow().GetText(), "ac");
 
     // Move cursor left once (between 'a' and 'c'), then type 'b'.
     h.press_key(InputKey::ArrowLeft);
@@ -286,10 +286,10 @@ fn textfield_insert_at_cursor() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abc",
             "Inserting 'b' between 'a' and 'c' should produce 'abc', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 2, "Cursor should advance to 2 after insert");
     }
@@ -314,10 +314,10 @@ fn textfield_delete_key() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "acd",
             "Delete at pos 1 in 'abcd' should produce 'acd', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(
             tf.GetCursorIndex(),
@@ -341,7 +341,7 @@ fn textfield_non_editable_rejects_input() {
     type_string(&mut h, "abc");
 
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "",
         "Non-editable TextField should not accept typed characters"
     );
@@ -369,10 +369,10 @@ fn textfield_prepopulated_text() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "hello!",
             "Typing '!' after 'hello' should produce 'hello!', got '{}'",
-            tf.text()
+            tf.GetText()
         );
     }
 }
@@ -386,7 +386,7 @@ fn textfield_type_across_zoom_levels() {
     render(&mut h, 800, 600);
     h.Click(400.0, 300.0);
     type_string(&mut h, "foo");
-    assert_eq!(tf_ref.borrow().text(), "foo");
+    assert_eq!(tf_ref.borrow().GetText(), "foo");
 
     // ── Switch to 2x and type "bar" ────────────────────────────────────
     h.set_zoom(2.0);
@@ -405,10 +405,10 @@ fn textfield_type_across_zoom_levels() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "foobar",
             "After typing 'foo' at 1x and 'bar' at 2x, text should be 'foobar', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 6);
     }
@@ -431,7 +431,7 @@ fn setup_nav_harness(text: &str, cursor_pos: usize) -> (PipelineTestHarness, Rc<
     // After Click, cursor may have moved to Click GetPos; restore it.
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
     // Clear any selection that the Click may have created.
-    tf_ref.borrow_mut().Deselect();
+    tf_ref.borrow_mut().EmptySelection();
 
     (h, tf_ref)
 }
@@ -450,7 +450,7 @@ fn setup_multiline_nav_harness(
     h.Click(400.0, 300.0);
 
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
-    tf_ref.borrow_mut().Deselect();
+    tf_ref.borrow_mut().EmptySelection();
 
     (h, tf_ref)
 }
@@ -989,10 +989,10 @@ fn textfield_ctrl_backspace_deletes_word_before_cursor() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "foo  baz",
             "Ctrl+Backspace from pos 7 in 'foo bar baz' should delete 'bar', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(
             tf.GetCursorIndex(),
@@ -1008,7 +1008,7 @@ fn textfield_ctrl_backspace_at_start_does_nothing() {
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Backspace);
     h.input_state.release(InputKey::Ctrl);
-    assert_eq!(tf_ref.borrow().text(), "hello");
+    assert_eq!(tf_ref.borrow().GetText(), "hello");
     assert_eq!(tf_ref.borrow().GetCursorIndex(), 0);
 }
 
@@ -1027,10 +1027,10 @@ fn textfield_ctrl_delete_deletes_word_after_cursor() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "foo baz",
             "Ctrl+Delete from pos 4 in 'foo bar baz' should delete 'bar ', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(
             tf.GetCursorIndex(),
@@ -1046,7 +1046,7 @@ fn textfield_ctrl_delete_at_end_does_nothing() {
     h.input_state.press(InputKey::Ctrl);
     h.press_key(InputKey::Delete);
     h.input_state.release(InputKey::Ctrl);
-    assert_eq!(tf_ref.borrow().text(), "hello");
+    assert_eq!(tf_ref.borrow().GetText(), "hello");
     assert_eq!(tf_ref.borrow().GetCursorIndex(), 5);
 }
 
@@ -1067,10 +1067,10 @@ fn textfield_shift_ctrl_backspace_deletes_to_line_start() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "orld",
             "Shift+Ctrl+Backspace from pos 7 in 'hello world' should delete to line start, got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 0);
     }
@@ -1089,10 +1089,10 @@ fn textfield_shift_ctrl_backspace_multiline_deletes_to_row_start() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abc\nf\nghi",
             "Shift+Ctrl+Backspace from col 2 in row 1 should delete 'de', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 4);
     }
@@ -1115,10 +1115,10 @@ fn textfield_shift_ctrl_delete_deletes_to_line_end() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "hello",
             "Shift+Ctrl+Delete from pos 5 in 'hello world' should delete to line end, got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 5);
     }
@@ -1137,10 +1137,10 @@ fn textfield_shift_ctrl_delete_multiline_deletes_to_row_end() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abc\n\nghi",
             "Shift+Ctrl+Delete from col 0 in row 1 should delete 'def', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 4);
     }
@@ -1161,10 +1161,10 @@ fn textfield_backspace_with_selection_deletes_selection() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abef",
             "Backspace with selection [2,4) in 'abcdef' should delete 'cd', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 2);
         assert!(tf.IsSelectionEmpty());
@@ -1186,10 +1186,10 @@ fn textfield_delete_with_selection_deletes_selection() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "adef",
             "Delete with selection [1,3) in 'abcdef' should delete 'bc', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 1);
         assert!(tf.IsSelectionEmpty());
@@ -1211,10 +1211,10 @@ fn textfield_typing_with_selection_replaces_selection() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abXf",
             "Typing 'X' with selection [2,5) in 'abcdef' should produce 'abXf', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 3);
         assert!(tf.IsSelectionEmpty());
@@ -1258,10 +1258,10 @@ fn textfield_overwrite_mode_replaces_char() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "aXcde",
             "Overwrite mode: typing 'X' at pos 1 in 'abcde' should replace 'b', got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 2);
     }
@@ -1278,10 +1278,10 @@ fn textfield_overwrite_mode_at_end_inserts() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "abcX",
             "Overwrite mode at end should insert, got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 4);
     }
@@ -1299,7 +1299,7 @@ fn textfield_non_editable_rejects_backspace() {
 
     h.press_key(InputKey::Backspace);
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "hello",
         "Non-editable TextField should reject Backspace"
     );
@@ -1312,7 +1312,7 @@ fn textfield_non_editable_rejects_delete() {
 
     h.press_key(InputKey::Delete);
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "hello",
         "Non-editable TextField should reject Delete"
     );
@@ -1327,7 +1327,7 @@ fn textfield_non_editable_rejects_ctrl_backspace() {
     h.press_key(InputKey::Backspace);
     h.input_state.release(InputKey::Ctrl);
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "hello world",
         "Non-editable TextField should reject Ctrl+Backspace"
     );
@@ -1342,7 +1342,7 @@ fn textfield_non_editable_rejects_ctrl_delete() {
     h.press_key(InputKey::Delete);
     h.input_state.release(InputKey::Ctrl);
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "hello world",
         "Non-editable TextField should reject Ctrl+Delete"
     );
@@ -1381,10 +1381,10 @@ fn textfield_ctrl_backspace_with_selection_deletes_selection() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             "foo  baz",
             "Ctrl+Backspace with selection should delete selection, got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 4);
         assert!(tf.IsSelectionEmpty());
@@ -1409,10 +1409,10 @@ fn textfield_ctrl_delete_with_selection_deletes_selection() {
     {
         let tf = tf_ref.borrow();
         assert_eq!(
-            tf.text(),
+            tf.GetText(),
             " bar baz",
             "Ctrl+Delete with selection should delete selection, got '{}'",
-            tf.text()
+            tf.GetText()
         );
         assert_eq!(tf.GetCursorIndex(), 0);
         assert!(tf.IsSelectionEmpty());
@@ -1511,7 +1511,7 @@ fn textfield_double_click_selects_word() {
     // The GetChecked text should be either a word or a delimiter segment,
     // not a mix. Verify it's non-empty and bounded by word boundaries.
     assert!(
-        !sel_text.IsEmpty(),
+        !sel_text.is_empty(),
         "Double-click should select a non-empty segment"
     );
     // Verify the selection boundaries are word boundaries: all chars should be
@@ -1578,7 +1578,7 @@ fn textfield_triple_click_selects_row_multiline() {
     // Selection should cover exactly one row (including the trailing \n for non-last rows).
     let sel = tf.selected_text();
     assert!(
-        !sel.IsEmpty(),
+        !sel.is_empty(),
         "Triple-click in multi-line should select a row"
     );
     // The GetChecked text should be one of: "abc\n", "def\n", or "ghi"
@@ -1618,7 +1618,7 @@ fn textfield_drag_selects_text() {
     );
     let sel = tf.selected_text();
     assert!(
-        !sel.IsEmpty(),
+        !sel.is_empty(),
         "Drag across the text should select characters (got '{}')",
         sel
     );
@@ -1870,10 +1870,10 @@ fn textfield_ctrl_a_then_type_replaces_all() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         "X",
         "Typing after Ctrl+A should replace all text, got '{}'",
-        tf.text()
+        tf.GetText()
     );
     assert_eq!(tf.GetCursorIndex(), 1);
     assert!(tf.IsSelectionEmpty());
@@ -1919,7 +1919,7 @@ fn setup_clipboard_harness(
 
     // Restore cursor GetPos and Clear any selection the Click created.
     tf_ref.borrow_mut().SetCursorIndex(cursor_pos);
-    tf_ref.borrow_mut().Deselect();
+    tf_ref.borrow_mut().EmptySelection();
 
     (h, tf_ref, copy_recorder)
 }
@@ -1947,7 +1947,7 @@ fn textfield_ctrl_c_with_selection_copies_text() {
 
     // Text and selection should be unchanged after copy.
     let tf = tf_ref.borrow();
-    assert_eq!(tf.text(), "Hello World");
+    assert_eq!(tf.GetText(), "Hello World");
     assert!(!tf.IsSelectionEmpty());
 }
 
@@ -1967,7 +1967,7 @@ fn textfield_ctrl_c_without_selection_no_copy() {
 
     let copies = copy_recorder.borrow();
     assert!(
-        copies.IsEmpty(),
+        copies.is_empty(),
         "Copy callback should NOT fire without a selection, but got {:?}",
         *copies
     );
@@ -1998,10 +1998,10 @@ fn textfield_ctrl_x_with_selection_cuts_text() {
     // Verify text was modified: "CD" removed from "ABCDEF" -> "ABEF".
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         "ABEF",
         "After cutting 'CD' from 'ABCDEF', expected 'ABEF', got '{}'",
-        tf.text()
+        tf.GetText()
     );
     assert_eq!(tf.GetCursorIndex(), 2, "Cursor should be at 2 after cut");
     assert!(tf.IsSelectionEmpty(), "Selection should be cleared after cut");
@@ -2022,11 +2022,11 @@ fn textfield_ctrl_x_without_selection_no_effect() {
 
     let copies = copy_recorder.borrow();
     assert!(
-        copies.IsEmpty(),
+        copies.is_empty(),
         "Cut callback should NOT fire without a selection"
     );
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "Hello",
         "Text should be unchanged after cut with no selection"
     );
@@ -2047,10 +2047,10 @@ fn textfield_ctrl_v_pastes_text_at_cursor() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         "HelloWorld",
         "Pasting 'World' at end of 'Hello' should produce 'HelloWorld', got '{}'",
-        tf.text()
+        tf.GetText()
     );
     assert_eq!(tf.GetCursorIndex(), 10, "Cursor should be at end after paste");
 }
@@ -2075,10 +2075,10 @@ fn textfield_ctrl_v_with_selection_replaces_selection() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         "ABXYEF",
         "Pasting 'XY' over selection 'CD' in 'ABCDEF' should produce 'ABXYEF', got '{}'",
-        tf.text()
+        tf.GetText()
     );
     assert_eq!(tf.GetCursorIndex(), 4, "Cursor should be at end of pasted text");
     assert!(tf.IsSelectionEmpty());
@@ -2099,10 +2099,10 @@ fn textfield_ctrl_v_inserts_at_mid_cursor() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         "ABC",
         "Pasting 'B' at pos 1 in 'AC' should produce 'ABC', got '{}'",
-        tf.text()
+        tf.GetText()
     );
     assert_eq!(tf.GetCursorIndex(), 2);
 }
@@ -2143,10 +2143,10 @@ fn textfield_shift_insert_pastes_text() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         "ABCD",
         "Shift+Insert should paste, got '{}'",
-        tf.text()
+        tf.GetText()
     );
 }
 
@@ -2171,7 +2171,7 @@ fn textfield_shift_delete_cuts_text() {
     assert_eq!(copies[0], "CD");
 
     let tf = tf_ref.borrow();
-    assert_eq!(tf.text(), "ABEF");
+    assert_eq!(tf.GetText(), "ABEF");
     assert_eq!(tf.GetCursorIndex(), 2);
 }
 
@@ -2189,7 +2189,7 @@ fn textfield_drag_publishes_selection() {
     h.Click(400.0, 310.0);
 
     // Clear any copy events from the focus Click.
-    copy_recorder.borrow_mut().Clear();
+    copy_recorder.borrow_mut().clear();
 
     // Drag within content area to select text.
     h.drag(300.0, 300.0, 500.0, 300.0);
@@ -2198,7 +2198,7 @@ fn textfield_drag_publishes_selection() {
     if !tf.IsSelectionEmpty() {
         let copies = copy_recorder.borrow();
         assert!(
-            !copies.IsEmpty(),
+            !copies.is_empty(),
             "Drag selection should publish to clipboard (selection = '{}')",
             tf.selected_text()
         );
@@ -2237,7 +2237,7 @@ fn textfield_ctrl_c_works_when_non_editable() {
     );
     assert_eq!(copies[0], "Hello");
     // Text unchanged
-    assert_eq!(tf_ref.borrow().text(), "Hello World");
+    assert_eq!(tf_ref.borrow().GetText(), "Hello World");
 }
 
 // ---------------------------------------------------------------------------
@@ -2259,11 +2259,11 @@ fn textfield_ctrl_x_noop_when_non_editable() {
 
     let copies = copy_recorder.borrow();
     assert!(
-        copies.IsEmpty(),
+        copies.is_empty(),
         "Cut should not fire on non-editable field"
     );
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "Hello World",
         "Text should be unchanged when cutting on non-editable field"
     );
@@ -2284,7 +2284,7 @@ fn textfield_ctrl_v_noop_when_non_editable() {
     h.input_state.release(InputKey::Ctrl);
 
     assert_eq!(
-        tf_ref.borrow().text(),
+        tf_ref.borrow().GetText(),
         "Hello",
         "Paste should not work on non-editable field"
     );
@@ -2339,7 +2339,7 @@ fn textfield_drag_move_selected_text_moves() {
     tf_ref.borrow_mut().Select(4, 7);
     tf_ref.borrow_mut().SetCursorIndex(7);
 
-    let before_text = tf_ref.borrow().text().to_string();
+    let before_text = tf_ref.borrow().GetText().to_string();
     assert_eq!(before_text, "foo bar baz");
     assert_eq!(tf_ref.borrow().selected_text(), "bar");
 
@@ -2385,15 +2385,15 @@ fn textfield_drag_move_selected_text_moves() {
     // The text should still contain all original characters (no loss).
     let mut sorted_before: Vec<char> = "foo bar baz".chars().collect();
     sorted_before.sort();
-    let mut sorted_after: Vec<char> = tf.text().chars().collect();
+    let mut sorted_after: Vec<char> = tf.GetText().chars().collect();
     sorted_after.sort();
     assert_eq!(
         sorted_before, sorted_after,
         "Drag-move should not lose or gain characters. Before: 'foo bar baz', After: '{}'",
-        tf.text()
+        tf.GetText()
     );
     // The text length should be preserved.
-    assert_eq!(tf.text().len(), 11, "Text length should be preserved after drag-move");
+    assert_eq!(tf.GetText().len(), 11, "Text length should be preserved after drag-move");
 }
 
 // ---------------------------------------------------------------------------
@@ -2417,7 +2417,7 @@ fn textfield_drag_move_outside_widget_no_effect() {
     tf_ref.borrow_mut().Select(6, 11);
     tf_ref.borrow_mut().SetCursorIndex(11);
 
-    let text_before = tf_ref.borrow().text().to_string();
+    let text_before = tf_ref.borrow().GetText().to_string();
 
     // Ctrl+drag starting far outside the widget content area.
     // Coordinates (10, 10) should be outside the border's content rect.
@@ -2425,12 +2425,12 @@ fn textfield_drag_move_outside_widget_no_effect() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         text_before,
         "Drag outside widget should not change text"
     );
     // The key invariant: text is unchanged.
-    assert_eq!(tf.text(), "Hello World");
+    assert_eq!(tf.GetText(), "Hello World");
 }
 
 // ---------------------------------------------------------------------------
@@ -2452,10 +2452,10 @@ fn textfield_drag_move_no_selection_no_move() {
     h.Click(400.0, 300.0);
 
     // Ensure no selection.
-    tf_ref.borrow_mut().Deselect();
+    tf_ref.borrow_mut().EmptySelection();
     assert!(tf_ref.borrow().IsSelectionEmpty());
 
-    let text_before = tf_ref.borrow().text().to_string();
+    let text_before = tf_ref.borrow().GetText().to_string();
 
     // Ctrl+drag within the content area. With no selection, this should
     // enter DM_INSERT, not DM_MOVE. Since we don't wire on_clipboard_paste,
@@ -2464,10 +2464,10 @@ fn textfield_drag_move_no_selection_no_move() {
 
     let tf = tf_ref.borrow();
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         text_before,
         "Ctrl+drag with no selection should not move text (no DM_MOVE). Got '{}'",
-        tf.text()
+        tf.GetText()
     );
 }
 
@@ -2495,7 +2495,7 @@ fn textfield_drag_move_non_editable_no_effect() {
     // Now make it non-editable.
     tf_ref.borrow_mut().SetEditable(false);
 
-    let text_before = tf_ref.borrow().text().to_string();
+    let text_before = tf_ref.borrow().GetText().to_string();
 
     // Ctrl+drag within the content area.
     ctrl_drag(&mut h, 400.0, 300.0, 600.0, 300.0);
@@ -2507,9 +2507,9 @@ fn textfield_drag_move_non_editable_no_effect() {
     // Click handling (which may reposition cursor / change selection), but
     // text content is never modified.
     assert_eq!(
-        tf.text(),
+        tf.GetText(),
         text_before,
         "Non-editable field should not allow drag-move. Got '{}'",
-        tf.text()
+        tf.GetText()
     );
 }

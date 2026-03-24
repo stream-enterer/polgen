@@ -63,7 +63,7 @@ impl PanelBehavior for CounterPanel {
         true
     }
 
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _ps: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _ps: &PanelState) {
         p.PaintRect(
             0.0,
             0.0,
@@ -99,7 +99,7 @@ impl PanelBehavior for CounterPanel {
         let children = ctx.children();
         let rect = ctx.layout_rect();
         let h = rect.h / rect.w;
-        if !children.IsEmpty() {
+        if !children.is_empty() {
             ctx.layout_child(children[0], 0.1, 0.1 * h, 0.8, 0.15 * h);
         }
         // emButton child is created by main — just layout if it exists.
@@ -117,7 +117,7 @@ impl PanelBehavior for ClickPanel {
         true
     }
 
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         let bg = if self.pressed {
             emColor::rgba(0x80, 0xA0, 0x80, 0xFF)
         } else {
@@ -153,7 +153,7 @@ impl PanelBehavior for ClickPanel {
             // the purpose. Let's store a "pending fire" flag.
             return false; // let focus handling proceed
         }
-        if self.pressed && !input_state.IsPressed(InputKey::MouseLeft) {
+        if self.pressed && !input_state.Get(InputKey::MouseLeft) {
             self.pressed = false;
         }
         false

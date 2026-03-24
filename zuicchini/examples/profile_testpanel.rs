@@ -47,7 +47,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         if state.viewed_rect.w < 25.0 {
             return;
         }
@@ -557,7 +557,7 @@ impl PanelBehavior for TestPanel {
         painter.paint_polygon_textured(
             &star(0.240),
             &emTexture::emImage {
-                GetImage: self.test_image.clone(),
+                image: self.test_image.clone(),
                 extension: ImageExtension::Clamp,
                 quality: ImageQuality::Bilinear,
             },
@@ -652,7 +652,7 @@ impl PanelBehavior for TestPanel {
 fn main() {
     let iterations: usize = std::env::args()
         .nth(1)
-        .and_then(|s| s.TryParse().ok())
+        .and_then(|s| s.parse().ok())
         .unwrap_or(50);
 
     let vw: u32 = 1920;
@@ -678,13 +678,13 @@ fn main() {
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.GetImage.fill(emColor::BLACK);
-            let mut painter = emPainter::new(&mut tile.GetImage);
+            tile.image.fill(emColor::BLACK);
+            let mut painter = emPainter::new(&mut tile.image);
             painter.translate(
                 -(col as f64 * TILE_SIZE as f64),
                 -(row as f64 * TILE_SIZE as f64),
             );
-            view.PaintContent(&mut tree, &mut painter);
+            view.Paint(&mut tree, &mut painter);
         }
     }
 
@@ -694,13 +694,13 @@ fn main() {
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.GetImage.fill(emColor::BLACK);
-                let mut painter = emPainter::new(&mut tile.GetImage);
+                tile.image.fill(emColor::BLACK);
+                let mut painter = emPainter::new(&mut tile.image);
                 painter.translate(
                     -(col as f64 * TILE_SIZE as f64),
                     -(row as f64 * TILE_SIZE as f64),
                 );
-                view.PaintContent(&mut tree, &mut painter);
+                view.Paint(&mut tree, &mut painter);
             }
         }
     }
@@ -712,7 +712,7 @@ fn main() {
     viewport_buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut viewport_buf);
-        view.PaintContent(&mut tree, &mut painter);
+        view.Paint(&mut tree, &mut painter);
     }
 
     let t0 = Instant::now();
@@ -720,13 +720,13 @@ fn main() {
         viewport_buf.fill(emColor::BLACK);
         {
             let mut painter = emPainter::new(&mut viewport_buf);
-            view.PaintContent(&mut tree, &mut painter);
+            view.Paint(&mut tree, &mut painter);
         }
         // Copy to tiles (simulates the upload path)
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.GetImage.copy_from_rect(
+                tile.image.copy_from_rect(
                     0,
                     0,
                     &viewport_buf,

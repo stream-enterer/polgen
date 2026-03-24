@@ -18,7 +18,7 @@ fn encode_decode_empty_args() {
     let encoded = encode_message(args);
     let (decoded, consumed) = decode_message(&encoded).expect("should decode");
     assert_eq!(consumed, encoded.len());
-    assert!(decoded.IsEmpty());
+    assert!(decoded.is_empty());
 }
 
 #[test]
@@ -132,7 +132,7 @@ mod linux {
         // For the test, directly poll via the scheduler. We need to wait for
         // the timer to fire. Let's just do time slices until we GetRec the message.
         let start = std::time::Instant::now();
-        while received.borrow().IsEmpty() {
+        while received.borrow().is_empty() {
             sched.DoTimeSlice();
             if start.elapsed() > std::time::Duration::from_secs(2) {
                 panic!("timed out waiting for message");

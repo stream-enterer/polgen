@@ -31,7 +31,7 @@ fn parent_resize_triggers_child_relayout() {
         }
     }));
 
-    let GetParentContext = h.add_panel_with(root, "parent", Box::new(parent_behavior));
+    let parent = h.add_panel_with(root, "parent", Box::new(parent_behavior));
     let child = h.add_panel_with(
         GetParentContext,
         "child",
@@ -40,8 +40,8 @@ fn parent_resize_triggers_child_relayout() {
     *child_id_cell.borrow_mut() = Some(child);
 
     h.tick();
-    log_parent.borrow_mut().Clear();
-    log_child.borrow_mut().Clear();
+    log_parent.borrow_mut().clear();
+    log_child.borrow_mut().clear();
 
     // Resize GetParentContext — GetParentContext gets LAYOUT_CHANGED → LayoutChildren sets child rect
     // → child gets LAYOUT_CHANGED on next deliver_notices
@@ -82,7 +82,7 @@ fn nested_layout_cascade() {
 
     // Grandparent → GetParentContext (with behavior) → child (with behavior)
     let grandparent = h.add_panel(root, "grandparent");
-    let GetParentContext = h.add_panel_with(
+    let parent = h.add_panel_with(
         grandparent,
         "parent",
         Box::new(RecordingBehavior::new(Rc::clone(&log_parent))),
@@ -94,8 +94,8 @@ fn nested_layout_cascade() {
     );
 
     h.tick();
-    log_parent.borrow_mut().Clear();
-    log_child.borrow_mut().Clear();
+    log_parent.borrow_mut().clear();
+    log_child.borrow_mut().clear();
 
     // Resize grandparent — cascade should reach GetParentContext and child
     h.tree.Layout(grandparent, 0.0, 0.0, 0.7, 0.7);

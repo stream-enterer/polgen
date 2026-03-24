@@ -140,7 +140,7 @@ fn engine_fires_signal_waking_sibling() {
 
     let sig = h.scheduler.create_signal();
 
-    // emEngine A: high GetPriority, fires signal on first Cycle
+    // emEngine A: high priority, fires signal on first Cycle
     let _eng_a = h.scheduler.register_engine(
         Priority::High,
         Box::new(SignalFiringEngine {
@@ -152,7 +152,7 @@ fn engine_fires_signal_waking_sibling() {
     );
     h.scheduler.wake_up(_eng_a);
 
-    // emEngine B: low GetPriority, woken by signal
+    // emEngine B: low Getpriorityoken by signal
     let eng_b = h.scheduler.register_engine(
         Priority::Low,
         Box::new(SignalFiringEngine {

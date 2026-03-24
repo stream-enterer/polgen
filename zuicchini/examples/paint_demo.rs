@@ -44,7 +44,7 @@ impl PanelBehavior for PaintPanel {
         true
     }
 
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         // Background
         p.PaintRect(0.0, 0.0, w, h, emColor::WHITE, emColor::TRANSPARENT);
 
@@ -258,7 +258,7 @@ impl PanelBehavior for PaintPanel {
         p.paint_polygon_textured(
             &star3,
             &emTexture::emImage {
-                GetImage: self.test_image.clone(),
+                image: self.test_image.clone(),
                 extension: ImageExtension::Repeat,
                 quality: ImageQuality::Bilinear,
             },

@@ -180,7 +180,7 @@ fn widget_listbox_select() {
     lb.Select(4, true);
 
     // Parse golden: [u32 GetCount][u32 * GetCount indices]
-    let GetCount = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
+    let count = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
     let mut expected_indices: Vec<usize> = Vec::new();
     for i in 0..GetCount {
         let off = 4 + i * 4;
@@ -267,7 +267,7 @@ fn widget_textfield_type() {
     let cursor =
         u32::from_le_bytes(golden[cursor_off..cursor_off + 4].try_into().unwrap()) as usize;
 
-    assert_eq!(tf.text(), text, "text mismatch");
+    assert_eq!(tf.GetText(), text, "text mismatch");
     assert_eq!(tf.GetCursorIndex(), cursor, "cursor mismatch");
 }
 
@@ -301,7 +301,7 @@ fn widget_textfield_backspace() {
     let cursor =
         u32::from_le_bytes(golden[cursor_off..cursor_off + 4].try_into().unwrap()) as usize;
 
-    assert_eq!(tf.text(), text, "text mismatch");
+    assert_eq!(tf.GetText(), text, "text mismatch");
     assert_eq!(tf.GetCursorIndex(), cursor, "cursor mismatch");
 }
 
@@ -392,34 +392,34 @@ fn widget_button_click() {
     let click_count = std::rc::Rc::new(std::cell::Cell::new(0u32));
     let cc = click_count.clone();
     btn.on_click = Some(Box::new(move || {
-        cc.Set(cc.GetRec() + 1);
+        cc.set(cc.get() + 1);
     }));
 
     // Initial state: not pressed, callback not fired
     assert_eq!(
-        btn.IsPressed() as u8,
+        btn.Get() as u8,
         golden[0],
         "initial pressed state mismatch"
     );
-    assert_eq!(click_count.GetRec(), 0, "on_click should not fire before any click");
+    assert_eq!(click_count.get(), 0, "on_click should not fire before any click");
 
     // After programmatic Click(): pressed state unchanged (Click is instantaneous)
     btn.Click();
     assert_eq!(
-        btn.IsPressed() as u8,
+        btn.Get() as u8,
         golden[1],
         "after 1st click pressed mismatch"
     );
-    assert_eq!(click_count.GetRec(), 1, "on_click should fire exactly once after 1st click");
+    assert_eq!(click_count.get(), 1, "on_click should fire exactly once after 1st click");
 
     // After second Click
     btn.Click();
     assert_eq!(
-        btn.IsPressed() as u8,
+        btn.Get() as u8,
         golden[2],
         "after 2nd click pressed mismatch"
     );
-    assert_eq!(click_count.GetRec(), 2, "on_click should fire exactly twice after 2nd click");
+    assert_eq!(click_count.get(), 2, "on_click should fire exactly twice after 2nd click");
 }
 
 // ─── Test 10: widget_listbox_multi ──────────────────────────────
@@ -445,7 +445,7 @@ fn widget_listbox_multi() {
     lb.Select(3, false);
 
     // Parse golden: [u32 GetCount][u32*GetCount indices]
-    let GetCount = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
+    let count = u32::from_le_bytes(golden[0..4].try_into().unwrap()) as usize;
     let mut expected_indices: Vec<usize> = Vec::new();
     for i in 0..GetCount {
         let off = 4 + i * 4;
@@ -588,7 +588,7 @@ struct SplitterLayoutBehavior {
 }
 
 impl PanelBehavior for SplitterLayoutBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.splitter.PaintContent(painter, w, h, _state.enabled);
     }
 
@@ -667,7 +667,7 @@ fn splitter_layout_h() {
 
     // C++ uses layout (0,0,1.0,0.75), positions: 0.5, 0.3, 0.8, 1.5 (clamped to 1.0)
     let positions = [0.5, 0.3, 0.8, 1.5];
-    let GetParentContext = (0.0, 0.0, 1.0, 0.75);
+    let parent = (0.0, 0.0, 1.0, 0.75);
 
     let eps = 1e-9;
     for (i, &pos) in positions.iter().enumerate() {
@@ -692,7 +692,7 @@ fn splitter_layout_v() {
 
     // C++ uses layout (0,0,1.0,1.0), positions: 0.5, 0.2, 0.7, 0.0 (at min)
     let positions = [0.5, 0.2, 0.7, 0.0];
-    let GetParentContext = (0.0, 0.0, 1.0, 1.0);
+    let parent = (0.0, 0.0, 1.0, 1.0);
 
     let eps = 1e-9;
     for (i, &pos) in positions.iter().enumerate() {
@@ -716,8 +716,8 @@ struct ClickableButtonPanel {
 }
 
 impl PanelBehavior for ClickableButtonPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.widget.PaintContent(p, w, h, s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.widget.Paint(p, w, h, s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, s: &PanelState, is: &emInputState) -> bool {
         self.widget.Input(e, s, is)
@@ -817,7 +817,7 @@ fn composition_click_through_tree() {
     let button_id = tree.create_child(container_id, "button");
     let mut btn = emButton::new("Click Me", look);
     btn.on_click = Some(Box::new(move || {
-        clicked_clone.Set(clicked_clone.GetRec() + 1);
+        clicked_clone.set(clicked_clone.get() + 1);
     }));
     tree.set_behavior(button_id, Box::new(ClickableButtonPanel { widget: btn }));
 
@@ -852,7 +852,7 @@ fn composition_click_through_tree() {
     dispatch_event(&mut tree, &mut view, &release, &input_state);
 
     assert_eq!(
-        click_count.GetRec(),
+        click_count.get(),
         1,
         "Button on_click callback should fire exactly once — click did not reach the button through the nested border tree"
     );

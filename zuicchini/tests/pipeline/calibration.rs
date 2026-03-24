@@ -37,8 +37,8 @@ impl ScalarFieldBehavior {
 }
 
 impl PanelBehavior for ScalarFieldBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.sf.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.sf.Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -143,8 +143,8 @@ impl ColorFieldBehavior {
 }
 
 impl PanelBehavior for ColorFieldBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.color_field.PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.color_field.Paint(painter, w, h);
     }
 
     fn Input(
@@ -279,7 +279,7 @@ fn button_click_works_after_zoom() {
     {
         let mut img = emImage::new(600, 600, 4);
         let mut p = emPainter::new(&mut img);
-        btn.PaintContent(&mut p, 600.0, 600.0, true);
+        btn.Paint(&mut p, 600.0, 600.0, true);
     }
 
     // Calibration: pixel center (300, 300) passes at 1x.
@@ -318,7 +318,7 @@ fn button_click_works_after_zoom() {
     {
         let mut img = emImage::new(1200, 1200, 4);
         let mut p = emPainter::new(&mut img);
-        btn.PaintContent(&mut p, 1200.0, 1200.0, true);
+        btn.Paint(&mut p, 1200.0, 1200.0, true);
     }
 
     // Calibration: pixel center at 2x (600, 600) passes.
@@ -346,15 +346,15 @@ fn button_click_works_after_zoom() {
 
     let mut btn2 = emButton::new("Pipeline Test", look);
     btn2.on_click = Some(Box::new(move || {
-        clicked_clone.Set(true);
+        clicked_clone.set(true);
     }));
 
     struct BtnPanel {
         widget: emButton,
     }
     impl PanelBehavior for BtnPanel {
-        fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-            self.widget.PaintContent(painter, w, h, state.enabled);
+        fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+            self.widget.Paint(painter, w, h, state.enabled);
         }
         fn Input(
             &mut self,
@@ -384,10 +384,10 @@ fn button_click_works_after_zoom() {
     // Click at viewport center at 1x -- should work (calibration).
     h.Click(400.0, 300.0);
     assert!(
-        clicked.GetRec(),
+        clicked.get(),
         "Pipeline calibration: button should fire at 1x zoom"
     );
-    clicked.Set(false);
+    clicked.set(false);
 
     // Zoom to 2x and re-render so last_w/last_h update.
     h.set_zoom(2.0);
@@ -400,7 +400,7 @@ fn button_click_works_after_zoom() {
     // has spread beyond CheckMouse into the pipeline.
     h.Click(400.0, 300.0);
     assert!(
-        clicked.GetRec(),
+        clicked.get(),
         "Pipeline: button should fire at 2x zoom (hit_test normalizes correctly). \
          If this fails, the bug has spread beyond CheckMouse."
     );
@@ -419,8 +419,8 @@ struct SharedListBoxPanel {
 }
 
 impl PanelBehavior for SharedListBoxPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.inner.borrow_mut().PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.inner.borrow_mut().Paint(painter, w, h);
     }
 
     fn Input(

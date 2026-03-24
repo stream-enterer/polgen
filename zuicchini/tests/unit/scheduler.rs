@@ -69,7 +69,7 @@ fn signal_chaining_within_time_slice() {
 
     let sig = sched.create_signal();
 
-    // emEngine B: low GetPriority, woken by signal
+    // emEngine B: low priority, woken by signal
     let eng_b = sched.register_engine(
         Priority::Low,
         Box::new(RecordingEngine {
@@ -134,7 +134,7 @@ fn remove_engine_cleans_up() {
     sched.remove_engine(eng);
     sched.DoTimeSlice();
 
-    assert!(log.borrow().IsEmpty());
+    assert!(log.borrow().is_empty());
 }
 
 #[test]

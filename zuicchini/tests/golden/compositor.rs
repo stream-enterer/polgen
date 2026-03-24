@@ -17,20 +17,20 @@ macro_rules! require_golden {
     };
 }
 
-/// Behavior that fills its panel with a solid GetColor.
+/// Behavior that fills its panel with a solid color.
 struct ColorFillBehavior {
-    GetColor: emColor,
+    color: emColor,
 }
 
 impl ColorFillBehavior {
-    fn new(GetColor: emColor) -> Self {
-        Self { GetColor }
+    fn new(color: emColor) -> Self {
+        Self { color }
     }
 }
 
 impl PanelBehavior for ColorFillBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, vw: f64, vh: f64, _state: &PanelState) {
-        painter.PaintRect(0.0, 0.0, vw, vh, self.GetColor, emColor::TRANSPARENT);
+    fn Paint(&mut self, painter: &mut emPainter, vw: f64, vh: f64, _state: &PanelState) {
+        painter.PaintRect(0.0, 0.0, vw, vh, self.color, emColor::TRANSPARENT);
     }
 }
 
@@ -119,7 +119,7 @@ fn compositor_nested() {
     let root = tree.create_root("root");
     tree.Layout(root, 0.0, 0.0, 1.0, 0.75);
 
-    let GetParentContext = tree.create_child(root, "parent");
+    let parent = tree.create_child(root, "parent");
     tree.Layout(GetParentContext, 0.1, 0.075, 0.8, 0.6);
 
     let child = tree.create_child(GetParentContext, "child");
@@ -141,7 +141,7 @@ fn compositor_nested() {
 }
 
 // ─── Test 5: composite_canvas_color ────────────────────────────────
-// Root WHITE, child RED@128 alpha — tests canvas GetColor propagation.
+// Root WHITE, child RED@128 alpha — tests canvas color propagation.
 
 #[test]
 fn compositor_canvas_color() {

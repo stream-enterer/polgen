@@ -3,8 +3,8 @@
 //!
 //! Verifies that auto-expansion creates the expected child panel structure
 //! (emRasterLayout container with emScalarField sliders for R, G, B, A, H, S, V
-//! and a emTextField for GetColor name/hex), and that the expansion data is
-//! correctly initialized from the widget's GetColor.
+//! and a emTextField for color name/hex), and that the expansion data is
+//! correctly initialized from the widget's color.
 
 
 use std::rc::Rc;
@@ -35,15 +35,15 @@ impl ColorFieldBehavior {
         Self { color_field: cf }
     }
 
-    fn with_color(mut self, GetColor: emColor) -> Self {
-        self.color_field.SetColor(GetColor);
+    fn with_color(mut self, color: emColor) -> Self {
+        self.color_field.SetColor(color);
         self
     }
 }
 
 impl PanelBehavior for ColorFieldBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.color_field.PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.color_field.Paint(painter, w, h);
     }
 
     fn Input(
@@ -153,19 +153,19 @@ fn colorfield_expanded_has_correct_child_structure() {
 }
 
 // ---------------------------------------------------------------------------
-// Test: expansion data Match the initial GetColor
+// Test: expansion data Match the initial color
 // ---------------------------------------------------------------------------
 
 /// Verify that the expansion data (RGBA/HSV values) is correctly initialized
-/// from the widget's GetColor when auto-expansion creates the child panels.
+/// from the widget's color when auto-expansion creates the child panels.
 #[test]
 fn colorfield_expanded_data_matches_initial_color() {
     let mut h = PipelineTestHarness::new();
     let root = h.GetRootPanel();
 
     let look = emLook::new();
-    let GetColor = emColor::rgba(100, 150, 200, 180);
-    let behavior = ColorFieldBehavior::new(look).with_color(GetColor);
+    let color = emColor::rgba(100, 150, 200, 180);
+    let behavior = ColorFieldBehavior::new(look).with_color(color);
     let panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
 
     h.tick();
@@ -185,7 +185,7 @@ fn colorfield_expanded_data_matches_initial_color() {
         .expansion()
         .expect("expansion data should exist after auto-expand");
 
-    // Verify RGBA channels match the initial GetColor.
+    // Verify RGBA channels match the initial color.
     // C++ formula: (channel * 10000 + 127) / 255
     let expected_r = (100i64 * 10000 + 127) / 255;
     let expected_g = (150i64 * 10000 + 127) / 255;
@@ -266,12 +266,12 @@ fn colorfield_expanded_various_colors() {
         ),
     ];
 
-    for (label, GetColor, check) in &test_cases {
+    for (label, color, check) in &test_cases {
         let mut h = PipelineTestHarness::new();
         let root = h.GetRootPanel();
 
         let look = emLook::new();
-        let behavior = ColorFieldBehavior::new(look).with_color(*GetColor);
+        let behavior = ColorFieldBehavior::new(look).with_color(*color);
         let panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
 
         h.tick();
@@ -371,15 +371,15 @@ fn colorfield_no_children_before_expansion() {
 // ---------------------------------------------------------------------------
 
 /// Verify that the Name text field in the expansion is initialized with the
-/// hex representation of the current GetColor.
+/// hex representation of the current color.
 #[test]
 fn colorfield_expanded_name_field_initialized() {
     let mut h = PipelineTestHarness::new();
     let root = h.GetRootPanel();
 
     let look = emLook::new();
-    let GetColor = emColor::rgba(0xAB, 0xCD, 0xEF, 0xFF);
-    let behavior = ColorFieldBehavior::new(look).with_color(GetColor);
+    let color = emColor::rgba(0xAB, 0xCD, 0xEF, 0xFF);
+    let behavior = ColorFieldBehavior::new(look).with_color(color);
     let panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
 
     h.tick();
@@ -425,11 +425,11 @@ fn colorfield_expanded_name_field_initialized() {
 // The tests below verify end-to-end pipeline dispatch through the harness.
 
 // ---------------------------------------------------------------------------
-// Test: Cycle() propagation — red slider GetValue → GetColor update
+// Test: Cycle() propagation — red slider GetValue → color update
 // ---------------------------------------------------------------------------
 
 /// After expansion, mutate `Expansion::sf_red` and call `Cycle()`.
-/// Verify the GetColor's red channel updates and HSV/name fields are synced.
+/// Verify the color's red channel updates and HSV/name fields are synced.
 ///
 /// This tests the Cycle() contract from C++ emColorField.cpp:116-122:
 /// if sf_red != red_out, update emColor.SetRed and mark rgbaChanged.
@@ -476,7 +476,7 @@ fn colorfield_cycle_red_slider_updates_color_and_syncs() {
 
     // Name field should have been synced (rgbaChanged → UpdateNameOutput).
     assert!(
-        !exp.tf_name.IsEmpty(),
+        !exp.tf_name.is_empty(),
         "Name field should be updated after red change"
     );
 
@@ -484,7 +484,7 @@ fn colorfield_cycle_red_slider_updates_color_and_syncs() {
 }
 
 // ---------------------------------------------------------------------------
-// Test: Cycle() propagation — green slider GetValue → GetColor update
+// Test: Cycle() propagation — green slider GetValue → color update
 // ---------------------------------------------------------------------------
 
 /// Mutate `Expansion::sf_green` and call `Cycle()`. Verify green channel updates.
@@ -523,7 +523,7 @@ fn colorfield_cycle_green_slider_updates_color() {
 }
 
 // ---------------------------------------------------------------------------
-// Test: Cycle() propagation — blue slider GetValue → GetColor update
+// Test: Cycle() propagation — blue slider GetValue → color update
 // ---------------------------------------------------------------------------
 
 /// Mutate `Expansion::sf_blue` and call `Cycle()`. Verify blue channel updates.
@@ -562,11 +562,11 @@ fn colorfield_cycle_blue_slider_updates_color() {
 }
 
 // ---------------------------------------------------------------------------
-// Test: Cycle() propagation — hex text entry → GetColor update
+// Test: Cycle() propagation — hex text entry → color update
 // ---------------------------------------------------------------------------
 
 /// Mutate `Expansion::tf_name` to a hex string and call `Cycle()`.
-/// Verify the GetColor updates to match the hex GetValue and RGBA/HSV fields sync.
+/// Verify the color updates to match the hex GetValue and RGBA/HSV fields sync.
 /// C++ ref: emColorField.cpp:187-200.
 #[test]
 fn colorfield_cycle_hex_text_updates_color() {
@@ -624,7 +624,7 @@ fn colorfield_cycle_hex_text_updates_color() {
 // ---------------------------------------------------------------------------
 
 /// Mutate HSV expansion fields and call `Cycle()`. Verify that RGBA expansion
-/// fields are updated to match the new HSV GetColor.
+/// fields are updated to match the new HSV color.
 /// C++ ref: emColorField.cpp:148-186 (HSV changes) + line 203 (UpdateRGBAOutput).
 #[test]
 fn colorfield_cycle_hsv_change_syncs_rgb_fields() {
@@ -678,7 +678,7 @@ fn colorfield_cycle_hsv_change_syncs_rgb_fields() {
 
     // Name should also be synced (hsvChanged → UpdateNameOutput).
     assert!(
-        !exp.tf_name.IsEmpty(),
+        !exp.tf_name.is_empty(),
         "Name field should be updated after HSV change"
     );
 
@@ -690,7 +690,7 @@ fn colorfield_cycle_hsv_change_syncs_rgb_fields() {
 // ---------------------------------------------------------------------------
 
 /// Mutate RGBA expansion fields and call `Cycle()`. Verify that HSV expansion
-/// fields are updated to match the new RGB GetColor.
+/// fields are updated to match the new RGB color.
 /// C++ ref: emColorField.cpp:116-147 (RGBA changes) + line 204 (UpdateHSVOutput).
 #[test]
 fn colorfield_cycle_rgb_change_syncs_hsv_fields() {
@@ -749,7 +749,7 @@ fn colorfield_cycle_rgb_change_syncs_hsv_fields() {
 // ---------------------------------------------------------------------------
 
 /// Set the `on_color` callback, mutate expansion data, call `Cycle()`, and
-/// verify the callback fires with the new GetColor.
+/// verify the callback fires with the new color.
 /// C++ ref: emColorField.cpp:207 (Signal(ColorSignal)).
 #[test]
 fn colorfield_cycle_fires_on_color_callback() {
@@ -769,7 +769,7 @@ fn colorfield_cycle_fires_on_color_callback() {
         .downcast_mut::<ColorFieldBehavior>()
         .expect("should be ColorFieldBehavior");
 
-    // Install a callback that records the received GetColor.
+    // Install a callback that records the received color.
     let received = Rc::new(std::cell::RefCell::new(None::<emColor>));
     let received_clone = received.clone();
     cfb.color_field.on_color = Some(Box::new(move |c| {
@@ -799,7 +799,7 @@ fn colorfield_cycle_fires_on_color_callback() {
 // ---------------------------------------------------------------------------
 
 /// When no expansion fields have changed, `Cycle()` should return false and
-/// the GetColor should remain unchanged.
+/// the color should remain unchanged.
 /// C++ ref: emColorField.cpp:109 (early return when !Exp) and 247 (no-change).
 #[test]
 fn colorfield_cycle_no_change_returns_false() {
@@ -807,8 +807,8 @@ fn colorfield_cycle_no_change_returns_false() {
     let root = h.GetRootPanel();
 
     let look = emLook::new();
-    let GetColor = emColor::rgba(100, 150, 200, 255);
-    let behavior = ColorFieldBehavior::new(look).with_color(GetColor);
+    let color = emColor::rgba(100, 150, 200, 255);
+    let behavior = ColorFieldBehavior::new(look).with_color(color);
     let panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
 
     h.tick();
@@ -827,7 +827,7 @@ fn colorfield_cycle_no_change_returns_false() {
     );
     assert_eq!(
         cfb.color_field.GetColor(),
-        GetColor,
+        color,
         "Color should remain unchanged when cycle() detects no change"
     );
 
@@ -835,11 +835,11 @@ fn colorfield_cycle_no_change_returns_false() {
 }
 
 // ---------------------------------------------------------------------------
-// Test: invalid hex text does not change GetColor
+// Test: invalid hex text does not change color
 // ---------------------------------------------------------------------------
 
 /// When an invalid hex string is entered in tf_name, Cycle() should not crash
-/// and the GetColor should remain unchanged (C++ catches emException and reverts).
+/// and the color should remain unchanged (C++ catches emException and reverts).
 /// C++ ref: emColorField.cpp:191-196 (try/catch).
 #[test]
 fn colorfield_cycle_invalid_hex_preserves_color() {
@@ -865,8 +865,8 @@ fn colorfield_cycle_invalid_hex_preserves_color() {
     cfb.color_field.Cycle();
 
     // emColor should remain unchanged since parsing failed.
-    // The Rust code only updates GetColor if try_parse succeeds, so invalid text
-    // leaves the GetColor at whatever it was before.
+    // The Rust code only updates color if try_parse succeeds, so invalid text
+    // leaves the color at whatever it was before.
     let c = cfb.color_field.GetColor();
     assert_eq!(
         c.GetRed(),
@@ -894,10 +894,10 @@ fn colorfield_cycle_invalid_hex_preserves_color() {
 // to wire their on_value/on_text callbacks back to the emColorField's Expansion
 // data, AND for ColorFieldBehavior to implement PanelBehavior::Cycle() so that
 // the scheduler drives change detection. Until that wiring exists, these tests
-// cannot exercise the full Input->dispatch->Cycle->GetColor-update pipeline.
+// cannot exercise the full Input->dispatch->Cycle->color-update pipeline.
 
 /// Click on the Red emScalarField sub-widget at its slider GetPos and verify
-/// the emColorField's GetColor red channel changes.
+/// the emColorField's color red channel changes.
 ///
 /// BLOCKED: needs ScalarFieldPanel.on_value wired to Expansion.sf_red, and
 /// ColorFieldBehavior::Cycle() implemented. C++ ref: emColorField.cpp:116-122.
@@ -913,11 +913,11 @@ fn colorfield_click_red_slider_updates_color_e2e() {
     let _panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
     h.tick();
     h.expand_to(16.0);
-    // Would need: find red slider view-space bounds, Click/drag, tick, verify GetColor.
+    // Would need: find red slider view-space bounds, Click/drag, tick, verify color.
 }
 
 /// Type a hex GetValue into the Name emTextField sub-widget and verify the
-/// emColorField's GetColor updates.
+/// emColorField's color updates.
 ///
 /// BLOCKED: needs TextFieldPanel.on_text wired to Expansion.tf_name, and
 /// ColorFieldBehavior::Cycle() implemented. C++ ref: emColorField.cpp:187-200.
@@ -933,11 +933,11 @@ fn colorfield_type_hex_in_text_field_updates_color_e2e() {
     let _panel_id = h.add_panel_with(root, "color_field", Box::new(behavior));
     h.tick();
     h.expand_to(16.0);
-    // Would need: focus text field, type "#FF0000", tick, verify GetColor.
+    // Would need: focus text field, type "#FF0000", tick, verify color.
 }
 
 /// Drag the Hue emScalarField slider and verify that RGB expansion fields
-/// and the GetColor update accordingly.
+/// and the color update accordingly.
 ///
 /// BLOCKED: needs ScalarFieldPanel.on_value wired to Expansion.sf_hue, and
 /// ColorFieldBehavior::Cycle() implemented. C++ ref: emColorField.cpp:148-159.

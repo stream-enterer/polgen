@@ -36,8 +36,8 @@ impl ScalarFieldPanel {
 }
 
 impl PanelBehavior for ScalarFieldPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.sf.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.sf.Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -193,7 +193,7 @@ fn setup_sf(
     let mut sf = emScalarField::new(min, max, look);
     sf.SetValue(initial);
     sf.SetEditable(editable);
-    if !mark_intervals.IsEmpty() {
+    if !mark_intervals.is_empty() {
         sf.SetScaleMarkIntervals(mark_intervals);
     }
     if kb_interval > 0 {

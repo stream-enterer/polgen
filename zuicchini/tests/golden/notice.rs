@@ -189,7 +189,7 @@ fn notice_layout_changed() {
 }
 
 // ─── Test 4: notice_children_changed ────────────────────────────
-// Add new child after settling → CHILDREN_CHANGED on GetParentContext.
+// Add new child after settling → CHILDREN_CHANGED on parent.
 
 #[test]
 fn notice_children_changed() {

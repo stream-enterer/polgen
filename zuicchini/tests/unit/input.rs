@@ -87,11 +87,11 @@ fn input_state_mouse() {
 fn input_state_key_tracking() {
     let mut state = emInputState::new();
     state.press(InputKey::Key('a'));
-    assert!(state.IsPressed(InputKey::Key('a')));
-    assert!(!state.IsPressed(InputKey::Key('b')));
+    assert!(state.Get(InputKey::Key('a')));
+    assert!(!state.Get(InputKey::Key('b')));
 
     state.release(InputKey::Key('a'));
-    assert!(!state.IsPressed(InputKey::Key('a')));
+    assert!(!state.Get(InputKey::Key('a')));
 }
 
 #[test]

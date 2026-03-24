@@ -23,7 +23,7 @@ fn main() {
         let golden_h = u32::from_le_bytes([data[4], data[5], data[6], data[7]]) as usize;
         println!("=== {} ({}x{}) ===", name, golden_w, golden_h);
 
-        // Sample vertical line at x=400 — find GetColor regions
+        // Sample vertical line at x=400 — find color regions
         println!("  Vertical x=400:");
         let x = 400;
         let mut prev = (0u8, 0u8, 0u8);
@@ -60,7 +60,7 @@ fn main() {
             golden_h - run_start
         );
 
-        // Sample horizontal line at y=golden_h/2 — find GetColor regions
+        // Sample horizontal line at y=golden_h/2 — find color regions
         let y = golden_h / 2;
         println!("  Horizontal y={}:", y);
         prev = (0, 0, 0);

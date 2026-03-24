@@ -14,12 +14,12 @@ use super::{DEFAULT_VH, DEFAULT_VW};
 // ---------------------------------------------------------------------------
 
 pub struct ColorPanel {
-    GetColor: emColor,
+    color: emColor,
 }
 
 impl PanelBehavior for ColorPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        painter.PaintRect(0.0, 0.0, w, h, self.GetColor, emColor::TRANSPARENT);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        painter.PaintRect(0.0, 0.0, w, h, self.color, emColor::TRANSPARENT);
     }
 
     fn IsOpaque(&self) -> bool {
@@ -41,7 +41,7 @@ pub fn build_scaled_tree(panel_count: usize) -> (PanelTree, emView, PanelId) {
     tree.set_behavior(
         root,
         Box::new(ColorPanel {
-            GetColor: color_for_index(0),
+            color: color_for_index(0),
         }),
     );
     tree.set_focusable(root, true);
@@ -66,7 +66,7 @@ pub fn build_scaled_tree(panel_count: usize) -> (PanelTree, emView, PanelId) {
                     tree.set_behavior(
                         child,
                         Box::new(ColorPanel {
-                            GetColor: color_for_index(created),
+                            color: color_for_index(created),
                         }),
                     );
                     next_parents.push(child);

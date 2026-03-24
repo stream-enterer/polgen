@@ -52,7 +52,7 @@ fn auto_expand_preserves_selection() {
 }
 
 /// emColorField::Cycle() (virtual)
-/// Polls expansion children for GetValue changes and synchronizes GetColor.
+/// Polls expansion children for GetValue changes and synchronizes color.
 #[test]
 fn cycle_returns_false_when_not_expanded() {
     let look = emLook::new();
@@ -239,7 +239,7 @@ fn update_hsv_output_preserves_hue_at_zero_value() {
 fn update_hsv_output_preserves_sat_at_zero_value() {
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    // Start with a saturated GetColor
+    // Start with a saturated color
     cf.SetColor(emColor::rgba(255, 0, 0, 255));
     cf.set_expanded(true);
 
@@ -256,7 +256,7 @@ fn update_hsv_output_preserves_sat_at_zero_value() {
 fn update_hsv_output_initial_sets_all() {
     let look = emLook::new();
     let mut cf = emColorField::new(look);
-    // Black GetColor — on initial expansion, all HSV values should be set
+    // Black color — on initial expansion, all HSV values should be set
     cf.SetColor(emColor::rgba(0, 0, 0, 255));
     cf.set_expanded(true);
 

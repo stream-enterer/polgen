@@ -17,7 +17,7 @@ use zuicchini::emCore::emViewRendererTileCache::{TileCache, TILE_SIZE};
 const VW: u32 = 1920;
 const VH: u32 = 1080;
 
-// Panel with moderate complexity (shapes, not just GetColor fill)
+// Panel with moderate complexity (shapes, not just color fill)
 struct GamePanel {
     test_image: emImage,
 }
@@ -38,7 +38,7 @@ impl GamePanel {
 }
 
 impl PanelBehavior for GamePanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         use std::f64::consts::PI;
 
         if state.viewed_rect.w < 25.0 {
@@ -165,7 +165,7 @@ fn simulate_zoom_animation(panel_count: usize, start_zoom: f64, zoom_speed: f64,
     buf.fill(emColor::BLACK);
     {
         let mut painter = emPainter::new(&mut buf);
-        view.PaintContent(&mut tree, &mut painter);
+        view.Paint(&mut tree, &mut painter);
     }
 
     // Simulate continuous zoom animation
@@ -190,14 +190,14 @@ fn simulate_zoom_animation(panel_count: usize, start_zoom: f64, zoom_speed: f64,
         buf.fill(emColor::BLACK);
         {
             let mut painter = emPainter::new(&mut buf);
-            view.PaintContent(&mut tree, &mut painter);
+            view.Paint(&mut tree, &mut painter);
         }
 
         // 4. Tile copy
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tc.get_or_create(col, row);
-                tile.GetImage.copy_from_rect(
+                tile.image.copy_from_rect(
                     0, 0, &buf,
                     (col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE),
                 );
@@ -214,7 +214,7 @@ fn simulate_zoom_animation(panel_count: usize, start_zoom: f64, zoom_speed: f64,
     let median = sorted[sorted.len() / 2];
     let p99 = sorted[(sorted.len() as f64 * 0.99) as usize];
     let max = *sorted.last().unwrap();
-    let over_budget = frame_times.iter().filter(|&&t| t > 16600).GetCount();
+    let over_budget = frame_times.iter().filter(|&&t| t > 16600).count();
 
     // Find jank: frames that are >2x the median
     let jank_threshold = median * 2;
@@ -231,7 +231,7 @@ fn simulate_zoom_animation(panel_count: usize, start_zoom: f64, zoom_speed: f64,
         format!("{:.0}x", start_zoom),
         median, p99, max, over_budget, frames,
     );
-    if !jank_frames.IsEmpty() {
+    if !jank_frames.is_empty() {
         let first_five: Vec<_> = jank_frames.iter().take(5).collect();
         print!("           jank frames (>{jank_threshold}us): ");
         for (i, t) in &first_five {

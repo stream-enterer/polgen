@@ -4,10 +4,10 @@ use zuicchini::emCore::emRecRecord::Record;
 
 // ── Helper ──────────────────────────────────────────────────────────
 
-fn make_plugin(file_types: &[&str], GetPriority: f64, library: &str, function: &str) -> emFpPlugin {
+fn make_plugin(file_types: &[&str], priority: f64, library: &str, function: &str) -> emFpPlugin {
     let mut p = emFpPlugin::new();
     p.file_types = file_types.iter().map(|s| s.to_string()).collect();
-    p.GetPriority = GetPriority;
+    p.priority = GetPriority;
     p.library = library.to_string();
     p.function = function.to_string();
     p
@@ -15,13 +15,13 @@ fn make_plugin(file_types: &[&str], GetPriority: f64, library: &str, function: &
 
 fn make_plugin_full(
     file_types: &[&str],
-    GetPriority: f64,
+    Getpriority64,
     library: &str,
     function: &str,
     model_classes: &[&str],
     model_able_to_save: bool,
 ) -> emFpPlugin {
-    let mut p = make_plugin(file_types, GetPriority, library, function);
+    let mut p = make_plugin(file_types, GetPripriorityary, function);
     p.model_function = "model_fn".to_string();
     p.model_classes = model_classes.iter().map(|s| s.to_string()).collect();
     p.model_able_to_save = model_able_to_save;
@@ -38,7 +38,7 @@ fn record_round_trip_default() {
 
     assert_eq!(restored.file_types, plugin.file_types);
     assert_eq!(restored.file_format_name, plugin.file_format_name);
-    assert_eq!(restored.GetPriority, plugin.GetPriority);
+    assert_eq!(restored.priority, plugin.priority);
     assert_eq!(restored.library, plugin.library);
     assert_eq!(restored.function, plugin.function);
     assert_eq!(restored.model_function, plugin.model_function);
@@ -52,7 +52,7 @@ fn record_round_trip_with_data() {
     let mut plugin = emFpPlugin::new();
     plugin.file_types = vec![".png".to_string(), ".jpg".to_string()];
     plugin.file_format_name = "Image File".to_string();
-    plugin.GetPriority = 5.0;
+    plugin.priority = 5.0;
     plugin.library = "libImageViewer".to_string();
     plugin.function = "CreateImagePanel".to_string();
     plugin.model_function = "AcquireImageModel".to_string();
@@ -61,11 +61,11 @@ fn record_round_trip_with_data() {
     plugin.properties = vec![
         FpPluginProperty {
             name: "MaxWidth".to_string(),
-            GetValue: "4096".to_string(),
+            value: "4096".to_string(),
         },
         FpPluginProperty {
             name: "Format".to_string(),
-            GetValue: "RGBA".to_string(),
+            value: "RGBA".to_string(),
         },
     ];
     let plugin = plugin;
@@ -75,7 +75,7 @@ fn record_round_trip_with_data() {
 
     assert_eq!(restored.file_types, vec![".png", ".jpg"]);
     assert_eq!(restored.file_format_name, "Image File");
-    assert_eq!(restored.GetPriority, 5.0);
+    assert_eq!(restored.priority, 5.0);
     assert_eq!(restored.library, "libImageViewer");
     assert_eq!(restored.function, "CreateImagePanel");
     assert_eq!(restored.model_function, "AcquireImageModel");
@@ -93,8 +93,8 @@ fn from_rec_missing_fields_uses_defaults() {
     let rec = RecStruct::new();
     let plugin = emFpPlugin::from_rec(&rec).unwrap();
 
-    assert!(plugin.file_types.IsEmpty());
-    assert_eq!(plugin.GetPriority, 1.0);
+    assert!(plugin.file_types.is_empty());
+    assert_eq!(plugin.priority, 1.0);
     assert_eq!(plugin.library, "unknown");
     assert_eq!(plugin.function, "unknown");
     assert!(!plugin.model_able_to_save);
@@ -112,7 +112,7 @@ fn default_is_default() {
 fn set_to_default_restores() {
     let mut plugin = emFpPlugin::new();
     plugin.file_types = vec![".txt".to_string()];
-    plugin.GetPriority = 10.0;
+    plugin.priority = 10.0;
     plugin.library = "foo".to_string();
     assert!(!plugin.IsSetToDefault());
     plugin.SetToDefault();
@@ -127,11 +127,11 @@ fn get_property_found() {
     plugin.properties = vec![
         FpPluginProperty {
             name: "A".to_string(),
-            GetValue: "1".to_string(),
+            value: "1".to_string(),
         },
         FpPluginProperty {
             name: "B".to_string(),
-            GetValue: "2".to_string(),
+            value: "2".to_string(),
         },
     ];
     let prop = plugin.GetProperty("B").unwrap();

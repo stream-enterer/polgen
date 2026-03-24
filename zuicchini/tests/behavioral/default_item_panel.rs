@@ -26,7 +26,7 @@ impl ItemPanelInterface for CustomPanel {
         self.index = index;
     }
 
-    fn text(&self) -> &str {
+    fn GetText(&self) -> &str {
         &self.label
     }
 

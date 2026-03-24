@@ -97,7 +97,7 @@ impl TestPanel {
 }
 
 impl PanelBehavior for TestPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         if state.viewed_rect.w < 25.0 {
             return;
         }
@@ -121,7 +121,7 @@ impl PanelBehavior for TestPanel {
 
         let _state_str = format!(
             "State: InFocusedPath ViewFocused Pri={:.3} MemLim={}",
-            state.GetPriority, state.GetMemoryLimit,
+            state.priority, state.memory_limit,
         );
         painter.PaintRect(
             0.25,
@@ -555,7 +555,7 @@ impl PanelBehavior for TestPanel {
         painter.paint_polygon_textured(
             &star(0.240),
             &emTexture::emImage {
-                GetImage: self.test_image.clone(),
+                image: self.test_image.clone(),
                 extension: ImageExtension::Clamp,
                 quality: ImageQuality::Bilinear,
             },
@@ -696,7 +696,7 @@ pub fn run_one_frame(
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.GetImage
+            tile.image
                 .copy_from_rect(0, 0, viewport_buf, (col * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE));
         }
     }

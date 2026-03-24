@@ -88,7 +88,7 @@ fn run_linear_layout(
         .collect();
 
     for (i, &id) in child_ids.iter().enumerate() {
-        let cc = if tallnesses.IsEmpty() {
+        let cc = if tallnesses.is_empty() {
             ChildConstraint {
                 weight: weights[i],
                 ..Default::default()
@@ -871,7 +871,7 @@ fn run_linear_layout_with_spacing(
         .collect();
 
     for (i, &id) in child_ids.iter().enumerate() {
-        let cc = if tallnesses.IsEmpty() {
+        let cc = if tallnesses.is_empty() {
             ChildConstraint {
                 weight: weights[i],
                 ..Default::default()
@@ -942,7 +942,7 @@ fn run_linear_layout_aligned(
         .collect();
 
     for (i, &id) in child_ids.iter().enumerate() {
-        let cc = if tallnesses.IsEmpty() {
+        let cc = if tallnesses.is_empty() {
             ChildConstraint {
                 weight: weights[i],
                 ..Default::default()

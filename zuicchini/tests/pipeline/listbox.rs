@@ -31,8 +31,8 @@ struct SharedListBoxPanel {
 }
 
 impl PanelBehavior for SharedListBoxPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.inner.borrow_mut().PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.inner.borrow_mut().Paint(painter, w, h);
     }
 
     fn Input(
@@ -501,7 +501,7 @@ fn listbox_readonly_rejects_click() {
     let (mut h, lb, _pid, cx, ys) = setup_listbox_harness(SelectionMode::ReadOnly);
 
     h.Click(cx, ys[0]);
-    assert!(lb.borrow().GetSelectedIndices().IsEmpty(), "ReadOnly rejects click");
+    assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly rejects click");
 }
 
 #[test]
@@ -511,7 +511,7 @@ fn listbox_readonly_rejects_shift_click() {
     h.input_state.press(InputKey::Shift);
     h.Click(cx, ys[2]);
     h.input_state.release(InputKey::Shift);
-    assert!(lb.borrow().GetSelectedIndices().IsEmpty(), "ReadOnly rejects shift+click");
+    assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly rejects shift+click");
 }
 
 #[test]
@@ -521,7 +521,7 @@ fn listbox_readonly_rejects_ctrl_click() {
     h.input_state.press(InputKey::Ctrl);
     h.Click(cx, ys[2]);
     h.input_state.release(InputKey::Ctrl);
-    assert!(lb.borrow().GetSelectedIndices().IsEmpty(), "ReadOnly rejects ctrl+click");
+    assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly rejects ctrl+click");
 }
 
 // ── Double-Click (trigger) ──────────────────────────────────────────────
@@ -602,7 +602,7 @@ fn listbox_readonly_double_click_no_trigger() {
     }));
 
     double_click(&mut h, cx, ys[2]);
-    assert!(lb.borrow().GetSelectedIndices().IsEmpty(), "ReadOnly: no selection");
+    assert!(lb.borrow().GetSelectedIndices().is_empty(), "ReadOnly: no selection");
     assert_eq!(*triggered.borrow(), None, "ReadOnly: no trigger on double-click");
 }
 
@@ -681,7 +681,7 @@ fn listbox_multi_shift_ctrl_a_clears() {
     h.input_state.release(InputKey::Shift);
     h.input_state.release(InputKey::Ctrl);
 
-    assert!(lb.borrow().GetSelectedIndices().IsEmpty(), "Shift+Ctrl+A clears in Multi");
+    assert!(lb.borrow().GetSelectedIndices().is_empty(), "Shift+Ctrl+A clears in Multi");
 }
 
 #[test]
@@ -1133,12 +1133,12 @@ fn listbox_keywalk_readonly_no_selection_change() {
     let fy = item_center_view_y(&vr, pt, 0, 3);
     h.Click(cx, fy);
 
-    assert!(lb_ref.borrow().GetSelectedIndices().IsEmpty());
+    assert!(lb_ref.borrow().GetSelectedIndices().is_empty());
 
     // Type 'b' -> keywalk finds "Banana" but does not select in ReadOnly GetMode.
     h.press_char('b');
     assert!(
-        lb_ref.borrow().GetSelectedIndices().IsEmpty(),
+        lb_ref.borrow().GetSelectedIndices().is_empty(),
         "ReadOnly mode: keywalk does not change selection"
     );
     // Focus index should still move (C++ visits the panel).
@@ -1166,7 +1166,7 @@ fn listbox_keywalk_timeout_clears_accumulator() {
         thread_local! {
             static ANCHOR: Instant = Instant::now();
         }
-        ANCHOR.with(|a| *a + Duration::from_millis(FAKE_OFFSET.with(|c| c.GetRec())))
+        ANCHOR.with(|a| *a + Duration::from_millis(FAKE_OFFSET.with(|c| c.get())))
     }
 
     let (mut h, lb, _pid, _cx, _fy) =
@@ -1176,12 +1176,12 @@ fn listbox_keywalk_timeout_clears_accumulator() {
     lb.borrow_mut().ClearSelection();
 
     // Time 0ms: type 'a' -> Match "Apple".
-    FAKE_OFFSET.with(|c| c.Set(0));
+    FAKE_OFFSET.with(|c| c.set(0));
     h.press_char('a');
     assert_eq!(lb.borrow().GetSelectedIndex(), Some(0));
 
     // Advance past the 1000ms timeout, then type 'b'.
-    FAKE_OFFSET.with(|c| c.Set(1500));
+    FAKE_OFFSET.with(|c| c.set(1500));
     h.press_char('b');
     assert_eq!(
         lb.borrow().GetSelectedIndex(),
@@ -1344,7 +1344,7 @@ fn listbox_arrow_down_readonly_mode_moves_focus() {
 
     // Click to activate panel (ReadOnly won't select).
     h.Click(cx, ys[0]);
-    assert!(lb.borrow().GetSelectedIndices().IsEmpty());
+    assert!(lb.borrow().GetSelectedIndices().is_empty());
     assert_eq!(lb.borrow().focus_index(), 0);
 
     h.press_key(InputKey::ArrowDown);
@@ -1354,7 +1354,7 @@ fn listbox_arrow_down_readonly_mode_moves_focus() {
         "ReadOnly: ArrowDown moves focus"
     );
     assert!(
-        lb.borrow().GetSelectedIndices().IsEmpty(),
+        lb.borrow().GetSelectedIndices().is_empty(),
         "ReadOnly: no selection change"
     );
 }

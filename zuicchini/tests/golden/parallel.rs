@@ -123,7 +123,7 @@ struct BorderBehavior {
 }
 
 impl PanelBehavior for BorderBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, false, true, 1.0);
     }
@@ -134,7 +134,7 @@ struct LabelBehavior {
 }
 
 impl PanelBehavior for LabelBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.label.PaintContent(painter, w, h, _state.enabled);
     }
 }
@@ -144,8 +144,8 @@ struct CheckBoxBehavior {
 }
 
 impl PanelBehavior for CheckBoxBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.check_box.PaintContent(painter, w, h, _state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.check_box.Paint(painter, w, h, _state.enabled);
     }
 }
 
@@ -154,8 +154,8 @@ struct ScalarFieldBehavior {
 }
 
 impl PanelBehavior for ScalarFieldBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.scalar_field.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.scalar_field.Paint(painter, w, h, state.enabled);
     }
 }
 

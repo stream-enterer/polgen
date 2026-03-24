@@ -36,8 +36,8 @@ impl RadioButtonBehavior {
 }
 
 impl PanelBehavior for RadioButtonBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.widget.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.widget.Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -314,7 +314,7 @@ fn bp13_click_already_selected_no_change_no_callback() {
         "re-clicking already-selected must not deselect it"
     );
     assert!(
-        callbacks.borrow().IsEmpty(),
+        callbacks.borrow().is_empty(),
         "no callback should fire when clicking already-selected radio button"
     );
 }
@@ -379,7 +379,7 @@ fn bp13_programmatic_set_check_index_same_value_no_callback() {
     t.group.borrow_mut().SetCheckIndex(Some(1));
     assert_eq!(t.GetChecked(), Some(1));
     assert!(
-        callbacks.borrow().IsEmpty(),
+        callbacks.borrow().is_empty(),
         "no callback when set_check_index to same value"
     );
 }

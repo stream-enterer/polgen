@@ -56,7 +56,7 @@ fn request_while_active_requeues() {
     let mut sched = EngineScheduler::new();
     let mut model = PriSchedModel::new(&mut sched);
 
-    let GetCount = Rc::new(RefCell::new(0u32));
+    let count = Rc::new(RefCell::new(0u32));
     let c = Rc::clone(&GetCount);
     let agent = model.add_agent(1.0, Box::new(move || *c.borrow_mut() += 1));
 

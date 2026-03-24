@@ -70,8 +70,8 @@ struct ButtonPanel {
     widget: emButton,
 }
 impl PanelBehavior for ButtonPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h, _s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h, _s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -88,8 +88,8 @@ struct CheckButtonPanel {
     widget: emCheckButton,
 }
 impl PanelBehavior for CheckButtonPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h, _s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h, _s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -106,8 +106,8 @@ struct CheckBoxPanel {
     widget: emCheckBox,
 }
 impl PanelBehavior for CheckBoxPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h, _s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h, _s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -124,8 +124,8 @@ struct RadioButtonPanel {
     widget: emRadioButton,
 }
 impl PanelBehavior for RadioButtonPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h, _s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h, _s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -142,8 +142,8 @@ struct RadioBoxPanel {
     widget: emRadioBox,
 }
 impl PanelBehavior for RadioBoxPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h, _s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h, _s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -160,9 +160,9 @@ struct TextFieldPanel {
     widget: emTextField,
 }
 impl PanelBehavior for TextFieldPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
         self.widget.cycle_blink(_s.in_focused_path());
-        self.widget.PaintContent(p, w, h, _s.enabled);
+        self.widget.Paint(p, w, h, _s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -184,8 +184,8 @@ struct ScalarFieldPanel {
     widget: emScalarField,
 }
 impl PanelBehavior for ScalarFieldPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.widget.PaintContent(p, w, h, s.enabled);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+        self.widget.Paint(p, w, h, s.enabled);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -202,8 +202,8 @@ struct ColorFieldPanel {
     widget: emColorField,
 }
 impl PanelBehavior for ColorFieldPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -217,8 +217,8 @@ struct ListBoxPanel {
     widget: emListBox,
 }
 impl PanelBehavior for ListBoxPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
-        self.widget.PaintContent(p, w, h);
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _s: &PanelState) {
+        self.widget.Paint(p, w, h);
     }
     fn Input(&mut self, e: &emInputEvent, _s: &PanelState, _is: &emInputState) -> bool {
         self.widget.Input(e, _s, _is)
@@ -249,14 +249,14 @@ impl TunnelStubPanel {
 }
 
 impl PanelBehavior for TunnelStubPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
         self.border
             .paint_border(p, w, h, &self.look, s.is_focused(), s.enabled, 1.0);
     }
 
     fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         let children = ctx.children();
-        if children.IsEmpty() {
+        if children.is_empty() {
             return;
         }
         let rect = ctx.layout_rect();
@@ -289,7 +289,7 @@ impl FileSelectionBoxStubPanel {
 }
 
 impl PanelBehavior for FileSelectionBoxStubPanel {
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
         self.border
             .paint_border(p, w, h, &self.look, s.is_focused(), s.enabled, 1.0);
     }
@@ -747,7 +747,7 @@ impl PanelBehavior for TkTestPanel {
         true
     }
 
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
         self.border
             .paint_border(p, w, h, &self.look, s.is_focused(), s.enabled, 1.0);
     }

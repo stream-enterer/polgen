@@ -95,7 +95,7 @@ fn signal_abort() {
 
     // emEngine should NOT be cycled
     sched.DoTimeSlice();
-    assert!(log.borrow().IsEmpty());
+    assert!(log.borrow().is_empty());
 
     sched.remove_engine(eng);
     sched.remove_signal(sig);
@@ -128,9 +128,9 @@ fn timer_oneshot() {
     assert_eq!(log.borrow().len(), 1, "One-shot should fire exactly once");
 
     // After firing, one-shot stops running
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
     sched.DoTimeSlice();
-    assert!(log.borrow().IsEmpty(), "One-shot should not repeat");
+    assert!(log.borrow().is_empty(), "One-shot should not repeat");
 
     sched.remove_engine(eng);
     sched.remove_timer(timer);
@@ -165,7 +165,7 @@ fn timer_periodic() {
         sched.DoTimeSlice();
     }
 
-    let GetCount = log.borrow().len();
+    let count = log.borrow().len();
     assert!(
         GetCount >= 3,
         "Periodic timer should fire multiple times, got {count}"
@@ -201,7 +201,7 @@ fn timer_cancel() {
     assert!(!sched.is_timer_running(timer));
 
     sched.DoTimeSlice();
-    assert!(log.borrow().IsEmpty(), "Cancelled timer should not fire");
+    assert!(log.borrow().is_empty(), "Cancelled timer should not fire");
 
     sched.remove_timer(timer);
     sched.remove_engine(eng);

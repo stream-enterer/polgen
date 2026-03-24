@@ -16,7 +16,7 @@ fn paint_rect_fills_correct_pixels() {
     // Pixel inside the rect
     assert_eq!(img.GetPixel(3, 3), &[255, 0, 0, 255]);
     assert_eq!(img.GetPixel(5, 4), &[255, 0, 0, 255]);
-    // Pixel outside the rect should be canvas GetColor
+    // Pixel outside the rect should be canvas color
     assert_eq!(img.GetPixel(0, 0), &[0, 0, 0, 255]);
     assert_eq!(img.GetPixel(7, 7), &[0, 0, 0, 255]);
 }
@@ -60,7 +60,7 @@ fn clip_rect_respected() {
     }
     // Inside clip: should be painted
     assert_eq!(img.GetPixel(3, 3), &[0, 255, 0, 255]);
-    // Outside clip: should be canvas GetColor (untouched)
+    // Outside clip: should be canvas color (untouched)
     assert_eq!(img.GetPixel(0, 0), &[0, 0, 0, 255]);
     assert_eq!(img.GetPixel(7, 7), &[0, 0, 0, 255]);
 }
@@ -79,7 +79,7 @@ fn coordinate_transforms() {
     // Translated rect should appear at (5,5)
     assert_eq!(img.GetPixel(5, 5), &[0, 0, 255, 255]);
     assert_eq!(img.GetPixel(6, 6), &[0, 0, 255, 255]);
-    // Origin should be canvas GetColor
+    // Origin should be canvas color
     assert_eq!(img.GetPixel(0, 0), &[0, 0, 0, 255]);
 }
 
@@ -117,7 +117,7 @@ fn paint_ellipse_basic() {
     // Center should be filled
     let px = img.GetPixel(10, 10);
     assert_eq!(px[0], 255); // red
-                            // Far corner should be canvas GetColor
+                            // Far corner should be canvas color
     assert_eq!(img.GetPixel(0, 0), &[0, 0, 0, 255]);
 }
 
@@ -134,7 +134,7 @@ fn paint_line_basic() {
     // Horizontal line at y=0
     assert_eq!(img.GetPixel(0, 0), &[255, 255, 255, 255]);
     assert_eq!(img.GetPixel(5, 0), &[255, 255, 255, 255]);
-    // Below the line should be canvas GetColor
+    // Below the line should be canvas color
     assert_eq!(img.GetPixel(0, 5), &[0, 0, 0, 255]);
 }
 
@@ -153,7 +153,7 @@ fn PaintRectOutline() {
     // emStroke centered on boundary: outer=(4,4), inner=(6,6).
     // Pixel (8,5) is fully within the top stroke band.
     assert_eq!(img.GetPixel(8, 5), &[255, 255, 255, 255]);
-    // Center should be canvas GetColor (only outline)
+    // Center should be canvas color (only outline)
     assert_eq!(img.GetPixel(10, 10), &[0, 0, 0, 255]);
 }
 

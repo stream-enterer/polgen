@@ -300,7 +300,7 @@ fn painter_line_thick() {
     {
         let mut p = white_painter(&mut img);
         let stroke = emStroke {
-            GetColor: emColor::BLUE,
+            color: emColor::BLUE,
             width: 8.0,
             join: LineJoin::Round,
             cap: LineCap::Round,
@@ -649,7 +649,7 @@ fn painter_polyline() {
     {
         let mut p = white_painter(&mut img);
         let stroke = emStroke {
-            GetColor: emColor::BLACK,
+            color: emColor::BLACK,
             width: 4.0,
             join: LineJoin::Round,
             cap: LineCap::Round,

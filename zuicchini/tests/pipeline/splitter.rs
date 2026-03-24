@@ -29,7 +29,7 @@ struct SharedSplitterPanel {
 }
 
 impl PanelBehavior for SharedSplitterPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.inner.borrow_mut().PaintContent(painter, w, h, state.enabled);
     }
 
@@ -538,7 +538,7 @@ fn splitter_on_position_callback_fires_during_drag() {
 
     let recorded = positions.borrow();
     assert!(
-        !recorded.IsEmpty(),
+        !recorded.is_empty(),
         "on_position callback should have fired at least once during drag"
     );
     // The last recorded GetPos should match the current splitter GetPos.

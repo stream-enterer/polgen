@@ -92,7 +92,7 @@ impl PanelBehavior for InputPanel {
             self.push_log("X key pressed".into());
             return true;
         }
-        if self.x_key_down && !input_state.IsPressed(InputKey::Key('x')) {
+        if self.x_key_down && !input_state.Get(InputKey::Key('x')) {
             self.x_key_down = false;
             self.push_log("X key released".into());
         }
@@ -109,7 +109,7 @@ impl PanelBehavior for InputPanel {
             // Don't eat — let panel system handle focus.
             return false;
         }
-        if self.button_down && !input_state.IsPressed(InputKey::MouseLeft) {
+        if self.button_down && !input_state.Get(InputKey::MouseLeft) {
             self.button_down = false;
             self.push_log("Left button released".into());
         }
@@ -130,7 +130,7 @@ impl PanelBehavior for InputPanel {
         false
     }
 
-    fn PaintContent(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         p.PaintRect(0.0, 0.0, w, h, emColor::WHITE, emColor::TRANSPARENT);
 
         // Title

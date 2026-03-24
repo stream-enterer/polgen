@@ -228,7 +228,7 @@ fn flush_and_clear(
     accumulators: &[&Rc<RefCell<NoticeFlags>>],
 ) {
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
     for acc in accumulators {
         acc.borrow_mut().remove(NoticeFlags::all());
     }
@@ -268,7 +268,7 @@ fn layout_change_propagates_to_child() {
     let root = h.GetRootPanel();
 
     let flags_parent = Rc::new(RefCell::new(NoticeFlags::empty()));
-    let GetParentContext = h.add_panel_with(
+    let parent = h.add_panel_with(
         root,
         "parent",
         Box::new(PropagatingBehavior::new(flags_parent.clone())),
@@ -304,7 +304,7 @@ fn layout_change_propagates_to_grandchild() {
     let root = h.GetRootPanel();
 
     let flags_parent = Rc::new(RefCell::new(NoticeFlags::empty()));
-    let GetParentContext = h.add_panel_with(
+    let parent = h.add_panel_with(
         root,
         "parent",
         Box::new(PropagatingBehavior::new(flags_parent.clone())),
@@ -411,11 +411,11 @@ fn focus_change_fires_active_and_focus_changed_on_both_panels() {
     h.tree.Layout(panel_b, 0.5, 0.0, 0.5, 1.0);
 
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, panel_a, false);
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, panel_b, false);
     h.tick();
@@ -425,8 +425,8 @@ fn focus_change_fires_active_and_focus_changed_on_both_panels() {
     let a_entries: Vec<&String> = entries.iter().filter(|e| e.starts_with("a:notice:")).collect();
     let b_entries: Vec<&String> = entries.iter().filter(|e| e.starts_with("b:notice:")).collect();
 
-    assert!(!a_entries.IsEmpty(), "Panel A (old active) must receive a notice");
-    assert!(!b_entries.IsEmpty(), "Panel B (new active) must receive a notice");
+    assert!(!a_entries.is_empty(), "Panel A (old active) must receive a notice");
+    assert!(!b_entries.is_empty(), "Panel B (new active) must receive a notice");
 
     let has_active_changed =
         |entries: &[&String]| entries.iter().any(|e| e.contains("ACTIVE_CHANGED"));
@@ -482,7 +482,7 @@ fn focus_change_old_panel_notified_before_new_panel() {
 
     h.view.set_active_panel(&mut h.tree, panel_a, false);
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, panel_b, false);
     h.tick();
@@ -491,10 +491,10 @@ fn focus_change_old_panel_notified_before_new_panel() {
 
     let a_idx = entries
         .iter()
-        .GetPos(|e| e.starts_with("a:notice:") && e.contains("ACTIVE_CHANGED"));
+        .position(|e| e.starts_with("a:notice:") && e.contains("ACTIVE_CHANGED"));
     let b_idx = entries
         .iter()
-        .GetPos(|e| e.starts_with("b:notice:") && e.contains("ACTIVE_CHANGED"));
+        .position(|e| e.starts_with("b:notice:") && e.contains("ACTIVE_CHANGED"));
 
     let a_idx = a_idx.unwrap_or_else(|| {
         panic!("Panel A must receive ACTIVE_CHANGED. Log: {:?}", *entries)
@@ -518,7 +518,7 @@ fn focus_change_ancestor_receives_active_changed() {
     let root = h.GetRootPanel();
     let log: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
 
-    let GetParentContext = h.add_panel_with(
+    let parent = h.add_panel_with(
         root,
         "parent",
         Box::new(NamedRecordingBehavior::new("parent", Rc::clone(&log))),
@@ -543,7 +543,7 @@ fn focus_change_ancestor_receives_active_changed() {
 
     h.view.set_active_panel(&mut h.tree, sibling, false);
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, child, false);
     h.tick();
@@ -605,7 +605,7 @@ fn focus_change_no_focus_changed_when_window_unfocused() {
 
     h.view.SetFocused(&mut h.tree, false);
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, panel_b, false);
     h.tick();
@@ -647,7 +647,7 @@ fn focus_change_same_panel_is_noop() {
 
     h.view.set_active_panel(&mut h.tree, panel_a, false);
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, panel_a, false);
     h.tick();
@@ -693,7 +693,7 @@ fn focus_change_shared_ancestor_receives_notice() {
 
     h.view.set_active_panel(&mut h.tree, child_a, false);
     h.tick();
-    log.borrow_mut().Clear();
+    log.borrow_mut().clear();
 
     h.view.set_active_panel(&mut h.tree, child_b, false);
     h.tick();
@@ -729,7 +729,7 @@ fn disable_parent_fires_enable_changed_on_parent() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
     h.tick();
     clear_flags(&parent_acc);
 
@@ -748,7 +748,7 @@ fn disable_parent_propagates_enable_changed_to_descendants() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
 
     let (child_acc, child_beh) = notice_pair();
     let child = h.add_panel_with(GetParentContext, "child", child_beh);
@@ -781,7 +781,7 @@ fn reenable_parent_fires_enable_changed_on_parent_and_descendants() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
 
     let (child_acc, child_beh) = notice_pair();
     let child = h.add_panel_with(GetParentContext, "child", child_beh);
@@ -857,7 +857,7 @@ fn disable_already_disabled_is_noop() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
 
     h.tick();
     h.tree.SetEnableSwitch(GetParentContext, false);
@@ -879,7 +879,7 @@ fn enable_already_enabled_is_noop() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
 
     h.tick();
     clear_flags(&parent_acc);
@@ -899,7 +899,7 @@ fn child_with_own_disable_stays_disabled_on_parent_reenable() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
 
     let (child_acc, child_beh) = notice_pair();
     let child = h.add_panel_with(GetParentContext, "child", child_beh);
@@ -943,7 +943,7 @@ fn disable_propagates_to_all_children_not_just_first() {
     let root = h.GetRootPanel();
 
     let (parent_acc, parent_beh) = notice_pair();
-    let GetParentContext = h.add_panel_with(root, "parent", parent_beh);
+    let parent = h.add_panel_with(root, "parent", parent_beh);
 
     let (c1_acc, c1_beh) = notice_pair();
     let _c1 = h.add_panel_with(GetParentContext, "child1", c1_beh);
@@ -979,7 +979,7 @@ fn add_child_fires_children_changed_on_parent() {
     let root = h.GetRootPanel();
 
     let acc = Rc::new(RefCell::new(NoticeFlags::empty()));
-    let GetParentContext = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
+    let parent = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
     h.tick();
     acc.borrow_mut().remove(NoticeFlags::all());
 
@@ -998,7 +998,7 @@ fn remove_child_fires_children_changed_on_parent() {
     let root = h.GetRootPanel();
 
     let acc = Rc::new(RefCell::new(NoticeFlags::empty()));
-    let GetParentContext = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
+    let parent = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
     let child = h.add_panel(GetParentContext, "child");
     h.tick();
     acc.borrow_mut().remove(NoticeFlags::all());
@@ -1020,7 +1020,7 @@ fn add_child_does_not_fire_children_changed_on_grandparent() {
     let gp_acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let grandparent =
         h.add_panel_with(root, "grandparent", Box::new(NoticeBehavior::new(gp_acc.clone())));
-    let GetParentContext = h.add_panel(grandparent, "parent");
+    let parent = h.add_panel(grandparent, "parent");
     h.tick();
     gp_acc.borrow_mut().remove(NoticeFlags::all());
 
@@ -1041,7 +1041,7 @@ fn remove_child_does_not_fire_children_changed_on_grandparent() {
     let gp_acc = Rc::new(RefCell::new(NoticeFlags::empty()));
     let grandparent =
         h.add_panel_with(root, "grandparent", Box::new(NoticeBehavior::new(gp_acc.clone())));
-    let GetParentContext = h.add_panel(grandparent, "parent");
+    let parent = h.add_panel(grandparent, "parent");
     let child = h.add_panel(GetParentContext, "child");
     h.tick();
     gp_acc.borrow_mut().remove(NoticeFlags::all());
@@ -1061,7 +1061,7 @@ fn add_multiple_children_fires_children_changed_on_parent() {
     let root = h.GetRootPanel();
 
     let acc = Rc::new(RefCell::new(NoticeFlags::empty()));
-    let GetParentContext = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
+    let parent = h.add_panel_with(root, "parent", Box::new(NoticeBehavior::new(acc.clone())));
     h.tick();
     acc.borrow_mut().remove(NoticeFlags::all());
 
@@ -1081,7 +1081,7 @@ fn children_changed_is_pending_immediately_after_add() {
     let mut h = TestHarness::new();
     let root = h.GetRootPanel();
 
-    let GetParentContext = h.add_panel(root, "parent");
+    let parent = h.add_panel(root, "parent");
     h.tick();
 
     let _child = h.add_panel(GetParentContext, "child");
@@ -1099,7 +1099,7 @@ fn children_changed_is_pending_immediately_after_remove() {
     let mut h = TestHarness::new();
     let root = h.GetRootPanel();
 
-    let GetParentContext = h.add_panel(root, "parent");
+    let parent = h.add_panel(root, "parent");
     let child = h.add_panel(GetParentContext, "child");
     h.tick();
 
@@ -1276,20 +1276,20 @@ fn delivery_order_old_active_before_new_active() {
 
     let old_leaf_pos = entries
         .iter()
-        .GetPos(|s| s == "leaf_a:ACTIVE_CHANGED")
+        .position(|s| s == "leaf_a:ACTIVE_CHANGED")
         .expect("leaf_a should have received ACTIVE_CHANGED");
     let new_leaf_pos = entries
         .iter()
-        .GetPos(|s| s == "leaf_b:ACTIVE_CHANGED")
+        .position(|s| s == "leaf_b:ACTIVE_CHANGED")
         .expect("leaf_b should have received ACTIVE_CHANGED");
 
     let old_branch_pos = entries
         .iter()
-        .GetPos(|s| s == "branch_a:ACTIVE_CHANGED")
+        .position(|s| s == "branch_a:ACTIVE_CHANGED")
         .expect("branch_a should have received ACTIVE_CHANGED");
     let new_branch_pos = entries
         .iter()
-        .GetPos(|s| s == "branch_b:ACTIVE_CHANGED")
+        .position(|s| s == "branch_b:ACTIVE_CHANGED")
         .expect("branch_b should have received ACTIVE_CHANGED");
 
     assert!(
@@ -1334,7 +1334,7 @@ fn no_active_changed_when_reactivating_same_panel() {
         .cloned()
         .collect();
     assert!(
-        active_entries.IsEmpty(),
+        active_entries.is_empty(),
         "No panel should receive ACTIVE_CHANGED when re-activating the same panel, got: {:?}",
         active_entries
     );

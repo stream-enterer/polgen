@@ -83,7 +83,7 @@ impl BorderBehavior {
 }
 
 impl PanelBehavior for BorderBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.border
             .paint_border(painter, w, h, &self.look, false, true, 1.0);
     }
@@ -95,7 +95,7 @@ struct LabelBehavior {
 }
 
 impl PanelBehavior for LabelBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.label.PaintContent(painter, w, h, _state.enabled);
     }
 }
@@ -106,8 +106,8 @@ struct ButtonBehavior {
 }
 
 impl PanelBehavior for ButtonBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.button.PaintContent(painter, w, h, _state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.button.Paint(painter, w, h, _state.enabled);
     }
 }
 
@@ -117,8 +117,8 @@ struct CheckBoxBehavior {
 }
 
 impl PanelBehavior for CheckBoxBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.check_box.PaintContent(painter, w, h, _state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.check_box.Paint(painter, w, h, _state.enabled);
     }
 }
 
@@ -128,8 +128,8 @@ struct TextFieldBehavior {
 }
 
 impl PanelBehavior for TextFieldBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.text_field.PaintContent(painter, w, h, _state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.text_field.Paint(painter, w, h, _state.enabled);
     }
 }
 
@@ -139,8 +139,8 @@ struct ScalarFieldBehavior {
 }
 
 impl PanelBehavior for ScalarFieldBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.scalar_field.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.scalar_field.Paint(painter, w, h, state.enabled);
     }
 }
 
@@ -398,8 +398,8 @@ struct RadioButtonBehavior {
 }
 
 impl PanelBehavior for RadioButtonBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.radio_button.PaintContent(painter, w, h, _state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.radio_button.Paint(painter, w, h, _state.enabled);
     }
 }
 
@@ -409,8 +409,8 @@ struct ListBoxBehavior {
 }
 
 impl PanelBehavior for ListBoxBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.list_box.PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.list_box.Paint(painter, w, h);
     }
 }
 
@@ -420,7 +420,7 @@ struct SplitterBehavior {
 }
 
 impl PanelBehavior for SplitterBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.splitter.PaintContent(painter, w, h, _state.enabled);
     }
 }
@@ -554,8 +554,8 @@ struct ColorFieldExpandedBehavior {
 }
 
 impl PanelBehavior for ColorFieldExpandedBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.color_field.PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.color_field.Paint(painter, w, h);
     }
 
     fn auto_expand(&self) -> bool {
@@ -564,7 +564,7 @@ impl PanelBehavior for ColorFieldExpandedBehavior {
 
     fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         // Create expansion children on first layout call (triggered by auto-expand).
-        if ctx.children().IsEmpty() {
+        if ctx.children().is_empty() {
             self.color_field.create_expansion_children(ctx);
         }
         let rect = ctx.layout_rect();
@@ -626,8 +626,8 @@ struct ListBoxExpandedBehavior {
 }
 
 impl PanelBehavior for ListBoxExpandedBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        self.list_box.PaintContent(painter, w, h);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        self.list_box.Paint(painter, w, h);
     }
 
     fn auto_expand(&self) -> bool {
@@ -636,7 +636,7 @@ impl PanelBehavior for ListBoxExpandedBehavior {
 
     fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
         // Create item child panels on first layout call.
-        if ctx.children().IsEmpty() {
+        if ctx.children().is_empty() {
             self.list_box.create_item_children(ctx);
         }
         let rect = ctx.layout_rect();
@@ -1012,7 +1012,7 @@ struct TunnelBehavior {
 }
 
 impl PanelBehavior for TunnelBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         self.tunnel.paint_tunnel(painter, w, h);
     }
 }
@@ -1880,7 +1880,7 @@ struct SplitterCompositionBehavior {
 }
 
 impl PanelBehavior for SplitterCompositionBehavior {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
         self.splitter.PaintContent(painter, w, h, state.enabled);
     }
 

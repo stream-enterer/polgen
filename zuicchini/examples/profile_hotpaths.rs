@@ -23,7 +23,7 @@ struct BorderPanel {
 }
 
 impl PanelBehavior for BorderPanel {
-    fn PaintContent(
+    fn Paint(
         &mut self,
         painter: &mut emPainter,
         w: f64,
@@ -50,9 +50,9 @@ fn build_tree(panel_count: usize) -> (PanelTree, zuicchini::emCore::emPanelTree:
         let weight: f64 = rng.random_range(1.0..100.0);
         let pct: f64 = rng.random_range(-2.5_f64..2.5).exp();
         let hue: u32 = rng.random_range(0..360);
-        let GetColor = emColor::SetHSVA(hue as f32, 0.5, 0.5);
+        let color = emColor::SetHSVA(hue as f32, 0.5, 0.5);
         let look = emLook {
-            bg_color: GetColor,
+            bg_color: color,
             ..emLook::default()
         };
         let caption = format!("{pct:.4}");
@@ -75,11 +75,11 @@ fn build_tree(panel_count: usize) -> (PanelTree, zuicchini::emCore::emPanelTree:
 fn main() {
     let panel_count: usize = std::env::args()
         .nth(1)
-        .and_then(|s| s.TryParse().ok())
+        .and_then(|s| s.parse().ok())
         .unwrap_or(20);
     let iterations: usize = std::env::args()
         .nth(2)
-        .and_then(|s| s.TryParse().ok())
+        .and_then(|s| s.parse().ok())
         .unwrap_or(50);
 
     let vw: u32 = 1920;
@@ -121,11 +121,11 @@ fn main() {
     for row in 0..rows {
         for col in 0..cols {
             let tile = tile_cache.get_or_create(col, row);
-            tile.GetImage.fill(emColor::BLACK);
-            let mut painter = emPainter::new(&mut tile.GetImage);
+            tile.image.fill(emColor::BLACK);
+            let mut painter = emPainter::new(&mut tile.image);
             let tile_size = TILE_SIZE as f64;
             painter.translate(-(col as f64 * tile_size), -(row as f64 * tile_size));
-            view.PaintContent(&mut tree, &mut painter);
+            view.Paint(&mut tree, &mut painter);
             tile.dirty = false;
         }
     }
@@ -147,11 +147,11 @@ fn main() {
         for row in 0..rows {
             for col in 0..cols {
                 let tile = tile_cache.get_or_create(col, row);
-                tile.GetImage.fill(emColor::BLACK);
-                let mut painter = emPainter::new(&mut tile.GetImage);
+                tile.image.fill(emColor::BLACK);
+                let mut painter = emPainter::new(&mut tile.image);
                 let tile_size = TILE_SIZE as f64;
                 painter.translate(-(col as f64 * tile_size), -(row as f64 * tile_size));
-                view.PaintContent(&mut tree, &mut painter);
+                view.Paint(&mut tree, &mut painter);
                 tile.dirty = false;
             }
         }

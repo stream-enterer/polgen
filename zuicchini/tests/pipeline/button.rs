@@ -23,8 +23,8 @@ struct ButtonPanel {
 }
 
 impl PanelBehavior for ButtonPanel {
-    fn PaintContent(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
-        self.widget.PaintContent(painter, w, h, state.enabled);
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, state: &PanelState) {
+        self.widget.Paint(painter, w, h, state.enabled);
     }
 
     fn Input(
@@ -58,7 +58,7 @@ fn button_click_1x_and_2x() {
     let look = emLook::new();
     let mut btn = emButton::new("Systematic Test", look);
     btn.on_click = Some(Box::new(move || {
-        counter_clone.Set(counter_clone.GetRec() + 1);
+        counter_clone.set(counter_clone.get() + 1);
     }));
 
     // 3. Wrap in PanelBehavior and add to tree.
@@ -72,7 +72,7 @@ fn button_click_1x_and_2x() {
     // 5. At 1x zoom: Click at viewport center (400, 300).
     h.Click(400.0, 300.0);
     assert_eq!(
-        counter.GetRec(),
+        counter.get(),
         1,
         "Button callback should have fired once after click at 1x zoom"
     );
@@ -84,7 +84,7 @@ fn button_click_1x_and_2x() {
 
     h.Click(400.0, 300.0);
     assert_eq!(
-        counter.GetRec(),
+        counter.get(),
         2,
         "Button callback should have fired again after click at 2x zoom"
     );
@@ -118,7 +118,7 @@ fn make_button_harness() -> (
     let look = emLook::new();
     let mut btn = emButton::new("BP9", look);
     btn.on_click = Some(Box::new(move || {
-        counter_c.Set(counter_c.GetRec() + 1);
+        counter_c.set(counter_c.get() + 1);
     }));
     btn.on_press_state = Some(Box::new(move |pressed| {
         press_log_c.borrow_mut().push(pressed);
@@ -155,7 +155,7 @@ fn bp9_mouse_release_inside_fires_click() {
     // Full Click at viewport center.
     h.Click(400.0, 300.0);
 
-    assert_eq!(counter.GetRec(), 1, "click callback should fire on release inside");
+    assert_eq!(counter.get(), 1, "click callback should fire on release inside");
     let log = press_log.borrow();
     assert_eq!(log.len(), 2, "should have press + release state changes");
     assert!(log[0], "first state change = pressed");
@@ -171,14 +171,14 @@ fn bp9_mouse_release_outside_no_click() {
     // Press at viewport center (inside button).
     let press = emInputEvent::press(InputKey::MouseLeft).with_mouse(400.0, 300.0);
     h.dispatch(&press);
-    assert_eq!(counter.GetRec(), 0, "no click on press alone");
+    assert_eq!(counter.get(), 0, "no click on press alone");
 
     // Release far outside the button (top-left corner of viewport, well
     // outside the panel face area).
     let release = emInputEvent::release(InputKey::MouseLeft).with_mouse(0.0, 0.0);
     h.dispatch(&release);
 
-    assert_eq!(counter.GetRec(), 0, "no click when release is outside button");
+    assert_eq!(counter.get(), 0, "no click when release is outside button");
     let log = press_log.borrow();
     assert_eq!(log.len(), 2, "should still get press + release state changes");
     assert!(log[0], "pressed on press");
@@ -193,15 +193,15 @@ fn bp9_enter_key_instant_click_no_press_state() {
 
     // First Click to activate the panel (put it in the active path).
     h.Click(400.0, 300.0);
-    assert_eq!(counter.GetRec(), 1, "setup click");
-    press_log.borrow_mut().Clear();
+    assert_eq!(counter.get(), 1, "setup click");
+    press_log.borrow_mut().clear();
 
     // Now press Enter — should fire Click without any press state changes.
     h.press_key(InputKey::Enter);
 
-    assert_eq!(counter.GetRec(), 2, "Enter key should fire click");
+    assert_eq!(counter.get(), 2, "Enter key should fire click");
     assert!(
-        press_log.borrow().IsEmpty(),
+        press_log.borrow().is_empty(),
         "Enter key should NOT trigger press state changes (C++ instant Click, no Pressed=true)"
     );
 }
@@ -220,7 +220,7 @@ fn bp9_ctrl_click_rejected() {
     h.dispatch(&release);
     h.input_state.release(InputKey::Ctrl);
 
-    assert_eq!(counter.GetRec(), 0, "Ctrl+click should NOT fire click callback");
+    assert_eq!(counter.get(), 0, "Ctrl+click should NOT fire click callback");
 }
 
 /// C++ emButton.cpp:81-82: Alt modifier rejects.
@@ -235,7 +235,7 @@ fn bp9_alt_click_rejected() {
     h.dispatch(&release);
     h.input_state.release(InputKey::Alt);
 
-    assert_eq!(counter.GetRec(), 0, "Alt+click should NOT fire click callback");
+    assert_eq!(counter.get(), 0, "Alt+click should NOT fire click callback");
 }
 
 /// C++ emButton.cpp:81-82: Meta modifier rejects.
@@ -250,7 +250,7 @@ fn bp9_meta_click_rejected() {
     h.dispatch(&release);
     h.input_state.release(InputKey::Meta);
 
-    assert_eq!(counter.GetRec(), 0, "Meta+click should NOT fire click callback");
+    assert_eq!(counter.get(), 0, "Meta+click should NOT fire click callback");
 }
 
 /// C++ emButton.cpp:81-82: Shift modifier IS accepted (state.IsShiftMod()).
@@ -265,7 +265,7 @@ fn bp9_shift_click_accepted() {
     h.dispatch(&release);
     h.input_state.release(InputKey::Shift);
 
-    assert_eq!(counter.GetRec(), 1, "Shift+click SHOULD fire click callback");
+    assert_eq!(counter.get(), 1, "Shift+click SHOULD fire click callback");
 }
 
 /// C++ emButton.cpp:114-115: Enter with Ctrl is rejected.
@@ -275,14 +275,14 @@ fn bp9_ctrl_enter_rejected() {
 
     // Activate the panel first so keyboard events reach it.
     h.Click(400.0, 300.0);
-    assert_eq!(counter.GetRec(), 1, "setup click");
+    assert_eq!(counter.get(), 1, "setup click");
 
     h.input_state.press(InputKey::Ctrl);
     let press = emInputEvent::press(InputKey::Enter);
     h.dispatch(&press);
     h.input_state.release(InputKey::Ctrl);
 
-    assert_eq!(counter.GetRec(), 1, "Ctrl+Enter should NOT fire click");
+    assert_eq!(counter.get(), 1, "Ctrl+Enter should NOT fire click");
 }
 
 /// C++ emButton.cpp:114-115: Enter with Shift IS accepted.
@@ -292,14 +292,14 @@ fn bp9_shift_enter_accepted() {
 
     // Activate the panel first so keyboard events reach it.
     h.Click(400.0, 300.0);
-    assert_eq!(counter.GetRec(), 1, "setup click");
+    assert_eq!(counter.get(), 1, "setup click");
 
     h.input_state.press(InputKey::Shift);
     let press = emInputEvent::press(InputKey::Enter);
     h.dispatch(&press);
     h.input_state.release(InputKey::Shift);
 
-    assert_eq!(counter.GetRec(), 2, "Shift+Enter SHOULD fire click");
+    assert_eq!(counter.get(), 2, "Shift+Enter SHOULD fire click");
 }
 
 /// C++ emButton.cpp:83: IsEnabled() gates press. Disabled button ignores Input.
@@ -316,9 +316,9 @@ fn bp9_disabled_button_ignores_press() {
 
     h.Click(400.0, 300.0);
 
-    assert_eq!(counter.GetRec(), 0, "disabled button should not fire click");
+    assert_eq!(counter.get(), 0, "disabled button should not fire click");
     assert!(
-        press_log.borrow().IsEmpty(),
+        press_log.borrow().is_empty(),
         "disabled button should not enter pressed state"
     );
 }
@@ -335,7 +335,7 @@ fn bp9_disabled_button_ignores_enter() {
 
     h.press_key(InputKey::Enter);
 
-    assert_eq!(counter.GetRec(), 0, "disabled button should not fire click on Enter");
+    assert_eq!(counter.get(), 0, "disabled button should not fire click on Enter");
 }
 
 /// C++ emButton.cpp:84: GetViewCondition(VCT_MIN_EXT) >= 8.0. When the panel
@@ -354,7 +354,7 @@ fn bp9_vct_min_ext_guard_mouse() {
     let look = emLook::new();
     let mut btn = emButton::new("Tiny", look);
     btn.on_click = Some(Box::new(move || {
-        counter_c.Set(counter_c.GetRec() + 1);
+        counter_c.set(counter_c.get() + 1);
     }));
 
     let panel_id = h.tree.create_child(root, "button");
@@ -372,7 +372,7 @@ fn bp9_vct_min_ext_guard_mouse() {
     h.Click(0.4, 0.3);
 
     assert_eq!(
-        counter.GetRec(),
+        counter.get(),
         0,
         "button too small (VCT_MIN_EXT < 8) should not respond to mouse"
     );
@@ -392,7 +392,7 @@ fn bp9_vct_min_ext_guard_enter() {
     let look = emLook::new();
     let mut btn = emButton::new("Tiny", look);
     btn.on_click = Some(Box::new(move || {
-        counter_c.Set(counter_c.GetRec() + 1);
+        counter_c.set(counter_c.get() + 1);
     }));
 
     let panel_id = h.tree.create_child(root, "button");
@@ -413,7 +413,7 @@ fn bp9_vct_min_ext_guard_enter() {
     h.press_key(InputKey::Enter);
 
     assert_eq!(
-        counter.GetRec(),
+        counter.get(),
         0,
         "button too small (VCT_MIN_EXT < 8) should not respond to Enter"
     );
@@ -428,9 +428,9 @@ fn bp9_release_without_press_is_noop() {
     let release = emInputEvent::release(InputKey::MouseLeft).with_mouse(400.0, 300.0);
     h.dispatch(&release);
 
-    assert_eq!(counter.GetRec(), 0, "release without press should not fire click");
+    assert_eq!(counter.get(), 0, "release without press should not fire click");
     assert!(
-        press_log.borrow().IsEmpty(),
+        press_log.borrow().is_empty(),
         "release without press should not fire press_state"
     );
 }
@@ -442,9 +442,9 @@ fn bp9_space_key_does_not_activate() {
 
     // Activate the panel first so keyboard events reach it.
     h.Click(400.0, 300.0);
-    assert_eq!(counter.GetRec(), 1, "setup click");
+    assert_eq!(counter.get(), 1, "setup click");
 
     h.press_key(InputKey::Space);
 
-    assert_eq!(counter.GetRec(), 1, "Space should NOT activate button (C++ only handles Enter)");
+    assert_eq!(counter.get(), 1, "Space should NOT activate button (C++ only handles Enter)");
 }
