@@ -1635,6 +1635,7 @@ How to move or set the focus:\n\
             };
             // C++ DoLabel passes EM_ALIGN_CENTER as boxAlignment and
             // CaptionAlignment as textAlignment (emBorder.cpp:1393-1394).
+            let label_canvas = painter.GetCanvasColor();
             painter.PaintTextBoxed(
                 cr.x,
                 cr.y,
@@ -1643,7 +1644,7 @@ How to move or set the focus:\n\
                 &self.caption,
                 cap_font,
                 dim_color(look.fg_color),
-                emColor::TRANSPARENT,
+                label_canvas,
                 TextAlignment::Center,
                 VAlign::Center,
                 cap_align,
@@ -1656,6 +1657,7 @@ How to move or set the focus:\n\
         // Description — C++ uses same `color` for both caption and description
         // (emBorder.cpp:1406), and EM_ALIGN_CENTER as boxAlignment (line 1408).
         if let Some(ref dr) = label.description_rect {
+            let label_canvas = painter.GetCanvasColor();
             painter.PaintTextBoxed(
                 dr.x,
                 dr.y,
@@ -1664,7 +1666,7 @@ How to move or set the focus:\n\
                 &self.description,
                 label._description_font_size,
                 dim_color(look.fg_color),
-                emColor::TRANSPARENT,
+                label_canvas,
                 TextAlignment::Center,
                 VAlign::Center,
                 desc_align,
