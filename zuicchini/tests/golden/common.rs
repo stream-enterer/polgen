@@ -124,6 +124,10 @@ pub fn compare_images(
     channel_tolerance: u8,
     max_failure_pct: f64,
 ) -> Result<(), CompareError> {
+    let strict = std::env::var("STRICT_GOLDEN").map_or(false, |v| v == "1");
+    let channel_tolerance = if strict { 0 } else { channel_tolerance };
+    let max_failure_pct = if strict { 0.0 } else { max_failure_pct };
+
     let total = (width * height) as usize;
     assert_eq!(actual.len(), total * 4);
     assert_eq!(expected.len(), total * 4);
@@ -836,4 +840,32 @@ pub fn compare_rects(
         }
     }
     Ok(())
+}
+
+// ────────────────────── Widget state comparison ──────────────────────
+
+/// Compare widget state fields against golden data and emit JSONL.
+///
+/// `checks` is a list of `(field_name, passed, detail)` tuples where `detail`
+/// describes the mismatch when `passed` is false (e.g. "actual=0 expected=1").
+/// Emits one JSONL line per test with type "widget_state".
+pub fn compare_widget_state(
+    test_name: &str,
+    checks: &[(&str, bool, String)],
+) -> Result<(), CompareError> {
+    let total = checks.len();
+    let failures: Vec<_> = checks.iter().filter(|(_, ok, _)| !ok).collect();
+    let pass = failures.is_empty();
+    emit_divergence(&format!(
+        r#"{{"test":{test_name:?},"type":"widget_state","checks":{total},"failures":{},"pass":{pass}}}"#,
+        failures.len()
+    ));
+    if !pass {
+        let (field, _, detail) = failures[0];
+        Err(CompareError {
+            message: format!("{test_name}: {field} mismatch — {detail}"),
+        })
+    } else {
+        Ok(())
+    }
 }

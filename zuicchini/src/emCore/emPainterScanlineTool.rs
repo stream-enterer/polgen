@@ -243,17 +243,18 @@ fn blend_scanline_source_over(
             continue;
         }
 
-        // Blinn div255: (x * 257 + 0x8073) >> 16
+        // Background: Blinn div255 (matches C++).
+        // Source: round-half-up (c*a+127)/255 (matches C++ hash table).
         let alpha = ea as u32;
         let t = (255 - alpha) * 257;
         dest[off] = (((dest[off] as u32 * t + 0x8073) >> 16)
-            + ((src[0] as u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((src[0] as u32 * alpha + 127) / 255)) as u8;
         dest[off + 1] = (((dest[off + 1] as u32 * t + 0x8073) >> 16)
-            + ((src[1] as u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((src[1] as u32 * alpha + 127) / 255)) as u8;
         dest[off + 2] = (((dest[off + 2] as u32 * t + 0x8073) >> 16)
-            + ((src[2] as u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((src[2] as u32 * alpha + 127) / 255)) as u8;
         dest[off + 3] = (((dest[off + 3] as u32 * t + 0x8073) >> 16)
-            + ((255u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((255u32 * alpha + 127) / 255)) as u8;
     }
 }
 
@@ -445,13 +446,13 @@ mod tests {
         let alpha = ea as u32;
         let t = (255 - alpha) * 257;
         dest[0] = (((dest[0] as u32 * t + 0x8073) >> 16)
-            + ((color.GetRed() as u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((color.GetRed() as u32 * alpha + 127) / 255)) as u8;
         dest[1] = (((dest[1] as u32 * t + 0x8073) >> 16)
-            + ((color.GetGreen() as u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((color.GetGreen() as u32 * alpha + 127) / 255)) as u8;
         dest[2] = (((dest[2] as u32 * t + 0x8073) >> 16)
-            + ((color.GetBlue() as u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((color.GetBlue() as u32 * alpha + 127) / 255)) as u8;
         dest[3] = (((dest[3] as u32 * t + 0x8073) >> 16)
-            + ((255u32 * alpha * 257 + 0x8073) >> 16)) as u8;
+            + ((255u32 * alpha + 127) / 255)) as u8;
     }
 
     /// Reference per-pixel blend matching blend_pixel_unchecked (canvas).
@@ -769,12 +770,13 @@ mod tests {
         let mode = BlendMode::SourceOver { painter_alpha: 255 };
         blend_scanline(&mut dest, &buf, 1, None, &mode);
 
-        // Compute expected alpha via Blinn div255
+        // Compute expected alpha:
+        // Background: Blinn div255; Source: (c*a+127)/255 (C++ hash table)
         let src_a = 128u32;
         let dst_a = 200u32;
         let t = (255 - src_a) * 257; // inv_alpha * 257
         let expected_a =
-            (((dst_a * t + 0x8073) >> 16) + ((255u32 * src_a * 257 + 0x8073) >> 16)) as u8;
+            (((dst_a * t + 0x8073) >> 16) + ((255u32 * src_a + 127) / 255)) as u8;
 
         assert_eq!(
             dest[3], expected_a,

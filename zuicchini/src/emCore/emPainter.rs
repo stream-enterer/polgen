@@ -5287,17 +5287,18 @@ impl<'a> emPainter<'a> {
                 out[3] = 255;
                 return;
             }
+            // Background: Blinn div255. Source: (c*a+127)/255 (C++ hash table).
             let bg = self.read_pixel(proof, xu, yu);
             let alpha = ea as u32;
             let t = (255 - alpha) * 257;
             let r = ((bg[0] as u32 * t + 0x8073) >> 16)
-                + ((color.GetRed() as u32 * alpha * 257 + 0x8073) >> 16);
+                + ((color.GetRed() as u32 * alpha + 127) / 255);
             let g = ((bg[1] as u32 * t + 0x8073) >> 16)
-                + ((color.GetGreen() as u32 * alpha * 257 + 0x8073) >> 16);
+                + ((color.GetGreen() as u32 * alpha + 127) / 255);
             let b = ((bg[2] as u32 * t + 0x8073) >> 16)
-                + ((color.GetBlue() as u32 * alpha * 257 + 0x8073) >> 16);
+                + ((color.GetBlue() as u32 * alpha + 127) / 255);
             let a =
-                ((bg[3] as u32 * t + 0x8073) >> 16) + ((255u32 * alpha * 257 + 0x8073) >> 16);
+                ((bg[3] as u32 * t + 0x8073) >> 16) + ((255u32 * alpha + 127) / 255);
             let out = self.GetImage(proof).SetPixel(xu, yu);
             out[0] = r as u8;
             out[1] = g as u8;
@@ -5786,20 +5787,18 @@ impl<'a> emPainter<'a> {
                 out[2] = color.GetBlue();
                 out[3] = 255;
             } else {
-                // C++ emPainter non-CVC blend: per-channel round(x/255) via
-                // (x * 257 + 0x8073) >> 16.  Background uses t = (255-alpha)*257,
-                // source uses hash[color][alpha] ≈ round(color*alpha/255).
+                // Background: Blinn div255. Source: (c*a+127)/255 (C++ hash table).
                 let alpha = ea as u32;
                 let inv = 255 - alpha;
                 let t = inv * 257; // background attenuation factor
                 let r = ((bg[0] as u32 * t + 0x8073) >> 16)
-                    + ((color.GetRed() as u32 * alpha * 257 + 0x8073) >> 16);
+                    + ((color.GetRed() as u32 * alpha + 127) / 255);
                 let g = ((bg[1] as u32 * t + 0x8073) >> 16)
-                    + ((color.GetGreen() as u32 * alpha * 257 + 0x8073) >> 16);
+                    + ((color.GetGreen() as u32 * alpha + 127) / 255);
                 let b = ((bg[2] as u32 * t + 0x8073) >> 16)
-                    + ((color.GetBlue() as u32 * alpha * 257 + 0x8073) >> 16);
+                    + ((color.GetBlue() as u32 * alpha + 127) / 255);
                 let a =
-                    ((bg[3] as u32 * t + 0x8073) >> 16) + ((255u32 * alpha * 257 + 0x8073) >> 16);
+                    ((bg[3] as u32 * t + 0x8073) >> 16) + ((255u32 * alpha + 127) / 255);
                 let out = self.GetImage(proof).SetPixel(x as u32, y as u32);
                 out[0] = r as u8;
                 out[1] = g as u8;
@@ -5842,9 +5841,10 @@ impl<'a> emPainter<'a> {
             let cr = (cv.GetRed() as u32 * a + 127) / 255;
             let cg = (cv.GetGreen() as u32 * a + 127) / 255;
             let cb = (cv.GetBlue() as u32 * a + 127) / 255;
-            let pm_r = ((color.GetRed() as u32 * a * 257 + 0x8073) >> 16) as i32;
-            let pm_g = ((color.GetGreen() as u32 * a * 257 + 0x8073) >> 16) as i32;
-            let pm_b = ((color.GetBlue() as u32 * a * 257 + 0x8073) >> 16) as i32;
+            // Source: (c*a+127)/255 (C++ hash table).
+            let pm_r = ((color.GetRed() as u32 * a + 127) / 255) as i32;
+            let pm_g = ((color.GetGreen() as u32 * a + 127) / 255) as i32;
+            let pm_b = ((color.GetBlue() as u32 * a + 127) / 255) as i32;
             let delta_r = pm_r - cr as i32;
             let delta_g = pm_g - cg as i32;
             let delta_b = pm_b - cb as i32;
@@ -5873,12 +5873,13 @@ impl<'a> emPainter<'a> {
                     data[off..off + 4].copy_from_slice(&pixel);
                 }
             } else {
+                // Source: (c*a+127)/255 (C++ hash table).
                 let alpha = ea as u32;
                 let t = (255 - alpha) * 257;
-                let sr = (color.GetRed() as u32 * alpha * 257 + 0x8073) >> 16;
-                let sg = (color.GetGreen() as u32 * alpha * 257 + 0x8073) >> 16;
-                let sb = (color.GetBlue() as u32 * alpha * 257 + 0x8073) >> 16;
-                let sa = (255u32 * alpha * 257 + 0x8073) >> 16;
+                let sr = (color.GetRed() as u32 * alpha + 127) / 255;
+                let sg = (color.GetGreen() as u32 * alpha + 127) / 255;
+                let sb = (color.GetBlue() as u32 * alpha + 127) / 255;
+                let sa = (255u32 * alpha + 127) / 255;
                 let data = self.GetImage(proof).GetWritableMap();
                 for col in x1..x2 {
                     let off = row_base + col as usize * 4;
