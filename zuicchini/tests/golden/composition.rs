@@ -42,6 +42,8 @@ use zuicchini::emCore::emScalarField::emScalarField;
 
 use zuicchini::emCore::emTextField::emTextField;
 
+use zuicchini::emCore::emTunnel::emTunnel;
+
 use super::common::*;
 
 /// Skip test if golden data hasn't been generated yet.
@@ -232,46 +234,6 @@ impl PanelBehavior for ListBoxPanel {
 // Stub panels for unported C++ types
 // ═══════════════════════════════════════════════════════════════════
 
-/// Stub for C++ emTunnel — renders a Group border with caption, positions
-/// a single child filling the content area.
-struct TunnelStubPanel {
-    border: emBorder,
-    look: Rc<emLook>,
-}
-
-impl TunnelStubPanel {
-    fn new(caption: &str, look: Rc<emLook>) -> Self {
-        let border = emBorder::new(OuterBorderType::Group)
-            .with_inner(InnerBorderType::Group)
-            .with_caption(caption);
-        Self { border, look }
-    }
-}
-
-impl PanelBehavior for TunnelStubPanel {
-    fn Paint(&mut self, p: &mut emPainter, w: f64, h: f64, s: &PanelState) {
-        self.border
-            .paint_border(p, w, h, &self.look, s.is_focused(), s.enabled, 1.0);
-    }
-
-    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
-        let children = ctx.children();
-        if children.is_empty() {
-            return;
-        }
-        let rect = ctx.layout_rect();
-        let cr = self.border.GetContentRect(rect.w, rect.h, &self.look);
-        ctx.layout_child(children[0], cr.x, cr.y, cr.w, cr.h);
-        let cc = self
-            .border
-            .content_canvas_color(ctx.GetCanvasColor(), &self.look, ctx.is_enabled());
-        ctx.set_all_children_canvas_color(cc);
-    }
-
-    fn auto_expand(&self) -> bool {
-        true
-    }
-}
 
 /// Stub for C++ emFileSelectionBox — renders a Group border with caption.
 struct FileSelectionBoxStubPanel {
@@ -600,27 +562,66 @@ impl TkTestPanel {
                 .set_behavior(id, Box::new(ColorFieldPanel { widget: cf3 }));
         }
 
-        // 7. Tunnels (C++ :735-754) — stub panels, emTunnel not ported
+        // 7. Tunnels (C++ emTestPanel.cpp:662-680)
         let gid = Self::make_category(ctx.tree, ctx.id, "tunnels", "Tunnels", Some(0.4), None);
         {
-            let tunnel_info: [(&str, &str); 4] = [
-                ("t1", "Tunnel"),
-                ("t2", "Deeper Tunnel"),
-                ("t3", "Square End"),
-                ("t4", "Square End, Zero Depth"),
-            ];
-            for (name, caption) in &tunnel_info {
-                let tid = ctx.tree.create_child(gid, name);
-                ctx.tree
-                    .set_behavior(tid, Box::new(TunnelStubPanel::new(caption, look.clone())));
-                let child = ctx.tree.create_child(tid, "child");
-                ctx.tree.set_behavior(
-                    child,
-                    Box::new(ButtonPanel {
-                        widget: emButton::new("Inside", look.clone()),
-                    }),
-                );
-            }
+            // t1: default tunnel (depth=10, childTallness=0)
+            let tid = ctx.tree.create_child(gid, "t1");
+            let t1 = emTunnel::new(look.clone()).with_caption("Tunnel");
+            ctx.tree.set_behavior(tid, Box::new(t1));
+            let child = ctx.tree.create_child(tid, "e");
+            ctx.tree.set_behavior(
+                child,
+                Box::new(ButtonPanel {
+                    widget: emButton::new("End Of Tunnel", look.clone()),
+                }),
+            );
+
+            // t2: deeper tunnel (depth=30)
+            let tid = ctx.tree.create_child(gid, "t2");
+            let mut t2 = emTunnel::new(look.clone()).with_caption("Deeper Tunnel");
+            t2.SetDepth(30.0);
+            ctx.tree.set_behavior(tid, Box::new(t2));
+            let child = ctx.tree.create_child(tid, "e");
+            ctx.tree.set_behavior(
+                child,
+                {
+                    let mut rg = emRasterGroup::new();
+                    rg.border.caption = "End Of Tunnel".to_string();
+                    Box::new(rg)
+                },
+            );
+
+            // t3: square end (childTallness=1.0)
+            let tid = ctx.tree.create_child(gid, "t3");
+            let mut t3 = emTunnel::new(look.clone()).with_caption("Square End");
+            t3.SetChildTallness(1.0);
+            ctx.tree.set_behavior(tid, Box::new(t3));
+            let child = ctx.tree.create_child(tid, "e");
+            ctx.tree.set_behavior(
+                child,
+                {
+                    let mut rg = emRasterGroup::new();
+                    rg.border.caption = "End Of Tunnel".to_string();
+                    Box::new(rg)
+                },
+            );
+
+            // t4: square end, zero depth
+            let tid = ctx.tree.create_child(gid, "t4");
+            let mut t4 = emTunnel::new(look.clone()).with_caption("Square End, Zero Depth");
+            t4.SetChildTallness(1.0);
+            t4.SetDepth(0.0);
+            ctx.tree.set_behavior(tid, Box::new(t4));
+            let child = ctx.tree.create_child(tid, "e");
+            ctx.tree.set_behavior(
+                child,
+                {
+                    let mut rg = emRasterGroup::new();
+                    rg.border.caption = "End Of Tunnel".to_string();
+                    Box::new(rg)
+                },
+            );
         }
 
         // 8. List Boxes (C++ :756-798)
@@ -852,9 +853,9 @@ fn composition_tktest_1x() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    // After fixing test captions/labels and removing grid indirection, layout
-    // matches C++ closely. Remaining ~18% (at tol=0) is dominated by emTunnel
-    // stubs and widget-level rendering differences. At tol=3 these resolve to ~14%.
+    // After fixing captions, removing grid indirection, and using real emTunnel,
+    // remaining ~11% (at tol=0) is from widget-level rendering differences
+    // (border image interpolation, text positioning, scalar field arrows).
     let result = compare_images(
         "tktest_1x",
         actual,
@@ -862,7 +863,7 @@ fn composition_tktest_1x() {
         w,
         h,
         3,
-        20.0,
+        12.0,
     );
     if result.is_err() && dump_golden_enabled() {
         dump_test_images("tktest_1x", actual, expected_data, w, h);
