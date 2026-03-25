@@ -1833,7 +1833,7 @@ impl<'a> emPainter<'a> {
         } else {
             // C++ non-formatted: PaintText(x, y, text, ch, ws, color, canvasColor)
             // No per-line text alignment in non-formatted mode.
-            self.PaintText(bx, by, text, ch, ws, color, self.state.canvas_color);
+            self.PaintText(bx, by, text, ch, ws, color, canvas_color);
         }
     }
 
@@ -2927,12 +2927,14 @@ impl<'a> emPainter<'a> {
             self.PaintPolygon(
                 &[(ox1, oy1), (ox2, oy1), (ox2, oy2), (ox1, oy2)],
                 stroke.color,
-                self.state.canvas_color,
+                canvas_color,
             );
             return;
         }
 
         // 10-vertex polygon: outer CW, bridge, inner CCW, bridge back.
+        // Must set canvas_color in state like PaintPolygon does, since
+        // fill_polygon_aa → blit_span uses self.state.canvas_color for blending.
         let poly = [
             (ox1, oy1),
             (ox2, oy1),
@@ -2945,7 +2947,10 @@ impl<'a> emPainter<'a> {
             (ix2, iy1),
             (ix1, iy1), // close inner
         ];
+        let saved_canvas = self.state.canvas_color;
+        self.state.canvas_color = canvas_color;
         self.fill_polygon_aa(proof, &poly, stroke.color, WindingRule::NonZero);
+        self.state.canvas_color = saved_canvas;
     }
 
     /// Draw a rounded rectangle outline. emStroke is centered on the shape boundary.

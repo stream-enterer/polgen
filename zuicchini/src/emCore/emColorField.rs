@@ -440,8 +440,9 @@ impl emColorField {
 
         // Paint rect outline (C++ PaintRectOutline defaults to canvasColor=0).
         // C++ PaintRectOutline uses a 10-vertex polygon (outer + bridge + inner).
-        // Use paint_rect for each outline side to match C++ PaintPolygon coverage
-        // at axis-aligned edges, which uses the same fixed-point sub-pixel model.
+        // Use paint_rect for each outline side — the polygon rasterizer produces
+        // different sub-pixel edge coverage than C++ for this non-convex shape,
+        // while axis-aligned PaintRect matches more closely in practice.
         let thickness = d * 0.08;
         if thickness > 0.0 {
             let t2 = thickness * 0.5;

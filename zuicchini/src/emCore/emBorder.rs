@@ -1741,7 +1741,7 @@ How to move or set the focus:\n\
                     w - 2.0 * sd,
                     h - 2.0 * sd,
                     &emStroke::new(color, e),
-                    emColor::TRANSPARENT,
+                    painter.GetCanvasColor(),
                 );
             }
             OuterBorderType::RoundRect => {
