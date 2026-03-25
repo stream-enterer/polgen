@@ -1345,10 +1345,10 @@ impl emTextField {
         // Compute cursor color with transparency (C++ emTextField.cpp:1056-1059)
         let cur_color = if !self.editable {
             // GetTransparented(75) = 75% transparent = 25% opaque
-            fg.SetAlpha((fg.GetAlpha() as f64 * 0.25) as u8)
+            fg.SetAlpha((fg.GetAlpha() as f64 * 0.25 + 0.5) as u8)
         } else if !self.cursor_blink_on {
             // GetTransparented(88) = 88% transparent = 12% opaque
-            fg.SetAlpha((fg.GetAlpha() as f64 * 0.12) as u8)
+            fg.SetAlpha((fg.GetAlpha() as f64 * 0.12 + 0.5) as u8)
         } else {
             fg
         };
@@ -1651,9 +1651,9 @@ impl emTextField {
 
         // Compute cursor color with transparency (C++ emTextField.cpp:1056-1059)
         let cur_color = if !self.editable {
-            fg.SetAlpha((fg.GetAlpha() as f64 * 0.25) as u8)
+            fg.SetAlpha((fg.GetAlpha() as f64 * 0.25 + 0.5) as u8)
         } else if !self.cursor_blink_on {
-            fg.SetAlpha((fg.GetAlpha() as f64 * 0.12) as u8)
+            fg.SetAlpha((fg.GetAlpha() as f64 * 0.12 + 0.5) as u8)
         } else {
             fg
         };
