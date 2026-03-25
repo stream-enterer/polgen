@@ -2,7 +2,7 @@
 
 Cargo workspace with two crates:
 - `zuicchini/` — UI framework library (reimplementation of Eagle Mode's emCore in Rust)
-- `sosumi-7/` — game binary, depends on zuicchini via path
+- `sosumi-7/` — game binary (stubbed), depends on zuicchini via path 
 
 ## Commands
 
@@ -19,6 +19,10 @@ Runs `cargo fmt` (auto-applied) then `clippy -D warnings` then `cargo-nextest nt
 Do not skip with `--no-verify`. If a commit fails, fix the cause and retry.
 
 ## Code Rules
+
+For any task of the form "identify/filter/classify code by property P": Is P a property that an existing tool computes exactly? If yes, your approach is: generate inputs → invoke tool on all inputs → parse structured output. Do not write a custom filter.
+- Abstract example: To find which functions in a codebase satisfy a type-level constraint, don't scan source text for signatures — generate a file that attempts to use each function in the constrained context, compile it, and parse the errors. The compiler is the arbiter of type-level properties.
+- Concrete example: To find which functions can have Kani harnesses generated, don't grep for "pure" functions or filter by name/signature patterns. Generate a harness for every function, compile them all, and let rustc and Kani tell you which ones are valid. Parse their structured error output into your inventory.
 
 - **Types & coordinates**: `f64` logical, `i32` pixel, `u32` image dims, `u8` color channels.
 - **Color**: `Color` (packed u32 RGBA) for storage. Intermediate blend math in `i32` or wider.
