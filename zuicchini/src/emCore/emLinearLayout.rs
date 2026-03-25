@@ -194,6 +194,8 @@ impl emLinearLayout {
         };
 
         // ─── Alignment step (C++ lines 414-425) ───
+        // C++ does `x += (w-t)*0.5` etc., i.e. adds the alignment delta to
+        // the content-rect origin. Must preserve origin_x / origin_y.
         let mut x_offset = origin_x;
         let mut y_offset = origin_y;
 
@@ -204,8 +206,8 @@ impl emLinearLayout {
                 w
             };
             match self.alignment_h {
-                AlignmentH::Right => x_offset = w - t,
-                AlignmentH::Center => x_offset = (w - t) * 0.5,
+                AlignmentH::Right => x_offset += w - t,
+                AlignmentH::Center => x_offset += (w - t) * 0.5,
                 AlignmentH::Left => {}
             }
             w = t;
@@ -216,8 +218,8 @@ impl emLinearLayout {
                 h
             };
             match self.alignment_v {
-                AlignmentV::Bottom => y_offset = h - t,
-                AlignmentV::Center => y_offset = (h - t) * 0.5,
+                AlignmentV::Bottom => y_offset += h - t,
+                AlignmentV::Center => y_offset += (h - t) * 0.5,
                 AlignmentV::Top => {}
             }
             h = t;

@@ -1852,11 +1852,10 @@ fn composition_border_nest() {
     compositor.render(&mut tree, &view);
     let actual = compositor.framebuffer().GetMap();
 
-    // Rust emLinearGroup positions children slightly differently from C++ emLinearLayout
-    // due to GetContentRect rounding in the OBT_ROUND_RECT/IBT_GROUP border hierarchy.
-    // This causes ~35% pixel mismatch at tol=3 (child GetPos offsets ~40-60px).
-    // Tolerance relaxed to accommodate the structural layout difference while still
-    // verifying the overall widget composition renders without crashes or corruption.
+    // After fixing the emLinearLayout alignment origin bug, layout matches C++
+    // closely. Remaining 2.3% (at tol=0) comes from widget-level rendering
+    // differences (button text kerning, border image interpolation, text
+    // positioning). At tol=3 these are well under 1%.
     let result = compare_images(
         "composed_border_nest",
         actual,
@@ -1864,7 +1863,7 @@ fn composition_border_nest() {
         w,
         h,
         3,
-        40.0,
+        3.0,
     );
     if result.is_err() && dump_golden_enabled() {
         dump_test_images("composed_border_nest", actual, &expected, w, h);
