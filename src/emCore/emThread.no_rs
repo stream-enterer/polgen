@@ -140,6 +140,31 @@ OPEN QUESTIONS:
   - Are any of the "coverage gap" methods actually needed by the Rust port, or are they
     all dead code paths in the emCore-only scope?
 
+--------------------------------------------------------------------------------
+OUTSIDE EMCORE (grep of C++ codebase, not part of agent audit)
+--------------------------------------------------------------------------------
+
+C++ usage outside emCore (19 files):
+  include/emAv/emAvImageConverter.h
+  include/emFractal/emFractalFilePanel.h
+  include/emWnds/emWndsScheduler.h
+  include/emWnds/emWndsScreen.h
+  include/emWnds/emWndsViewRenderer.h
+  include/emX11/emX11Clipboard.h
+  include/emX11/emX11Screen.h
+  include/emX11/emX11ViewRenderer.h
+  include/emX11/emX11WindowPort.h
+  include/SilChess/SilChessPanel.h
+  src/emAv/emAvServerModel.cpp
+  src/emSvg/emSvgServerModel.cpp
+  src/emTest/emTestThreads.cpp
+  src/emTiff/emTiffImageFileModel.cpp
+  src/emWnds/emWndsScheduler.cpp
+  src/emWnds/emWndsScreen.cpp
+  src/emWnds/emWndsViewRenderer.cpp
+  src/emX11/emX11ExtDynamic.cpp
+  src/emX11/emX11Screen.cpp
+
 ================================================================================
 REVIEWED SUMMARY
 ================================================================================
