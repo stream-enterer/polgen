@@ -92,6 +92,13 @@ OPEN QUESTIONS:
     need an emFileStream equivalent, or will std::io::BufReader/BufWriter + byteorder
     or from_le_bytes suffice?
 
+NOTE: Zero emCore consumers, but 13 files outside emCore use this type.
+Gap will surface when those modules are ported. A partial workaround
+already exists: src/emCore/emResTga.rs was written to load toolkit TGA
+assets without emFileStream (commit 13486b8, 2026-03-05). The 9 other
+image format loaders (BMP, GIF, ILBM, PCX, PNM, RAS, RGB, XPM, JPEG)
+would each need either emFileStream or their own workaround.
+
 C++ usage outside emCore (13 files):
   include/emBmp/emBmpImageFileModel.h
   include/emGif/emGifFileModel.h

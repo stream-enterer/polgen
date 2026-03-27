@@ -58,6 +58,9 @@ OPEN QUESTIONS:
     (src/emCore/emMiniIpc.rs). Does it have sufficient functionality to support
     emTmpFileMaster's liveness-ping pattern if needed?
 
+NOTE: Zero emCore consumers, but 2 files outside emCore use this type.
+Gap will surface when emTmpConv is ported.
+
 C++ usage outside emCore (2 files):
   include/emTmpConv/emTmpConvModel.h
   src/emTest/emTestContainers.cpp

@@ -81,6 +81,9 @@ Coverage gaps:
 OPEN QUESTIONS:
   - None
 
+NOTE: Zero emCore consumers, but 4 files outside emCore use this type.
+Gap will surface when emOsm or emStocks are ported.
+
 C++ usage outside emCore (4 files):
   include/emOsm/emOsmTileCacheCleaner.h
   src/emStocks/emStocksListBox.cpp
