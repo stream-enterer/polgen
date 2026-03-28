@@ -15,6 +15,7 @@ mod fp_plugin;
 mod image_file_model;
 mod install_info;
 mod job;
+mod list;
 mod look;
 mod mini_ipc;
 mod pri_sched_agent;

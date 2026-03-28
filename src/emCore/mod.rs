@@ -44,6 +44,7 @@ pub mod emJob;
 pub mod emLabel;
 pub mod emLinearGroup;
 pub mod emLinearLayout;
+pub mod emList;
 pub mod emListBox;
 pub mod emLook;
 pub mod emMiniIpc;
