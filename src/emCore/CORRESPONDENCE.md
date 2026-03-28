@@ -19,12 +19,18 @@ but may have drifted. The interpretive claims ("not needed", "by design",
 The OUTSIDE EMCORE section is grep output. It is mechanically reproducible
 and contains no interpretation. It is the strongest section.
 
-The REVIEWED SUMMARY was written by a human-LLM pair that verified
+The REVIEWED SUMMARY was written by a human-LLM pair that checked
 specific claims against source code. Items marked "verified" mean:
-a grep or file read confirmed the claim at the time of writing. This
-does NOT mean the claim is currently true — code changes since the
-review may have invalidated it. Items marked "NOT VERIFIED" mean: the
-claim was identified as unverified and left open rather than guessed at.
+a grep or file read produced evidence consistent with the claim at the
+time of writing. This is evidence, not proof. A grep that finds no
+counterexample does not prove one doesn't exist. A line reference that
+matched at review time may have drifted. An "investigated" open question
+means we searched and wrote what we found — not that the question is
+settled. Items marked "NOT VERIFIED" mean: the claim was identified
+as unverified and left open rather than guessed at. The absence of a
+NOT VERIFIED flag does not mean the claim is proven — it means we
+looked and found evidence consistent with it, which is a weaker
+statement.
 
 Before acting on any claim in any section:
   - If it names a file path or line number, read the file.
