@@ -93,3 +93,43 @@ C++ usage outside emCore (158 files):
 REVIEWED SUMMARY (reviewed — unverified items marked NOT VERIFIED)
 ================================================================================
 
+C++ emRef.h: intrusive reference-counted smart pointer.
+
+158 files outside emCore use this type — the second most pervasive
+type after emString.
+
+C++ provides:
+  emRefTarget — base class that objects inherit to be ref-counted.
+    Adds Alloc()/Free()/GetRefCount(). Destructor is fatal if
+    refcount != 0.
+  emRef<T>    — smart pointer that calls Alloc on construction/copy
+    and Free on destruction/rebind.
+
+Rust equivalent (verified):
+  emRef<T>       -> Rc<T> or Rc<RefCell<T>>
+    emScreen.rs:165       — Rc<RefCell<emScreen>>
+    emFpPlugin.rs:445     — Rc<RefCell<Self>>
+    emCoreConfig.rs:215   — Rc<RefCell<emConfigModel<Self>>>
+    emContext.rs:40        — Weak<emContext> (non-owning ref)
+  emRefTarget    -> no explicit base class. Rc handles refcounting
+    internally.
+
+No Rust equivalent exists for:
+  emRefTarget as explicit base class — Rc<T> doesn't require T to
+    inherit anything.
+  emRef::Set(ptr) / Reset() — explicit rebinding. Rust uses
+    variable reassignment.
+  GetRefCount() — Rc::strong_count() exists but is not used in the
+    Rust codebase (verified by grep: no strong_count calls found).
+
+Open question investigated: "emRef<emVarModel<emRef<T>>> nested pattern"
+  The agent's question contained an error — the actual C++ pattern is
+  emRef<emVarModel<T>>, not doubly-nested. Found in:
+    emBorder.h:413 — emRef<emVarModel<TkResources>>
+    emVarModel.h:46 — static emRef<emVarModel<VAR>> Acquire(...)
+  Rust equivalent: emVarModel is ported as WatchedVar<T>
+  (emVarModel.rs:7), embedded as a struct field rather than wrapped
+  in Rc<RefCell<>>. The C++ ref-counted shared model pattern is
+  replaced by direct ownership.
+  NOT VERIFIED: whether this ownership change affects any code path
+  that shares an emVarModel across multiple consumers via emRef.
