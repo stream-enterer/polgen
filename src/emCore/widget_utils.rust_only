@@ -44,3 +44,26 @@ OPEN QUESTIONS:
 ================================================================================
 REVIEWED SUMMARY (reviewed — unverified items marked NOT VERIFIED)
 ================================================================================
+
+Rust file: src/emCore/widget_utils.rs
+
+Two functions with no single C++ file equivalent:
+
+  check_mouse_round_rect — rounded-rectangle hit test. C++ duplicates
+    this formula inline in each widget's CheckMouse method (emButton.cpp:278,
+    emScalarField.cpp:307, emTextField.cpp:880, etc.). Rust deduplicates
+    into this shared function. Used by 8 widget files.
+
+  trace_input_enabled — checks TRACE_INPUT env var, cached via OnceLock.
+    No C++ equivalent. Rust-only debug aid. Uses std::sync::OnceLock for
+    one-time initialization (not Arc/Mutex, but is a std::sync primitive).
+
+Provenance: created fresh during Phase 3 restructuring (commit 22af067,
+  2026-03-23). Did not exist before that commit — the deduplication of
+  the hit-test formula was done at that point, not extracted from earlier
+  inline code.
+
+NOT VERIFIED: whether every C++ widget that has its own CheckMouse
+  hit-test formula is covered by the Rust shared function. The agent
+  found emButton, emScalarField, emTextField — other widgets may also
+  have copies.
