@@ -11,6 +11,7 @@ mod cursor;
 mod default_item_panel;
 mod file_model;
 mod file_selection;
+mod file_stream;
 mod fp_plugin;
 mod image_file_model;
 mod install_info;
