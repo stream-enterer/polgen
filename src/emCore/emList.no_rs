@@ -156,3 +156,43 @@ C++ usage outside emCore (16 files):
 REVIEWED SUMMARY (reviewed — unverified items marked NOT VERIFIED)
 ================================================================================
 
+C++ emList.h: doubly-linked list with COW, stable iterators, and
+standalone sort functions (emSortSingleLinkedList, emSortDoubleLinkedList).
+
+16 files outside emCore use this type.
+
+emList<T> is never instantiated with a concrete type anywhere in emCore
+(verified by agent audit — only self-referential usage in emList.h).
+The only emCore consumer of emList.h functionality is emClipRects,
+which calls emSortSingleLinkedList on a raw linked list (not emList<>).
+
+Rust equivalents (verified):
+  emSortSingleLinkedList in emClipRects
+    -> Vec::sort_by() in emClipRects.rs:335 (verified)
+  emList<T> as container
+    -> no Rust equivalent. No std::collections::LinkedList usage found
+       anywhere in the Rust codebase (verified by grep).
+    -> Vec<T> is the expected Rust replacement.
+
+No Rust equivalent exists for:
+  emList<T> template — COW doubly-linked list.
+  Stable iterators — auto-adjust on element removal and COW clone.
+  emSortSingleLinkedList / emSortDoubleLinkedList as standalone functions.
+  Move semantics between lists (splice-like transfer of elements).
+
+Outside-emCore usage includes concrete instantiations:
+  emStocksPricesFetcher.h:87  — emList<emCrossPtr<emStocksListBox>>
+  emJsonException.h:66        — emList<emString>
+  emJsonParser.h:104          — emList<emRef<emJsonElement>>
+  emTimeZonesModel.h:128      — emList<City*>
+  emOsmTileCacheCleaner.h:92  — emList<emString>
+  These would map to Vec<T> in Rust.
+
+Open question: "Do Vec and linked list differ in performance for emClipRects?"
+  C++ emClipRects uses a raw linked list with emSortSingleLinkedList.
+  Rust emClipRects uses Vec<Rect> with Vec::sort_by().
+  Vec has better cache locality for iteration and sorting. Linked list
+  has O(1) insert/remove at arbitrary positions. emClipRects does both
+  (adds rects, then sorts, then iterates).
+  NOT VERIFIED: whether the workload characteristics (typical clip rect
+  count, insert vs sort vs iterate ratio) favor one over the other.
