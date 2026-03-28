@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 
+pub mod emArray;
 pub mod emATMatrix;
 pub mod emBorder;
 pub mod emBorderAlignment;

@@ -1,3 +1,4 @@
+mod array;
 mod cross_ptr;
 mod clipboard;
 mod color_field;
