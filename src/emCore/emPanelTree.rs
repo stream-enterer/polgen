@@ -9,7 +9,7 @@ use crate::dlog;
 use super::emPanel::{NoticeFlags, PanelBehavior, PanelState};
 use crate::emCore::emPanelCtx::PanelCtx;
 use crate::emCore::emColor::emColor;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 
 // ── Autoplay handling flags ─────────────────────────────────────────
 

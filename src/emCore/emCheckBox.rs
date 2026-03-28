@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use crate::emCore::emColor::emColor;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 use crate::emCore::emCursor::emCursor;
 use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
 use crate::emCore::emInputState::emInputState;
@@ -356,7 +356,7 @@ impl emCheckBox {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::rect::Rect;
+    use crate::emCore::emPanel::Rect;
     use crate::emCore::emPanelTree::PanelId;
     use slotmap::Key as _;
 

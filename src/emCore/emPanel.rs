@@ -3,7 +3,6 @@ use std::any::Any;
 use bitflags::bitflags;
 
 use crate::emCore::emColor::emColor;
-use crate::emCore::rect::Rect;
 use crate::emCore::emCursor::emCursor;
 use crate::emCore::emInput::emInputEvent;
 use crate::emCore::emInputState::emInputState;
@@ -11,6 +10,57 @@ use crate::emCore::emPainter::emPainter;
 
 use crate::emCore::emPanelCtx::PanelCtx;
 use super::emPanelTree::{PanelId, PlaybackState};
+
+// RUST_ONLY: rect.rs -- Consolidates C++ pattern of passing 4 separate
+// doubles (GetLayoutX/Y/Width/Height in emPanel.h) into a typed struct.
+// C++ has no dedicated layout rect type.
+
+/// Logical rectangle (f64) — layout coordinates.
+#[derive(Copy, Clone, Debug, Default, PartialEq)]
+pub struct Rect {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+impl Rect {
+    pub fn new(x: f64, y: f64, w: f64, h: f64) -> Self {
+        Self { x, y, w, h }
+    }
+
+    pub fn intersects(&self, other: &Rect) -> bool {
+        self.x < other.x + other.w
+            && self.x + self.w > other.x
+            && self.y < other.y + other.h
+            && self.y + self.h > other.y
+    }
+
+    pub fn intersection(&self, other: &Rect) -> Option<Rect> {
+        let x = self.x.max(other.x);
+        let y = self.y.max(other.y);
+        let x2 = (self.x + self.w).min(other.x + other.w);
+        let y2 = (self.y + self.h).min(other.y + other.h);
+        if x2 > x && y2 > y {
+            Some(Rect {
+                x,
+                y,
+                w: x2 - x,
+                h: y2 - y,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn contains_point(&self, px: f64, py: f64) -> bool {
+        px >= self.x && px < self.x + self.w && py >= self.y && py < self.y + self.h
+    }
+
+    pub fn area(&self) -> f64 {
+        self.w * self.h
+    }
+}
 
 /// Invalidation signals that a panel behavior wants to propagate to the parent
 /// view. Used by [`emSubViewPanel`](super::emSubViewPanel::emSubViewPanel) to forward its sub-view's

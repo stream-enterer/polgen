@@ -287,7 +287,7 @@ impl emSplitter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::rect::Rect;
+    use crate::emCore::emPanel::Rect;
     use crate::emCore::emPanelTree::PanelId;
     use slotmap::Key as _;
 

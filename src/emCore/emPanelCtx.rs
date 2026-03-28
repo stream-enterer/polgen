@@ -2,7 +2,7 @@
 use crate::emCore::emPanel::PanelBehavior;
 use super::emPanelTree::{PanelId, PanelTree};
 use crate::emCore::emColor::emColor;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 
 /// Panel context — provides a scoped API for a panel to interact with the tree.
 ///

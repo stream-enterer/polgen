@@ -8,7 +8,7 @@ use super::emPanelTree::{PanelId, PanelTree};
 use crate::emCore::emClipRects::ClipRects;
 use crate::emCore::emColor::emColor;
 use crate::emCore::emRec::{write_rec_with_format, RecStruct, RecValue};
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 use crate::emCore::emCursor::emCursor;
 use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign};
 

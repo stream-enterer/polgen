@@ -11,7 +11,7 @@
 use eaglemode_rs::emCore::emColor::emColor;
 use eaglemode_rs::emCore::emATMatrix::AffineMatrix;
 use eaglemode_rs::emCore::emPainter::Fixed12;
-use eaglemode_rs::emCore::rect::{Rect, PixelRect};
+use eaglemode_rs::emCore::emPanel::Rect;
 
 // ═══════════════════════════════════════════════════════════════════
 //  emColor — component accessors
@@ -456,16 +456,6 @@ fn l3_Rect_default() {
     assert_eq!(r.y, 0.0);
     assert_eq!(r.w, 0.0);
     assert_eq!(r.h, 0.0);
-}
-
-#[cfg(kani)]
-#[kani::proof]
-fn l3_PixelRect_default() {
-    let r = PixelRect::default();
-    assert_eq!(r.x, 0);
-    assert_eq!(r.y, 0);
-    assert_eq!(r.w, 0);
-    assert_eq!(r.h, 0);
 }
 
 // ═══════════════════════════════════════════════════════════════════

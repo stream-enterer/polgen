@@ -3,7 +3,7 @@ use crate::dlog;
 use crate::emCore::emPanelTree::PanelTree;
 use super::emView::{emView, ViewFlags};
 use crate::emCore::emColor::emColor;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 
 /// Trait for view animation strategies.
 pub trait emViewAnimator {

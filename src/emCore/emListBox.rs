@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::emCore::emColor::emColor;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
 use crate::emCore::emInputState::emInputState;
 use crate::emCore::emRasterLayout::emRasterLayout;
@@ -1656,7 +1656,7 @@ const HOWTO_TOGGLE_SELECTION: &str = "\n\n\
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::rect::Rect;
+    use crate::emCore::emPanel::Rect;
     use crate::emCore::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;

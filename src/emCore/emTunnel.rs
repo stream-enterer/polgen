@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::emCore::emColor::emColor;
 use crate::emCore::emImage::emImage;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
 use crate::emCore::emPanelCtx::PanelCtx;
 use crate::emCore::emPainter::emPainter;

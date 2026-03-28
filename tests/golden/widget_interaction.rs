@@ -1,7 +1,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use eaglemode_rs::emCore::rect::Rect;
+use eaglemode_rs::emCore::emPanel::Rect;
 use eaglemode_rs::emCore::emCursor::emCursor;
 use eaglemode_rs::emCore::emInput::{emInputEvent, InputKey, InputVariant};
 use eaglemode_rs::emCore::emInputState::emInputState;

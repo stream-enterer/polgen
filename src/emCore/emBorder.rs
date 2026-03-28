@@ -6,7 +6,7 @@ use crate::emCore::emLook::emLook;
 use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign, BORDER_EDGES_ONLY};
 use crate::emCore::emResTga::load_tga;
 use crate::emCore::emStroke::emStroke;
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 
 /// Minimum font size in pixels — below this the text is too small to read.
 const MIN_FONT_SIZE: f64 = 4.0;

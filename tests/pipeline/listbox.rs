@@ -74,7 +74,7 @@ impl PanelBehavior for SharedListBoxPanel {
 ///   3. Computes item N's center within the content rect
 ///   4. Maps the panel-local coordinate to view space using the viewed rect
 fn item_center_view_y(
-    vr: &eaglemode_rs::emCore::rect::Rect,
+    vr: &eaglemode_rs::emCore::emPanel::Rect,
     pixel_tallness: f64,
     n: usize,
     item_count: usize,
@@ -103,7 +103,7 @@ fn item_center_view_y(
 /// Compute the view-space X coordinate at the horizontal center of the
 /// content rect.
 fn content_center_view_x(
-    vr: &eaglemode_rs::emCore::rect::Rect,
+    vr: &eaglemode_rs::emCore::emPanel::Rect,
     pixel_tallness: f64,
 ) -> f64 {
     let look = emLook::new();

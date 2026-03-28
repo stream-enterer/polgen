@@ -1,4 +1,4 @@
-use eaglemode_rs::emCore::rect::Rect;
+use eaglemode_rs::emCore::emPanel::Rect;
 use eaglemode_rs::emCore::emLinearLayout::emLinearLayout;
 use eaglemode_rs::emCore::emPackLayout::emPackLayout;
 use eaglemode_rs::emCore::emRasterLayout::emRasterLayout;

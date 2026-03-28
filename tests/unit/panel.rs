@@ -1,5 +1,5 @@
 use eaglemode_rs::emCore::emColor::emColor;
-use eaglemode_rs::emCore::rect::Rect;
+use eaglemode_rs::emCore::emPanel::Rect;
 use eaglemode_rs::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
 
 use eaglemode_rs::emCore::emPanelCtx::PanelCtx;

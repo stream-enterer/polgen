@@ -1,4 +1,4 @@
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
 use crate::emCore::emPanelCtx::PanelCtx;
 use crate::emCore::emPanelTree::PanelId;

@@ -12,7 +12,7 @@
 #[allow(unused_imports)]
 use eaglemode_rs::emCore::emViewAnimator::KineticState;
 #[allow(unused_imports)]
-use eaglemode_rs::emCore::rect::Rect;
+use eaglemode_rs::emCore::emPanel::Rect;
 #[allow(unused_imports)]
 use eaglemode_rs::emCore::emTiling::Spacing;
 #[allow(unused_imports)]
@@ -1011,7 +1011,7 @@ fn kani_rect_Rect_new() {
     kani::assume(p_y.is_finite());
     kani::assume(p_w.is_finite());
     kani::assume(p_h.is_finite());
-    let _result = eaglemode_rs::emCore::rect::Rect::new(p_x, p_y, p_w, p_h);
+    let _result = eaglemode_rs::emCore::emPanel::Rect::new(p_x, p_y, p_w, p_h);
 }
 
 #[cfg(kani)]
@@ -1050,12 +1050,3 @@ fn kani_rect_Rect_area() {
     assert!(_result.is_finite(), "non-finite result");
 }
 
-#[cfg(kani)]
-#[kani::proof]
-fn kani_rect_PixelRect_new() {
-    let mut p_x: i32 = kani::any::<i32>();
-    let mut p_y: i32 = kani::any::<i32>();
-    let mut p_w: i32 = kani::any::<i32>();
-    let mut p_h: i32 = kani::any::<i32>();
-    let _result = eaglemode_rs::emCore::rect::PixelRect::new(p_x, p_y, p_w, p_h);
-}

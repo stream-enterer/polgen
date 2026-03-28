@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::emCore::rect::Rect;
+use crate::emCore::emPanel::Rect;
 use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
 use crate::emCore::emInputState::emInputState;
 use crate::emCore::emPanel::PanelState;
@@ -219,7 +219,7 @@ impl emDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::rect::Rect;
+    use crate::emCore::emPanel::Rect;
     use crate::emCore::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;

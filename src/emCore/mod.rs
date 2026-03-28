@@ -95,4 +95,3 @@ pub mod emViewRendererTileCache;
 pub mod emWindow;
 pub mod emWindowPlatform;
 pub mod emWindowStateSaver;
-pub mod rect;
