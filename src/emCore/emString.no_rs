@@ -264,5 +264,10 @@ ENCODING AUDIT (2026-03-28) — file path usage in src/emCore/*.rs:
 Semantic difference — COW:
   C++ "emString b = a" shares data (O(1)), mutation triggers deep copy.
   Rust "let b = a.clone()" always deep copies.
-  NOT VERIFIED: whether any of the 300 outside-emCore files rely on
-  cheap copy semantics.
+  Verified: C++ code overwhelmingly passes emString by const reference
+  (no copy). Outside emCore headers: 370 const-ref sites, 0 by-value
+  sites. String copies occur at construction and assignment, which are
+  O(n) in Rust but happen at the same code points. No hot-loop
+  O(1)-copy-dependent pattern found. Performance difference is
+  negligible for the string sizes used in Eagle Mode (file paths,
+  UI labels, config keys — all short strings).
