@@ -118,3 +118,46 @@ C++ usage outside emCore (6 files):
 REVIEWED SUMMARY (reviewed — unverified items marked NOT VERIFIED)
 ================================================================================
 
+C++ emAvlTreeMap.h: copy-on-write sorted map backed by emAvlTree.
+
+6 files outside emCore use this type.
+
+Only 1 emCore consumer: emFileSelectionBox.cpp:720-721, where a local
+emAvlTreeMap<emString,int> is used for name deduplication in
+SelectionToListBox().
+
+Closest Rust stdlib equivalent: HashMap (unordered) or BTreeMap (ordered).
+
+Method mapping (same functionality, different names):
+  Contains     -> HashMap::contains_key()
+  Get          -> HashMap::get()
+  Insert       -> HashMap::insert()
+  Remove       -> HashMap::remove()
+  Clear        -> HashMap::clear()
+  IsEmpty      -> HashMap::is_empty()
+  GetCount     -> HashMap::len()
+  operator[]   -> HashMap index or entry API
+  SetValue     -> HashMap::insert() (overwrites)
+
+No Rust equivalent exists for:
+  GetFirst / GetLast / GetNearestGreater / GetNearestGreaterOrEqual /
+  GetNearestLess / GetNearestLessOrEqual — ordered access methods.
+    HashMap is unordered. BTreeMap provides these via .first_key_value(),
+    .last_key_value(), .range() with Bound.
+  COW copy semantics — HashMap always deep copies on .clone().
+  Stable iterators — HashMap iterators borrow immutably.
+  GetDataRefCount / MakeNonShared — COW refcount management.
+  GetKeyWritable / GetValueWritable — COW mutation triggers.
+
+Open question investigated:
+  "Has emFileSelectionBox.rs ported the dedup logic from C++ lines 720-721?"
+  The Rust selection_to_list_box() (emFileSelectionBox.rs:785) takes a
+  different approach: rebuilds the entire listbox from self.listing and
+  sets selected indices by filtering self.selected_names. No dedup map
+  is used. The C++ emAvlTreeMap-based dedup is not needed because the
+  Rust implementation doesn't incrementally sync — it rebuilds.
+
+NOT VERIFIED: whether the 6 outside-emCore files depend on ordered
+  access (GetNearest*), COW, or stable iterators.
+NOT VERIFIED: whether the Rust emFileSelectionBox rebuild approach
+  produces identical behavior to the C++ incremental sync in all cases.
