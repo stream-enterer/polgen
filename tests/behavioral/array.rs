@@ -62,3 +62,55 @@ fn cow_multiple_shares() {
     drop(c);
     assert_eq!(a.GetDataRefCount(), 1);
 }
+
+#[test]
+fn cursor_basic_iteration() {
+    let mut a: emArray<i32> = emArray::new();
+    a.Add_one(10);
+    a.Add_one(20);
+    a.Add_one(30);
+
+    let mut cur = a.cursor(0);
+    assert!(cur.IsValid(&a));
+    assert_eq!(cur.Get(&a), Some(&10));
+    cur.SetNext(&a);
+    assert_eq!(cur.Get(&a), Some(&20));
+    cur.SetNext(&a);
+    assert_eq!(cur.Get(&a), Some(&30));
+    cur.SetNext(&a);
+    assert!(!cur.IsValid(&a));
+}
+
+#[test]
+fn cursor_reverse_iteration() {
+    let mut a: emArray<i32> = emArray::new();
+    a.Add_one(10);
+    a.Add_one(20);
+    a.Add_one(30);
+
+    let mut cur = a.cursor_last();
+    assert_eq!(cur.Get(&a), Some(&30));
+    cur.SetPrev(&a);
+    assert_eq!(cur.Get(&a), Some(&20));
+    cur.SetPrev(&a);
+    assert_eq!(cur.Get(&a), Some(&10));
+    cur.SetPrev(&a);
+    assert!(!cur.IsValid(&a));
+}
+
+#[test]
+fn cursor_survives_cow_clone() {
+    let mut a: emArray<i32> = emArray::new();
+    a.Add_one(1);
+    a.Add_one(2);
+    a.Add_one(3);
+
+    let cur = a.cursor(1); // points to element "2"
+    let mut b = a.clone();
+
+    // Mutate b (triggers COW)
+    b.Set(0, 99);
+
+    // Cursor still valid against a (unchanged)
+    assert_eq!(cur.Get(&a), Some(&2));
+}

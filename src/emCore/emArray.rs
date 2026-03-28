@@ -28,6 +28,50 @@
 
 use std::rc::Rc;
 
+/// Stable cursor for emArray. Tracks position by index.
+///
+/// DIVERGED: C++ emArray::Iterator auto-adjusts index when elements are
+/// inserted/removed before the cursor position. This Rust cursor does NOT
+/// auto-adjust — it maintains the original index. Full auto-adjustment
+/// requires the array to track all live cursors, which adds overhead.
+/// Will be implemented when a consumer requires it.
+pub struct Cursor {
+    /// `None` means the cursor is in the "invalid / off-the-end" state.
+    index: Option<usize>,
+}
+
+impl Cursor {
+    pub fn IsValid<T: Clone>(&self, array: &emArray<T>) -> bool {
+        match self.index {
+            Some(i) => i < array.GetCount(),
+            None => false,
+        }
+    }
+
+    pub fn Get<'a, T: Clone>(&self, array: &'a emArray<T>) -> Option<&'a T> {
+        self.index.and_then(|i| array.data.get(i))
+    }
+
+    pub fn SetNext<T: Clone>(&mut self, array: &emArray<T>) {
+        match self.index {
+            Some(i) if i < array.GetCount() => self.index = Some(i + 1),
+            _ => {}
+        }
+    }
+
+    pub fn SetPrev<T: Clone>(&mut self, _array: &emArray<T>) {
+        match self.index {
+            Some(0) => self.index = None,
+            Some(i) => self.index = Some(i - 1),
+            None => {}
+        }
+    }
+
+    pub fn SetIndex(&mut self, index: usize) {
+        self.index = Some(index);
+    }
+}
+
 /// COW dynamic array backed by `Rc<Vec<T>>`.
 ///
 /// Clone is O(1) shallow (Rc::clone). Mutation triggers deep copy
@@ -236,6 +280,26 @@ impl<T: Clone> emArray<T> {
     pub fn MakeNonShared(&mut self) {
         // Rc::make_mut will clone the inner Vec if shared.
         let _ = self.make_writable();
+    }
+}
+
+// ---------------------------------------------------------------
+// Cursor factory methods
+// ---------------------------------------------------------------
+
+impl<T: Clone> emArray<T> {
+    pub fn cursor(&self, index: usize) -> Cursor {
+        Cursor { index: Some(index) }
+    }
+
+    pub fn cursor_first(&self) -> Cursor {
+        Cursor { index: Some(0) }
+    }
+
+    pub fn cursor_last(&self) -> Cursor {
+        Cursor {
+            index: if self.data.is_empty() { None } else { Some(self.data.len() - 1) },
+        }
     }
 }
 
