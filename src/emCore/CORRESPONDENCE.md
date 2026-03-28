@@ -7,9 +7,9 @@ step, you will make errors that look plausible but are wrong.
 
 ## State of the port
 
-C++ emCore has 90 headers. The Rust port has 101 .rs files (some C++
+C++ emCore has 90 headers. The Rust port has 103 .rs files (some C++
 headers were split into multiple Rust files per the one-type-per-file
-rule). 10 C++ headers have no .rs file — these have .no_rs marker
+rule). 8 C++ headers have no .rs file — these have .no_rs marker
 files. 1 Rust file has no C++ header — emPainterDrawList.rust_only
 (record-replay pattern; deferred to Phase 4).
 
@@ -56,6 +56,37 @@ New ports — 4 .no_rs files eliminated:
   intrusive doubly-linked list. O(1) index access but O(n) insert/remove
   in the middle (C++ is O(1) insert/remove, O(n) index). Cursor is an
   external struct.
+
+### Phase 3 changes (2026-03-28)
+
+New ports — 2 .no_rs files eliminated:
+- emFileStream.rs created with buffered file I/O and endian-aware
+  typed read/write methods. Wraps std::fs::File with manual 8KB byte
+  buffer. emFileStream.no_rs deleted. DIVERGED: File paths use
+  PathBuf/&Path (not String) to handle non-UTF-8 paths. C++ mode
+  strings ("rb", "wb") mapped to Rust OpenOptions.
+- emTmpFile.rs created with RAII temp file/directory deletion.
+  emTmpFile.no_rs deleted. DIVERGED: emTmpFileMaster deferred — the
+  IPC-based singleton for crash-resilient cleanup requires deep
+  emModel/emContext integration. Will be ported with emTmpConv if
+  needed.
+
+Audits completed — 3 .no_rs files remain with verified conclusions:
+- emAnything.no_rs — Box<dyn Any> confirmed sufficient. All C++ usage
+  (emStocks, emTestContainers) is store-retrieve-extract with no
+  sharing dependence.
+- emOwnPtrArray.no_rs — Vec<T> confirmed sufficient. Outside-emCore
+  consumers (emAvClient, emTimeZonesModel) use BinarySearchByKey
+  which is composable from stdlib binary_search_by() + insert().
+- emString.no_rs — encoding audit completed. All filesystem paths in
+  emCore use PathBuf/&Path. Residual to_string_lossy() in
+  emFileSelectionBox is acceptable (non-UTF-8 filenames would be
+  un-selectable in GUI, matching C++ behavior).
+
+Documentation:
+- emResTga.rs — DIVERGED comment added documenting that Rust embeds
+  TGA assets via include_bytes!() instead of loading from disk via
+  emFileStream.
 
 Marker file updated:
 - emAvlTree.no_rs updated to reflect that emAvlTreeMap.rs and
@@ -185,17 +216,16 @@ Types that appear unused from within emCore but are consumed by
 eaglemode apps. Each file has a NOTE about this. Gaps will surface
 when those apps are ported.
 
-- emFileStream.no_rs (13 outside files — all image format loaders)
+- ~~emFileStream.no_rs~~ RESOLVED: emFileStream.rs now ported
 - ~~emAvlTreeSet.no_rs~~ RESOLVED: emAvlTreeSet.rs now ported
-- emTmpFile.no_rs (2 outside files — emTmpConv)
+- ~~emTmpFile.no_rs~~ RESOLVED: emTmpFile.rs now ported
 
 ## Workaround for missing feature
 
 Rust code that reimplements part of an unported C++ type's functionality
 under a different name, without referencing the original type.
 
-- emResTga.rs decodes TGA from &[u8], working around missing emFileStream
-  (documented in emFileStream.no_rs)
+- ~~emResTga.rs decodes TGA from &[u8], working around missing emFileStream~~ RESOLVED: emFileStream.rs now ported; emResTga intentionally retains &[u8] decoder for compile-time embedded assets (DIVERGED comment in emResTga.rs)
 - emFontCache.rs uses OnceLock<emImage> single atlas, replacing C++
   emOwnPtrArray<Entry> dynamic cache + emRef/emModel shared ownership
   (documented in emOwnPtrArray.no_rs and emRef.no_rs)
@@ -214,11 +244,10 @@ No remaining rendering/feature gaps in emCore.
 
 ## Encoding risk
 
-C++ emString is byte-oriented; Rust String enforces UTF-8. File paths
-on Unix can contain non-UTF-8 bytes. This affects any code that stores
-file paths in strings.
-
-- emString.no_rs
+~~C++ emString is byte-oriented; Rust String enforces UTF-8.~~ RESOLVED:
+Phase 3 encoding audit confirmed all filesystem paths in emCore use
+PathBuf/&Path. Residual to_string_lossy() in emFileSelectionBox is
+acceptable (documented in emString.no_rs).
 
 ## Architectural divergence chain
 
@@ -254,7 +283,7 @@ so the output is stable.
 For each .no_rs type, which other .no_rs types does its C++ header include:
 
 ```
-for type in emAnything emAvlTree emFileStream emOwnPtr emOwnPtrArray emRef emString emThread emTmpFile emToolkit; do
+for type in emAnything emAvlTree emOwnPtr emOwnPtrArray emRef emString emThread emToolkit; do
   includes=$(grep "#include.*emCore/" ~/git/eaglemode-0.96.4/include/emCore/${type}.h 2>/dev/null | sed 's/.*emCore\///' | sed 's/\.h.*//')
   for inc in $includes; do
     [ -f "src/emCore/${inc}.no_rs" ] && echo "  $type -> $inc"
@@ -263,15 +292,15 @@ done
 ```
 
 Produces: which marker types include which other marker types.
-As of 2026-03-28 (post Phase 2):
-  emFileStream -> emOwnPtr
+As of 2026-03-28 (post Phase 3):
+  (no remaining inter-marker dependencies)
 
 ### Which eaglemode app modules use which marker types
 
 For each .no_rs type, which app modules outside emCore reference it:
 
 ```
-for type in emAnything emAvlTree emFileStream emOwnPtr emOwnPtrArray emRef emString emThread emTmpFile emToolkit; do
+for type in emAnything emAvlTree emOwnPtr emOwnPtrArray emRef emString emThread emToolkit; do
   apps=$(grep -rl "$type" ~/git/eaglemode-0.96.4/include/ ~/git/eaglemode-0.96.4/src/ --include='*.h' --include='*.cpp' 2>/dev/null | grep -v "/emCore/" | sed 's|.*/include/||;s|.*/src/||' | sed 's|/.*||' | sort -u | tr '\n' ' ')
   [ -n "$apps" ] && echo "$type: $apps"
 done
@@ -285,7 +314,7 @@ Tells you: if you're porting emStocks, which marker types will you encounter?
 
 ```
 declare -A app_types
-for type in emAnything emAvlTree emFileStream emOwnPtr emOwnPtrArray emRef emString emThread emTmpFile emToolkit; do
+for type in emAnything emAvlTree emOwnPtr emOwnPtrArray emRef emString emThread emToolkit; do
   for app in $(grep -rl "$type" ~/git/eaglemode-0.96.4/include/ ~/git/eaglemode-0.96.4/src/ --include='*.h' --include='*.cpp' 2>/dev/null | grep -v "/emCore/" | sed 's|.*/include/||;s|.*/src/||' | sed 's|/.*||' | sort -u); do
     app_types[$app]="${app_types[$app]} $type"
   done
