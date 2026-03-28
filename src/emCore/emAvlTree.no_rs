@@ -48,7 +48,7 @@ Rust equivalents found:
 Coverage gaps:
   - No direct Rust equivalent of the intrusive AVL node/tree/macro system (by design: replaced by HashMap/SlotMap)
   - emAvlCheck() has no Rust equivalent (not needed; std HashMap is self-validating)
-  - The copy-on-write and stable-iterator semantics of the C++ AVL macros used through emAvlTreeMap/emAvlTreeSet are not replicated at this level
+  - COW and stable-iterator semantics are now provided by emAvlTreeMap.rs and emAvlTreeSet.rs (wrapping BTreeMap/BTreeSet in Rc)
 
 OPEN QUESTIONS:
   - None
@@ -76,8 +76,8 @@ C++ emAvlTree.h: low-level intrusive AVL tree via C preprocessor macros.
 8 files outside emCore use this type.
 
 emAvlTree is used two ways:
-  1. As the engine behind emAvlTreeMap and emAvlTreeSet (wrapper types,
-     separate marker files)
+  1. As the engine behind emAvlTreeMap and emAvlTreeSet (wrapper types —
+     now ported as emAvlTreeMap.rs and emAvlTreeSet.rs wrapping BTreeMap/BTreeSet)
   2. Directly via raw EM_AVL_* macros in three emCore files
 
 Direct emCore usage and Rust replacements (verified by grep):
