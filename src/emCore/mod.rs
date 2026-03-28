@@ -16,6 +16,7 @@ pub mod emConfigModel;
 pub mod emContext;
 pub mod emCoreConfig;
 pub mod emCoreConfigPanel;
+pub mod emCrossPtr;
 pub mod emCursor;
 pub mod emDialog;
 pub mod emEngine;
