@@ -202,3 +202,93 @@ fn empty_map_ordered_access() {
     assert_eq!(m.GetNearestGreater(&0), None);
     assert_eq!(m.GetNearestLess(&0), None);
 }
+
+#[test]
+fn cursor_iteration() {
+    let mut m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    m.Insert(10, "ten");
+    m.Insert(20, "twenty");
+    m.Insert(30, "thirty");
+
+    let mut cur = m.cursor_first();
+    assert_eq!(cur.Get(&m), Some((&10, &"ten")));
+    cur.SetNext(&m);
+    assert_eq!(cur.Get(&m), Some((&20, &"twenty")));
+    cur.SetNext(&m);
+    assert_eq!(cur.Get(&m), Some((&30, &"thirty")));
+    cur.SetNext(&m);
+    assert!(cur.Get(&m).is_none());
+}
+
+#[test]
+fn cursor_survives_cow() {
+    let mut m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    m.Insert(1, "a");
+    m.Insert(2, "b");
+
+    let cur = m.cursor_at(&1);
+    let mut n = m.clone();
+    n.Insert(3, "c"); // triggers COW
+
+    // cursor still valid against m
+    assert_eq!(cur.Get(&m), Some((&1, &"a")));
+}
+
+#[test]
+fn cursor_by_key() {
+    let mut m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    m.Insert(10, "ten");
+    m.Insert(20, "twenty");
+    m.Insert(30, "thirty");
+
+    let cur = m.cursor_at(&20);
+    assert_eq!(cur.Get(&m), Some((&20, &"twenty")));
+}
+
+#[test]
+fn cursor_detach() {
+    let mut m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    m.Insert(1, "a");
+
+    let mut cur = m.cursor_first();
+    assert!(cur.Get(&m).is_some());
+    cur.Detach();
+    assert!(cur.Get(&m).is_none());
+}
+
+#[test]
+fn cursor_missing_key_returns_none() {
+    let m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    let cur = m.cursor_at(&99);
+    assert!(cur.Get(&m).is_none());
+}
+
+#[test]
+fn cursor_set_prev() {
+    let mut m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    m.Insert(10, "ten");
+    m.Insert(20, "twenty");
+    m.Insert(30, "thirty");
+
+    let mut cur = m.cursor_last();
+    assert_eq!(cur.Get(&m), Some((&30, &"thirty")));
+    cur.SetPrev(&m);
+    assert_eq!(cur.Get(&m), Some((&20, &"twenty")));
+    cur.SetPrev(&m);
+    assert_eq!(cur.Get(&m), Some((&10, &"ten")));
+    cur.SetPrev(&m);
+    assert!(cur.Get(&m).is_none());
+}
+
+#[test]
+fn cursor_key_removed_returns_none() {
+    let mut m: emAvlTreeMap<i32, &str> = emAvlTreeMap::new();
+    m.Insert(1, "a");
+    m.Insert(2, "b");
+
+    let cur = m.cursor_at(&1);
+    assert_eq!(cur.Get(&m), Some((&1, &"a")));
+    m.Remove(&1);
+    // cursor returns None — no auto-advance (DIVERGED from C++ Iterator)
+    assert!(cur.Get(&m).is_none());
+}

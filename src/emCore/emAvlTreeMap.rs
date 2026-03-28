@@ -7,9 +7,10 @@
 // Rust returns `(&K, &V)` tuples or `Option<&V>` directly since there is no
 // intrusive AVL node to expose.
 //
-// DIVERGED: Iterator inner class — omitted. C++ Iterator is a stable cursor
-// with AVL node stack and auto-adjustment on mutation. Rust callers use
-// BTreeMap iteration via standard `iter()`.
+// DIVERGED: Iterator inner class — C++ Iterator is a stable cursor with AVL
+// node stack and auto-adjustment on mutation (auto-advances past removed
+// elements). Rust provides MapCursor, which tracks position by key clone and
+// returns None (not auto-advance) when the pointed-to element is removed.
 //
 // DIVERGED: GetKeyWritable — omitted. Mutating keys in a sorted map is
 // inherently dangerous (can break ordering). C++ documents "must not disturb
@@ -179,6 +180,77 @@ impl<K: Ord + Clone, V: Clone + Default> emAvlTreeMap<K, V> {
             map.get_mut(key)
         } else {
             None
+        }
+    }
+}
+
+/// Stable cursor for emAvlTreeMap. Tracks position by cloned key.
+///
+/// DIVERGED: C++ `Iterator` auto-advances when the pointed-to element is
+/// removed. This cursor returns `None` from `Get` instead. C++ `Iterator` is
+/// nullified on `operator=`; this cursor holds a key copy independent of map
+/// identity so it can be compared against any map with the same key type.
+pub struct MapCursor<K: Clone> {
+    key: Option<K>,
+}
+
+impl<K: Ord + Clone> MapCursor<K> {
+    /// Return the key/value pair the cursor is pointing at, or `None` if the
+    /// cursor is detached or the key no longer exists in `map`.
+    pub fn Get<'a, V: Clone>(&self, map: &'a emAvlTreeMap<K, V>) -> Option<(&'a K, &'a V)> {
+        self.key.as_ref().and_then(|k| map.data.get_key_value(k))
+    }
+
+    /// Advance the cursor to the next (larger) key in `map`.
+    pub fn SetNext<V: Clone>(&mut self, map: &emAvlTreeMap<K, V>) {
+        if let Some(ref k) = self.key {
+            self.key = map
+                .data
+                .range((Bound::Excluded(k.clone()), Bound::Unbounded))
+                .next()
+                .map(|(k, _)| k.clone());
+        }
+    }
+
+    /// Retreat the cursor to the previous (smaller) key in `map`.
+    pub fn SetPrev<V: Clone>(&mut self, map: &emAvlTreeMap<K, V>) {
+        if let Some(ref k) = self.key {
+            self.key = map.data.range(..k).next_back().map(|(k, _)| k.clone());
+        }
+    }
+
+    /// Detach the cursor so that `Get` returns `None`.
+    pub fn Detach(&mut self) {
+        self.key = None;
+    }
+}
+
+impl<K: Ord + Clone, V: Clone> emAvlTreeMap<K, V> {
+    /// Return a cursor pointing at the first (smallest key) element, or a
+    /// detached cursor if the map is empty.
+    pub fn cursor_first(&self) -> MapCursor<K> {
+        MapCursor {
+            key: self.data.keys().next().cloned(),
+        }
+    }
+
+    /// Return a cursor pointing at the last (largest key) element, or a
+    /// detached cursor if the map is empty.
+    pub fn cursor_last(&self) -> MapCursor<K> {
+        MapCursor {
+            key: self.data.keys().next_back().cloned(),
+        }
+    }
+
+    /// Return a cursor pointing at `key`, or a detached cursor if `key` is
+    /// not present in the map.
+    pub fn cursor_at(&self, key: &K) -> MapCursor<K> {
+        MapCursor {
+            key: if self.data.contains_key(key) {
+                Some(key.clone())
+            } else {
+                None
+            },
         }
     }
 }
