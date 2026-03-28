@@ -43,3 +43,35 @@ OPEN QUESTIONS:
 ================================================================================
 REVIEWED SUMMARY (reviewed — unverified items marked NOT VERIFIED)
 ================================================================================
+
+Rust file: src/emCore/emPainterDrawList.rs
+
+Architectural divergence from C++ — no C++ equivalent exists.
+
+C++ rendering: each worker thread calls Paint() on panels directly,
+  synchronized via userSpaceMutex (emThreadMiniMutex). Threads share
+  mutable access to the panel tree.
+
+Rust rendering: single-threaded recording phase captures all paint
+  calls as DrawOp enum variants into a DrawList. Parallel replay phase
+  executes DrawOps into tile buffers. User paint code never runs on
+  worker threads.
+
+Why: panel state uses Rc (not Send). Cannot share across threads.
+  The record-replay pattern decouples user code from threading.
+
+DrawOp has 37 variants covering the full emPainter API surface.
+6 variants contain *const emImage raw pointers:
+  PaintImageFull, PaintImageColored, PaintImageScaled,
+  PaintBorderImage, PaintImageSimple, PaintBorderImageColored
+
+unsafe impl Send/Sync for DrawOp relies on three invariants:
+  1. Images are owned by panel behaviors in the PanelTree
+  2. The PanelTree is not modified between recording and replay
+  3. std::thread::scope ensures all replay threads complete before returning
+
+These invariants are guaranteed by the sequential structure of the
+frame loop (record, then replay, then next frame). They are runtime
+invariants not enforced by the type system. If the frame loop were
+restructured to allow concurrent tree modification during replay,
+the raw pointers could dangle.
