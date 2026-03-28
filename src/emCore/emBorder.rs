@@ -2273,6 +2273,9 @@ pub(crate) struct ToolkitImages {
     pub check_box_pressed: emImage,
     pub radio_box: emImage,
     pub radio_box_pressed: emImage,
+    pub _tunnel: emImage,
+    pub _dir: emImage,
+    pub _dir_up: emImage,
 }
 
 fn decode_toolkit_image(data: &[u8], name: &str, expected_w: u32, expected_h: u32) -> emImage {
@@ -2379,6 +2382,24 @@ impl ToolkitImages {
                 "RadioBoxPressed",
                 380,
                 380,
+            ),
+            _tunnel: decode_toolkit_image(
+                include_bytes!("../../res/toolkit/Tunnel.tga"),
+                "Tunnel",
+                200,
+                200,
+            ),
+            _dir: decode_toolkit_image(
+                include_bytes!("../../res/toolkit/Dir.tga"),
+                "Dir",
+                320,
+                260,
+            ),
+            _dir_up: decode_toolkit_image(
+                include_bytes!("../../res/toolkit/DirUp.tga"),
+                "DirUp",
+                310,
+                216,
             ),
         }
     }
