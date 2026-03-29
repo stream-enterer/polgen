@@ -885,6 +885,144 @@ impl Record for StockRec {
     }
 }
 
+// ─── emStocksRec ─────────────────────────────────────────────────────────────
+
+/// Port of C++ emStocksRec.
+#[derive(Default)]
+pub struct emStocksRec {
+    pub stocks: Vec<StockRec>,
+}
+
+impl emStocksRec {
+    /// Port of C++ GetFormatName.
+    pub fn GetFormatName(&self) -> &str {
+        "emStocks"
+    }
+
+    /// Port of C++ InventStockId.
+    /// Finds max ID + 1. If overflow, finds first unused ID.
+    pub fn InventStockId(&self) -> String {
+        let mut id: i32 = 0;
+        for stock in &self.stocks {
+            let parsed: i32 = stock.id.parse().unwrap_or(0);
+            id = id.max(parsed);
+        }
+        if id < i32::MAX {
+            id += 1;
+        } else {
+            // Find first unused ID (extremely unlikely path)
+            let mut candidate: i32 = 0;
+            loop {
+                let s = candidate.to_string();
+                if !self.stocks.iter().any(|st| st.id == s) {
+                    return s;
+                }
+                candidate += 1;
+            }
+        }
+        format!("{}", id)
+    }
+
+    /// Port of C++ GetStockIndexById.
+    /// DIVERGED: Returns Option<usize> instead of -1.
+    pub fn GetStockIndexById(&self, id: &str) -> Option<usize> {
+        (0..self.stocks.len())
+            .rev()
+            .find(|&i| self.stocks[i].id == id)
+    }
+
+    /// Port of C++ GetStockIndexByStock.
+    /// Uses std::ptr::eq for pointer comparison.
+    /// DIVERGED: Returns Option<usize> instead of -1.
+    pub fn GetStockIndexByStock(&self, stock_rec: &StockRec) -> Option<usize> {
+        (0..self.stocks.len())
+            .rev()
+            .find(|&i| std::ptr::eq(&self.stocks[i], stock_rec))
+    }
+
+    /// Port of C++ GetLatestPricesDate. Scans all stocks.
+    pub fn GetLatestPricesDate(&self) -> String {
+        let mut result = String::new();
+        for stock in &self.stocks {
+            if result.is_empty()
+                || CompareDates(&stock.last_price_date, &result) > 0
+            {
+                result = stock.last_price_date.clone();
+            }
+        }
+        result
+    }
+
+    /// Port of C++ GetPricesDateBefore.
+    pub fn GetPricesDateBefore(&self, date: &str) -> String {
+        let mut result = String::new();
+        for stock in &self.stocks {
+            let d = stock.GetPricesDateBefore(date);
+            if !d.is_empty()
+                && (result.is_empty() || CompareDates(&d, &result) > 0)
+            {
+                result = d;
+            }
+        }
+        result
+    }
+
+    /// Port of C++ GetPricesDateAfter.
+    pub fn GetPricesDateAfter(&self, date: &str) -> String {
+        let mut result = String::new();
+        for stock in &self.stocks {
+            let d = stock.GetPricesDateAfter(date);
+            if !d.is_empty()
+                && (result.is_empty() || CompareDates(&d, &result) < 0)
+            {
+                result = d;
+            }
+        }
+        result
+    }
+}
+
+impl Record for emStocksRec {
+    fn from_rec(rec: &RecStruct) -> Result<Self, RecError> {
+        let stocks = if let Some(arr) = rec.get_array("Stocks") {
+            arr.iter()
+                .filter_map(|v| {
+                    if let RecValue::Struct(s) = v {
+                        StockRec::from_rec(s).ok()
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        Ok(Self { stocks })
+    }
+
+    fn to_rec(&self) -> RecStruct {
+        let mut rec = RecStruct::new();
+        rec.SetValue(
+            "Stocks",
+            RecValue::Array(
+                self.stocks
+                    .iter()
+                    .map(|s| RecValue::Struct(s.to_rec()))
+                    .collect(),
+            ),
+        );
+        rec
+    }
+
+    fn SetToDefault(&mut self) {
+        *self = Self::default();
+    }
+
+    fn IsSetToDefault(&self) -> bool {
+        self.stocks.is_empty()
+    }
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1068,5 +1206,67 @@ mod tests {
         assert_eq!(deserialized.symbol, "TST");
         assert_eq!(deserialized.interest, Interest::High);
         assert_eq!(deserialized.web_pages, vec!["https://example.com"]);
+    }
+
+    #[test]
+    fn emstocks_rec_default() {
+        let rec = emStocksRec::default();
+        assert!(rec.stocks.is_empty());
+    }
+
+    #[test]
+    fn emstocks_rec_record_round_trip() {
+        let mut rec = emStocksRec::default();
+        let mut stock = StockRec::default();
+        stock.id = "1".to_string();
+        stock.name = "Test".to_string();
+        rec.stocks.push(stock);
+
+        let serialized = rec.to_rec();
+        let deserialized = emStocksRec::from_rec(&serialized).unwrap();
+        assert_eq!(deserialized.stocks.len(), 1);
+        assert_eq!(deserialized.stocks[0].name, "Test");
+    }
+
+    #[test]
+    fn emstocks_rec_format_name() {
+        let rec = emStocksRec::default();
+        assert_eq!(rec.GetFormatName(), "emStocks");
+    }
+
+    #[test]
+    fn emstocks_rec_invent_stock_id() {
+        let mut rec = emStocksRec::default();
+        assert_eq!(rec.InventStockId(), "1");
+
+        let mut stock = StockRec::default();
+        stock.id = "5".to_string();
+        rec.stocks.push(stock);
+        assert_eq!(rec.InventStockId(), "6");
+    }
+
+    #[test]
+    fn emstocks_rec_get_stock_index_by_id() {
+        let mut rec = emStocksRec::default();
+        let mut stock = StockRec::default();
+        stock.id = "42".to_string();
+        rec.stocks.push(stock);
+        assert_eq!(rec.GetStockIndexById("42"), Some(0));
+        assert_eq!(rec.GetStockIndexById("99"), None);
+    }
+
+    #[test]
+    fn emstocks_rec_get_latest_prices_date() {
+        let mut rec = emStocksRec::default();
+
+        let mut s1 = StockRec::default();
+        s1.last_price_date = "2024-03-14".to_string();
+        rec.stocks.push(s1);
+
+        let mut s2 = StockRec::default();
+        s2.last_price_date = "2024-03-16".to_string();
+        rec.stocks.push(s2);
+
+        assert_eq!(rec.GetLatestPricesDate(), "2024-03-16");
     }
 }
