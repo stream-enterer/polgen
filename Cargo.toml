@@ -1,35 +1,16 @@
-[package]
-name = "eaglemode-rs"
-version = "0.1.0"
-edition = "2021"
-description = "A zoomable UI framework inspired by Eagle Mode's emCore"
-license = "MIT"
+[workspace]
+members = [
+    "crates/emcore",
+    "crates/emstocks",
+    "crates/eaglemode",
+]
+resolver = "2"
 
-[lints.rust]
+[workspace.lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 
-[dev-dependencies]
-rand = "0.9"
-criterion = { version = "0.8", features = ["html_reports"] }
-gungraun = "0.17"
-
-[[bench]]
-name = "interaction"
-harness = false
-
-[[bench]]
-name = "interaction_iai"
-harness = false
-
-[[bench]]
-name = "scaled_tree"
-harness = false
-
-[[bench]]
-name = "scaled_tree_iai"
-harness = false
-
-[dependencies]
+[workspace.dependencies]
+emcore = { path = "crates/emcore" }
 bitflags = "2"
 bytemuck = { version = "1", features = ["derive"] }
 libc = "0.2.183"
@@ -41,6 +22,9 @@ slotmap = "1"
 wgpu = "28"
 winit = "0.30"
 zbus = "5"
+rand = "0.9"
+criterion = { version = "0.8", features = ["html_reports"] }
+gungraun = "0.17"
 
 [profile.release]
 lto = true

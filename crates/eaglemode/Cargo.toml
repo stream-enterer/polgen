@@ -1,0 +1,16 @@
+[package]
+name = "eaglemode"
+version = "0.1.0"
+edition = "2021"
+description = "Eagle Mode — zoomable user interface"
+
+[lints]
+workspace = true
+
+[dependencies]
+emcore = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
+criterion = { workspace = true }
+gungraun = { workspace = true }

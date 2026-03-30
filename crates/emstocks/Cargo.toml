@@ -1,0 +1,18 @@
+[package]
+name = "emstocks"
+version = "0.1.0"
+edition = "2021"
+description = "Eagle Mode emStocks — stock portfolio plugin"
+
+[lib]
+name = "emStocks"
+crate-type = ["cdylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+emcore = { workspace = true }
+
+[dev-dependencies]
+gungraun = { workspace = true }

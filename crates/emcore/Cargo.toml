@@ -1,0 +1,28 @@
+[package]
+name = "emcore"
+version = "0.1.0"
+edition = "2021"
+description = "Eagle Mode emCore — zoomable UI framework core"
+
+[lib]
+crate-type = ["dylib", "rlib"]
+
+[lints]
+workspace = true
+
+[dependencies]
+bitflags = { workspace = true }
+bytemuck = { workspace = true }
+libc = { workspace = true }
+libloading = { workspace = true }
+log = { workspace = true }
+nix = { workspace = true }
+pollster = { workspace = true }
+slotmap = { workspace = true }
+wgpu = { workspace = true }
+winit = { workspace = true }
+zbus = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
+gungraun = { workspace = true }
