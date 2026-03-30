@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::SystemTime;
 
-use crate::emCore::emSignal::SignalId;
+use crate::emSignal::SignalId;
 
 /// Loading/saving state for a file-backed model.
 ///

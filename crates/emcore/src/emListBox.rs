@@ -2,17 +2,17 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emRasterLayout::emRasterLayout;
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::emPainter;
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emRasterLayout::emRasterLayout;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::emPainter;
 
 use super::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 const ROW_HEIGHT: f64 = 17.0;
 
@@ -206,9 +206,9 @@ impl PanelBehavior for DefaultItemPanelBehavior {
             h,
             text_color,
             item_canvas,
-            crate::emCore::emPainter::TextAlignment::Left,
-            crate::emCore::emPainter::VAlign::Center,
-            crate::emCore::emPainter::TextAlignment::Left,
+            crate::emPainter::TextAlignment::Left,
+            crate::emPainter::VAlign::Center,
+            crate::emPainter::TextAlignment::Left,
             0.5,
             true,
             0.0,
@@ -1120,9 +1120,9 @@ impl emListBox {
                 item_h,
                 text_color,
                 item_canvas,
-                crate::emCore::emPainter::TextAlignment::Left,
-                crate::emCore::emPainter::VAlign::Center,
-                crate::emCore::emPainter::TextAlignment::Left,
+                crate::emPainter::TextAlignment::Left,
+                crate::emPainter::VAlign::Center,
+                crate::emPainter::TextAlignment::Left,
                 0.5,
                 true,
                 0.0,
@@ -1465,7 +1465,7 @@ impl emListBox {
             self.scroll_to_index(idx);
         } else {
             self.keywalk_chars.clear();
-            crate::emCore::emWindowPlatform::system_beep();
+            crate::emWindowPlatform::system_beep();
         }
 
         true
@@ -1656,8 +1656,8 @@ const HOWTO_TOGGLE_SELECTION: &str = "\n\n\
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;
 

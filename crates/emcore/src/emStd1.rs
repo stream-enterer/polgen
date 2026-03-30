@@ -54,13 +54,13 @@ pub fn _capture_line(line: &str) {
 #[macro_export]
 macro_rules! dlog {
     ($($arg:tt)*) => {
-        if $crate::emCore::emStd1::emIsDLogEnabled() {
+        if $crate::emStd1::emIsDLogEnabled() {
             let path = module_path!();
             // Strip crate prefix for readability
             let short = path.strip_prefix("eaglemode_rs::").unwrap_or(path);
             let msg = format!("[{}] {}", short, format_args!($($arg)*));
             eprintln!("{}", msg);
-            $crate::emCore::emStd1::_capture_line(&msg);
+            $crate::emStd1::_capture_line(&msg);
         }
     };
 }

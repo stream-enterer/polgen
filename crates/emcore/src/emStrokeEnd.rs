@@ -1,4 +1,4 @@
-use crate::emCore::emColor::emColor;
+use crate::emColor::emColor;
 
 
 /// emStroke end type matching Eagle Mode's 17 `emStrokeEnd` variants.

@@ -1,7 +1,7 @@
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::emInputEvent;
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPainter::emPainter;
+use crate::emCursor::emCursor;
+use crate::emInput::emInputEvent;
+use crate::emInputState::emInputState;
+use crate::emPainter::emPainter;
 
 use super::emPanel::{NoticeFlags, PanelBehavior, PanelState, ParentInvalidation};
 use super::emPanelTree::{PanelId, PanelTree};
@@ -144,7 +144,7 @@ impl PanelBehavior for emSubViewPanel {
 
         // Hit-test and set active panel on mouse press (mirrors parent window logic).
         if event.is_mouse_event()
-            && event.variant == crate::emCore::emInput::InputVariant::Press
+            && event.variant == crate::emInput::InputVariant::Press
         {
             let panel = self
                 .sub_view

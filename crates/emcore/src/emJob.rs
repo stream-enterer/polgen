@@ -1,4 +1,4 @@
-use crate::emCore::emSignal::SignalId;
+use crate::emSignal::SignalId;
 use super::emScheduler::EngineScheduler;
 
 /// The state of a job in the queue.

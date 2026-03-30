@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPainterInterpolation::sample_bilinear;
-use crate::emCore::emTexture::ImageExtension;
+use crate::emColor::emColor;
+use crate::emPainterInterpolation::sample_bilinear;
+use crate::emTexture::ImageExtension;
 
 /// Pack XPM symbol bytes into a u32 key for binary search.
 fn pack_symbol(bytes: &[u8], sym_size: usize) -> u32 {

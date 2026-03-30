@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use slotmap::{new_key_type, SlotMap};
 
-use crate::emCore::emSignal::SignalId;
+use crate::emSignal::SignalId;
 
 new_key_type! {
     /// Handle to a timer managed by `TimerCentral`.

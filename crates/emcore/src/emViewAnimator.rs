@@ -1,9 +1,9 @@
 use crate::dlog;
 
-use crate::emCore::emPanelTree::PanelTree;
+use crate::emPanelTree::PanelTree;
 use super::emView::{emView, ViewFlags};
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
 
 /// Trait for view animation strategies.
 pub trait emViewAnimator {
@@ -830,15 +830,15 @@ impl emVisitingViewAnimator {
     }
 
     /// Handle input during visiting animation.
-    pub fn handle_input(&mut self, event: &crate::emCore::emInput::emInputEvent) -> bool {
+    pub fn handle_input(&mut self, event: &crate::emInput::emInputEvent) -> bool {
         if !self.active {
             return false;
         }
         if self.state != VisitingState::Seek && self.state != VisitingState::GivingUp {
             return false;
         }
-        if event.key != crate::emCore::emInput::InputKey::MouseLeft
-            || event.variant != crate::emCore::emInput::InputVariant::Move
+        if event.key != crate::emInput::InputKey::MouseLeft
+            || event.variant != crate::emInput::InputVariant::Move
         {
             self.active = false;
             self.state = VisitingState::GivenUp;
@@ -848,7 +848,7 @@ impl emVisitingViewAnimator {
     }
 
     /// Paint the seek progress overlay.
-    pub fn paint_seek_overlay(&self, painter: &mut crate::emCore::emPainter::emPainter<'_>, view: &emView) {
+    pub fn paint_seek_overlay(&self, painter: &mut crate::emPainter::emPainter<'_>, view: &emView) {
         if !self.active {
             return;
         }
@@ -873,7 +873,7 @@ impl emVisitingViewAnimator {
             w,
             h,
             h * 0.2,
-            crate::emCore::emColor::emColor::rgba(0, 0, 0, 160),
+            crate::emColor::emColor::rgba(0, 0, 0, 160),
         );
         painter.PaintRoundRect(
             x,
@@ -881,7 +881,7 @@ impl emVisitingViewAnimator {
             w,
             h,
             h * 0.2,
-            crate::emCore::emColor::emColor::rgba(34, 102, 153, 208),
+            crate::emColor::emColor::rgba(34, 102, 153, 208),
         );
 
         let ch_size = h * 0.22;
@@ -893,11 +893,11 @@ impl emVisitingViewAnimator {
                 h * 0.4,
                 "Not found",
                 ch_size,
-                crate::emCore::emColor::emColor::WHITE,
-                crate::emCore::emColor::emColor::TRANSPARENT,
-                crate::emCore::emPainter::TextAlignment::Center,
-                crate::emCore::emPainter::VAlign::Center,
-                crate::emCore::emPainter::TextAlignment::Center,
+                crate::emColor::emColor::WHITE,
+                crate::emColor::emColor::TRANSPARENT,
+                crate::emPainter::TextAlignment::Center,
+                crate::emPainter::VAlign::Center,
+                crate::emPainter::TextAlignment::Center,
                 0.5,
                 false,
                 0.0,
@@ -917,11 +917,11 @@ impl emVisitingViewAnimator {
             h * 0.4,
             &seeking_text,
             ch_size,
-            crate::emCore::emColor::emColor::WHITE,
-            crate::emCore::emColor::emColor::TRANSPARENT,
-            crate::emCore::emPainter::TextAlignment::Center,
-            crate::emCore::emPainter::VAlign::Center,
-            crate::emCore::emPainter::TextAlignment::Center,
+            crate::emColor::emColor::WHITE,
+            crate::emColor::emColor::TRANSPARENT,
+            crate::emPainter::TextAlignment::Center,
+            crate::emPainter::VAlign::Center,
+            crate::emPainter::TextAlignment::Center,
             0.5,
             false,
             0.0,
@@ -954,7 +954,7 @@ impl emVisitingViewAnimator {
                 bar_y,
                 bar_w * progress,
                 bar_h,
-                crate::emCore::emColor::emColor::rgba(136, 255, 136, 80),
+                crate::emColor::emColor::rgba(136, 255, 136, 80),
                 emColor::TRANSPARENT,
             );
         }
@@ -964,7 +964,7 @@ impl emVisitingViewAnimator {
                 bar_y,
                 bar_w * (1.0 - progress),
                 bar_h,
-                crate::emCore::emColor::emColor::rgba(136, 136, 136, 80),
+                crate::emColor::emColor::rgba(136, 136, 136, 80),
                 emColor::TRANSPARENT,
             );
         }
@@ -979,11 +979,11 @@ impl emVisitingViewAnimator {
             id_h,
             &self.identity,
             id_ch,
-            crate::emCore::emColor::emColor::rgba(200, 200, 200, 180),
-            crate::emCore::emColor::emColor::TRANSPARENT,
-            crate::emCore::emPainter::TextAlignment::Center,
-            crate::emCore::emPainter::VAlign::Top,
-            crate::emCore::emPainter::TextAlignment::Center,
+            crate::emColor::emColor::rgba(200, 200, 200, 180),
+            crate::emColor::emColor::TRANSPARENT,
+            crate::emPainter::TextAlignment::Center,
+            crate::emPainter::VAlign::Top,
+            crate::emPainter::TextAlignment::Center,
             0.3,
             false,
             0.0,
@@ -998,11 +998,11 @@ impl emVisitingViewAnimator {
             abort_h,
             "Press any key to abort",
             id_ch,
-            crate::emCore::emColor::emColor::rgba(200, 200, 200, 128),
-            crate::emCore::emColor::emColor::TRANSPARENT,
-            crate::emCore::emPainter::TextAlignment::Center,
-            crate::emCore::emPainter::VAlign::Center,
-            crate::emCore::emPainter::TextAlignment::Center,
+            crate::emColor::emColor::rgba(200, 200, 200, 128),
+            crate::emColor::emColor::TRANSPARENT,
+            crate::emPainter::TextAlignment::Center,
+            crate::emPainter::VAlign::Center,
+            crate::emPainter::TextAlignment::Center,
             0.5,
             false,
             0.0,
@@ -2680,7 +2680,7 @@ impl emViewAnimator for emMagneticViewAnimator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanelTree::PanelTree;
+    use crate::emPanelTree::PanelTree;
 
     fn setup() -> (PanelTree, emView) {
         let mut tree = PanelTree::new();
@@ -2833,7 +2833,7 @@ mod tests {
         let mut anim = emVisitingViewAnimator::new(0.0, 0.0, 1.0, 5.0);
 
         // Not in seek state — should not consume
-        let event = crate::emCore::emInput::emInputEvent::press(crate::emCore::emInput::InputKey::Escape);
+        let event = crate::emInput::emInputEvent::press(crate::emInput::InputKey::Escape);
         assert!(!anim.handle_input(&event));
 
         // Set to seek state

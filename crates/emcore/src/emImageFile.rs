@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use crate::emCore::emImage::emImage;
-use crate::emCore::emFileModel::{emFileModel, FileState};
-use crate::emCore::emSignal::SignalId;
+use crate::emImage::emImage;
+use crate::emFileModel::{emFileModel, FileState};
+use crate::emSignal::SignalId;
 
 /// Data payload for an image file model.
 ///

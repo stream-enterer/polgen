@@ -1,6 +1,6 @@
 // SPLIT: Split from emRec.h — record types extracted
-pub use crate::emCore::emRec::RecError;
-use crate::emCore::emRec::RecStruct;
+pub use crate::emRec::RecError;
+use crate::emRec::RecStruct;
 
 /// A configuration record that can be serialized to/from an emRec struct.
 pub trait Record: Sized {

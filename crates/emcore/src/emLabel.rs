@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
-use crate::emCore::emImage::emImage;
-use crate::emCore::emPainter::{emPainter, TextAlignment};
+use crate::emImage::emImage;
+use crate::emPainter::{emPainter, TextAlignment};
 
 use super::emBorder::{emBorder, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 /// Non-focusable text display widget.
 ///

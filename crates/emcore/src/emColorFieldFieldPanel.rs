@@ -1,20 +1,20 @@
 // SPLIT: Split from emColorField.h — inner panel type extracted
 use std::rc::Rc;
 
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::emInputEvent;
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
-use crate::emCore::emPainter::emPainter;
+use crate::emCursor::emCursor;
+use crate::emInput::emInputEvent;
+use crate::emInputState::emInputState;
+use crate::emPanel::{NoticeFlags, PanelBehavior, PanelState};
+use crate::emPainter::emPainter;
 
 use super::emBorder::{InnerBorderType, OuterBorderType};
-use crate::emCore::emButton::emButton;
-use crate::emCore::emCheckBox::emCheckBox;
-use crate::emCore::emLabel::emLabel;
-use crate::emCore::emListBox::emListBox;
-use crate::emCore::emLook::emLook;
-use crate::emCore::emScalarField::emScalarField;
-use crate::emCore::emTextField::emTextField;
+use crate::emButton::emButton;
+use crate::emCheckBox::emCheckBox;
+use crate::emLabel::emLabel;
+use crate::emListBox::emListBox;
+use crate::emLook::emLook;
+use crate::emScalarField::emScalarField;
+use crate::emTextField::emTextField;
 
 /// PanelBehavior wrapper for emScalarField — used by emColorField expansion.
 pub(crate) struct ScalarFieldPanel {

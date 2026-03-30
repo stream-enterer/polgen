@@ -1,5 +1,5 @@
 // SPLIT: Split from emPainter.h — scanline tool functions extracted
-use crate::emCore::emColor::emColor;
+use crate::emColor::emColor;
 
 /// C++ MaxInterpolationBytesAtOnce = 1024.
 /// Buffer is always 1024 bytes; pixel count = 1024 / channel_count.
@@ -414,7 +414,7 @@ fn blend_scanline_premul_source_over(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emImage::emImage;
+    use crate::emImage::emImage;
 
     /// Build a minimal painter-like setup for testing blend equivalence.
     /// Returns (dest image data as Vec<u8>, target_width).
@@ -880,7 +880,7 @@ mod kani_private_proofs {
 
     #[kani::proof]
     fn kani_private_BlendMode_from_state() {
-        let mut p_canvas_color = crate::emCore::emColor::emColor::rgba(kani::any(), kani::any(), kani::any(), kani::any());
+        let mut p_canvas_color = crate::emColor::emColor::rgba(kani::any(), kani::any(), kani::any(), kani::any());
         let mut p_alpha: u8 = kani::any::<u8>();
         let _r = BlendMode::from_state(p_canvas_color, p_alpha);
     }

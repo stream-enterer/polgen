@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::emCore::emRec::{parse_rec, write_rec, RecError};
-use crate::emCore::emSignal::SignalId;
+use crate::emRec::{parse_rec, write_rec, RecError};
+use crate::emSignal::SignalId;
 
-use crate::emCore::emRecRecord::Record;
+use crate::emRecRecord::Record;
 
 /// A configuration record backed by a file path with emRec serialization.
 ///

@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPainter::emPainter;
+use crate::emPanel::Rect;
+use crate::emCursor::emCursor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emPanel::PanelState;
+use crate::emPainter::emPainter;
 
 use super::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 const TEXT_PADDING: f64 = 2.0;
 const TEXT_SIZE: f64 = 13.0;
@@ -2703,8 +2703,8 @@ const HOWTO_READ_ONLY: &str = "\n\n\
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;
 

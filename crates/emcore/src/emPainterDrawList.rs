@@ -1,8 +1,8 @@
-use crate::emCore::emColor::emColor;
-use crate::emCore::emImage::emImage;
+use crate::emColor::emColor;
+use crate::emImage::emImage;
 
 use super::emPainter::{TextAlignment, VAlign};
-use crate::emCore::emStroke::emStroke;
+use crate::emStroke::emStroke;
 use super::emTexture::{ImageExtension, ImageQuality, emTexture};
 
 /// A recorded drawing operation for parallel tile rendering.
@@ -848,9 +848,9 @@ impl DrawList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emColor::emColor;
-    use crate::emCore::emImage::emImage;
-    use crate::emCore::emPainter::emPainter;
+    use crate::emColor::emColor;
+    use crate::emImage::emImage;
+    use crate::emPainter::emPainter;
 
     fn images_equal(a: &[u8], b: &[u8]) -> bool {
         a == b

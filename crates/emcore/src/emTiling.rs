@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use crate::emCore::emPanelTree::PanelId;
+use crate::emPanelTree::PanelId;
 
 /// Axis orientation for layout algorithms.
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -253,8 +253,8 @@ pub(crate) fn get_constraint<'a>(
 /// panel by name, positions it using `border.get_aux_rect()`, and returns its
 /// PanelId so the layout algorithm can exclude it from normal layout.
 pub(crate) fn position_aux_panel(
-    ctx: &mut crate::emCore::emPanelCtx::PanelCtx,
-    border: &crate::emCore::emBorder::emBorder,
+    ctx: &mut crate::emPanelCtx::PanelCtx,
+    border: &crate::emBorder::emBorder,
 ) -> Option<PanelId> {
     let aux_name = border.GetAuxPanelName();
     if aux_name.is_empty() {

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
+use crate::emColor::emColor;
 
 /// Theme configuration matching emLook's 10-color system.
 #[derive(Debug, Clone, PartialEq, Eq)]

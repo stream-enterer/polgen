@@ -5,7 +5,7 @@
 //! is an 8-bit anti-aliased coverage value (0 = transparent, 255 = fully
 //! opaque foreground).
 
-use crate::emCore::emImage::emImage;
+use crate::emImage::emImage;
 use std::sync::OnceLock;
 
 const TGA_DATA: &[u8] =

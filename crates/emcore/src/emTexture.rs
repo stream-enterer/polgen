@@ -1,5 +1,5 @@
-use crate::emCore::emColor::emColor;
-use crate::emCore::emImage::emImage;
+use crate::emColor::emColor;
+use crate::emImage::emImage;
 
 /// How to extend an image beyond its bounds.
 ///

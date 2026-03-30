@@ -1,16 +1,16 @@
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPainter::{emPainter, BORDER_EDGES_ONLY};
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
+use crate::emCursor::emCursor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emPanel::PanelState;
+use crate::emPainter::{emPainter, BORDER_EDGES_ONLY};
 
 use super::emBorder::{emBorder, OuterBorderType};
-use crate::emCore::emLook::emLook;
-use crate::emCore::emBorder::with_toolkit_images;
+use crate::emLook::emLook;
+use crate::emBorder::with_toolkit_images;
 
 /// Clickable button widget.
 pub struct emButton {
@@ -442,8 +442,8 @@ const HOWTO_EOI_BUTTON: &str = "\n\n\
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;
 
@@ -601,7 +601,7 @@ mod tests {
 
     #[test]
     fn check_mouse_center_returns_true() {
-        use crate::emCore::emImage::emImage;
+        use crate::emImage::emImage;
         let look = emLook::new();
         let mut btn = emButton::new("X", look);
         // Simulate paint to cache dimensions
@@ -614,7 +614,7 @@ mod tests {
 
     #[test]
     fn check_mouse_outside_returns_false() {
-        use crate::emCore::emImage::emImage;
+        use crate::emImage::emImage;
         let look = emLook::new();
         let mut btn = emButton::new("X", look);
         let mut img = emImage::new(200, 100, 4);

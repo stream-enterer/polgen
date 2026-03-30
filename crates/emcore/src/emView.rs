@@ -3,14 +3,14 @@ use std::time::Instant;
 use bitflags::bitflags;
 use crate::dlog;
 
-use crate::emCore::emPanelCtx::PanelCtx;
+use crate::emPanelCtx::PanelCtx;
 use super::emPanelTree::{PanelId, PanelTree};
-use crate::emCore::emClipRects::ClipRects;
-use crate::emCore::emColor::emColor;
-use crate::emCore::emRec::{write_rec_with_format, RecStruct, RecValue};
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign};
+use crate::emClipRects::ClipRects;
+use crate::emColor::emColor;
+use crate::emRec::{write_rec_with_format, RecStruct, RecValue};
+use crate::emPanel::Rect;
+use crate::emCursor::emCursor;
+use crate::emPainter::{emPainter, TextAlignment, VAlign};
 
 bitflags! {
     /// Flags controlling view behavior.
@@ -1923,7 +1923,7 @@ impl emView {
     /// Search for a panel by its colon-delimited identity string.
     /// Returns `None` if not found. Matches C++ `emView::GetPanelByIdentity`.
     pub fn GetPanelByIdentity(&self, tree: &PanelTree, identity: &str) -> Option<PanelId> {
-        use crate::emCore::emPanelTree::DecodeIdentity;
+        use crate::emPanelTree::DecodeIdentity;
 
         let names = DecodeIdentity(identity);
         if names.is_empty() {
@@ -2741,7 +2741,7 @@ fn paint_highlight_arrows_on_bow(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanelTree::PanelTree;
+    use crate::emPanelTree::PanelTree;
 
     fn setup_tree() -> (PanelTree, PanelId, PanelId, PanelId) {
         let mut tree = PanelTree::new();
@@ -3341,7 +3341,7 @@ mod tests {
 
     #[test]
     fn stress_test_paint_overlay() {
-        use crate::emCore::emImage::emImage;
+        use crate::emImage::emImage;
 
         let (mut tree, root, _, _) = setup_tree();
         let mut view = emView::new(root, 800.0, 600.0);
@@ -3366,7 +3366,7 @@ mod tests {
 
     #[test]
     fn tree_dump_produces_valid_emrec() {
-        use crate::emCore::emRec::parse_rec_with_format;
+        use crate::emRec::parse_rec_with_format;
 
         let (mut tree, root, _child1, _child2) = setup_tree();
         let view = emView::new(root, 800.0, 600.0);

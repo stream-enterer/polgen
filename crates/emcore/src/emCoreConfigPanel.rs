@@ -1,23 +1,23 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use crate::emCore::emLinearLayout::emLinearLayout;
-use crate::emCore::emRasterLayout::emRasterLayout;
-use crate::emCore::emTiling::{AlignmentH, AlignmentV, ChildConstraint, Spacing};
-use crate::emCore::emConfigModel::emConfigModel;
-use crate::emCore::emCoreConfig::emCoreConfig;
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::emPainter;
+use crate::emLinearLayout::emLinearLayout;
+use crate::emRasterLayout::emRasterLayout;
+use crate::emTiling::{AlignmentH, AlignmentV, ChildConstraint, Spacing};
+use crate::emConfigModel::emConfigModel;
+use crate::emCoreConfig::emCoreConfig;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::emPainter;
 
 use super::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emButton::emButton;
-use crate::emCore::emCheckBox::emCheckBox;
+use crate::emButton::emButton;
+use crate::emCheckBox::emCheckBox;
 use super::emColorFieldFieldPanel::{ButtonPanel, CheckBoxPanel, LabelPanel, ScalarFieldPanel};
-use crate::emCore::emLabel::emLabel;
-use crate::emCore::emLook::emLook;
-use crate::emCore::emScalarField::emScalarField;
-use crate::emCore::emTunnel::emTunnel;
+use crate::emLabel::emLabel;
+use crate::emLook::emLook;
+use crate::emScalarField::emScalarField;
+use crate::emTunnel::emTunnel;
 
 // ---------------------------------------------------------------------------
 // Pure conversion functions (C++ emCoreConfigPanel.cpp factor field logic)
@@ -251,7 +251,7 @@ impl PanelBehavior for KBGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -362,7 +362,7 @@ impl PanelBehavior for MouseMiscGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -519,7 +519,7 @@ impl PanelBehavior for KineticGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -635,7 +635,7 @@ impl PanelBehavior for MaxMemGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -942,7 +942,7 @@ impl PanelBehavior for CpuGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -1090,7 +1090,7 @@ impl PanelBehavior for PerformanceGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -1261,7 +1261,7 @@ impl PanelBehavior for MouseGroup {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));
@@ -1531,7 +1531,7 @@ impl PanelBehavior for emCoreConfigPanel {
             self.create_children(ctx);
         }
 
-        let aux_id = crate::emCore::emTiling::position_aux_panel(ctx, &self.border);
+        let aux_id = crate::emTiling::position_aux_panel(ctx, &self.border);
         let r = ctx.layout_rect();
         let cr = self.border.GetContentRectUnobscured(r.w, r.h, &self.look);
         self.layout.do_layout_skip(ctx, aux_id, Some(cr));

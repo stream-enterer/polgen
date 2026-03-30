@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPanelTree::PanelId;
+use crate::emPanel::Rect;
+use crate::emPanel::{NoticeFlags, PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPanelTree::PanelId;
 
 use super::emTiling::{
     get_constraint, AlignmentH, AlignmentV, ChildConstraint, Orientation, ResolvedOrientation,
@@ -495,7 +495,7 @@ impl PanelBehavior for emLinearLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanelTree::PanelTree;
+    use crate::emPanelTree::PanelTree;
 
     fn setup_tree(n: usize) -> (PanelTree, PanelId, Vec<PanelId>) {
         let mut tree = PanelTree::new();

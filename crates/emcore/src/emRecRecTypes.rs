@@ -1,9 +1,9 @@
 // SPLIT: Split from emRec.h — record type definitions extracted
 use std::path::Path;
 
-use crate::emCore::emRec::{parse_rec, parse_rec_with_format, write_rec, write_rec_with_format, RecError, RecStruct, RecValue};
-use crate::emCore::emColor::emColor;
-use crate::emCore::emTiling::Alignment;
+use crate::emRec::{parse_rec, parse_rec_with_format, write_rec, write_rec_with_format, RecError, RecStruct, RecValue};
+use crate::emColor::emColor;
+use crate::emTiling::Alignment;
 
 // ---- RecListener ----
 

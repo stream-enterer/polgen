@@ -1,12 +1,12 @@
 use std::cell::OnceCell;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emImage::emImage;
-use crate::emCore::emLook::emLook;
-use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign, BORDER_EDGES_ONLY};
-use crate::emCore::emResTga::load_tga;
-use crate::emCore::emStroke::emStroke;
-use crate::emCore::emPanel::Rect;
+use crate::emColor::emColor;
+use crate::emImage::emImage;
+use crate::emLook::emLook;
+use crate::emPainter::{emPainter, TextAlignment, VAlign, BORDER_EDGES_ONLY};
+use crate::emResTga::load_tga;
+use crate::emStroke::emStroke;
+use crate::emPanel::Rect;
 
 /// Minimum font size in pixels — below this the text is too small to read.
 const MIN_FONT_SIZE: f64 = 4.0;
@@ -659,7 +659,7 @@ impl emBorder {
             // then scaled by f = area_h / totalH.  When f*totalW <= area_w,
             // the rect is narrowed and positioned using LabelAlignment.
             let total_w = {
-                use crate::emCore::emPainter::emPainter;
+                use crate::emPainter::emPainter;
                 let cap_tw = if has_cap {
                     let (tw, _) = emPainter::GetTextSize(&self.caption, 1.0, true, 0.0);
                     tw
@@ -1609,7 +1609,7 @@ How to move or set the focus:\n\
                             emColor::TRANSPARENT,
                             dim_color(look.fg_color),
                             emColor::TRANSPARENT,
-                            crate::emCore::emTexture::ImageExtension::EdgeOrZero,
+                            crate::emTexture::ImageExtension::EdgeOrZero,
                         );
                     } else {
                         painter.paint_image_scaled(
@@ -1618,8 +1618,8 @@ How to move or set the focus:\n\
                             icon_w,
                             icon_rect.h,
                             img,
-                            crate::emCore::emTexture::ImageQuality::Bilinear,
-                            crate::emCore::emTexture::ImageExtension::Clamp,
+                            crate::emTexture::ImageQuality::Bilinear,
+                            crate::emTexture::ImageExtension::Clamp,
                         );
                     }
                 }
@@ -1701,7 +1701,7 @@ How to move or set the focus:\n\
         pixel_scale: f64,
     ) {
         // Dimming for disabled state: C++ "GetTransparented(75.0)" = alpha * 0.25 + 0.5, truncate.
-        let dim_color = |c: crate::emCore::emColor::emColor| -> crate::emCore::emColor::emColor {
+        let dim_color = |c: crate::emColor::emColor| -> crate::emColor::emColor {
             if enabled {
                 c
             } else {
@@ -2539,7 +2539,7 @@ mod tests {
 
     #[test]
     fn disabled_dimming_alpha() {
-        use crate::emCore::emColor::emColor;
+        use crate::emColor::emColor;
         let c = emColor::rgba(100, 150, 200, 255);
         // C++ GetTransparented(75.0): alpha * 0.25 + 0.5, truncate
         let dimmed = c.SetAlpha((c.GetAlpha() as f64 * 0.25 + 0.5) as u8);
@@ -2550,7 +2550,7 @@ mod tests {
 
     #[test]
     fn with_alpha_preserves_rgb() {
-        use crate::emCore::emColor::emColor;
+        use crate::emColor::emColor;
         let c = emColor::rgb(10, 20, 30);
         let c2 = c.SetAlpha(128);
         assert_eq!(c2.GetRed(), 10);
@@ -2648,7 +2648,7 @@ mod tests {
 
     #[test]
     fn is_opaque_transparent_bg() {
-        use crate::emCore::emColor::emColor;
+        use crate::emColor::emColor;
         let mut look = test_look();
         look.bg_color = emColor::rgba(100, 100, 100, 128);
         let border = emBorder::new(OuterBorderType::Filled);

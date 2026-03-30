@@ -1,13 +1,13 @@
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emTiling::{Orientation, ResolvedOrientation};
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::{emPainter, BORDER_EDGES_ONLY};
+use crate::emCursor::emCursor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emTiling::{Orientation, ResolvedOrientation};
+use crate::emPanel::PanelState;
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::{emPainter, BORDER_EDGES_ONLY};
 
-use crate::emCore::emLook::emLook;
-use crate::emCore::emBorder::with_toolkit_images;
+use crate::emLook::emLook;
+use crate::emBorder::with_toolkit_images;
 use std::rc::Rc;
 
 /// C++ emSplitter grip base fraction before borderScaling.
@@ -287,8 +287,8 @@ impl emSplitter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
 
     fn default_panel_state() -> PanelState {

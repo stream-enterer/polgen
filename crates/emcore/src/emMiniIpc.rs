@@ -101,10 +101,10 @@ mod platform {
     use nix::sys::stat::Mode;
 
     use super::{decode_message, encode_message, MiniIpcError};
-    use crate::emCore::emEngine::{emEngine, EngineCtx, EngineId, Priority};
-    use crate::emCore::emScheduler::EngineScheduler;
-    use crate::emCore::emSignal::SignalId;
-    use crate::emCore::emTimer::TimerId;
+    use crate::emEngine::{emEngine, EngineCtx, EngineId, Priority};
+    use crate::emScheduler::EngineScheduler;
+    use crate::emSignal::SignalId;
+    use crate::emTimer::TimerId;
 
     use super::MessageCallback;
 
@@ -137,7 +137,7 @@ mod platform {
         data.push(0);
         data.extend_from_slice(server_name.as_bytes());
 
-        crate::emCore::emStd2::emCalcHashName(&data, 40)
+        crate::emStd2::emCalcHashName(&data, 40)
     }
 
     fn fifo_path(server_name: &str) -> PathBuf {

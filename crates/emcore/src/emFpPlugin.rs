@@ -2,10 +2,10 @@ use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use crate::emCore::emInstallInfo::emGetConfigDirOverloadable;
-use crate::emCore::emRec::{RecError, RecStruct, RecValue};
-use crate::emCore::emContext::emContext;
-use crate::emCore::emRecRecord::Record;
+use crate::emInstallInfo::emGetConfigDirOverloadable;
+use crate::emRec::{RecError, RecStruct, RecValue};
+use crate::emContext::emContext;
+use crate::emRecRecord::Record;
 
 // ── FpPluginProperty ────────────────────────────────────────────────
 
@@ -607,7 +607,7 @@ fn load_plugins_from_dir(dir_path: &PathBuf) -> Vec<emFpPlugin> {
 
 /// Load a single emFpPlugin from an emRec config file.
 fn load_plugin_from_file(path: &Path) -> Result<emFpPlugin, RecError> {
-    use crate::emCore::emRecRecTypes::emRecFileReader;
+    use crate::emRecRecTypes::emRecFileReader;
 
     let rec = emRecFileReader::read_with_format(path, "emFpPlugin")?;
     emFpPlugin::from_rec(&rec)

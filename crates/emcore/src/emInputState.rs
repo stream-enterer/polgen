@@ -1,7 +1,7 @@
 // SPLIT: Split from emInput.h — input state types extracted
 use std::collections::HashSet;
 
-use crate::emCore::emInput::InputKey;
+use crate::emInput::InputKey;
 
 /// Tracks the current state of all input devices.
 /// (C++ emInputState operator== / operator!= parity via PartialEq.)

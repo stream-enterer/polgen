@@ -2,10 +2,10 @@ use std::any::Any;
 use std::time::Instant;
 
 use crate::dlog;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
 
-use crate::emCore::emPanelTree::PanelTree;
+use crate::emPanelTree::PanelTree;
 use super::emView::{emView, ViewFlags};
 
 /// Trait for view input filters that intercept input before it reaches panels.
@@ -2228,8 +2228,8 @@ impl emCheatVIF {
 
             // Debug log on/off: chEat:dlog!
             "dlog" => {
-                let enabled = !crate::emCore::emStd1::emIsDLogEnabled();
-                crate::emCore::emStd1::emEnableDLog(enabled);
+                let enabled = !crate::emStd1::emIsDLogEnabled();
+                crate::emStd1::emEnableDLog(enabled);
                 eprintln!("[CheatVIF] debug log {}", if enabled { "enabled" } else { "disabled" });
             }
 
@@ -2340,7 +2340,7 @@ impl emViewInputFilter for emCheatVIF {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanelTree::PanelTree;
+    use crate::emPanelTree::PanelTree;
 
     fn setup() -> (PanelTree, emView) {
         let mut tree = PanelTree::new();
@@ -3176,16 +3176,16 @@ mod tests {
         let mut vif = emCheatVIF::new();
 
         // Ensure dlog starts disabled
-        crate::emCore::emStd1::emEnableDLog(false);
-        assert!(!crate::emCore::emStd1::emIsDLogEnabled());
+        crate::emStd1::emEnableDLog(false);
+        assert!(!crate::emStd1::emIsDLogEnabled());
 
         // Toggle dlog on via cheat
         type_cheat(&mut vif, &mut view, "chEat:dlog!");
-        assert!(crate::emCore::emStd1::emIsDLogEnabled());
+        assert!(crate::emStd1::emIsDLogEnabled());
 
         // Toggle dlog off (need full prefix since easy cheats not enabled)
         type_cheat(&mut vif, &mut view, "chEat:dlog!");
-        assert!(!crate::emCore::emStd1::emIsDLogEnabled());
+        assert!(!crate::emStd1::emIsDLogEnabled());
     }
 
     #[test]
@@ -3194,8 +3194,8 @@ mod tests {
         let root = view.GetRootPanel();
 
         // Enable dlog and start capturing
-        crate::emCore::emStd1::emEnableDLog(true);
-        crate::emCore::emStd1::start_capture();
+        crate::emStd1::emEnableDLog(true);
+        crate::emStd1::start_capture();
 
         // Trigger a known dlog call site: set_active_panel logs
         // "active panel changed to ..."
@@ -3205,8 +3205,8 @@ mod tests {
         view.Update(&mut tree);
         view.set_active_panel(&mut tree, child, false);
 
-        let lines = crate::emCore::emStd1::stop_capture();
-        crate::emCore::emStd1::emEnableDLog(false);
+        let lines = crate::emStd1::stop_capture();
+        crate::emStd1::emEnableDLog(false);
 
         // Verify captured output contains the expected call site message
         assert!(

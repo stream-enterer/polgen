@@ -6,12 +6,12 @@ use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::WindowId;
 
-use crate::emCore::emInput::{InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanelTree::PanelTree;
-use crate::emCore::emScheduler::EngineScheduler;
+use crate::emInput::{InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emPanelTree::PanelTree;
+use crate::emScheduler::EngineScheduler;
 
-use crate::emCore::emScreen::emScreen;
+use crate::emScreen::emScreen;
 use super::emWindow::{WindowFlags, ZuiWindow};
 
 /// Shared GPU resources created once and used by all windows.

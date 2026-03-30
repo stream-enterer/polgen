@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPainter::{emPainter, BORDER_EDGES_ONLY};
-use crate::emCore::emStroke::{LineCap, LineJoin, emStroke};
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
+use crate::emCursor::emCursor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emPanel::PanelState;
+use crate::emPainter::{emPainter, BORDER_EDGES_ONLY};
+use crate::emStroke::{LineCap, LineJoin, emStroke};
 
 use super::emBorder::{emBorder, OuterBorderType};
-use crate::emCore::emLook::emLook;
-use crate::emCore::emBorder::with_toolkit_images;
+use crate::emLook::emLook;
+use crate::emBorder::with_toolkit_images;
 
 /// emCheckBox widget — Margin border with ShownBoxed paint path.
 /// Matches C++ `emCheckBox` (which extends `emCheckButton` extends `emButton`).
@@ -40,7 +40,7 @@ impl emCheckBox {
             border: emBorder::new(OuterBorderType::Margin)
                 .with_caption(label)
                 .with_label_in_border(false)
-                .with_label_alignment(crate::emCore::emPainter::TextAlignment::Left)
+                .with_label_alignment(crate::emPainter::TextAlignment::Left)
                 .with_how_to(true),
             look,
             checked: false,
@@ -356,8 +356,8 @@ impl emCheckBox {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
 
     fn default_panel_state() -> PanelState {

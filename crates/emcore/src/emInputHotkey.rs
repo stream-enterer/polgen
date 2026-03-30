@@ -1,8 +1,8 @@
 // SPLIT: Split from emInput.h — hotkey types extracted
 use std::fmt;
 
-use crate::emCore::emInput::InputKey;
-use crate::emCore::emInputState::emInputState;
+use crate::emInput::InputKey;
+use crate::emInputState::emInputState;
 
 /// A hotkey is a modifier+key combination.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

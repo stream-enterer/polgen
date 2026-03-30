@@ -1,14 +1,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::emCore::emInstallInfo::{emGetInstallPath, InstallDirType};
-use crate::emCore::emRec::{RecError, RecStruct};
-use crate::emCore::emConfigModel::emConfigModel;
-use crate::emCore::emContext::emContext;
-use crate::emCore::emRecRecord::Record;
+use crate::emInstallInfo::{emGetInstallPath, InstallDirType};
+use crate::emRec::{RecError, RecStruct};
+use crate::emConfigModel::emConfigModel;
+use crate::emContext::emContext;
+use crate::emRecRecord::Record;
 use slotmap::Key as _;
 
-use crate::emCore::emSignal::SignalId;
+use crate::emSignal::SignalId;
 
 /// Toolkit-wide configuration settings.
 ///

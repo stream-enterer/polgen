@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-use crate::emCore::emClipboard::emClipboard;
+use crate::emClipboard::emClipboard;
 
 /// Key for the model registry: (concrete type, name).
 ///

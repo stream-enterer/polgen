@@ -1,15 +1,15 @@
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign};
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
+use crate::emCursor::emCursor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emPanel::PanelState;
+use crate::emPainter::{emPainter, TextAlignment, VAlign};
 
 use super::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 /// Default text formatter: decimal representation of the value.
 /// The `mark_interval` parameter is ignored by the default.
@@ -743,8 +743,8 @@ impl emScalarField {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;
 

@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use crate::emCore::emRec::RecStruct;
-use crate::emCore::emConfigModel::emConfigModel;
-use crate::emCore::emRec::RecError;
-use crate::emCore::emRecRecord::Record;
-use crate::emCore::emSignal::SignalId;
+use crate::emRec::RecStruct;
+use crate::emConfigModel::emConfigModel;
+use crate::emRec::RecError;
+use crate::emRecRecord::Record;
+use crate::emSignal::SignalId;
 
 /// Persisted window geometry.
 #[derive(Clone, Debug, PartialEq)]
@@ -98,7 +98,7 @@ impl emWindowStateSaver {
     /// When maximized or fullscreen, the last normal-mode geometry is
     /// preserved (matching C++ emWindowStateSaver::Save behavior).
     pub fn Save(&mut self, window: &super::emWindow::ZuiWindow) {
-        use crate::emCore::emWindow::WindowFlags;
+        use crate::emWindow::WindowFlags;
 
         let pos = window.winit_window.outer_position().unwrap_or_default();
         let size = window.winit_window.inner_size();
@@ -129,7 +129,7 @@ impl emWindowStateSaver {
     }
 
     pub fn Cycle(&mut self, window: &super::emWindow::ZuiWindow, focused: bool) {
-        use crate::emCore::emWindow::WindowFlags;
+        use crate::emWindow::WindowFlags;
 
         let pos = window.winit_window.outer_position().unwrap_or_default();
         let size = window.winit_window.inner_size();

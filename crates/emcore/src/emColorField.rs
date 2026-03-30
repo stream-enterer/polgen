@@ -1,17 +1,17 @@
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emRasterLayout::emRasterLayout;
-use crate::emCore::emTiling::{AlignmentH, AlignmentV, Spacing};
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign};
+use crate::emColor::emColor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emRasterLayout::emRasterLayout;
+use crate::emTiling::{AlignmentH, AlignmentV, Spacing};
+use crate::emPanel::PanelState;
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::{emPainter, TextAlignment, VAlign};
 
 use super::emBorder::{emBorder, InnerBorderType, OuterBorderType};
 use super::emColorFieldFieldPanel::{ScalarFieldPanel, TextFieldPanel};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 /// Expansion child panels for color editing.
 ///
@@ -445,7 +445,7 @@ impl emColorField {
         // Paint rect outline (C++ PaintRectOutline, emColorField.cpp:400-403).
         let thickness = d * 0.08;
         if thickness > 0.0 {
-            let stroke = crate::emCore::emStroke::emStroke::new(
+            let stroke = crate::emStroke::emStroke::new(
                 self.look.input_fg_color,
                 thickness,
             );
@@ -540,8 +540,8 @@ impl emColorField {
         let hue_intervals: &[u64] = &[6000, 1500, 500, 100];
 
         // Helper: create a percent-valued emScalarField child.
-        let create_pct_sf = |tree: &mut crate::emCore::emPanelTree::PanelTree,
-                             parent: crate::emCore::emPanelTree::PanelId,
+        let create_pct_sf = |tree: &mut crate::emPanelTree::PanelTree,
+                             parent: crate::emPanelTree::PanelId,
                              name: &str,
                              caption: &str,
                              value: i64| {

@@ -2,13 +2,13 @@ use std::any::Any;
 
 use bitflags::bitflags;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::emInputEvent;
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPainter::emPainter;
+use crate::emColor::emColor;
+use crate::emCursor::emCursor;
+use crate::emInput::emInputEvent;
+use crate::emInputState::emInputState;
+use crate::emPainter::emPainter;
 
-use crate::emCore::emPanelCtx::PanelCtx;
+use crate::emPanelCtx::PanelCtx;
 use super::emPanelTree::{PanelId, PlaybackState};
 
 // RUST_ONLY: rect.rs -- Consolidates C++ pattern of passing 4 separate
@@ -151,7 +151,7 @@ impl PanelState {
     /// Useful for unit tests that call widget `input()` methods directly
     /// without the full panel framework.
     pub fn default_for_test() -> Self {
-        use crate::emCore::emPanelTree::PanelId;
+        use crate::emPanelTree::PanelId;
         use slotmap::Key as _;
         Self {
             id: PanelId::null(),

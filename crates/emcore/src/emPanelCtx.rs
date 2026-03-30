@@ -1,8 +1,8 @@
 // SPLIT: Split from emPanel.h — panel context types extracted
-use crate::emCore::emPanel::PanelBehavior;
+use crate::emPanel::PanelBehavior;
 use super::emPanelTree::{PanelId, PanelTree};
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
 
 /// Panel context — provides a scoped API for a panel to interact with the tree.
 ///

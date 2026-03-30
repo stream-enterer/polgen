@@ -1,10 +1,10 @@
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::emPainter;
-use crate::emCore::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::emPainter;
+use crate::emBorder::{emBorder, InnerBorderType, OuterBorderType};
+use crate::emLook::emLook;
 
-use crate::emCore::emLinearLayout::emLinearLayout;
+use crate::emLinearLayout::emLinearLayout;
 
 /// emLinearGroup: a emLinearLayout that also paints a border and is focusable.
 /// Replicates C++ emLinearGroup which inherits from emLinearLayout (which

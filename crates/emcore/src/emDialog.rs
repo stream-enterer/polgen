@@ -1,14 +1,14 @@
 use std::rc::Rc;
 
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::emPainter;
+use crate::emPanel::Rect;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emPanel::PanelState;
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::emPainter;
 
 use super::emBorder::{emBorder, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 /// Result of a dialog interaction.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -224,8 +224,8 @@ impl emDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
     use std::cell::RefCell;
 

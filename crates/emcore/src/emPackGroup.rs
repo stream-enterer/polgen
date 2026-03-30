@@ -1,10 +1,10 @@
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::emPainter;
-use crate::emCore::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emLook::emLook;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::emPainter;
+use crate::emBorder::{emBorder, InnerBorderType, OuterBorderType};
+use crate::emLook::emLook;
 
-use crate::emCore::emPackLayout::emPackLayout;
+use crate::emPackLayout::emPackLayout;
 
 /// emPackGroup wraps emPackLayout with border painting and focusable support.
 pub struct emPackGroup {

@@ -1,10 +1,10 @@
-use crate::emCore::emColor::emColor;
-use crate::emCore::emImage::emImage;
-use crate::emCore::emPanelTree::PanelTree;
-use crate::emCore::emView::emView;
+use crate::emColor::emColor;
+use crate::emImage::emImage;
+use crate::emPanelTree::PanelTree;
+use crate::emView::emView;
 
-use crate::emCore::emPainterDrawList::DrawList;
-use crate::emCore::emRenderThreadPool::emRenderThreadPool;
+use crate::emPainterDrawList::DrawList;
+use crate::emRenderThreadPool::emRenderThreadPool;
 use super::emPainter::emPainter;
 
 pub struct SoftwareCompositor {

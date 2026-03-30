@@ -1,9 +1,9 @@
 // SPLIT: Split from emPainter.h — interpolation routines extracted
 use std::sync::OnceLock;
 
-use crate::emCore::emTexture::ImageExtension;
-use crate::emCore::emColor::emColor;
-use crate::emCore::emImage::emImage;
+use crate::emTexture::ImageExtension;
+use crate::emColor::emColor;
+use crate::emImage::emImage;
 
 /// Interpolation quality for image sampling.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -1199,7 +1199,7 @@ pub(crate) fn interpolate_scanline_area_sampled(
     xfm: &AreaSampleTransform,
     sec: &SectionBounds,
     ext: ImageExtension,
-    buf: &mut crate::emCore::emPainterScanlineTool::InterpolationBuffer,
+    buf: &mut crate::emPainterScanlineTool::InterpolationBuffer,
 ) {
     match image.GetChannelCount() {
         4 => interpolate_scanline_area_inner::<4>(image, dest_x_start, dest_y, count, xfm, sec, ext, buf),
@@ -1346,7 +1346,7 @@ fn interpolate_scanline_area_inner<const CH: usize>(
     xfm: &AreaSampleTransform,
     sec: &SectionBounds,
     ext: ImageExtension,
-    buf: &mut crate::emCore::emPainterScanlineTool::InterpolationBuffer,
+    buf: &mut crate::emPainterScanlineTool::InterpolationBuffer,
 ) {
     // --- Y setup (hoisted out of per-pixel loop) ---
     let mut ty1 = dest_y as i64 * xfm.tdy - xfm.ty;
@@ -1578,7 +1578,7 @@ pub(crate) fn interpolate_scanline_adaptive_premul(
     count: usize,
     sxfm: &ScaleTransform24,
     ext: ImageExtension,
-    buf: &mut crate::emCore::emPainterScanlineTool::InterpolationBuffer,
+    buf: &mut crate::emPainterScanlineTool::InterpolationBuffer,
 ) {
     for i in 0..count {
         let col = dest_x_start + i as i32;
@@ -1602,7 +1602,7 @@ pub(crate) fn interpolate_scanline_adaptive_premul_section(
     sxfm: &ScaleTransform24,
     sec: &SectionBounds,
     ext: ImageExtension,
-    buf: &mut crate::emCore::emPainterScanlineTool::InterpolationBuffer,
+    buf: &mut crate::emPainterScanlineTool::InterpolationBuffer,
 ) {
     for i in 0..count {
         let col = dest_x_start + i as i32;
@@ -1625,7 +1625,7 @@ pub(crate) fn interpolate_scanline_nearest(
     count: usize,
     sxfm: &ScaleTransform24,
     ext: ImageExtension,
-    buf: &mut crate::emCore::emPainterScanlineTool::InterpolationBuffer,
+    buf: &mut crate::emPainterScanlineTool::InterpolationBuffer,
 ) {
     // ty is constant for the whole row
     let ty = (dest_y - py) as i64 * sxfm.tdy + sxfm.base_y;
@@ -1976,7 +1976,7 @@ mod tests {
         // Extract premul values directly from the accumulation for comparison.
         // Use the scanline function on single pixels as the reference.
         let mut ref_pixels = Vec::new();
-        let mut buf_single = crate::emCore::emPainterScanlineTool::InterpolationBuffer::new(4);
+        let mut buf_single = crate::emPainterScanlineTool::InterpolationBuffer::new(4);
         for dest_y in 0..4 {
             for dest_x in 0..4 {
                 interpolate_scanline_area_sampled(&img, dest_x, dest_y, 1, &xfm, &sec, ext, &mut buf_single);
@@ -1985,7 +1985,7 @@ mod tests {
         }
 
         // Scanline version: one row at a time
-        let mut buf = crate::emCore::emPainterScanlineTool::InterpolationBuffer::new(4);
+        let mut buf = crate::emPainterScanlineTool::InterpolationBuffer::new(4);
         let mut scan_pixels = Vec::new();
         for dest_y in 0..4 {
             interpolate_scanline_area_sampled(&img, 0, dest_y, 4, &xfm, &sec, ext, &mut buf);
@@ -2017,7 +2017,7 @@ mod tests {
             }
         }
 
-        let mut buf = crate::emCore::emPainterScanlineTool::InterpolationBuffer::new(4);
+        let mut buf = crate::emPainterScanlineTool::InterpolationBuffer::new(4);
         let mut scan_pixels = Vec::new();
         for dest_y in 0..3 {
             interpolate_scanline_area_sampled(&img, 0, dest_y, 3, &xfm, &sec, ext, &mut buf);
@@ -2060,7 +2060,7 @@ mod tests {
             }
         }
 
-        let mut buf = crate::emCore::emPainterScanlineTool::InterpolationBuffer::new(4);
+        let mut buf = crate::emPainterScanlineTool::InterpolationBuffer::new(4);
         let mut scan_pixels = Vec::new();
         for dest_y in 0..3 {
             interpolate_scanline_area_sampled(&img, 0, dest_y, 3, &xfm, &sec, ext, &mut buf);
@@ -2116,7 +2116,7 @@ mod tests {
         assert_eq!(c, emColor::TRANSPARENT);
 
         // Scanline version
-        let mut buf = crate::emCore::emPainterScanlineTool::InterpolationBuffer::new(4);
+        let mut buf = crate::emPainterScanlineTool::InterpolationBuffer::new(4);
         interpolate_scanline_area_sampled(
             &img,
             0,

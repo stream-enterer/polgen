@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPanelTree::PanelId;
+use crate::emPanel::Rect;
+use crate::emPanel::{NoticeFlags, PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPanelTree::PanelId;
 
 use super::emTiling::{get_constraint, ChildConstraint, Spacing};
 
@@ -588,7 +588,7 @@ fn split_rect_v(rect: PackRect, ratio: f64) -> (PackRect, PackRect) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanelTree::PanelTree;
+    use crate::emPanelTree::PanelTree;
 
     fn setup(n: usize, w: f64, h: f64) -> (PanelTree, PanelId, Vec<PanelId>) {
         let mut tree = PanelTree::new();
@@ -633,7 +633,7 @@ mod tests {
         // Normalized rect is (0,0,1.0,0.75). sx=1.0/2=0.5, sy=0.75/2=0.375
         // actual_ml=0.25, actual_mt=0.1875, content_w=0.5, content_h=0.375
         let (mut tree, root, children) = setup(1, 400.0, 300.0);
-        let mut layout = emPackLayout::new().with_spacing(crate::emCore::emTiling::Spacing::uniform(0.5, 0.0));
+        let mut layout = emPackLayout::new().with_spacing(crate::emTiling::Spacing::uniform(0.5, 0.0));
         layout.do_layout(&mut PanelCtx::new(&mut tree, root));
 
         let r = tree.GetRec(children[0]).unwrap().layout_rect;

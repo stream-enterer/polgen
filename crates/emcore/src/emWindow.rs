@@ -2,20 +2,20 @@ use std::sync::Arc;
 
 use bitflags::bitflags;
 
-use crate::emCore::emImage::emImage;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emViewInputFilter::{CheatAction, emCheatVIF, emKeyboardZoomScrollVIF, emMouseZoomScrollVIF, emViewInputFilter};
-use crate::emCore::emPanelTree::{PanelId, PanelTree};
-use crate::emCore::emView::emView;
-use crate::emCore::emViewAnimator::emViewAnimator;
-use crate::emCore::emRenderThreadPool::emRenderThreadPool;
-use crate::emCore::emViewRendererCompositor::WgpuCompositor;
-use crate::emCore::emViewRendererTileCache::TileCache;
-use crate::emCore::emSignal::SignalId;
+use crate::emImage::emImage;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emViewInputFilter::{CheatAction, emCheatVIF, emKeyboardZoomScrollVIF, emMouseZoomScrollVIF, emViewInputFilter};
+use crate::emPanelTree::{PanelId, PanelTree};
+use crate::emView::emView;
+use crate::emViewAnimator::emViewAnimator;
+use crate::emRenderThreadPool::emRenderThreadPool;
+use crate::emViewRendererCompositor::WgpuCompositor;
+use crate::emViewRendererTileCache::TileCache;
+use crate::emSignal::SignalId;
 
-use crate::emCore::emGUIFramework::GpuContext;
-use crate::emCore::emScreen::emScreen;
+use crate::emGUIFramework::GpuContext;
+use crate::emScreen::emScreen;
 
 bitflags! {
     #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -44,7 +44,7 @@ pub struct ZuiWindow {
     /// Pre-allocated viewport-sized buffer for single-pass rendering.
     /// Used when many tiles are dirty (e.g. during panning) to avoid
     /// redundant tree walks and primitive rasterization across tiles.
-    viewport_buffer: crate::emCore::emImage::emImage,
+    viewport_buffer: crate::emImage::emImage,
     pub flags: WindowFlags,
     pub close_signal: SignalId,
     pub flags_signal: SignalId,
@@ -129,7 +129,7 @@ impl ZuiWindow {
 
         let compositor = WgpuCompositor::new(&gpu.device, format, w, h);
         let tile_cache = TileCache::new(w, h, 256);
-        let viewport_buffer = crate::emCore::emImage::emImage::new(w, h, 4);
+        let viewport_buffer = crate::emImage::emImage::new(w, h, 4);
         let view = emView::new(root_panel, w as f64, h as f64);
 
         // Create control tree with a root panel
@@ -172,7 +172,7 @@ impl ZuiWindow {
             flags_changed: false,
             wm_res_name: String::from("eaglemode-rs"),
             render_pool: emRenderThreadPool::new(
-                crate::emCore::emCoreConfig::emCoreConfig::default().max_render_threads,
+                crate::emCoreConfig::emCoreConfig::default().max_render_threads,
             ),
             control_tree,
             control_view,
@@ -185,7 +185,7 @@ impl ZuiWindow {
     pub fn resize(
         &mut self,
         gpu: &GpuContext,
-        tree: &mut crate::emCore::emPanelTree::PanelTree,
+        tree: &mut crate::emPanelTree::PanelTree,
         width: u32,
         height: u32,
     ) {
@@ -248,11 +248,11 @@ impl ZuiWindow {
     }
 
     /// Render a frame: paint dirty tiles on CPU, upload to GPU, composite.
-    pub fn render(&mut self, tree: &mut crate::emCore::emPanelTree::PanelTree, gpu: &GpuContext) {
-        use crate::emCore::emPainter::emPainter;
+    pub fn render(&mut self, tree: &mut crate::emPanelTree::PanelTree, gpu: &GpuContext) {
+        use crate::emPainter::emPainter;
 
         let (cols, rows) = self.tile_cache.grid_size();
-        let tile_size = crate::emCore::emViewRendererTileCache::TILE_SIZE;
+        let tile_size = crate::emViewRendererTileCache::TILE_SIZE;
 
         // Count dirty tiles to choose rendering strategy.
         let mut dirty_count = 0u32;
@@ -268,7 +268,7 @@ impl ZuiWindow {
             // Many dirty tiles (e.g. panning): paint into viewport-sized buffer
             // once, then copy tile-sized chunks. Avoids redundant tree walks and
             // re-rasterization of primitives across tiles.
-            self.viewport_buffer.fill(crate::emCore::emColor::emColor::BLACK);
+            self.viewport_buffer.fill(crate::emColor::emColor::BLACK);
             let ctrl_height = self.control_strip_height;
             let content_h = self.content_height() as f64;
             let ctrl_root = self.control_view.GetRootPanel();
@@ -314,7 +314,7 @@ impl ZuiWindow {
                 for col in 0..cols {
                     let tile = self.tile_cache.get_or_create(col, row);
                     if tile.dirty {
-                        tile.image.fill(crate::emCore::emColor::emColor::BLACK);
+                        tile.image.fill(crate::emColor::emColor::BLACK);
                         {
                             let mut painter = emPainter::new(&mut tile.image);
                             let ts = tile_size as f64;
@@ -373,15 +373,15 @@ impl ZuiWindow {
     /// Phase 3 (single-threaded): Upload rendered tiles to GPU.
     fn render_parallel(
         &mut self,
-        tree: &mut crate::emCore::emPanelTree::PanelTree,
+        tree: &mut crate::emPanelTree::PanelTree,
         gpu: &GpuContext,
         cols: u32,
         rows: u32,
         tile_size: u32,
     ) {
-        use crate::emCore::emColor::emColor;
-        use crate::emCore::emPainterDrawList::DrawList;
-        use crate::emCore::emPainter::emPainter;
+        use crate::emColor::emColor;
+        use crate::emPainterDrawList::DrawList;
+        use crate::emPainter::emPainter;
 
         let vp_w = self.surface_config.width;
         let vp_h = self.surface_config.height;
@@ -422,7 +422,7 @@ impl ZuiWindow {
         // Phase 2: Parallel replay into tile buffers.
         let ts = tile_size as f64;
         let draw_list_ref = &draw_list;
-        let results: Vec<std::sync::Mutex<Option<crate::emCore::emImage::emImage>>> = dirty_tiles
+        let results: Vec<std::sync::Mutex<Option<crate::emImage::emImage>>> = dirty_tiles
             .iter()
             .map(|_| std::sync::Mutex::new(None))
             .collect();
@@ -432,7 +432,7 @@ impl ZuiWindow {
         self.render_pool.CallParallel(
             |idx| {
                 let (col, row) = dirty_ref[idx];
-                let mut buffer = crate::emCore::emImage::emImage::new(tile_size, tile_size, 4);
+                let mut buffer = crate::emImage::emImage::new(tile_size, tile_size, 4);
                 buffer.fill(emColor::BLACK);
                 {
                     let mut painter = emPainter::new(&mut buffer);
@@ -1004,7 +1004,7 @@ impl ZuiWindow {
     /// dirty. `x1`/`y1` are inclusive, `x2`/`y2` are exclusive — matching the
     /// `ClipRect` convention.
     pub fn mark_dirty_rect(&mut self, x1: f64, y1: f64, x2: f64, y2: f64) {
-        use crate::emCore::emViewRendererTileCache::TILE_SIZE;
+        use crate::emViewRendererTileCache::TILE_SIZE;
 
         let ts = TILE_SIZE as f64;
         let (cols, rows) = self.tile_cache.grid_size();

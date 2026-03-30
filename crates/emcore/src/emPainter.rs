@@ -1,15 +1,15 @@
 use std::sync::OnceLock;
 
 use super::emFontCacheBitmapFont;
-use crate::emCore::emPainterDrawList::DrawOp;
+use crate::emPainterDrawList::DrawOp;
 use super::emFontCache;
 use super::emPainterInterpolation;
 use super::emPainterScanline::{self, WindingRule};
 use super::emPainterScanlineTool::{blend_scanline, blend_scanline_premul, BlendMode, InterpolationBuffer};
 use super::emStroke::{emStroke, emStrokeEnd, StrokeEndType};
 use super::emTexture::{ImageExtension, ImageQuality, emTexture};
-use crate::emCore::emColor::{blend_hash_lookup, emColor};
-use crate::emCore::emImage::emImage;
+use crate::emColor::{blend_hash_lookup, emColor};
+use crate::emImage::emImage;
 
 /// Base multiplier for decoration size.
 const ARROW_BASE_SIZE: f64 = 10.0;
@@ -3354,7 +3354,7 @@ impl<'a> emPainter<'a> {
             closed,
             canvas_color,
         }) else { return; };
-        use crate::emCore::emStroke::DashType;
+        use crate::emStroke::DashType;
 
         if vertices.len() < 2 || stroke.width <= 0.0 {
             self.PaintSolidPolyline(vertices, stroke, closed, canvas_color);
@@ -3466,7 +3466,7 @@ impl<'a> emPainter<'a> {
         stroke: &emStroke,
         closed: bool,
     ) {
-        use crate::emCore::emStroke::DashType;
+        use crate::emStroke::DashType;
 
         const MAX_DASHES: f64 = 1e5;
 
@@ -6141,7 +6141,7 @@ fn tessellate_cubic_cpp(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emImage::emImage;
+    use crate::emImage::emImage;
 
     fn make_painter<'a>(target: &'a mut emImage) -> emPainter<'a> {
         emPainter::new(target)
@@ -6382,15 +6382,15 @@ mod tests {
     /// correctness: if replay matches direct, then parallel replay also matches.
     #[test]
     fn draw_list_replay_matches_direct() {
-        use crate::emCore::emPainterDrawList::DrawList;
-        use crate::emCore::emRenderThreadPool::emRenderThreadPool;
+        use crate::emPainterDrawList::DrawList;
+        use crate::emRenderThreadPool::emRenderThreadPool;
 
         let w = 64u32;
         let h = 64u32;
 
         // --- Direct rendering (single-threaded, no recording) ---
         let mut direct_img = emImage::new(w, h, 4);
-        direct_img.fill(crate::emCore::emColor::emColor::BLACK);
+        direct_img.fill(crate::emColor::emColor::BLACK);
         {
             let mut p = emPainter::new(&mut direct_img);
             draw_test_scene(&mut p);
@@ -6403,7 +6403,7 @@ mod tests {
             draw_test_scene(&mut rec);
         }
         let mut replay_img = emImage::new(w, h, 4);
-        replay_img.fill(crate::emCore::emColor::emColor::BLACK);
+        replay_img.fill(crate::emColor::emColor::BLACK);
         {
             let mut p = emPainter::new(&mut replay_img);
             draw_list.replay(&mut p, (0.0, 0.0));
@@ -6438,7 +6438,7 @@ mod tests {
                 |idx| {
                     let (col, row) = tiles_ref[idx];
                     let mut buf = emImage::new(tile_size, tile_size, 4);
-                    buf.fill(crate::emCore::emColor::emColor::BLACK);
+                    buf.fill(crate::emColor::emColor::BLACK);
                     {
                         let mut p = emPainter::new(&mut buf);
                         draw_list_ref.replay(&mut p, (col as f64 * ts, row as f64 * ts));
@@ -6450,7 +6450,7 @@ mod tests {
 
             // Reconstruct the full image from tiles
             let mut composed = emImage::new(w, h, 4);
-            composed.fill(crate::emCore::emColor::emColor::BLACK);
+            composed.fill(crate::emColor::emColor::BLACK);
             for (idx, (col, row)) in tiles.iter().enumerate() {
                 let tile_buf = results[idx].lock().unwrap();
                 let tile = tile_buf.as_ref().unwrap();

@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use crate::emCore::emContext::emContext;
-use crate::emCore::emSignal::SignalId;
+use crate::emContext::emContext;
+use crate::emSignal::SignalId;
 
 /// Information about a physical monitor.
 #[derive(Clone, Debug)]
@@ -215,7 +215,7 @@ impl emScreen {
         >,
         except: Option<winit::window::WindowId>,
     ) {
-        use crate::emCore::emWindow::WindowFlags;
+        use crate::emWindow::WindowFlags;
 
         for (id, win) in windows.iter_mut() {
             if win.flags.contains(WindowFlags::FULLSCREEN) && Some(*id) != except {

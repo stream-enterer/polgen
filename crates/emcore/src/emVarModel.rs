@@ -1,4 +1,4 @@
-use crate::emCore::emSignal::SignalId;
+use crate::emSignal::SignalId;
 
 /// An observable value that tracks whether it changed on set.
 ///

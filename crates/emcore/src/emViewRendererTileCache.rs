@@ -1,5 +1,5 @@
 // SPLIT: Split from emViewRenderer.h — tile cache extracted
-use crate::emCore::emImage::emImage;
+use crate::emImage::emImage;
 
 /// Size of each tile in pixels.
 pub const TILE_SIZE: u32 = 256;

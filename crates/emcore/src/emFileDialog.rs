@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use super::emDialog::{emDialog, DialogResult};
-use crate::emCore::emFileSelectionBox::emFileSelectionBox;
-use crate::emCore::emLook::emLook;
+use crate::emFileSelectionBox::emFileSelectionBox;
+use crate::emLook::emLook;
 
 /// Mode of the file dialog.
 ///

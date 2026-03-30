@@ -3,19 +3,19 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use crate::dlog;
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPanelTree::PanelId;
-use crate::emCore::emPainter::emPainter;
-use crate::emCore::emStroke::emStroke;
+use crate::emColor::emColor;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPanelTree::PanelId;
+use crate::emPainter::emPainter;
+use crate::emStroke::emStroke;
 
 use super::emBorder::{emBorder, InnerBorderType, OuterBorderType};
-use crate::emCore::emCheckBox::emCheckBox;
+use crate::emCheckBox::emCheckBox;
 use super::emColorFieldFieldPanel::{CheckBoxPanel, ListBoxPanel, TextFieldPanel};
 use super::emListBox::{emListBox, SelectionMode};
-use crate::emCore::emLook::emLook;
-use crate::emCore::emTextField::emTextField;
+use crate::emLook::emLook;
+use crate::emTextField::emTextField;
 
 /// Data associated with each file entry in the listing.
 #[derive(Clone, Debug)]
@@ -138,9 +138,9 @@ impl PanelBehavior for FileItemPanelBehavior {
                 nh * w,
                 text_color,
                 canvas_color,
-                crate::emCore::emPainter::TextAlignment::Center,
-                crate::emCore::emPainter::VAlign::Center,
-                crate::emCore::emPainter::TextAlignment::Center,
+                crate::emPainter::TextAlignment::Center,
+                crate::emPainter::VAlign::Center,
+                crate::emPainter::TextAlignment::Center,
                 0.5,
                 true,
                 0.0,
@@ -202,9 +202,9 @@ impl PanelBehavior for FileItemPanelBehavior {
                     fh * w,
                     pd_color,
                     emColor::TRANSPARENT,
-                    crate::emCore::emPainter::TextAlignment::Center,
-                    crate::emCore::emPainter::VAlign::Center,
-                    crate::emCore::emPainter::TextAlignment::Center,
+                    crate::emPainter::TextAlignment::Center,
+                    crate::emPainter::VAlign::Center,
+                    crate::emPainter::TextAlignment::Center,
                     0.5,
                     true,
                     0.0,

@@ -1,7 +1,7 @@
-use crate::emCore::emColor::emColor;
-use crate::emCore::emFileModel::FileState;
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign};
+use crate::emColor::emColor;
+use crate::emFileModel::FileState;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPainter::{emPainter, TextAlignment, VAlign};
 
 /// Extended file state for a file panel, adding custom error and no-model states.
 ///

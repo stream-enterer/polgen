@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPainter::emPainter;
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
+use crate::emPanel::{NoticeFlags, PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPainter::emPainter;
 
 use super::emBorder::{emBorder, OuterBorderType, with_toolkit_images};
-use crate::emCore::emLook::emLook;
+use crate::emLook::emLook;
 
 /// A panel that creates a visual tunnel/zoom corridor to a child panel.
 ///

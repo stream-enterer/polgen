@@ -1,19 +1,19 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emCursor::emCursor;
-use crate::emCore::emInput::{emInputEvent, InputKey, InputVariant};
-use crate::emCore::emInputState::emInputState;
-use crate::emCore::emLinearLayout::emLinearLayout;
-use crate::emCore::emRasterLayout::emRasterLayout;
-use crate::emCore::emPanel::PanelState;
-use crate::emCore::emPainter::{emPainter, BORDER_EDGES_ONLY};
+use crate::emColor::emColor;
+use crate::emPanel::Rect;
+use crate::emCursor::emCursor;
+use crate::emInput::{emInputEvent, InputKey, InputVariant};
+use crate::emInputState::emInputState;
+use crate::emLinearLayout::emLinearLayout;
+use crate::emRasterLayout::emRasterLayout;
+use crate::emPanel::PanelState;
+use crate::emPainter::{emPainter, BORDER_EDGES_ONLY};
 
 use super::emBorder::{emBorder, OuterBorderType};
-use crate::emCore::emLook::emLook;
-use crate::emCore::emBorder::with_toolkit_images;
+use crate::emLook::emLook;
+use crate::emBorder::with_toolkit_images;
 
 /// Shared state for a group of radio buttons enforcing mutual exclusion.
 ///
@@ -624,8 +624,8 @@ impl Drop for emRadioButton {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanel::Rect;
-    use crate::emCore::emPanelTree::PanelId;
+    use crate::emPanel::Rect;
+    use crate::emPanelTree::PanelId;
     use slotmap::Key as _;
 
     fn default_panel_state() -> PanelState {

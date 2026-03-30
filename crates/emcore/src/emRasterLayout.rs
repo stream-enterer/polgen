@@ -1,7 +1,7 @@
-use crate::emCore::emPanel::Rect;
-use crate::emCore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
-use crate::emCore::emPanelCtx::PanelCtx;
-use crate::emCore::emPanelTree::PanelId;
+use crate::emPanel::Rect;
+use crate::emPanel::{NoticeFlags, PanelBehavior, PanelState};
+use crate::emPanelCtx::PanelCtx;
+use crate::emPanelTree::PanelId;
 
 use super::emTiling::{AlignmentH, AlignmentV, Spacing};
 
@@ -345,7 +345,7 @@ impl PanelBehavior for emRasterLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::emCore::emPanelTree::{PanelId, PanelTree};
+    use crate::emPanelTree::{PanelId, PanelTree};
 
     fn setup(n: usize, w: f64, h: f64) -> (PanelTree, PanelId, Vec<PanelId>) {
         let mut tree = PanelTree::new();

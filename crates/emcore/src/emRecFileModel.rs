@@ -2,10 +2,10 @@ use std::mem::size_of;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use crate::emCore::emRec::{parse_rec, write_rec};
+use crate::emRec::{parse_rec, write_rec};
 
-use crate::emCore::emFileModel::FileState;
-use crate::emCore::emRecRecord::Record;
+use crate::emFileModel::FileState;
+use crate::emRecRecord::Record;
 
 /// A file-backed model that loads and saves a `Record`-typed value as emRec.
 ///

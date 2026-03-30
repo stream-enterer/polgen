@@ -1,6 +1,6 @@
-use crate::emCore::emColor::emColor;
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPainter::{emPainter, TextAlignment, VAlign};
+use crate::emColor::emColor;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPainter::{emPainter, TextAlignment, VAlign};
 
 /// A red panel that displays an error message with yellow text.
 ///

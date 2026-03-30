@@ -1,9 +1,9 @@
 // SPLIT: Split from emImageFile.h — panel type extracted
-use crate::emCore::emColor::emColor;
-use crate::emCore::emImage::emImage;
-use crate::emCore::emPanel::{PanelBehavior, PanelState};
-use crate::emCore::emPainter::emPainter;
-use crate::emCore::emFilePanel::emFilePanel;
+use crate::emColor::emColor;
+use crate::emImage::emImage;
+use crate::emPanel::{PanelBehavior, PanelState};
+use crate::emPainter::emPainter;
+use crate::emFilePanel::emFilePanel;
 
 /// A panel that displays an image file with aspect-ratio preservation.
 ///

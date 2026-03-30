@@ -1,4 +1,4 @@
-use crate::emCore::emColor::emColor;
+use crate::emColor::emColor;
 pub use super::emStrokeEnd::{emStrokeEnd, StrokeEndType};
 
 /// Line join style.
