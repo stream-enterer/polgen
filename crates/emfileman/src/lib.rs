@@ -12,3 +12,4 @@ pub mod emFileLinkModel;
 
 pub mod emDirStatPanel;
 pub mod emDirEntryPanel;
+pub mod emDirEntryAltPanel;
