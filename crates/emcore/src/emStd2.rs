@@ -194,6 +194,184 @@ pub fn emCalcHashName(src: &[u8], hash_len: usize) -> String {
     String::from_utf8(hash).expect("hash contains only ASCII")
 }
 
+use std::cell::RefCell;
+
+// ── Dynamic Library API ─────────────────────────────────────────────
+// Port of C++ emStd2.h/emStd2.cpp: emTryOpenLib, emTryResolveSymbolFromLib,
+// emCloseLib, emTryResolveSymbol, and the emLibTable cache.
+
+/// Error type for dynamic library operations.
+/// Port of C++ exceptions thrown by emTryOpenLib and emTryResolveSymbol.
+#[derive(Debug)]
+pub enum LibError {
+    /// Failed to load a dynamic library.
+    LibraryLoad { library: String, message: String },
+    /// Failed to resolve a symbol from a loaded library.
+    SymbolResolve { library: String, symbol: String, message: String },
+}
+
+impl std::fmt::Display for LibError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::LibraryLoad { library, message } => {
+                write!(f, "failed to load library \"{library}\": {message}")
+            }
+            Self::SymbolResolve { library, symbol, message } => {
+                write!(f, "failed to resolve \"{symbol}\" in \"{library}\": {message}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for LibError {}
+
+/// Port of C++ `emLibTableEntry`.
+struct LibTableEntry {
+    filename: String,
+    ref_count: u64, // 0 = infinite (never unloaded)
+    handle: libloading::Library,
+}
+
+thread_local! {
+    /// Port of C++ `emLibTable`. Single-threaded; no mutex needed.
+    static LIBRARY_TABLE: RefCell<Vec<LibTableEntry>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Opaque handle to a loaded dynamic library.
+/// Port of C++ `emLibHandle`.
+#[derive(Debug, Clone, Copy)]
+pub struct emLibHandle {
+    pub(crate) index: usize,
+}
+
+/// Convert a library pure name to a platform filename.
+/// Port of C++ logic in `emTryOpenLib`: "emFoo" -> "libemFoo.so" (Linux),
+/// "libemFoo.dylib" (macOS), "emFoo.dll" (Windows).
+pub fn lib_name_to_filename(name: &str) -> String {
+    if cfg!(target_os = "windows") || cfg!(target_os = "cygwin") {
+        format!("{name}.dll")
+    } else if cfg!(target_os = "macos") {
+        format!("lib{name}.dylib")
+    } else {
+        format!("lib{name}.so")
+    }
+}
+
+/// Open a dynamic library. Port of C++ `emTryOpenLib`.
+///
+/// If `is_filename` is false, `lib_name` is a pure name converted to a
+/// platform filename. Libraries are cached: opening the same library twice
+/// returns the same handle with an incremented refcount.
+pub fn emTryOpenLib(lib_name: &str, is_filename: bool) -> Result<emLibHandle, LibError> {
+    let filename = if is_filename {
+        lib_name.to_string()
+    } else {
+        lib_name_to_filename(lib_name)
+    };
+
+    LIBRARY_TABLE.with(|table| {
+        let mut table = table.borrow_mut();
+
+        // Check cache
+        for (i, entry) in table.iter_mut().enumerate() {
+            if entry.filename == filename {
+                if entry.ref_count > 0 {
+                    entry.ref_count += 1;
+                }
+                return Ok(emLibHandle { index: i });
+            }
+        }
+
+        // Load new library
+        let handle = unsafe { libloading::Library::new(&filename) }.map_err(|e| {
+            LibError::LibraryLoad {
+                library: filename.clone(),
+                message: e.to_string(),
+            }
+        })?;
+
+        let index = table.len();
+        table.push(LibTableEntry {
+            filename,
+            ref_count: 1,
+            handle,
+        });
+
+        Ok(emLibHandle { index })
+    })
+}
+
+/// Resolve a symbol from an open library.
+/// Port of C++ `emTryResolveSymbolFromLib`.
+///
+/// # Safety
+/// The returned pointer is only valid while the library remains open.
+/// Caller must ensure the pointer is transmuted to the correct function type.
+pub unsafe fn emTryResolveSymbolFromLib(
+    handle: &emLibHandle,
+    symbol: &str,
+) -> Result<*const (), LibError> {
+    LIBRARY_TABLE.with(|table| {
+        let table = table.borrow();
+        let entry = &table[handle.index];
+
+        let sym: libloading::Symbol<*const ()> =
+            unsafe { entry.handle.get(symbol.as_bytes()) }.map_err(|e| {
+                LibError::SymbolResolve {
+                    library: entry.filename.clone(),
+                    symbol: symbol.to_string(),
+                    message: e.to_string(),
+                }
+            })?;
+
+        Ok(*sym)
+    })
+}
+
+/// Close a dynamic library. Port of C++ `emCloseLib`.
+///
+/// Decrements refcount. At zero, the library is unloaded and the entry
+/// removed. If refcount was already zero (infinite), this is a no-op.
+pub fn emCloseLib(handle: emLibHandle) {
+    LIBRARY_TABLE.with(|table| {
+        let mut table = table.borrow_mut();
+        let entry = &mut table[handle.index];
+
+        if entry.ref_count == 0 {
+            return; // infinite lifetime
+        }
+
+        entry.ref_count -= 1;
+        if entry.ref_count == 0 {
+            table.remove(handle.index);
+        }
+    });
+}
+
+/// Open, resolve, and set library to infinite lifetime.
+/// Port of C++ `emTryResolveSymbol`.
+///
+/// The library is never closed after this call (refcount set to 0 = infinite).
+///
+/// # Safety
+/// Same as `emTryResolveSymbolFromLib`.
+pub unsafe fn emTryResolveSymbol(
+    lib_name: &str,
+    is_filename: bool,
+    symbol: &str,
+) -> Result<*const (), LibError> {
+    let handle = emTryOpenLib(lib_name, is_filename)?;
+    let ptr = unsafe { emTryResolveSymbolFromLib(&handle, symbol)? };
+
+    // Set to infinite lifetime (matching C++: e->RefCount=0)
+    LIBRARY_TABLE.with(|table| {
+        let mut table = table.borrow_mut();
+        table[handle.index].ref_count = 0;
+    });
+
+    Ok(ptr)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,5 +484,23 @@ mod tests {
         let a = emCalcHashName(b"hello", 8);
         let b = emCalcHashName(b"world", 8);
         assert_ne!(a.to_ascii_lowercase(), b.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn test_try_open_lib_nonexistent() {
+        let result = super::emTryOpenLib("nonexistent_library_12345", false);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            super::LibError::LibraryLoad { library, .. } => {
+                assert!(library.contains("nonexistent_library_12345"));
+            }
+            other => panic!("unexpected error: {other}"),
+        }
+    }
+
+    #[test]
+    fn test_lib_filename_construction() {
+        // On Linux: "emFoo" -> "libemFoo.so"
+        assert_eq!(super::lib_name_to_filename("emFoo"), "libemFoo.so");
     }
 }
