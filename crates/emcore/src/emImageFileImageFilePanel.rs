@@ -30,7 +30,7 @@ impl emImageFilePanel {
 
     pub fn with_model() -> Self {
         Self {
-            file_panel: emFilePanel::with_model(),
+            file_panel: emFilePanel::new(),
             current_image: None,
         }
     }
