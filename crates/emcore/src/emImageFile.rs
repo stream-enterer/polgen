@@ -4,6 +4,18 @@ use crate::emImage::emImage;
 use crate::emFileModel::{emFileModel, FileState};
 use crate::emSignal::SignalId;
 
+/// Load an image from a file path synchronously.
+/// Supports TGA format. Returns None on any error (missing file, bad format).
+///
+/// DIVERGED: C++ uses the async emImageFileModel plugin system with format
+/// dispatching to emTga/emBmp/emGif/etc. This synchronous loader handles TGA
+/// only and serves small theme border images. Full async image loading will be
+/// ported with the image app modules.
+pub fn load_image_from_file(path: &Path) -> Option<emImage> {
+    let data = std::fs::read(path).ok()?;
+    crate::emResTga::load_tga(&data).ok()
+}
+
 /// Data payload for an image file model.
 ///
 /// Port of C++ `emImageFileModel`'s protected data members.
@@ -141,5 +153,55 @@ impl emImageFileModel {
     /// Reset all data to defaults. Port of C++ `emImageFileModel::ResetData`.
     pub fn reset_data(&mut self) {
         self.file_model.reset_data();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn load_nonexistent_file_returns_none() {
+        assert!(load_image_from_file(Path::new("/nonexistent/path.tga")).is_none());
+    }
+
+    #[test]
+    fn load_empty_file_returns_none() {
+        let dir = std::env::temp_dir().join("emcore_test_img");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("empty.tga");
+        std::fs::write(&path, b"").expect("write");
+        assert!(load_image_from_file(&path).is_none());
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn load_valid_tga_returns_image() {
+        // Type 10: RLE true-color, 32bpp BGRA — supported by load_tga
+        let dir = std::env::temp_dir().join("emcore_test_img");
+        let _ = std::fs::create_dir_all(&dir);
+        let path = dir.join("test_1x1.tga");
+
+        // Build minimal 1x1 type-10 TGA (RLE true-color, 32bpp)
+        let mut data = vec![0u8; 18];
+        data[2] = 10; // image type: RLE true-color
+        data[12] = 1; // width low byte
+        data[13] = 0; // width high byte
+        data[14] = 1; // height low byte
+        data[15] = 0; // height high byte
+        data[16] = 32; // bits per pixel
+        // RLE packet: 1 pixel (header 0x80 = RLE, count=1)
+        data.push(0x80);
+        // BGRA pixel
+        data.extend_from_slice(&[0x10, 0x20, 0x30, 0xFF]);
+
+        std::fs::write(&path, &data).expect("write");
+        let img = load_image_from_file(&path).expect("should load valid TGA");
+        assert_eq!(img.GetWidth(), 1);
+        assert_eq!(img.GetHeight(), 1);
+        assert_eq!(img.GetChannelCount(), 4);
+        // BGRA → RGBA conversion
+        assert_eq!(img.GetPixel(0, 0), &[0x30, 0x20, 0x10, 0xFF]);
+        let _ = std::fs::remove_file(&path);
     }
 }
