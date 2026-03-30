@@ -11,3 +11,4 @@ pub mod emFileManViewConfig;
 pub mod emFileLinkModel;
 
 pub mod emDirStatPanel;
+pub mod emDirEntryPanel;
