@@ -10,6 +10,7 @@ use emcore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
 use emcore::emPanelCtx::PanelCtx;
 use emcore::emPainter::emPainter;
 
+use crate::emDirEntry::emDirEntry;
 use crate::emDirEntryPanel::emDirEntryPanel;
 use crate::emDirModel::emDirModel;
 use crate::emFileManViewConfig::emFileManViewConfig;
@@ -151,28 +152,39 @@ impl emDirPanel {
             let show_hidden = cfg.GetShowHiddenFiles();
             let count = dm.GetEntryCount();
 
-            // Count visible entries
-            let mut visible_count = 0;
+            // Collect visible entries
+            let mut visible: Vec<emDirEntry> = Vec::new();
             for i in 0..count {
                 let entry = dm.GetEntry(i);
                 if !entry.IsHidden() || show_hidden {
-                    visible_count += 1;
+                    visible.push(entry.clone());
                 }
             }
+
+            // Sort using config comparator
+            visible.sort_by(|a, b| {
+                let cmp = cfg.CompareDirEntries(a, b);
+                if cmp < 0 {
+                    std::cmp::Ordering::Less
+                } else if cmp > 0 {
+                    std::cmp::Ordering::Greater
+                } else {
+                    std::cmp::Ordering::Equal
+                }
+            });
+
+            let visible_count = visible.len();
 
             // Only recreate if count changed
             if visible_count != self.child_count {
                 ctx.DeleteAllChildren();
 
-                for i in 0..count {
-                    let entry = dm.GetEntry(i);
-                    if !entry.IsHidden() || show_hidden {
-                        let panel = emDirEntryPanel::new(
-                            Rc::clone(&self.ctx),
-                            entry.clone(),
-                        );
-                        ctx.create_child_with(entry.GetName(), Box::new(panel));
-                    }
+                for entry in &visible {
+                    let panel = emDirEntryPanel::new(
+                        Rc::clone(&self.ctx),
+                        entry.clone(),
+                    );
+                    ctx.create_child_with(entry.GetName(), Box::new(panel));
                 }
 
                 self.child_count = visible_count;
