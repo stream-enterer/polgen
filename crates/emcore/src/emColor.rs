@@ -80,6 +80,12 @@ impl emColor {
     pub const MAGENTA: emColor = emColor::rgb(255, 0, 255);
     pub const TRANSPARENT: emColor = emColor(0);
 
+    /// Construct from a packed RGBA u32 (same layout as internal storage).
+    #[inline]
+    pub const fn from_packed(packed: u32) -> Self {
+        Self(packed)
+    }
+
     #[inline]
     pub const fn rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
         Self((r as u32) << 24 | (g as u32) << 16 | (b as u32) << 8 | a as u32)

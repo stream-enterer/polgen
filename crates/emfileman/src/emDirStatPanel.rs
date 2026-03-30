@@ -130,23 +130,11 @@ impl PanelBehavior for emDirStatPanel {
 
         let config = self.config.borrow();
         let theme = config.GetTheme();
-        let bg_packed = theme.GetRec().BackgroundColor;
-        let bg_color = emColor::rgba(
-            (bg_packed >> 24) as u8,
-            (bg_packed >> 16) as u8,
-            (bg_packed >> 8) as u8,
-            bg_packed as u8,
-        );
+        let bg_color = emColor::from_packed(theme.GetRec().BackgroundColor);
         painter.Clear(bg_color);
 
         let text = self.stats.format_text();
-        let name_packed = theme.GetRec().DirNameColor;
-        let name_color = emColor::rgba(
-            (name_packed >> 24) as u8,
-            (name_packed >> 16) as u8,
-            (name_packed >> 8) as u8,
-            name_packed as u8,
-        );
+        let name_color = emColor::from_packed(theme.GetRec().DirNameColor);
         painter.PaintTextBoxed(
             0.02,
             0.02,
