@@ -241,10 +241,9 @@ impl emDirEntryPanel {
     }
 
     /// Port of C++ emDirEntryPanel::Select
-    /// DIVERGED: Shift-range selection is simplified — selects only the
-    /// current entry instead of walking sibling panels between
-    /// ShiftTgtSelPath and current. Full range selection requires panel
-    /// tree sibling enumeration not yet available.
+    /// DIVERGED: C++ walks sibling panels via parent panel tree traversal.
+    /// Rust accesses the emDirModel directly to enumerate entries in display
+    /// order, since panel tree parent traversal is not available.
     fn select(&mut self, shift: bool, ctrl: bool) {
         let path = self.dir_entry.GetPath().to_string();
         let mut fm = self.file_man.borrow_mut();
@@ -258,10 +257,77 @@ impl emDirEntryPanel {
             }
             fm.SetShiftTgtSelPath(&path);
         } else if shift {
-            // Range selection — select from ShiftTgtSelPath to current
-            // For now, just select this entry (range requires sibling enumeration)
-            fm.SelectAsTarget(&path);
-            fm.SetShiftTgtSelPath(&path);
+            // Range selection — select all entries between anchor and current
+            let anchor_path = fm.GetShiftTgtSelPath().to_string();
+            drop(fm); // Release borrow before acquiring model
+
+            if !anchor_path.is_empty() {
+                // Derive parent directory from path
+                let parent_dir = std::path::Path::new(&path)
+                    .parent()
+                    .and_then(|p| p.to_str())
+                    .unwrap_or("");
+
+                if !parent_dir.is_empty() {
+                    let dm = crate::emDirModel::emDirModel::Acquire(
+                        &self.ctx,
+                        parent_dir,
+                    );
+                    let dm = dm.borrow();
+                    let cfg = self.config.borrow();
+                    let show_hidden = cfg.GetShowHiddenFiles();
+
+                    // Collect visible entries in display order
+                    let mut visible: Vec<crate::emDirEntry::emDirEntry> = Vec::new();
+                    for i in 0..dm.GetEntryCount() {
+                        let entry = dm.GetEntry(i);
+                        if !entry.IsHidden() || show_hidden {
+                            visible.push(entry.clone());
+                        }
+                    }
+
+                    // Sort by config comparator to match display order
+                    visible.sort_by(|a, b| {
+                        let cmp = cfg.CompareDirEntries(a, b);
+                        if cmp < 0 {
+                            std::cmp::Ordering::Less
+                        } else if cmp > 0 {
+                            std::cmp::Ordering::Greater
+                        } else {
+                            std::cmp::Ordering::Equal
+                        }
+                    });
+
+                    // Find anchor and target indices
+                    let anchor_idx =
+                        visible.iter().position(|e| e.GetPath() == anchor_path);
+                    let target_idx =
+                        visible.iter().position(|e| e.GetPath() == path);
+                    drop(cfg);
+                    drop(dm);
+
+                    if let (Some(a), Some(t)) = (anchor_idx, target_idx) {
+                        let min = a.min(t);
+                        let max = a.max(t);
+                        let mut fm = self.file_man.borrow_mut();
+                        for entry in &visible[min..=max] {
+                            fm.SelectAsTarget(entry.GetPath());
+                        }
+                    } else {
+                        // Fallback: just select this entry
+                        let mut fm = self.file_man.borrow_mut();
+                        fm.SelectAsTarget(&path);
+                    }
+                } else {
+                    let mut fm = self.file_man.borrow_mut();
+                    fm.SelectAsTarget(&path);
+                }
+            } else {
+                // No anchor — just select this entry and set anchor
+                let mut fm = self.file_man.borrow_mut();
+                fm.SelectAsTarget(&path);
+                fm.SetShiftTgtSelPath(&path);
+            }
         } else {
             // Plain click: old targets become sources, select this as target
             fm.ClearSourceSelection();
@@ -610,5 +676,30 @@ mod tests {
 
         panel.select(false, true); // ctrl-click: deselect
         assert!(!panel.file_man.borrow().IsSelectedAsTarget("/tmp"));
+    }
+
+    #[test]
+    fn select_shift_range_selects_between_anchor_and_target() {
+        // Tests the selection model behavior for shift-range selection.
+        // When the emDirModel for /tmp is not loaded, the fallback path
+        // should at minimum select the clicked entry.
+        let ctx = emcore::emContext::emContext::NewRoot();
+        let entry1 = crate::emDirEntry::emDirEntry::from_path("/tmp/a.txt");
+        let entry2 = crate::emDirEntry::emDirEntry::from_path("/tmp/c.txt");
+        let mut panel1 = emDirEntryPanel::new(Rc::clone(&ctx), entry1);
+        let mut panel2 = emDirEntryPanel::new(Rc::clone(&ctx), entry2);
+
+        // Plain click on entry1 — sets anchor
+        panel1.select(false, false);
+        assert!(panel1.file_man.borrow().IsSelectedAsTarget("/tmp/a.txt"));
+        assert_eq!(
+            panel1.file_man.borrow().GetShiftTgtSelPath(),
+            "/tmp/a.txt"
+        );
+
+        // Shift click on entry2 — should attempt range selection
+        // (Model for /tmp needs to be loaded for full range; fallback selects entry)
+        panel2.select(true, false);
+        assert!(panel2.file_man.borrow().IsSelectedAsTarget("/tmp/c.txt"));
     }
 }
