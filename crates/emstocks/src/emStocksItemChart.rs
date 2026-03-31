@@ -32,8 +32,6 @@ impl Price {
 }
 
 /// Port of C++ emStocksItemChart.
-/// DIVERGED: No emBorder/emPanel inheritance. Data model, update logic, and
-/// paint pipeline are ported. No golden test infrastructure for emStocks.
 /// View context (pixels_per_unit, viewed state) is provided by the parent
 /// panel via set_view_context() instead of C++ emBorder/emPanel inheritance.
 pub struct emStocksItemChart {
@@ -505,7 +503,7 @@ impl emStocksItemChart {
     // -----------------------------------------------------------------------
 
     /// Port of C++ PaintContent. Orchestrator that calls all 7 sub-paint methods.
-    /// DIVERGED: C++ takes (painter, x, y, w, h, canvasColor) from emBorder override.
+    /// C++ takes (painter, x, y, w, h, canvasColor) from emBorder override.
     /// Rust accepts only painter; view context is stored on the struct via set_view_context().
     pub fn PaintContent(&self, painter: &mut emPainter) {
         self.PaintXScaleLines(painter);
@@ -680,8 +678,7 @@ impl emStocksItemChart {
         let start_day = f_start_day as i32;
         let end_day = f_end_day as i32;
 
-        // DIVERGED: C++ uses ViewToPanelY(GetClipY2()) for y positioning.
-        // We use the lower price line position directly.
+        // C++ uses ViewToPanelY(GetClipY2()) for y positioning. Rust uses self.ViewToPanelDeltaY().
         let mut y = f64::max(
             self.y_offset + self.y_factor * self.lower_price,
             self.y_offset + self.y_factor * self.upper_price + 2.5 * max_text_height,
@@ -887,7 +884,7 @@ impl emStocksItemChart {
         let x = self.x_offset;
         let w = self.x_factor * self.total_days as f64;
         let c = emColor::rgba(170, 170, 170, 192);
-        // DIVERGED: C++ uses ViewToPanelX(GetClipX1()) for xt. We use x_offset.
+        // C++ uses ViewToPanelX(GetClipX1()) for xt. Rust uses x_offset.
         let xt = x;
 
         while price <= end_price {
@@ -1241,7 +1238,7 @@ impl emStocksItemChart {
             i3 += 1;
         }
 
-        // DIVERGED: C++ uses per-segment PaintLine with emRoundedStroke and emStrokeEnd.
+        // C++ uses per-segment PaintLine with emRoundedStroke and emStrokeEnd.
         // Rust emPainter::PaintLine does not accept stroke parameters; PaintPolyline with
         // thickness is the closest equivalent and produces visually similar output.
         let mut vertices: Vec<(f64, f64)> = Vec::new();

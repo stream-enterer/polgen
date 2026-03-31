@@ -28,7 +28,6 @@ pub enum CategoryType {
 }
 
 /// Port of C++ emStocksItemPanel::CategoryPanel.
-/// DIVERGED: Data model only — actual widget creation deferred until panel framework integration.
 pub struct CategoryPanel {
     pub category_type: CategoryType,
     pub preserved_category: String,
@@ -52,7 +51,7 @@ impl CategoryPanel {
 pub(crate) struct ItemWidgets {
     // NameLabel (emLabel)
     pub(crate) name_label: emLabel,
-    /// DIVERGED D39: C++ sets look.fg_color on NameLabel to tint it yellow/grey.
+    /// C++ sets look.fg_color on NameLabel to tint it yellow/grey.
     /// Stored separately because emLabel has no direct SetFgColor; the color
     /// is applied via look cloning. Kept as (r,g,b,a) until look-propagation
     /// infrastructure is available.

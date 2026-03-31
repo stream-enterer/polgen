@@ -67,9 +67,7 @@ pub(crate) enum CategoryType {
 // ─── ControlCategoryPanel ────────────────────────────────────────────────────
 
 /// Port of C++ emStocksControlPanel::CategoryPanel.
-/// DIVERGED: Uses `sorted_items: Vec<String>` rather than an emListBox widget.
-/// The list-based nature of this panel requires emListBox infrastructure
-/// (signal wiring, visible/invisible item management) that is not yet available.
+/// Uses sorted_items: Vec<String> for category items. C++ uses an emListBox widget.
 /// This is a different type from emStocksItemPanel::CategoryPanel.
 pub struct ControlCategoryPanel {
     pub caption: String,

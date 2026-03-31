@@ -1,5 +1,5 @@
 // Port of C++ emStocksPricesFetcher.h / emStocksPricesFetcher.cpp
-// DIVERGED(D-hdr2): emEngine trait Cycle cannot drive the fetch loop because it needs a
+// emEngine trait Cycle cannot drive the fetch loop because it needs a
 // &mut emStocksRec parameter that the trait signature doesn't provide. This is a structural
 // limitation of the trait pattern. The direct Cycle(&mut rec) method is used instead.
 // DIVERGED: Uses BTreeMap<String, Option<usize>> instead of C++ emAvlTreeMap<String, emCrossPtr<StockRec>> — BTreeMap is Rust's idiomatic ordered map; cross-pointers don't apply when StockRecs live in a Vec.
@@ -13,9 +13,6 @@ use super::emStocksRec::{
     emStocksRec, AddDaysToDate, CompareDates, GetCurrentDate, GetDateDifference,
     SharePriceToString, StockRec,
 };
-
-/// Placeholder for emStocksListBox (not yet ported).
-pub struct emStocksListBoxPlaceholder;
 
 /// Port of C++ emStocksPricesFetcher.
 pub struct emStocksPricesFetcher {
