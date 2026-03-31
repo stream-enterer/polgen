@@ -3,7 +3,7 @@
 use emcore::emColor::emColor;
 use emcore::emInput::{emInputEvent, InputKey, InputVariant};
 use emcore::emInputState::emInputState;
-use emcore::emPainter::emPainter;
+use emcore::emPainter::{emPainter, TextAlignment, VAlign};
 use emcore::emPanel::{PanelBehavior, PanelState};
 use emcore::emPanelCtx::PanelCtx;
 
@@ -27,7 +27,7 @@ pub struct emStocksFilePanel {
 }
 
 impl PanelBehavior for emStocksFilePanel {
-    fn Paint(&mut self, painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
         if self.vfs_good {
             // C++: painter.Clear(BgColor, canvasColor) — canvasColor not passed
             // because Rust emPainter::Clear takes only one color argument.
@@ -36,8 +36,20 @@ impl PanelBehavior for emStocksFilePanel {
             // C++: ListBox->Paint(...) checks GetItemCount()==0 and paints
             // "empty stock list" message.
             if let Some(ref list_box) = self.list_box {
-                if let Some(_msg) = list_box.GetEmptyMessage() {
-                    // TODO: Paint _msg using emPainter::PaintTextBoxed when available
+                if let Some(msg) = list_box.GetEmptyMessage() {
+                    painter.PaintTextBoxed(
+                        0.0, 0.0, w, h,
+                        msg,
+                        h * 0.1,
+                        emColor::rgb(255, 255, 255),
+                        self.bg_color,
+                        TextAlignment::Center,
+                        VAlign::Center,
+                        TextAlignment::Center,
+                        0.0,
+                        false,
+                        0.0,
+                    );
                 }
             }
         }
