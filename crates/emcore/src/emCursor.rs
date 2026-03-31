@@ -25,8 +25,14 @@ pub enum emCursor {
 }
 
 impl emCursor {
-    // DIVERGED: Get — not applicable; Rust enum variant is the identity (C++ returns int id)
+    // DIVERGED: Get — returns Self (identity for enum); C++ returns int id
     // DIVERGED: ToString — renamed to `as_str`; `ToString` conflicts with Rust std::string::ToString trait
+
+    /// Return this cursor variant. C++ `emCursor::Get()` returns the int id;
+    /// Rust returns the enum variant itself.
+    pub fn Get(self) -> Self {
+        self
+    }
     /// Display name for this cursor type.
     pub fn emInputKeyToString(self) -> &'static str {
         match self {
@@ -50,6 +56,17 @@ impl emCursor {
             emCursor::ResizeNWSE => "ResizeNWSE",
             emCursor::Move => "Move",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_returns_self() {
+        let c = emCursor::Hand;
+        assert_eq!(c.Get(), emCursor::Hand);
     }
 }
 

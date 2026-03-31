@@ -32,6 +32,7 @@ pub struct emButton {
     last_h: f64,
     pub on_click: Option<Box<dyn FnMut()>>,
     pub on_press_state: Option<Box<dyn FnMut(bool)>>,
+    pub on_eoi: Option<Box<dyn FnMut()>>,
 }
 
 impl emButton {
@@ -52,6 +53,7 @@ impl emButton {
             last_h: 0.0,
             on_click: None,
             on_press_state: None,
+            on_eoi: None,
         }
     }
 
@@ -369,6 +371,11 @@ impl emButton {
                             if let Some(cb) = &mut self.on_click {
                                 cb();
                             }
+                            if !self.no_eoi {
+                                if let Some(eoi) = &mut self.on_eoi {
+                                    eoi();
+                                }
+                            }
                         }
                     }
                     true
@@ -389,6 +396,11 @@ impl emButton {
                 if let Some(cb) = &mut self.on_click {
                     cb();
                 }
+                if !self.no_eoi {
+                    if let Some(eoi) = &mut self.on_eoi {
+                        eoi();
+                    }
+                }
                 true
             }
             _ => false,
@@ -398,13 +410,18 @@ impl emButton {
     /// Programmatically fire the click callback.
     ///
     /// Matches C++ `emButton::Click(shift)`: gates on IsEnabled(),
-    /// fires ClickSignal, calls Clicked(). EOI signal not implemented.
+    /// fires ClickSignal, calls Clicked(), then fires EOI signal.
     pub fn Click(&mut self) {
         if !self.enabled {
             return;
         }
         if let Some(cb) = &mut self.on_click {
             cb();
+        }
+        if !self.no_eoi {
+            if let Some(eoi) = &mut self.on_eoi {
+                eoi();
+            }
         }
     }
 
@@ -590,6 +607,33 @@ mod tests {
         let text = btn.GetHowTo(false, false);
         assert!(text.contains("DISABLED"));
         assert!(!text.contains("FOCUS"));
+    }
+
+    #[test]
+    fn eoi_callback_fires() {
+        let fired = Rc::new(std::cell::Cell::new(false));
+        let fired_clone = fired.clone();
+        let look = emLook::new();
+        let mut btn = emButton::new("test", look);
+        btn.on_eoi = Some(Box::new(move || {
+            fired_clone.set(true);
+        }));
+        btn.Click();
+        assert!(fired.get(), "EOI callback should fire after Click");
+    }
+
+    #[test]
+    fn eoi_callback_suppressed_when_no_eoi() {
+        let fired = Rc::new(std::cell::Cell::new(false));
+        let fired_clone = fired.clone();
+        let look = emLook::new();
+        let mut btn = emButton::new("test", look);
+        btn.SetNoEOI(true);
+        btn.on_eoi = Some(Box::new(move || {
+            fired_clone.set(true);
+        }));
+        btn.Click();
+        assert!(!fired.get(), "EOI callback should NOT fire when no_eoi is set");
     }
 
     #[test]
