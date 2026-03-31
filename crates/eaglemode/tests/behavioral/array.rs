@@ -105,7 +105,7 @@ fn cursor_survives_cow_clone() {
     a.Add_one(2);
     a.Add_one(3);
 
-    let cur = a.cursor(1); // points to element "2"
+    let mut cur = a.cursor(1); // points to element "2"
     let mut b = a.clone();
 
     // Mutate b (triggers COW)
@@ -113,6 +113,72 @@ fn cursor_survives_cow_clone() {
 
     // Cursor still valid against a (unchanged)
     assert_eq!(cur.Get(&a), Some(&2));
+}
+
+#[test]
+fn test_cursor_adjusts_on_insert_before() {
+    let mut arr = emArray::new();
+    arr.Add_one(10);
+    arr.Add_one(20);
+    arr.Add_one(30);
+
+    let mut cursor = arr.cursor(1); // points to 20
+    assert_eq!(cursor.Get(&arr), Some(&20));
+
+    // Insert before cursor position
+    arr.Insert(0, 5); // [5, 10, 20, 30]
+
+    // Cursor should auto-adjust: still points to 20 (now at index 2)
+    assert_eq!(cursor.Get(&arr), Some(&20));
+}
+
+#[test]
+fn test_cursor_adjusts_on_remove_before() {
+    let mut arr = emArray::new();
+    arr.Add_one(10);
+    arr.Add_one(20);
+    arr.Add_one(30);
+
+    let mut cursor = arr.cursor(2); // points to 30
+    assert_eq!(cursor.Get(&arr), Some(&30));
+
+    arr.Remove(0, 1); // [20, 30]
+
+    // Cursor should auto-adjust: still points to 30 (now at index 1)
+    assert_eq!(cursor.Get(&arr), Some(&30));
+}
+
+#[test]
+fn test_cursor_adjusts_on_multiple_inserts() {
+    let mut arr = emArray::new();
+    arr.Add_one(10);
+    arr.Add_one(20);
+    arr.Add_one(30);
+
+    let mut cursor = arr.cursor(1); // points to 20
+    assert_eq!(cursor.Get(&arr), Some(&20));
+
+    arr.Insert(0, 5); // [5, 10, 20, 30]
+    arr.Insert(0, 1); // [1, 5, 10, 20, 30]
+
+    // Cursor should auto-adjust: still points to 20 (now at index 3)
+    assert_eq!(cursor.Get(&arr), Some(&20));
+}
+
+#[test]
+fn test_cursor_no_adjust_on_insert_after() {
+    let mut arr = emArray::new();
+    arr.Add_one(10);
+    arr.Add_one(20);
+    arr.Add_one(30);
+
+    let mut cursor = arr.cursor(0); // points to 10
+    assert_eq!(cursor.Get(&arr), Some(&10));
+
+    arr.Insert(2, 99); // [10, 20, 99, 30]
+
+    // Cursor at index 0 should NOT adjust for insert at index 2
+    assert_eq!(cursor.Get(&arr), Some(&10));
 }
 
 #[test]

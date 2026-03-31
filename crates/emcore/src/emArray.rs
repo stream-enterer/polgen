@@ -15,43 +15,59 @@
 // C++ int (negative = bitwise-inverted insertion point). Rust's
 // slice::binary_search convention is used.
 //
-// DIVERGED: Iterator inner class — omitted from this file. Will be
-// ported separately as emArrayIterator (Task 2).
-//
-// DIVERGED: PointerToIndex — omitted from initial port.
+// DIVERGED: PointerToIndex — requires pointer arithmetic into Vec backing.
 //
 // AddNew, InsertNew, ReplaceByNew require T: Default (separate impl block).
 //
 // DIVERGED: Sort() skips COW clone if array is already sorted. C++ calls
 // MakeWritable() unconditionally. No behavioral difference for callers.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 /// Stable cursor for emArray. Tracks position by index.
 ///
-/// DIVERGED: C++ emArray::Iterator auto-adjusts index when elements are
-/// inserted/removed before the cursor position. This Rust cursor does NOT
-/// auto-adjust — it maintains the original index. Full auto-adjustment
-/// requires the array to track all live cursors, which adds overhead.
-/// Will be implemented when a consumer requires it.
+/// Auto-adjusts when elements are inserted or removed before the cursor
+/// position, matching C++ emArray::Iterator behavior.
 pub struct Cursor {
     /// `None` means the cursor is in the "invalid / off-the-end" state.
     index: Option<usize>,
+    /// Shared adjustment log from the owning emArray.
+    adjustments: Rc<RefCell<Vec<(isize, usize)>>>,
+    /// Number of adjustments already applied.
+    last_adj_len: usize,
 }
 
 impl Cursor {
-    pub fn IsValid<T: Clone>(&self, array: &emArray<T>) -> bool {
+    /// Apply any pending adjustments from the array's adjustment log.
+    fn apply_adjustments(&mut self) {
+        let adjs = self.adjustments.borrow();
+        for i in self.last_adj_len..adjs.len() {
+            let (delta, at_index) = adjs[i];
+            if let Some(ref mut idx) = self.index {
+                if *idx >= at_index {
+                    *idx = (*idx as isize + delta).max(0) as usize;
+                }
+            }
+        }
+        self.last_adj_len = adjs.len();
+    }
+
+    pub fn IsValid<T: Clone>(&mut self, array: &emArray<T>) -> bool {
+        self.apply_adjustments();
         match self.index {
             Some(i) => i < array.GetCount(),
             None => false,
         }
     }
 
-    pub fn Get<'a, T: Clone>(&self, array: &'a emArray<T>) -> Option<&'a T> {
+    pub fn Get<'a, T: Clone>(&mut self, array: &'a emArray<T>) -> Option<&'a T> {
+        self.apply_adjustments();
         self.index.and_then(|i| array.data.get(i))
     }
 
     pub fn SetNext<T: Clone>(&mut self, array: &emArray<T>) {
+        self.apply_adjustments();
         match self.index {
             Some(i) if i < array.GetCount() => self.index = Some(i + 1),
             _ => {}
@@ -59,6 +75,7 @@ impl Cursor {
     }
 
     pub fn SetPrev<T: Clone>(&mut self, _array: &emArray<T>) {
+        self.apply_adjustments();
         match self.index {
             Some(0) => self.index = None,
             Some(i) => self.index = Some(i - 1),
@@ -67,6 +84,7 @@ impl Cursor {
     }
 
     pub fn SetIndex(&mut self, index: usize) {
+        self.apply_adjustments();
         self.index = Some(index);
     }
 }
@@ -81,6 +99,9 @@ pub struct emArray<T: Clone> {
     /// DIVERGED: Rust ownership model makes COW tuning unnecessary; field
     /// exists for API correspondence only.
     tuning_level: u8,
+    /// Adjustment log for cursor auto-adjustment.
+    /// Each entry: (delta, at_index) — cursor indices >= at_index shift by delta.
+    adjustments: Rc<RefCell<Vec<(isize, usize)>>>,
 }
 
 impl<T: Clone> Clone for emArray<T> {
@@ -88,6 +109,7 @@ impl<T: Clone> Clone for emArray<T> {
         emArray {
             data: Rc::clone(&self.data),
             tuning_level: self.tuning_level,
+            adjustments: Rc::new(RefCell::new(Vec::new())),
         }
     }
 }
@@ -107,6 +129,7 @@ impl<T: Clone> emArray<T> {
         emArray {
             data: Rc::new(Vec::new()),
             tuning_level: 0,
+            adjustments: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -114,6 +137,7 @@ impl<T: Clone> emArray<T> {
         emArray {
             data: Rc::new(slice.to_vec()),
             tuning_level: 0,
+            adjustments: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -121,6 +145,7 @@ impl<T: Clone> emArray<T> {
         emArray {
             data: Rc::new(vec![obj; count]),
             tuning_level: 0,
+            adjustments: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -164,6 +189,7 @@ impl<T: Clone> emArray<T> {
         emArray {
             data: Rc::new(self.data[index..index + count].to_vec()),
             tuning_level: self.tuning_level,
+            adjustments: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
@@ -188,26 +214,42 @@ impl<T: Clone> emArray<T> {
 
     /// Append a single element.
     pub fn Add_one(&mut self, obj: T) {
+        let index = self.data.len();
         self.make_writable().push(obj);
+        self.adjustments.borrow_mut().push((1, index));
     }
 
     /// Append `count` copies of `obj`.
     pub fn Add_fill(&mut self, obj: T, count: usize) {
+        let index = self.data.len();
         let v = self.make_writable();
         v.reserve(count);
         for _ in 0..count {
             v.push(obj.clone());
         }
+        self.adjustments
+            .borrow_mut()
+            .push((count as isize, index));
     }
 
     /// Append all elements from another emArray.
     pub fn Add(&mut self, array: &emArray<T>) {
+        let index = self.data.len();
+        let count = array.data.len();
         self.make_writable().extend_from_slice(&array.data);
+        self.adjustments
+            .borrow_mut()
+            .push((count as isize, index));
     }
 
     /// Append all elements from a slice.
     pub fn Add_slice(&mut self, slice: &[T]) {
+        let index = self.data.len();
+        let count = slice.len();
         self.make_writable().extend_from_slice(slice);
+        self.adjustments
+            .borrow_mut()
+            .push((count as isize, index));
     }
 
     /// Set the number of elements. New elements are default-initialized.
@@ -215,11 +257,18 @@ impl<T: Clone> emArray<T> {
     where
         T: Default,
     {
+        let old_len = self.data.len();
         let v = self.make_writable();
         if count > v.len() {
             v.resize_with(count, T::default);
-        } else {
+            self.adjustments
+                .borrow_mut()
+                .push(((count - old_len) as isize, old_len));
+        } else if count < v.len() {
             v.truncate(count);
+            self.adjustments
+                .borrow_mut()
+                .push((-((old_len - count) as isize), count));
         }
     }
 
@@ -231,28 +280,46 @@ impl<T: Clone> emArray<T> {
     /// Insert a single element at `index`.
     pub fn Insert(&mut self, index: usize, obj: T) {
         self.make_writable().insert(index, obj);
+        self.adjustments.borrow_mut().push((1, index));
     }
 
     /// Insert `count` copies of `obj` at `index`.
     pub fn Insert_fill(&mut self, index: usize, obj: T, count: usize) {
         let items: Vec<T> = (0..count).map(|_| obj.clone()).collect();
         self.make_writable().splice(index..index, items);
+        self.adjustments
+            .borrow_mut()
+            .push((count as isize, index));
     }
 
     /// Insert all elements from a slice at `index`.
     pub fn Insert_slice(&mut self, index: usize, slice: &[T]) {
-        self.make_writable().splice(index..index, slice.iter().cloned());
+        let count = slice.len();
+        self.make_writable()
+            .splice(index..index, slice.iter().cloned());
+        self.adjustments
+            .borrow_mut()
+            .push((count as isize, index));
     }
 
     /// Insert all elements from another emArray at `index`.
     pub fn Insert_array(&mut self, index: usize, array: &emArray<T>) {
-        self.Insert_slice(index, &array.data);
+        let count = array.data.len();
+        let slice = &array.data;
+        self.make_writable()
+            .splice(index..index, slice.iter().cloned());
+        self.adjustments
+            .borrow_mut()
+            .push((count as isize, index));
     }
 
     /// Remove `count` elements starting at `index`.
     pub fn Remove(&mut self, index: usize, count: usize) {
         let v = self.make_writable();
         v.drain(index..index + count);
+        self.adjustments
+            .borrow_mut()
+            .push((-(count as isize), index));
     }
 
     /// Replace `rem_count` elements at `index` with `ins_count` copies of `obj`.
@@ -260,29 +327,49 @@ impl<T: Clone> emArray<T> {
         let items: Vec<T> = (0..ins_count).map(|_| obj.clone()).collect();
         let v = self.make_writable();
         let end = (index + rem_count).min(v.len());
+        let actual_rem = end - index;
         v.splice(index..end, items);
+        let delta = ins_count as isize - actual_rem as isize;
+        if delta != 0 {
+            self.adjustments.borrow_mut().push((delta, index));
+        }
     }
 
     /// Replace `rem_count` elements at `index` with elements from `slice`.
     pub fn Replace_slice(&mut self, index: usize, rem_count: usize, slice: &[T]) {
         let v = self.make_writable();
         let end = (index + rem_count).min(v.len());
+        let actual_rem = end - index;
         v.splice(index..end, slice.iter().cloned());
+        let delta = slice.len() as isize - actual_rem as isize;
+        if delta != 0 {
+            self.adjustments.borrow_mut().push((delta, index));
+        }
     }
 
     /// Extract `count` elements starting at `index`, removing them.
     pub fn Extract(&mut self, index: usize, count: usize) -> emArray<T> {
         let v = self.make_writable();
         let extracted: Vec<T> = v.drain(index..index + count).collect();
+        self.adjustments
+            .borrow_mut()
+            .push((-(count as isize), index));
         emArray {
             data: Rc::new(extracted),
             tuning_level: self.tuning_level,
+            adjustments: Rc::new(RefCell::new(Vec::new())),
         }
     }
 
     /// Remove all elements.
     pub fn Clear(&mut self) {
+        let count = self.data.len();
         self.make_writable().clear();
+        if count > 0 {
+            self.adjustments
+                .borrow_mut()
+                .push((-(count as isize), 0));
+        }
     }
 
     /// Ensure the data is not shared (deep-copy if needed).
@@ -313,12 +400,15 @@ impl<T: Clone> emArray<T> {
 impl<T: Clone + Default> emArray<T> {
     /// Append a default-constructed element. C++ `AddNew`.
     pub fn AddNew(&mut self) {
+        let index = self.data.len();
         self.make_writable().push(T::default());
+        self.adjustments.borrow_mut().push((1, index));
     }
 
     /// Insert a default-constructed element at `index`. C++ `InsertNew`.
     pub fn InsertNew(&mut self, index: usize) {
         self.make_writable().insert(index, T::default());
+        self.adjustments.borrow_mut().push((1, index));
     }
 
     /// Replace `count` elements starting at `index` with one default element.
@@ -327,6 +417,10 @@ impl<T: Clone + Default> emArray<T> {
         let v = self.make_writable();
         v.drain(index..index + count);
         v.insert(index, T::default());
+        let delta = 1isize - count as isize;
+        if delta != 0 {
+            self.adjustments.borrow_mut().push((delta, index));
+        }
     }
 }
 
@@ -336,16 +430,33 @@ impl<T: Clone + Default> emArray<T> {
 
 impl<T: Clone> emArray<T> {
     pub fn cursor(&self, index: usize) -> Cursor {
-        Cursor { index: Some(index) }
+        let last_adj_len = self.adjustments.borrow().len();
+        Cursor {
+            index: Some(index),
+            adjustments: Rc::clone(&self.adjustments),
+            last_adj_len,
+        }
     }
 
     pub fn cursor_first(&self) -> Cursor {
-        Cursor { index: Some(0) }
+        let last_adj_len = self.adjustments.borrow().len();
+        Cursor {
+            index: Some(0),
+            adjustments: Rc::clone(&self.adjustments),
+            last_adj_len,
+        }
     }
 
     pub fn cursor_last(&self) -> Cursor {
+        let last_adj_len = self.adjustments.borrow().len();
         Cursor {
-            index: if self.data.is_empty() { None } else { Some(self.data.len() - 1) },
+            index: if self.data.is_empty() {
+                None
+            } else {
+                Some(self.data.len() - 1)
+            },
+            adjustments: Rc::clone(&self.adjustments),
+            last_adj_len,
         }
     }
 }
@@ -382,6 +493,7 @@ impl<T: Clone + Ord> emArray<T> {
             Ok(i) | Err(i) => i,
         };
         self.make_writable().insert(pos, obj);
+        self.adjustments.borrow_mut().push((1, pos));
     }
 
     /// Insert `obj` only if no equal element exists. Returns `true` if inserted.
@@ -390,6 +502,7 @@ impl<T: Clone + Ord> emArray<T> {
             Ok(_) => false,
             Err(i) => {
                 self.make_writable().insert(i, obj);
+                self.adjustments.borrow_mut().push((1, i));
                 true
             }
         }
@@ -403,6 +516,7 @@ impl<T: Clone + Ord> emArray<T> {
             }
             Err(i) => {
                 self.make_writable().insert(i, obj);
+                self.adjustments.borrow_mut().push((1, i));
             }
         }
     }
@@ -412,6 +526,7 @@ impl<T: Clone + Ord> emArray<T> {
         match self.data.binary_search(obj) {
             Ok(i) => {
                 self.make_writable().remove(i);
+                self.adjustments.borrow_mut().push((-1, i));
                 true
             }
             Err(_) => false,
@@ -449,6 +564,7 @@ impl<T: Clone> emArray<T> {
             Ok(i) | Err(i) => i,
         };
         self.make_writable().insert(pos, obj);
+        self.adjustments.borrow_mut().push((1, pos));
     }
 
     /// Insert only if no equal element exists (per `compare`). Returns `true` if inserted.
@@ -461,6 +577,7 @@ impl<T: Clone> emArray<T> {
             Ok(_) => false,
             Err(i) => {
                 self.make_writable().insert(i, obj);
+                self.adjustments.borrow_mut().push((1, i));
                 true
             }
         }
@@ -478,6 +595,7 @@ impl<T: Clone> emArray<T> {
             }
             Err(i) => {
                 self.make_writable().insert(i, obj);
+                self.adjustments.borrow_mut().push((1, i));
             }
         }
     }
@@ -490,6 +608,7 @@ impl<T: Clone> emArray<T> {
         match self.data.binary_search_by(compare) {
             Ok(i) => {
                 self.make_writable().remove(i);
+                self.adjustments.borrow_mut().push((-1, i));
                 true
             }
             Err(_) => false,
@@ -532,6 +651,7 @@ impl<T: Clone> emArray<T> {
         match self.data.binary_search_by(|probe| extract(probe).cmp(key)) {
             Ok(i) => {
                 self.make_writable().remove(i);
+                self.adjustments.borrow_mut().push((-1, i));
                 true
             }
             Err(_) => false,
