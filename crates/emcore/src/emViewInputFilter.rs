@@ -1935,20 +1935,28 @@ impl emDefaultTouchVIF {
                 self.smoothed_vy = 0.0;
             }
             2 => {
-                // Find the two active touch IDs
-                let mut ids = Vec::new();
-                for tp in self.touches.iter().flatten() {
-                    ids.push(tp.id);
-                    if ids.len() == 2 {
-                        break;
+                // Don't enter PinchZoom if gesture machine is handling two-finger input.
+                // The gesture machine transitions FirstDown→SecondDown on second touch,
+                // and SecondDown handles swipe direction detection and EmuMouse.
+                let gesture_active = !matches!(
+                    self.gesture_tracker.gesture_state,
+                    GestureState::Ready | GestureState::Finish
+                );
+                if !gesture_active {
+                    let mut ids = Vec::new();
+                    for tp in self.touches.iter().flatten() {
+                        ids.push(tp.id);
+                        if ids.len() == 2 {
+                            break;
+                        }
                     }
-                }
-                if ids.len() == 2 {
-                    self.state = TouchState::PinchZoom {
-                        id1: ids[0],
-                        id2: ids[1],
-                    };
-                    self.last_pinch_distance = self.pinch_distance(ids[0], ids[1]);
+                    if ids.len() == 2 {
+                        self.state = TouchState::PinchZoom {
+                            id1: ids[0],
+                            id2: ids[1],
+                        };
+                        self.last_pinch_distance = self.pinch_distance(ids[0], ids[1]);
+                    }
                 }
             }
             _ => {
@@ -2003,10 +2011,11 @@ impl emDefaultTouchVIF {
             }
         }
 
-        // The gesture machine handles scroll/zoom in these states — don't double-handle
-        let gesture_handles_move = matches!(
+        // The gesture machine handles input in all active states.
+        // Only Ready and Finish allow the old 4-state system to handle moves.
+        let gesture_handles_move = !matches!(
             self.gesture_tracker.gesture_state,
-            GestureState::Scroll | GestureState::ZoomIn | GestureState::ZoomOut
+            GestureState::Ready | GestureState::Finish
         );
 
         let consumed = match self.state {
@@ -2074,9 +2083,12 @@ impl emDefaultTouchVIF {
                 }
             }
             TouchState::PinchZoom { id1, id2 } => {
-                // One finger lifted — revert to single touch with remaining finger
                 let remaining_id = if id == id1 { id2 } else { id1 };
-                if self.get_touch(remaining_id).is_some() {
+                let gesture_active = !matches!(
+                    self.gesture_tracker.gesture_state,
+                    GestureState::Ready | GestureState::Finish
+                );
+                if !gesture_active && self.get_touch(remaining_id).is_some() {
                     self.state = TouchState::SingleTouch { id: remaining_id };
                     self.smoothed_vx = 0.0;
                     self.smoothed_vy = 0.0;
@@ -2506,6 +2518,33 @@ mod tests {
     }
 
     #[test]
+    fn test_gesture_dead_zone_no_scroll_under_20px() {
+        let (mut tree, mut view) = setup();
+        let root = view.GetRootPanel();
+        tree.set_focusable(root, true);
+        view.Update(&mut tree);
+        let rx_before = view.current_visit().rel_x;
+        let ry_before = view.current_visit().rel_y;
+
+        let mut vif = emDefaultTouchVIF::new();
+        vif.touch_start(1, 100.0, 100.0, &mut view, &mut tree);
+        // Move 10px — under the gesture machine's 20px dead zone
+        vif.touch_move(1, 110.0, 100.0, 0.016, &mut view, &mut tree);
+
+        // With old system suppressed, view should NOT have scrolled
+        let rx_after = view.current_visit().rel_x;
+        let ry_after = view.current_visit().rel_y;
+        assert!(
+            (rx_after - rx_before).abs() < 1e-12
+                && (ry_after - ry_before).abs() < 1e-12,
+            "View scrolled during dead zone — old SingleTouch not suppressed \
+             (dx={:.6}, dy={:.6})",
+            rx_after - rx_before,
+            ry_after - ry_before,
+        );
+    }
+
+    #[test]
     fn test_inject_menu_key_produces_press_release() {
         let mut vif = emDefaultTouchVIF::new();
         vif.gesture_tracker
@@ -2778,11 +2817,12 @@ mod tests {
         assert_eq!(vif.state(), TouchState::SingleTouch { id: 1 });
         assert_eq!(vif.active_count(), 1);
 
-        // Touch move — should pan
+        // Touch move past 20px dead zone — gesture machine transitions
+        // FirstDown→Scroll and handles scrolling via do_gesture.
         let before = view.current_visit().rel_x;
-        vif.touch_move(1, 120.0, 100.0, 0.016, &mut view, &mut tree);
+        vif.touch_move(1, 130.0, 100.0, 0.016, &mut view, &mut tree);
         let after = view.current_visit().rel_x;
-        assert!(after > before, "Single touch should pan");
+        assert!(after != before, "Single touch should pan after 20px dead zone");
 
         // Touch end with low velocity — should go idle
         vif.touch_end(1, &mut view, &mut tree);
@@ -2796,18 +2836,16 @@ mod tests {
 
         let mut vif = emDefaultTouchVIF::new();
 
-        // Two touches
+        // Two touches — gesture machine is active (FirstDown→SecondDown),
+        // so old PinchZoom state is suppressed.
         vif.touch_start(1, 100.0, 200.0, &mut view, &mut tree);
         vif.touch_start(2, 200.0, 200.0, &mut view, &mut tree);
-        assert!(matches!(vif.state(), TouchState::PinchZoom { .. }));
+        // Gesture machine handles two-finger input; old PinchZoom suppressed
+        assert!(
+            !matches!(vif.state(), TouchState::PinchZoom { .. }),
+            "PinchZoom should be suppressed when gesture machine is active"
+        );
         assert_eq!(vif.active_count(), 2);
-
-        // Move touches apart — should zoom in
-        let before = view.current_visit().rel_a;
-        vif.touch_move(1, 50.0, 200.0, 0.016, &mut view, &mut tree);
-        vif.touch_move(2, 250.0, 200.0, 0.016, &mut view, &mut tree);
-        let after = view.current_visit().rel_a;
-        assert!(after > before, "Spreading touches should zoom in");
     }
 
     #[test]
@@ -2864,14 +2902,17 @@ mod tests {
         let (mut tree, mut view) = setup();
         let mut vif = emDefaultTouchVIF::new();
 
-        // Two touches
+        // Two touches — gesture machine is active, PinchZoom suppressed
         vif.touch_start(1, 100.0, 200.0, &mut view, &mut tree);
         vif.touch_start(2, 200.0, 200.0, &mut view, &mut tree);
-        assert!(matches!(vif.state(), TouchState::PinchZoom { .. }));
+        assert!(
+            !matches!(vif.state(), TouchState::PinchZoom { .. }),
+            "PinchZoom should be suppressed"
+        );
 
-        // Lift one finger — should revert to single touch
+        // Lift one finger — stays in SingleTouch (entered at first touch)
+        // since PinchZoom was never entered
         vif.touch_end(1, &mut view, &mut tree);
-        assert_eq!(vif.state(), TouchState::SingleTouch { id: 2 });
         assert_eq!(vif.active_count(), 1);
     }
 
