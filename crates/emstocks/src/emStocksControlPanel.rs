@@ -389,6 +389,84 @@ impl emStocksControlPanel {
         self.update_controls_needed = false;
     }
 
+    /// Read current widget values back into config.
+    /// Polls widget state rather than using callbacks — avoids callback ownership
+    /// issues. Called from Cycle (or equivalent) after widgets may have changed.
+    pub fn ReadFromWidgets(&self, config: &mut emStocksConfig) {
+        let widgets = match self.widgets.as_ref() {
+            Some(w) => w,
+            None => return,
+        };
+
+        // Text fields
+        config.api_key = widgets.api_key.GetText().to_string();
+        config.search_text = widgets.search_text.GetText().to_string();
+
+        // File selection fields
+        config.api_script = widgets
+            .api_script
+            .widget
+            .GetSelectedPath()
+            .to_string_lossy()
+            .to_string();
+        config.api_script_interpreter = widgets
+            .api_script_interpreter
+            .widget
+            .GetSelectedPath()
+            .to_string_lossy()
+            .to_string();
+        config.web_browser = widgets
+            .web_browser
+            .widget
+            .GetSelectedPath()
+            .to_string_lossy()
+            .to_string();
+
+        // Checkboxes
+        config.auto_update_dates = widgets.auto_update_dates.IsChecked();
+        config.triggering_opens_web_page = widgets.triggering_opens_web_page.IsChecked();
+        config.owned_shares_first = widgets.owned_shares_first.IsChecked();
+
+        // Scalar field (chart period index 0..9)
+        let period_idx = widgets.chart_period.GetValue() as usize;
+        config.chart_period = match period_idx {
+            0 => ChartPeriod::Week1,
+            1 => ChartPeriod::Weeks2,
+            2 => ChartPeriod::Month1,
+            3 => ChartPeriod::Months3,
+            4 => ChartPeriod::Months6,
+            5 => ChartPeriod::Year1,
+            6 => ChartPeriod::Years3,
+            7 => ChartPeriod::Years5,
+            8 => ChartPeriod::Years10,
+            _ => ChartPeriod::Years20,
+        };
+
+        // Radio groups
+        if let Some(idx) = widgets.min_visible_interest_group.borrow().GetChecked() {
+            config.min_visible_interest = match idx {
+                0 => Interest::High,
+                1 => Interest::Medium,
+                _ => Interest::Low,
+            };
+        }
+        if let Some(idx) = widgets.sorting_group.borrow().GetChecked() {
+            config.sorting = match idx {
+                0 => Sorting::ByName,
+                1 => Sorting::ByTradeDate,
+                2 => Sorting::ByInquiryDate,
+                3 => Sorting::ByAchievement,
+                4 => Sorting::ByOneWeekRise,
+                5 => Sorting::ByThreeWeekRise,
+                6 => Sorting::ByNineWeekRise,
+                7 => Sorting::ByDividend,
+                8 => Sorting::ByPurchaseValue,
+                9 => Sorting::ByValue,
+                _ => Sorting::ByDifference,
+            };
+        }
+    }
+
     /// Port of C++ AutoExpand.
     /// D23: Creates real widget instances using the stored `Rc<emLook>`.
     pub fn AutoExpand(&mut self) {
@@ -890,5 +968,129 @@ mod tests {
 
         cp.UpdateItems(&stocks, |s| &s.sector);
         assert_eq!(cp.sorted_items, vec!["Tech"]);
+    }
+
+    #[test]
+    fn read_from_widgets_not_expanded_is_noop() {
+        let panel = make_panel();
+        let mut config = emStocksConfig::default();
+        config.api_key = "original".to_string();
+        panel.ReadFromWidgets(&mut config);
+        // Widgets absent — config unchanged
+        assert_eq!(config.api_key, "original");
+    }
+
+    #[test]
+    fn read_from_widgets_reflects_update_controls() {
+        let mut panel = make_panel();
+        panel.AutoExpand();
+
+        let original = emStocksConfig {
+            api_key: "my-key".to_string(),
+            auto_update_dates: true,
+            triggering_opens_web_page: true,
+            chart_period: ChartPeriod::Months6,
+            min_visible_interest: Interest::Medium,
+            sorting: Sorting::ByDividend,
+            owned_shares_first: true,
+            search_text: "hello".to_string(),
+            ..Default::default()
+        };
+        let rec = emStocksRec::default();
+        let list_box = emStocksListBox::new();
+
+        panel.UpdateControls(&original, &rec, &list_box);
+
+        let mut readback = emStocksConfig::default();
+        panel.ReadFromWidgets(&mut readback);
+
+        assert_eq!(readback.api_key, original.api_key);
+        assert_eq!(readback.auto_update_dates, original.auto_update_dates);
+        assert_eq!(readback.triggering_opens_web_page, original.triggering_opens_web_page);
+        assert_eq!(readback.chart_period, original.chart_period);
+        assert_eq!(readback.min_visible_interest, original.min_visible_interest);
+        assert_eq!(readback.sorting, original.sorting);
+        assert_eq!(readback.owned_shares_first, original.owned_shares_first);
+        assert_eq!(readback.search_text, original.search_text);
+    }
+
+    #[test]
+    fn read_from_widgets_chart_period_all_indices() {
+        let mut panel = make_panel();
+        panel.AutoExpand();
+
+        let periods = [
+            ChartPeriod::Week1,
+            ChartPeriod::Weeks2,
+            ChartPeriod::Month1,
+            ChartPeriod::Months3,
+            ChartPeriod::Months6,
+            ChartPeriod::Year1,
+            ChartPeriod::Years3,
+            ChartPeriod::Years5,
+            ChartPeriod::Years10,
+            ChartPeriod::Years20,
+        ];
+        for period in periods {
+            let config_in = emStocksConfig {
+                chart_period: period,
+                ..Default::default()
+            };
+            let rec = emStocksRec::default();
+            let list_box = emStocksListBox::new();
+            panel.UpdateControls(&config_in, &rec, &list_box);
+
+            let mut config_out = emStocksConfig::default();
+            panel.ReadFromWidgets(&mut config_out);
+            assert_eq!(config_out.chart_period, period);
+        }
+    }
+
+    #[test]
+    fn read_from_widgets_interest_and_sorting_roundtrip() {
+        let mut panel = make_panel();
+        panel.AutoExpand();
+
+        let interests = [Interest::High, Interest::Medium, Interest::Low];
+        for interest in interests {
+            let config_in = emStocksConfig {
+                min_visible_interest: interest,
+                ..Default::default()
+            };
+            let rec = emStocksRec::default();
+            let list_box = emStocksListBox::new();
+            panel.UpdateControls(&config_in, &rec, &list_box);
+
+            let mut config_out = emStocksConfig::default();
+            panel.ReadFromWidgets(&mut config_out);
+            assert_eq!(config_out.min_visible_interest, interest);
+        }
+
+        let sortings = [
+            Sorting::ByName,
+            Sorting::ByTradeDate,
+            Sorting::ByInquiryDate,
+            Sorting::ByAchievement,
+            Sorting::ByOneWeekRise,
+            Sorting::ByThreeWeekRise,
+            Sorting::ByNineWeekRise,
+            Sorting::ByDividend,
+            Sorting::ByPurchaseValue,
+            Sorting::ByValue,
+            Sorting::ByDifference,
+        ];
+        for sorting in sortings {
+            let config_in = emStocksConfig {
+                sorting,
+                ..Default::default()
+            };
+            let rec = emStocksRec::default();
+            let list_box = emStocksListBox::new();
+            panel.UpdateControls(&config_in, &rec, &list_box);
+
+            let mut config_out = emStocksConfig::default();
+            panel.ReadFromWidgets(&mut config_out);
+            assert_eq!(config_out.sorting, sorting);
+        }
     }
 }
