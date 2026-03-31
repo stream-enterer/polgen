@@ -22,6 +22,7 @@
 
 use std::collections::BTreeMap;
 use std::ops::Bound;
+use std::ops::Index;
 use std::rc::Rc;
 
 /// Copy-on-write ordered map matching C++ `emAvlTreeMap<KEY, VALUE>`.
@@ -266,5 +267,14 @@ impl<K: Ord + Clone, V: Clone> Clone for emAvlTreeMap<K, V> {
 impl<K: Ord + Clone, V: Clone> Default for emAvlTreeMap<K, V> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// DIVERGED: C++ `operator[]` creates a default entry if missing.
+/// Rust panics if key not found (no `Default` bound on `V`).
+impl<K: Clone + Ord, V: Clone> Index<&K> for emAvlTreeMap<K, V> {
+    type Output = V;
+    fn index(&self, key: &K) -> &V {
+        self.GetValue(key).expect("emAvlTreeMap: key not found")
     }
 }

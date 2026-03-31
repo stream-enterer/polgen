@@ -19,16 +19,19 @@
 // DIVERGED: Element-pointer overloads of Remove — omitted. C++ uses raw
 // pointers to elements; Rust API uses value references instead.
 //
-// DIVERGED: Operator overloads (+, |, -, &) — C++ provides operator +=, -=,
-// &=, |=, +, -, &, | for set algebra. Rust uses named methods InsertSet,
-// RemoveSet, Intersect instead. Implementing std::ops traits for a COW
-// collection would conflict with idiomatic Rust conventions.
-//
 // DIVERGED: begin/end — omitted. C++ provides range-based for loop support
 // via begin/end returning Iterator. Rust uses SetCursor for iteration.
 
 use std::collections::BTreeSet;
+use std::ops::Add;
+use std::ops::AddAssign;
+use std::ops::BitAnd;
+use std::ops::BitAndAssign;
+use std::ops::BitOr;
+use std::ops::BitOrAssign;
 use std::ops::Bound;
+use std::ops::Sub;
+use std::ops::SubAssign;
 use std::rc::Rc;
 
 /// Copy-on-write ordered set matching C++ `emAvlTreeSet<OBJ>`.
@@ -289,3 +292,63 @@ impl<T: Ord + Clone> PartialEq for emAvlTreeSet<T> {
 }
 
 impl<T: Ord + Clone> Eq for emAvlTreeSet<T> {}
+
+impl<T: Clone + Ord> BitOr<&emAvlTreeSet<T>> for &emAvlTreeSet<T> {
+    type Output = emAvlTreeSet<T>;
+    fn bitor(self, rhs: &emAvlTreeSet<T>) -> emAvlTreeSet<T> {
+        let mut result = self.clone();
+        result.InsertSet(rhs);
+        result
+    }
+}
+
+impl<T: Clone + Ord> BitOrAssign<&emAvlTreeSet<T>> for emAvlTreeSet<T> {
+    fn bitor_assign(&mut self, rhs: &emAvlTreeSet<T>) {
+        self.InsertSet(rhs);
+    }
+}
+
+impl<T: Clone + Ord> BitAnd<&emAvlTreeSet<T>> for &emAvlTreeSet<T> {
+    type Output = emAvlTreeSet<T>;
+    fn bitand(self, rhs: &emAvlTreeSet<T>) -> emAvlTreeSet<T> {
+        let mut result = self.clone();
+        result.Intersect(rhs);
+        result
+    }
+}
+
+impl<T: Clone + Ord> BitAndAssign<&emAvlTreeSet<T>> for emAvlTreeSet<T> {
+    fn bitand_assign(&mut self, rhs: &emAvlTreeSet<T>) {
+        self.Intersect(rhs);
+    }
+}
+
+impl<T: Clone + Ord> Sub<&emAvlTreeSet<T>> for &emAvlTreeSet<T> {
+    type Output = emAvlTreeSet<T>;
+    fn sub(self, rhs: &emAvlTreeSet<T>) -> emAvlTreeSet<T> {
+        let mut result = self.clone();
+        result.RemoveSet(rhs);
+        result
+    }
+}
+
+impl<T: Clone + Ord> SubAssign<&emAvlTreeSet<T>> for emAvlTreeSet<T> {
+    fn sub_assign(&mut self, rhs: &emAvlTreeSet<T>) {
+        self.RemoveSet(rhs);
+    }
+}
+
+impl<T: Clone + Ord> Add<T> for &emAvlTreeSet<T> {
+    type Output = emAvlTreeSet<T>;
+    fn add(self, rhs: T) -> emAvlTreeSet<T> {
+        let mut result = self.clone();
+        result.Insert(rhs);
+        result
+    }
+}
+
+impl<T: Clone + Ord> AddAssign<T> for emAvlTreeSet<T> {
+    fn add_assign(&mut self, rhs: T) {
+        self.Insert(rhs);
+    }
+}

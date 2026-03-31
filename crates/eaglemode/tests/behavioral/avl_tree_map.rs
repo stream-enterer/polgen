@@ -292,3 +292,19 @@ fn cursor_key_removed_returns_none() {
     // cursor returns None — no auto-advance (DIVERGED from C++ Iterator)
     assert!(cur.Get(&m).is_none());
 }
+
+#[test]
+fn test_index_operator() {
+    let mut map = emAvlTreeMap::new();
+    map.Insert("a".to_string(), 1);
+    map.Insert("b".to_string(), 2);
+    assert_eq!(map[&"a".to_string()], 1);
+    assert_eq!(map[&"b".to_string()], 2);
+}
+
+#[test]
+#[should_panic]
+fn test_index_missing_key_panics() {
+    let map: emAvlTreeMap<String, i32> = emAvlTreeMap::new();
+    let _ = map[&"missing".to_string()];
+}

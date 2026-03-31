@@ -282,3 +282,50 @@ fn duplicate_insert_no_change() {
     s.Insert(42);
     assert_eq!(s.GetCount(), 1);
 }
+
+#[test]
+fn test_bitor_union() {
+    let mut a = emAvlTreeSet::from_element(1);
+    a.Insert(2);
+    let mut b = emAvlTreeSet::from_element(2);
+    b.Insert(3);
+    let c = &a | &b;
+    assert_eq!(c.GetCount(), 3);
+    assert!(c.Contains(&1));
+    assert!(c.Contains(&2));
+    assert!(c.Contains(&3));
+}
+
+#[test]
+fn test_bitand_intersection() {
+    let mut a = emAvlTreeSet::from_element(1);
+    a.Insert(2);
+    a.Insert(3);
+    let mut b = emAvlTreeSet::from_element(2);
+    b.Insert(3);
+    b.Insert(4);
+    let c = &a & &b;
+    assert_eq!(c.GetCount(), 2);
+    assert!(c.Contains(&2));
+    assert!(c.Contains(&3));
+}
+
+#[test]
+fn test_sub_difference() {
+    let mut a = emAvlTreeSet::from_element(1);
+    a.Insert(2);
+    a.Insert(3);
+    let mut b = emAvlTreeSet::from_element(2);
+    let c = &a - &b;
+    assert_eq!(c.GetCount(), 2);
+    assert!(c.Contains(&1));
+    assert!(c.Contains(&3));
+}
+
+#[test]
+fn test_bitor_assign() {
+    let mut a = emAvlTreeSet::from_element(1);
+    let b = emAvlTreeSet::from_element(2);
+    a |= &b;
+    assert_eq!(a.GetCount(), 2);
+}
