@@ -1514,7 +1514,9 @@ impl TouchTracker {
 
         match self.gesture_state {
             GestureState::Ready => {
-                // Stay in Ready until a touch arrives (handled by input wiring)
+                if self.touch_count > 0 {
+                    self.gesture_state = GestureState::FirstDown;
+                }
             }
 
             GestureState::FirstDown => {
@@ -1965,12 +1967,10 @@ impl emDefaultTouchVIF {
                 ..Touch::default()
             };
             self.gesture_tracker.touch_count += 1;
-            if self.gesture_tracker.gesture_state == GestureState::Ready {
-                self.gesture_tracker.gesture_state = GestureState::FirstDown;
             }
-        }
 
         self.run_gesture_loop(view, tree);
+        self.drain_gesture_actions(view);
         true
     }
 
@@ -1987,14 +1987,22 @@ impl emDefaultTouchVIF {
     ) -> bool {
         self.update_touch(id, x, y);
 
-        // Sync gesture tracker: update touch position
+        // Sync gesture tracker: update touch position (prev before current for frame delta)
         for i in 0..self.gesture_tracker.touch_count {
             if self.gesture_tracker.touches[i].id == id {
+                self.gesture_tracker.touches[i].prev_x = self.gesture_tracker.touches[i].x;
+                self.gesture_tracker.touches[i].prev_y = self.gesture_tracker.touches[i].y;
                 self.gesture_tracker.touches[i].x = x;
                 self.gesture_tracker.touches[i].y = y;
                 break;
             }
         }
+
+        // The gesture machine handles scroll/zoom in these states — don't double-handle
+        let gesture_handles_move = matches!(
+            self.gesture_tracker.gesture_state,
+            GestureState::Scroll | GestureState::ZoomIn | GestureState::ZoomOut
+        );
 
         let consumed = match self.state {
             TouchState::SingleTouch { id: touch_id } if touch_id == id => {
@@ -2002,8 +2010,10 @@ impl emDefaultTouchVIF {
                     let dx = tp.x - tp.prev_x;
                     let dy = tp.y - tp.prev_y;
                     if dx.abs() > 0.001 || dy.abs() > 0.001 {
-                        view.Scroll(dx, dy);
-                        // Update smoothed velocity for fling
+                        if !gesture_handles_move {
+                            view.Scroll(dx, dy);
+                        }
+                        // Update smoothed velocity for fling detection regardless
                         let dt_safe = dt.max(1e-6);
                         let ivx = dx / dt_safe;
                         let ivy = dy / dt_safe;
@@ -2015,13 +2025,15 @@ impl emDefaultTouchVIF {
                 true
             }
             TouchState::PinchZoom { id1, id2 } if id == id1 || id == id2 => {
-                let new_dist = self.pinch_distance(id1, id2);
-                if self.last_pinch_distance > 0.1 && new_dist > 0.1 {
-                    let factor = new_dist / self.last_pinch_distance;
-                    let (cx, cy) = self.pinch_center(id1, id2);
-                    view.Zoom(factor, cx, cy);
+                if !gesture_handles_move {
+                    let new_dist = self.pinch_distance(id1, id2);
+                    if self.last_pinch_distance > 0.1 && new_dist > 0.1 {
+                        let factor = new_dist / self.last_pinch_distance;
+                        let (cx, cy) = self.pinch_center(id1, id2);
+                        view.Zoom(factor, cx, cy);
+                    }
+                    self.last_pinch_distance = new_dist;
                 }
-                self.last_pinch_distance = new_dist;
                 true
             }
             _ => false,
@@ -2029,6 +2041,7 @@ impl emDefaultTouchVIF {
 
         if consumed {
             self.run_gesture_loop(view, tree);
+            self.drain_gesture_actions(view);
         }
         consumed
     }
@@ -2081,6 +2094,7 @@ impl emDefaultTouchVIF {
         }
 
         self.run_gesture_loop(view, tree);
+        self.drain_gesture_actions(view);
         true
     }
 
@@ -2131,9 +2145,44 @@ impl emDefaultTouchVIF {
 
     /// C++ Cycle(): advance touch timers and loop DoGesture for time-based
     /// transitions (e.g. hold timeouts, tap chain timeouts).
-    pub fn cycle_gesture(&mut self, view: &mut emView, tree: &mut PanelTree) {
-        self.gesture_tracker.next_touches(16); // ~60fps frame time
+    pub fn cycle_gesture(&mut self, view: &mut emView, tree: &mut PanelTree, dt_ms: i32) {
+        self.gesture_tracker.next_touches(dt_ms);
         self.run_gesture_loop(view, tree);
+        self.drain_gesture_actions(view);
+    }
+
+    /// Process pending gesture actions that aren't handled inline by do_gesture.
+    fn drain_gesture_actions(&mut self, _view: &mut emView) {
+        for action in self.gesture_tracker.pending_actions.drain(..) {
+            match action {
+                GestureAction::InjectMenuKey => {
+                    dlog!("Touch gesture: inject menu key");
+                    // TODO: emit Menu key press+release through input filter chain
+                }
+                GestureAction::ToggleSoftKeyboard => {
+                    dlog!("Touch gesture: toggle soft keyboard");
+                    // TODO: view.show_soft_keyboard(!view.is_soft_keyboard_shown())
+                }
+                GestureAction::ForwardInput {
+                    key,
+                    variant,
+                    mouse_x,
+                    mouse_y,
+                    shift,
+                    ctrl,
+                } => {
+                    dlog!(
+                        "Touch gesture: forward input {:?} {:?} at ({:.0}, {:.0})",
+                        key,
+                        variant,
+                        mouse_x,
+                        mouse_y
+                    );
+                    // TODO: forward synthetic mouse event through the input filter chain
+                    let _ = (key, variant, mouse_x, mouse_y, shift, ctrl);
+                }
+            }
+        }
     }
 }
 
