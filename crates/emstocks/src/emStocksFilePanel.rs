@@ -6,6 +6,7 @@ use emcore::emInput::emInputEvent;
 use emcore::emInputState::emInputState;
 use emcore::emPainter::emPainter;
 use emcore::emPanel::{PanelBehavior, PanelState};
+use emcore::emPanelCtx::PanelCtx;
 
 use super::emStocksConfig::{emStocksConfig, Sorting};
 use super::emStocksListBox::emStocksListBox;
@@ -223,6 +224,11 @@ impl PanelBehavior for emStocksFilePanel {
         }
 
         false
+    }
+
+    fn LayoutChildren(&mut self, _ctx: &mut PanelCtx) {
+        // C++: if (ListBox) ListBox->Layout(0.0, 0.0, 1.0, GetHeight(), BgColor);
+        // TODO: lay out ListBox child once it is a real panel child
     }
 
     fn GetIconFileName(&self) -> Option<String> {
