@@ -1,6 +1,7 @@
 // Port of C++ emStocksFilePanel.h / emStocksFilePanel.cpp
 
 use emcore::emColor::emColor;
+use emcore::emFilePanel::emFilePanel;
 use emcore::emInput::{emInputEvent, InputKey, InputVariant};
 use emcore::emInputState::emInputState;
 use emcore::emPainter::{emPainter, TextAlignment, VAlign};
@@ -16,19 +17,15 @@ pub struct emStocksFilePanel {
     pub(crate) bg_color: emColor,
     pub(crate) config: emStocksConfig,
     pub(crate) list_box: Option<emStocksListBox>,
-    /// DIVERGED: C++ `FileModel` is `emStocksFileModel*` (full file model with signals
-    /// and lifecycle). Rust uses `emStocksRec` directly since `emStocksFileModel` is not
-    /// yet fully integrated as a panel-owning model.
+    /// DIVERGED(Phase 4): FileModel ownership pending. C++ FileModel is emStocksFileModel*
+    /// with full lifecycle. Rust uses emStocksRec directly until Phase 4.
     pub(crate) rec: emStocksRec,
-    /// Whether the virtual file state is good (data loaded).
-    /// DIVERGED: C++ uses IsVFSGood() from emFilePanel base class; Rust uses
-    /// a simple bool since the file state machine is not yet integrated.
-    pub(crate) vfs_good: bool,
+    pub(crate) file_panel: emFilePanel,
 }
 
 impl PanelBehavior for emStocksFilePanel {
     fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
-        if self.vfs_good {
+        if self.file_panel.GetVirFileState().is_good() {
             // C++: painter.Clear(BgColor, canvasColor) — canvasColor not passed
             // because Rust emPainter::Clear takes only one color argument.
             painter.Clear(self.bg_color);
@@ -68,7 +65,7 @@ impl PanelBehavior for emStocksFilePanel {
         _state: &PanelState,
         input_state: &emInputState,
     ) -> bool {
-        if !self.vfs_good || self.list_box.is_none() {
+        if !self.file_panel.GetVirFileState().is_good() || self.list_box.is_none() {
             return false;
         }
         if event.IsEmpty() || event.variant != InputVariant::Press {
@@ -295,9 +292,15 @@ impl PanelBehavior for emStocksFilePanel {
     }
 
     fn Cycle(&mut self, _ctx: &mut PanelCtx) -> bool {
-        // C++: busy = emFilePanel::Cycle(); UpdateControls() on VirFileStateSignal.
-        // TODO: implement when emFilePanel integration and signal infrastructure are in place.
-        false
+        let old_state = self.file_panel.GetVirFileState();
+        self.file_panel.refresh_vir_file_state();
+        let new_state = self.file_panel.GetVirFileState();
+        let state_changed = old_state != new_state;
+        if state_changed && new_state.is_good() && self.list_box.is_none() {
+            self.list_box = Some(emStocksListBox::new());
+        }
+        // TODO(Phase 4): ListBox as real panel child.
+        state_changed
     }
 
     fn GetIconFileName(&self) -> Option<String> {
@@ -312,7 +315,7 @@ impl emStocksFilePanel {
             config: emStocksConfig::default(),
             list_box: None,
             rec: emStocksRec::default(),
-            vfs_good: false,
+            file_panel: emFilePanel::new(),
         }
     }
 
@@ -321,6 +324,24 @@ impl emStocksFilePanel {
 impl Default for emStocksFilePanel {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+impl emStocksFilePanel {
+    pub(crate) fn set_vfs_good_for_test(&mut self) {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        use emcore::emFileModel::{emFileModel, FileModelState};
+        use emcore::emSignal::SignalId;
+        use std::path::PathBuf;
+        let model = Rc::new(RefCell::new(emFileModel::<String>::new(
+            PathBuf::from("/tmp/test"),
+            SignalId::default(),
+            SignalId::default(),
+        )));
+        model.borrow_mut().complete_load("test".to_string());
+        self.file_panel.SetFileModel(Some(model as Rc<RefCell<dyn FileModelState>>));
     }
 }
 
@@ -349,7 +370,6 @@ mod tests {
     #[test]
     fn input_returns_false_when_vfs_not_good() {
         let mut panel = emStocksFilePanel::new();
-        panel.vfs_good = false;
         panel.list_box = Some(emStocksListBox::new());
         let mut input_state = emInputState::new();
         input_state.press(InputKey::Shift);
@@ -362,7 +382,7 @@ mod tests {
     #[test]
     fn input_returns_false_when_no_listbox() {
         let mut panel = emStocksFilePanel::new();
-        panel.vfs_good = true;
+        panel.set_vfs_good_for_test();
         panel.list_box = None;
         let mut input_state = emInputState::new();
         input_state.press(InputKey::Shift);
@@ -374,7 +394,7 @@ mod tests {
 
     fn make_active_panel() -> emStocksFilePanel {
         let mut panel = emStocksFilePanel::new();
-        panel.vfs_good = true;
+        panel.set_vfs_good_for_test();
         panel.list_box = Some(emStocksListBox::new());
         panel
     }
