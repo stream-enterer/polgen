@@ -94,7 +94,8 @@ pub fn work_on_detail_entry(
     }
     if entry.IsRegularFile() {
         details.regular_files += 1;
-        details.size += entry.GetStat().st_size as u64;
+        // Size is accumulated by the caller using GetLStat (for all entry
+        // types, not just regular files), matching C++ WorkOnDetailEntry.
     } else if entry.IsDirectory() {
         details.subdirectories += 1;
     } else {
