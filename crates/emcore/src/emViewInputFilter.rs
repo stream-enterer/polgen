@@ -1904,7 +1904,14 @@ impl emDefaultTouchVIF {
     }
 
     /// Handle a touch start event. Returns true if consumed.
-    pub fn touch_start(&mut self, id: u64, x: f64, y: f64) -> bool {
+    pub fn touch_start(
+        &mut self,
+        id: u64,
+        x: f64,
+        y: f64,
+        view: &mut emView,
+        tree: &mut PanelTree,
+    ) -> bool {
         // Cancel any active fling
         if self.state == TouchState::Fling {
             self.fling_velocity_x = 0.0;
@@ -1963,15 +1970,33 @@ impl emDefaultTouchVIF {
             }
         }
 
+        self.run_gesture_loop(view, tree);
         true
     }
 
     /// Handle a touch move event. Applies pan or pinch-zoom to the view.
     /// `dt` is the frame delta in seconds. Returns true if consumed.
-    pub fn touch_move(&mut self, id: u64, x: f64, y: f64, dt: f64, view: &mut emView) -> bool {
+    pub fn touch_move(
+        &mut self,
+        id: u64,
+        x: f64,
+        y: f64,
+        dt: f64,
+        view: &mut emView,
+        tree: &mut PanelTree,
+    ) -> bool {
         self.update_touch(id, x, y);
 
-        match self.state {
+        // Sync gesture tracker: update touch position
+        for i in 0..self.gesture_tracker.touch_count {
+            if self.gesture_tracker.touches[i].id == id {
+                self.gesture_tracker.touches[i].x = x;
+                self.gesture_tracker.touches[i].y = y;
+                break;
+            }
+        }
+
+        let consumed = match self.state {
             TouchState::SingleTouch { id: touch_id } if touch_id == id => {
                 if let Some(tp) = self.get_touch(id) {
                     let dx = tp.x - tp.prev_x;
@@ -2000,11 +2025,16 @@ impl emDefaultTouchVIF {
                 true
             }
             _ => false,
+        };
+
+        if consumed {
+            self.run_gesture_loop(view, tree);
         }
+        consumed
     }
 
     /// Handle a touch end event. May trigger fling. Returns true if consumed.
-    pub fn touch_end(&mut self, id: u64) -> bool {
+    pub fn touch_end(&mut self, id: u64, view: &mut emView, tree: &mut PanelTree) -> bool {
         let removed = self.RemoveTouch(id);
         if removed.is_none() {
             return false;
@@ -2050,6 +2080,7 @@ impl emDefaultTouchVIF {
             }
         }
 
+        self.run_gesture_loop(view, tree);
         true
     }
 
@@ -2594,63 +2625,63 @@ mod tests {
 
     #[test]
     fn test_touch_single_pan() {
-        let (mut _tree, mut view) = setup();
-        view.Update(&mut _tree);
+        let (mut tree, mut view) = setup();
+        view.Update(&mut tree);
 
         let mut vif = emDefaultTouchVIF::new();
         assert_eq!(vif.state(), TouchState::Idle);
 
         // Touch start
-        assert!(vif.touch_start(1, 100.0, 100.0));
+        assert!(vif.touch_start(1, 100.0, 100.0, &mut view, &mut tree));
         assert_eq!(vif.state(), TouchState::SingleTouch { id: 1 });
         assert_eq!(vif.active_count(), 1);
 
         // Touch move — should pan
         let before = view.current_visit().rel_x;
-        vif.touch_move(1, 120.0, 100.0, 0.016, &mut view);
+        vif.touch_move(1, 120.0, 100.0, 0.016, &mut view, &mut tree);
         let after = view.current_visit().rel_x;
         assert!(after > before, "Single touch should pan");
 
         // Touch end with low velocity — should go idle
-        vif.touch_end(1);
+        vif.touch_end(1, &mut view, &mut tree);
         assert_eq!(vif.active_count(), 0);
     }
 
     #[test]
     fn test_touch_pinch_zoom() {
-        let (mut _tree, mut view) = setup();
-        view.Update(&mut _tree);
+        let (mut tree, mut view) = setup();
+        view.Update(&mut tree);
 
         let mut vif = emDefaultTouchVIF::new();
 
         // Two touches
-        vif.touch_start(1, 100.0, 200.0);
-        vif.touch_start(2, 200.0, 200.0);
+        vif.touch_start(1, 100.0, 200.0, &mut view, &mut tree);
+        vif.touch_start(2, 200.0, 200.0, &mut view, &mut tree);
         assert!(matches!(vif.state(), TouchState::PinchZoom { .. }));
         assert_eq!(vif.active_count(), 2);
 
         // Move touches apart — should zoom in
         let before = view.current_visit().rel_a;
-        vif.touch_move(1, 50.0, 200.0, 0.016, &mut view);
-        vif.touch_move(2, 250.0, 200.0, 0.016, &mut view);
+        vif.touch_move(1, 50.0, 200.0, 0.016, &mut view, &mut tree);
+        vif.touch_move(2, 250.0, 200.0, 0.016, &mut view, &mut tree);
         let after = view.current_visit().rel_a;
         assert!(after > before, "Spreading touches should zoom in");
     }
 
     #[test]
     fn test_touch_fling() {
-        let (mut _tree, mut view) = setup();
-        view.Update(&mut _tree);
+        let (mut tree, mut view) = setup();
+        view.Update(&mut tree);
 
         let mut vif = emDefaultTouchVIF::new();
         vif.set_fling_friction(0.95);
 
         // Rapid drag
-        vif.touch_start(1, 100.0, 100.0);
+        vif.touch_start(1, 100.0, 100.0, &mut view, &mut tree);
         for i in 1..10 {
-            vif.touch_move(1, 100.0 + i as f64 * 50.0, 100.0, 0.016, &mut view);
+            vif.touch_move(1, 100.0 + i as f64 * 50.0, 100.0, 0.016, &mut view, &mut tree);
         }
-        vif.touch_end(1);
+        vif.touch_end(1, &mut view, &mut tree);
         assert_eq!(vif.state(), TouchState::Fling);
 
         // Animate fling until stopped
@@ -2666,17 +2697,17 @@ mod tests {
 
     #[test]
     fn test_touch_fling_cancel_on_press() {
-        let (mut _tree, mut view) = setup();
-        view.Update(&mut _tree);
+        let (mut tree, mut view) = setup();
+        view.Update(&mut tree);
 
         let mut vif = emDefaultTouchVIF::new();
 
         // Create fling
-        vif.touch_start(1, 100.0, 100.0);
+        vif.touch_start(1, 100.0, 100.0, &mut view, &mut tree);
         for i in 1..10 {
-            vif.touch_move(1, 100.0 + i as f64 * 50.0, 100.0, 0.016, &mut view);
+            vif.touch_move(1, 100.0 + i as f64 * 50.0, 100.0, 0.016, &mut view, &mut tree);
         }
-        vif.touch_end(1);
+        vif.touch_end(1, &mut view, &mut tree);
         assert_eq!(vif.state(), TouchState::Fling);
 
         // Press any key cancels fling
@@ -2688,15 +2719,16 @@ mod tests {
 
     #[test]
     fn test_touch_pinch_to_single() {
+        let (mut tree, mut view) = setup();
         let mut vif = emDefaultTouchVIF::new();
 
         // Two touches
-        vif.touch_start(1, 100.0, 200.0);
-        vif.touch_start(2, 200.0, 200.0);
+        vif.touch_start(1, 100.0, 200.0, &mut view, &mut tree);
+        vif.touch_start(2, 200.0, 200.0, &mut view, &mut tree);
         assert!(matches!(vif.state(), TouchState::PinchZoom { .. }));
 
         // Lift one finger — should revert to single touch
-        vif.touch_end(1);
+        vif.touch_end(1, &mut view, &mut tree);
         assert_eq!(vif.state(), TouchState::SingleTouch { id: 2 });
         assert_eq!(vif.active_count(), 1);
     }
@@ -2919,61 +2951,6 @@ mod tests {
         assert!(!active, "animate() should return false when idle");
     }
 
-    /// C++ emDefaultTouchVIF implements a 17-state gesture machine in DoGesture()
-    /// (~265 LOC in emViewInputFilter.cpp:946-1211). The Rust emDefaultTouchVIF has
-    /// only 4 states (Idle, SingleTouch, PinchZoom, Fling) covering basic
-    /// pan/pinch/fling. The following C++ gestures are missing:
-    ///
-    /// **Hold-to-zoom (states ZOOM_IN, ZOOM_OUT):**
-    ///   Single finger held >250ms triggers continuous zoom-in at the touch point.
-    ///   Double-tap-and-hold triggers zoom-out. Uses `exp(0.002 * ms_since_prev)`
-    ///   for smooth time-based zoom speed. Rust has no hold timer or time-based zoom.
-    ///
-    /// **Multi-tap-to-visit (states FIRST_DOWN_UP, DOUBLE_DOWN, DOUBLE_DOWN_UP,
-    ///   TRIPLE_DOWN, TRIPLE_DOWN_UP):**
-    ///   Double-tap (tap-wait-tap-wait >250ms) calls VisitFullsized(panel, true, false).
-    ///   Triple-tap calls VisitFullsized(panel, true, true) (visits parent).
-    ///   Uses GetFocusablePanelAt() to find target. Rust has no tap counting or
-    ///   visit-fullsized integration.
-    ///
-    /// **Two-finger mouse emulation (states SECOND_DOWN, EMU_MOUSE_1..4):**
-    ///   Two fingers placed simultaneously: the relative direction of finger 2
-    ///   from finger 1 determines which mouse button/modifier to emulate:
-    ///     - Right of finger 1: left click (EMU_MOUSE_1)
-    ///     - Left of finger 1: right click (EMU_MOUSE_2)
-    ///     - Below finger 1: Shift+left click (EMU_MOUSE_3)
-    ///     - Above finger 1: Ctrl+left click (EMU_MOUSE_4)
-    ///   Emulated events are forwarded via ForwardInput with synthetic emInputState.
-    ///   Rust has no mouse emulation from touch; two fingers always pinch-zoom.
-    ///
-    /// **Three-finger menu (state THIRD_DOWN):**
-    ///   Three fingers down then all up emits EM_KEY_MENU event. Rust ignores 3+ touches.
-    ///
-    /// **Four-finger soft keyboard toggle (state FOURTH_DOWN):**
-    ///   Four fingers down then all up toggles ShowSoftKeyboard(). Rust ignores 4+ touches.
-    ///
-    /// **Infrastructure needed:**
-    ///   - Touch event timing: C++ tracks MsTotal and MsSincePrev per touch via
-    ///     NextTouches()/InputClockMS. Rust TouchPoint has no timing fields.
-    ///   - DownX/DownY: C++ tracks initial touch-down position for total move
-    ///     calculation. Rust has prev_x/prev_y but not initial down position.
-    ///   - ForwardInput: C++ forwards synthetic mouse events through the filter
-    ///     chain. Rust VIF trait returns bool (consumed) but cannot inject events.
-    ///   - GetFocusablePanelAt: needed for visit-fullsized on double-tap.
-    ///   - ShowSoftKeyboard: view API for four-finger toggle.
-    ///   - Touch event priority: C++ GetTouchEventPriority negotiates whether the
-    ///     VIF or a panel handles touch. Rust has no priority system.
-    ///
-    /// **Scope estimate:**
-    ///   - Replace 4-state enum with 17-state enum: ~20 LOC
-    ///   - Add timing fields to TouchPoint + NextTouches equivalent: ~40 LOC
-    ///   - Rewrite state machine (DoGesture port): ~250 LOC
-    ///   - Add ForwardInput / event injection mechanism to VIF trait: ~50 LOC
-    ///   - Wire up VisitFullsized, GetFocusablePanelAt, ShowSoftKeyboard: ~30 LOC
-    ///   - Touch event priority system: ~40 LOC
-    ///   - Total: ~430 LOC new code. This is a substantial rewrite of
-    ///     emDefaultTouchVIF, not a point fix. The existing pan/pinch/fling code
-    ///     would be subsumed by the C++ state machine's SCROLL state.
     /// Helper: create a key event with characters for cheat code testing.
     fn cheat_key_event(chars: &str) -> emInputEvent {
         let mut event = emInputEvent::press(InputKey::Key('a'));
