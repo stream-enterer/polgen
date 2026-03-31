@@ -40,6 +40,8 @@ impl emStocksListBox {
     }
 
     /// Port of C++ GoBackInHistory.
+    /// DIVERGED: C++ takes no arguments (reads from owned FileModel reference).
+    /// Rust takes `rec` parameter since emStocksFileModel is not yet integrated.
     pub fn GoBackInHistory(&mut self, rec: &emStocksRec) {
         let date = rec.GetPricesDateBefore(&self.selected_date);
         if !date.is_empty() {
@@ -48,6 +50,8 @@ impl emStocksListBox {
     }
 
     /// Port of C++ GoForwardInHistory.
+    /// DIVERGED: C++ takes no arguments (reads from owned FileModel reference).
+    /// Rust takes `rec` parameter since emStocksFileModel is not yet integrated.
     pub fn GoForwardInHistory(&mut self, rec: &emStocksRec) {
         let date = rec.GetPricesDateAfter(&self.selected_date);
         if !date.is_empty() {

@@ -1,8 +1,7 @@
 // Port of C++ emStocksFilePanel.h / emStocksFilePanel.cpp
 
 use emcore::emColor::emColor;
-use emcore::emInput::{InputKey, InputVariant};
-use emcore::emInput::emInputEvent;
+use emcore::emInput::{emInputEvent, InputKey, InputVariant};
 use emcore::emInputState::emInputState;
 use emcore::emPainter::emPainter;
 use emcore::emPanel::{PanelBehavior, PanelState};
@@ -17,6 +16,9 @@ pub struct emStocksFilePanel {
     pub(crate) bg_color: emColor,
     pub(crate) config: emStocksConfig,
     pub(crate) list_box: Option<emStocksListBox>,
+    /// DIVERGED: C++ `FileModel` is `emStocksFileModel*` (full file model with signals
+    /// and lifecycle). Rust uses `emStocksRec` directly since `emStocksFileModel` is not
+    /// yet fully integrated as a panel-owning model.
     pub(crate) rec: emStocksRec,
     /// Whether the virtual file state is good (data loaded).
     /// DIVERGED: C++ uses IsVFSGood() from emFilePanel base class; Rust uses
@@ -27,6 +29,8 @@ pub struct emStocksFilePanel {
 impl PanelBehavior for emStocksFilePanel {
     fn Paint(&mut self, painter: &mut emPainter, _w: f64, _h: f64, _state: &PanelState) {
         if self.vfs_good {
+            // C++: painter.Clear(BgColor, canvasColor) — canvasColor not passed
+            // because Rust emPainter::Clear takes only one color argument.
             painter.Clear(self.bg_color);
         }
         // C++: if (!IsVFSGood()) emFilePanel::Paint(painter,canvasColor);
@@ -231,6 +235,12 @@ impl PanelBehavior for emStocksFilePanel {
         // TODO: lay out ListBox child once it is a real panel child
     }
 
+    fn Cycle(&mut self, _ctx: &mut PanelCtx) -> bool {
+        // C++: busy = emFilePanel::Cycle(); UpdateControls() on VirFileStateSignal.
+        // TODO: implement when emFilePanel integration and signal infrastructure are in place.
+        false
+    }
+
     fn GetIconFileName(&self) -> Option<String> {
         Some("documents.tga".to_string())
     }
@@ -410,7 +420,7 @@ mod tests {
     fn ctrl_j_goes_back_in_history() {
         let mut panel = make_active_panel();
         // Set up rec with dates so GoBackInHistory works
-        let mut stock = super::super::emStocksRec::StockRec::default();
+        let mut stock = crate::emStocksRec::StockRec::default();
         stock.AddPrice("2024-06-14", "100");
         stock.AddPrice("2024-06-15", "101");
         panel.rec.stocks.push(stock);
@@ -430,7 +440,7 @@ mod tests {
     #[test]
     fn ctrl_k_goes_forward_in_history() {
         let mut panel = make_active_panel();
-        let mut stock = super::super::emStocksRec::StockRec::default();
+        let mut stock = crate::emStocksRec::StockRec::default();
         stock.AddPrice("2024-06-14", "100");
         stock.AddPrice("2024-06-15", "101");
         panel.rec.stocks.push(stock);
