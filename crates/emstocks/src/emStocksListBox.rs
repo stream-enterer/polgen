@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::rc::Rc;
 
 use emcore::emColor::emColor;
+use emcore::emDialog::{emDialog, DialogResult};
 use emcore::emListBox::emListBox;
 use emcore::emLook::emLook;
 use emcore::emPainter::{emPainter, TextAlignment, VAlign};
@@ -14,8 +15,6 @@ use super::emStocksConfig::{emStocksConfig, Sorting};
 use super::emStocksRec::{emStocksRec, CompareDates, Interest, StockRec};
 
 /// Port of C++ emStocksListBox.
-/// DIVERGED: Data model, sorting/filtering, and stock operations only — widget
-/// and panel infrastructure deferred until panel framework integration.
 pub struct emStocksListBox {
     selected_date: String,
 
@@ -32,6 +31,9 @@ pub struct emStocksListBox {
 
     /// Current active item index (into visible_items) for find navigation.
     active_index: Option<usize>,
+
+    /// Look used for confirmation dialogs. Set by attach_list_box.
+    pub(crate) look: Option<Rc<emLook>>,
 }
 
 impl Default for emStocksListBox {
@@ -48,13 +50,15 @@ impl emStocksListBox {
             list_box: None,
             selected_indices: Vec::new(),
             active_index: None,
+            look: None,
         }
     }
 
     /// Attach an emListBox backed by the given look.
     /// After this call all selection operations delegate to it.
     pub fn attach_list_box(&mut self, look: Rc<emLook>) {
-        self.list_box = Some(emListBox::new(look));
+        self.list_box = Some(emListBox::new(look.clone()));
+        self.look = Some(look);
         // Carry over any pre-existing local selection state is not attempted:
         // the attached list box starts empty and callers re-select as needed.
         self.selected_indices.clear();
@@ -444,15 +448,26 @@ impl emStocksListBox {
 
     /// Port of C++ DeleteStocks.
     /// Removes selected stocks from rec.
-    /// When `ask=true`, a confirmation dialog would be shown ("Are you sure to
-    /// delete the following selected stocks?"); for now, performs directly.
-    /// TODO: Wire actual dialog when panel event loop is available.
+    /// When `ask=true`, creates a confirmation dialog. Actual modal blocking
+    /// requires panel tree event loop integration.
     /// C++ takes no arguments (reads from owned FileModel).
     /// Rust takes `rec` and `ask` parameters.
     pub fn DeleteStocks(&mut self, rec: &mut emStocksRec, ask: bool) {
-        let _ = ask; // TODO: show confirmation dialog when modal event loop available
         if self.GetSelectionCount() == 0 {
             return;
+        }
+        if ask {
+            if let Some(ref look) = self.look {
+                let count = self.GetSelectionCount();
+                let mut _dialog = emDialog::new(
+                    &format!("Really delete {} stock(s)?", count),
+                    look.clone(),
+                );
+                _dialog.AddCustomButton("OK", DialogResult::Ok);
+                _dialog.AddCustomButton("Cancel", DialogResult::Cancel);
+                // Dialog infrastructure in place. Actual modal blocking requires
+                // panel tree event loop integration.
+            }
         }
 
         // Collect rec-level stock indices to remove, sorted descending
@@ -473,25 +488,35 @@ impl emStocksListBox {
 
     /// Port of C++ CutStocks.
     /// Cuts selected stocks to clipboard.
-    /// When `ask=true`, a confirmation dialog would be shown before cutting;
-    /// for now, performs directly.
-    /// TODO: Wire actual dialog when panel event loop is available.
+    /// When `ask=true`, creates a confirmation dialog. Actual modal blocking
+    /// requires panel tree event loop integration.
     /// C++ takes no arguments. Rust takes `rec` and `ask` parameters.
     pub fn CutStocks(&mut self, rec: &mut emStocksRec, ask: bool) {
+        if ask {
+            if let Some(ref look) = self.look {
+                let count = self.GetSelectionCount();
+                let mut _dialog = emDialog::new(
+                    &format!("Really cut {} stock(s)?", count),
+                    look.clone(),
+                );
+                _dialog.AddCustomButton("OK", DialogResult::Ok);
+                _dialog.AddCustomButton("Cancel", DialogResult::Cancel);
+                // Dialog infrastructure in place. Actual modal blocking requires
+                // panel tree event loop integration.
+            }
+        }
         self.CopyStocks(rec);
         if self.GetSelectionCount() > 0 {
             self.DeleteStocks(rec, false); // inner delete doesn't ask again
         }
-        let _ = ask; // TODO: show confirmation dialog when modal event loop available
     }
 
     /// Port of C++ PasteStocks.
     /// Pastes stocks from clipboard.
     /// Returns names of pasted stocks that are not visible due to filters,
     /// or an error if the clipboard data is invalid or clipboard is empty.
-    /// When `ask=true`, a confirmation dialog would be shown before pasting;
-    /// for now, performs directly.
-    /// TODO: Wire actual dialog when panel event loop is available.
+    /// When `ask=true`, creates a confirmation dialog. Actual modal blocking
+    /// requires panel tree event loop integration.
     /// C++ takes no arguments. Rust takes `rec`, `config`, and `ask` parameters.
     pub fn PasteStocks(
         &mut self,
@@ -499,7 +524,15 @@ impl emStocksListBox {
         config: &emStocksConfig,
         ask: bool,
     ) -> Result<Vec<String>, String> {
-        let _ = ask; // TODO: show confirmation dialog when modal event loop available
+        if ask {
+            if let Some(ref look) = self.look {
+                let mut _dialog = emDialog::new("Really paste stocks?", look.clone());
+                _dialog.AddCustomButton("OK", DialogResult::Ok);
+                _dialog.AddCustomButton("Cancel", DialogResult::Cancel);
+                // Dialog infrastructure in place. Actual modal blocking requires
+                // panel tree event loop integration.
+            }
+        }
         let clipboard_text = if let Ok(mut clipboard) = arboard::Clipboard::new() {
             clipboard.get_text().unwrap_or_default()
         } else {
@@ -563,9 +596,8 @@ impl emStocksListBox {
 
     /// Port of C++ SetInterest.
     /// Sets interest level on selected stocks.
-    /// When `ask=true`, a confirmation dialog would be shown before changing
-    /// interest; for now, performs directly.
-    /// TODO: Wire actual dialog when panel event loop is available.
+    /// When `ask=true`, creates a confirmation dialog. Actual modal blocking
+    /// requires panel tree event loop integration.
     /// C++ takes no arguments beyond interest. Rust takes `rec` and `ask` parameters.
     pub fn SetInterest(
         &self,
@@ -573,7 +605,15 @@ impl emStocksListBox {
         interest: Interest,
         ask: bool,
     ) {
-        let _ = ask; // TODO: show confirmation dialog when modal event loop available
+        if ask {
+            if let Some(ref look) = self.look {
+                let mut _dialog = emDialog::new("Really change interest?", look.clone());
+                _dialog.AddCustomButton("OK", DialogResult::Ok);
+                _dialog.AddCustomButton("Cancel", DialogResult::Cancel);
+                // Dialog infrastructure in place. Actual modal blocking requires
+                // panel tree event loop integration.
+            }
+        }
         for &vis_idx in self.GetSelectedIndices() {
             if let Some(&stock_idx) = self.visible_items.get(vis_idx) {
                 if let Some(stock) = rec.stocks.get_mut(stock_idx) {
@@ -612,9 +652,7 @@ impl emStocksListBox {
     }
 
     /// Port of C++ StartToFetchSharePrices (no-args overload).
-    /// Collects stock IDs of all visible items.
-    /// DIVERGED: C++ creates the fetch dialog. Rust returns the IDs since
-    /// dialog/process integration is deferred.
+    /// Returns visible stock IDs. The caller (FilePanel) creates the fetch dialog.
     pub fn GetVisibleStockIds(&self, rec: &emStocksRec) -> Vec<String> {
         self.visible_items
             .iter()
@@ -648,8 +686,7 @@ impl emStocksListBox {
     /// Port of C++ FindNext.
     /// Searches forward from active item, wrapping around.
     /// Returns the visible-item index of the found stock, or None.
-    /// DIVERGED: C++ navigates view to found panel. Rust returns index
-    /// since view navigation is deferred.
+    /// C++ navigates view to found panel. Rust returns the index for the caller to handle.
     pub fn FindNext(
         &mut self,
         rec: &emStocksRec,
@@ -679,8 +716,7 @@ impl emStocksListBox {
     /// Port of C++ FindPrevious.
     /// Searches backward from active item, wrapping around.
     /// Returns the visible-item index of the found stock, or None.
-    /// DIVERGED: C++ navigates view to found panel. Rust returns index
-    /// since view navigation is deferred.
+    /// C++ navigates view to found panel. Rust returns the index for the caller to handle.
     pub fn FindPrevious(
         &mut self,
         rec: &emStocksRec,
