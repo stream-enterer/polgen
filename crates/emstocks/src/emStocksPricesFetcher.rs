@@ -1,11 +1,13 @@
 // Port of C++ emStocksPricesFetcher.h / emStocksPricesFetcher.cpp
 // DIVERGED: No emEngine trait impl (standalone Cycle method instead).
-// DIVERGED: No emProcess integration (stub methods for StartProcess/PollProcess).
+// DIVERGED: No FileModel/FileStateSignal/ChangeSignal integration — Cycle does not check file state.
 // DIVERGED: Uses BTreeMap<String, Option<usize>> mapping stock ID to index in emStocksRec.stocks,
 // instead of emAvlTreeMap<String, emCrossPtr<StockRec>>. The cross-pointer approach
 // doesn't work well when StockRecs are stored in a Vec.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+
+use emcore::emProcess::{emProcess, PipeResult, StartFlags};
 
 use super::emStocksRec::{
     emStocksRec, AddDaysToDate, CompareDates, GetCurrentDate, GetDateDifference,
@@ -31,6 +33,7 @@ pub struct emStocksPricesFetcher {
     pub err_buffer: Vec<u8>,
     pub no_data_stocks: String,
     error: String,
+    current_process: emProcess,
 }
 
 impl emStocksPricesFetcher {
@@ -54,6 +57,7 @@ impl emStocksPricesFetcher {
             err_buffer: Vec::new(),
             no_data_stocks: String::new(),
             error: String::new(),
+            current_process: emProcess::new(),
         }
     }
 
@@ -112,7 +116,8 @@ impl emStocksPricesFetcher {
         self.current_index = 0;
         self.current_symbol.clear();
         self.current_start_date.clear();
-        // DIVERGED: No CurrentProcess.Terminate() — process integration is stubbed.
+        self.current_process
+            .Terminate(std::time::Duration::from_secs(20));
         self.current_process_active = false;
         self.current_stock_updated = false;
         self.out_buffer.clear();
@@ -267,6 +272,194 @@ impl emStocksPricesFetcher {
         self.current_stock_updated = true;
     }
 
+    /// Build the argv vector for the API script process.
+    /// Port of the argv construction in C++ StartProcess.
+    pub(crate) fn BuildProcessArgv(&self) -> Vec<String> {
+        let mut args = Vec::new();
+        if !self.api_script_interpreter.is_empty() {
+            args.push(self.api_script_interpreter.clone());
+        }
+        args.push(self.api_script.clone());
+        args.push(self.current_symbol.clone());
+        args.push(self.current_start_date.clone());
+        args.push(self.api_key.clone());
+        args
+    }
+
+    /// Port of C++ Cycle.
+    /// DIVERGED: No FileModel file-state check — caller is responsible for ensuring
+    /// the model is in a loaded/unsaved state before calling Cycle.
+    pub fn Cycle(&mut self, rec: &mut emStocksRec) -> bool {
+        if self.current_process_active {
+            self.PollProcess(rec);
+        }
+        if !self.current_process_active {
+            self.StartProcess(rec);
+        }
+        self.current_process_active
+    }
+
+    /// Port of C++ StartProcess.
+    pub fn StartProcess(&mut self, rec: &mut emStocksRec) {
+        if self.current_process_active {
+            return;
+        }
+
+        loop {
+            if self.current_index as usize >= self.stock_ids.len() {
+                return;
+            }
+
+            let stock_rec_idx = self.GetCurrentStockRecIndex(rec);
+            match stock_rec_idx {
+                Some(idx) if !rec.stocks[idx].symbol.is_empty() => {
+                    self.current_symbol = rec.stocks[idx].symbol.clone();
+                    break;
+                }
+                _ => {
+                    self.current_index += 1;
+                    continue;
+                }
+            }
+        }
+
+        self.out_buffer.clear();
+        self.err_buffer.clear();
+        self.current_process_active = true;
+
+        let stock_rec_idx = self.GetCurrentStockRecIndex(rec);
+        let stock_rec = stock_rec_idx.map(|i| &rec.stocks[i]);
+        self.CalculateDate(stock_rec);
+
+        if self.api_script.is_empty() {
+            self.SetFailed("API script is not set.");
+            return;
+        }
+
+        let argv = self.BuildProcessArgv();
+        let argv_refs: Vec<&str> = argv.iter().map(|s| s.as_str()).collect();
+        let env = HashMap::new();
+        let flags = StartFlags::PIPE_STDOUT | StartFlags::PIPE_STDERR;
+        if let Err(e) = self.current_process.TryStart(&argv_refs, &env, None, flags) {
+            self.SetFailed(&e.to_string());
+        }
+    }
+
+    /// Port of C++ PollProcess.
+    pub fn PollProcess(&mut self, rec: &mut emStocksRec) {
+        if !self.current_process_active {
+            return;
+        }
+
+        // Read stdout
+        let mut stdout_closed = false;
+        loop {
+            let mut tmp = [0u8; 128];
+            let result = match self.current_process.TryRead(&mut tmp) {
+                Ok(r) => r,
+                Err(e) => {
+                    self.SetFailed(&e.to_string());
+                    return;
+                }
+            };
+            match result {
+                PipeResult::Bytes(n) => {
+                    self.out_buffer.extend_from_slice(&tmp[..n]);
+                    self.ProcessOutBufferLines(rec);
+                    if self.out_buffer.len() > 100000 {
+                        self.SetFailed("API script printed a too long line.");
+                        return;
+                    }
+                }
+                PipeResult::WouldBlock => break,
+                PipeResult::Closed => {
+                    stdout_closed = true;
+                    break;
+                }
+            }
+        }
+
+        // Read stderr
+        let mut stderr_closed = false;
+        loop {
+            let mut tmp = [0u8; 128];
+            let result = match self.current_process.TryReadErr(&mut tmp) {
+                Ok(r) => r,
+                Err(e) => {
+                    self.SetFailed(&e.to_string());
+                    return;
+                }
+            };
+            match result {
+                PipeResult::Bytes(n) => {
+                    self.err_buffer.extend_from_slice(&tmp[..n]);
+                    if self.err_buffer.len() > 100000 {
+                        self.SetFailed(
+                            "API script printed too much data on stderr.",
+                        );
+                        return;
+                    }
+                }
+                PipeResult::WouldBlock => break,
+                PipeResult::Closed => {
+                    stderr_closed = true;
+                    break;
+                }
+            }
+        }
+
+        // If either pipe is still open, keep polling
+        if !stdout_closed || !stderr_closed {
+            return;
+        }
+
+        // Both pipes closed — check if process is still running
+        if self.current_process.IsRunning() {
+            return;
+        }
+
+        // Process has exited
+        let exit_status = self.current_process.GetExitStatus().unwrap_or(-1);
+        if exit_status != 0 {
+            let err_str = String::from_utf8_lossy(&self.err_buffer);
+            self.SetFailed(&format!(
+                "API script failed for \"{}\":\n{}",
+                self.current_symbol, err_str
+            ));
+            return;
+        }
+
+        if !self.current_stock_updated {
+            if let Some(idx) = self.GetCurrentStockRecIndex(rec) {
+                let symbol = &rec.stocks[idx].symbol;
+                let name = &rec.stocks[idx].name;
+                self.no_data_stocks +=
+                    &format!("  {} - {}\n", symbol, name);
+            }
+        }
+
+        if !self.no_data_stocks.is_empty()
+            && self.current_index + 1 >= self.stock_ids.len() as i32
+        {
+            self.SetFailed(&format!(
+                "Could not fetch any new data for:\n{}",
+                self.no_data_stocks
+            ));
+            return;
+        }
+
+        self.current_index += 1;
+        self.current_symbol.clear();
+        self.current_start_date.clear();
+        self.current_process_active = false;
+        self.current_stock_updated = false;
+        self.out_buffer.clear();
+        self.err_buffer.clear();
+        if self.current_index as usize >= self.stock_ids.len() {
+            self.Clear();
+        }
+    }
+
     /// Resolve stock ID to StockRec index in the emStocksRec.
     fn GetStockRecIndex(
         &self,
@@ -415,5 +608,132 @@ mod tests {
         stock.last_price_date = GetCurrentDate();
         fetcher.CalculateDate(Some(&stock));
         assert!(!fetcher.current_start_date.is_empty());
+    }
+
+    #[test]
+    fn build_argv_with_interpreter() {
+        let mut fetcher =
+            emStocksPricesFetcher::new("script.pl", "perl", "key123");
+        fetcher.current_symbol = "AAPL".to_string();
+        fetcher.current_start_date = "2024-01-01".to_string();
+        let argv = fetcher.BuildProcessArgv();
+        assert_eq!(
+            argv,
+            vec!["perl", "script.pl", "AAPL", "2024-01-01", "key123"]
+        );
+    }
+
+    #[test]
+    fn build_argv_without_interpreter() {
+        let mut fetcher =
+            emStocksPricesFetcher::new("script.py", "", "mykey");
+        fetcher.current_symbol = "GOOG".to_string();
+        fetcher.current_start_date = "2024-06-01".to_string();
+        let argv = fetcher.BuildProcessArgv();
+        assert_eq!(
+            argv,
+            vec!["script.py", "GOOG", "2024-06-01", "mykey"]
+        );
+    }
+
+    #[test]
+    fn start_process_skips_stocks_without_symbol() {
+        let mut fetcher =
+            emStocksPricesFetcher::new("script.py", "", "key");
+        let mut rec = emStocksRec::default();
+
+        // Stock 1: no symbol (should be skipped)
+        let mut s1 = StockRec::default();
+        s1.id = "1".to_string();
+        s1.symbol = String::new();
+        rec.stocks.push(s1);
+
+        // Stock 2: has symbol but use a real command so TryStart succeeds
+        let mut s2 = StockRec::default();
+        s2.id = "2".to_string();
+        s2.symbol = "TST".to_string();
+        rec.stocks.push(s2);
+
+        // Use /bin/echo as the "script" so the process actually starts
+        fetcher.api_script = "/bin/echo".to_string();
+        fetcher.AddStockIds(&["1".to_string(), "2".to_string()]);
+
+        fetcher.StartProcess(&mut rec);
+        // current_index should have advanced past stock 1
+        assert_eq!(fetcher.current_index, 1);
+        assert_eq!(fetcher.current_symbol, "TST");
+        assert!(fetcher.current_process_active);
+    }
+
+    #[test]
+    fn start_process_fails_when_api_script_empty() {
+        let mut fetcher = emStocksPricesFetcher::new("", "", "key");
+        let mut rec = emStocksRec::default();
+
+        let mut s = StockRec::default();
+        s.id = "1".to_string();
+        s.symbol = "TST".to_string();
+        rec.stocks.push(s);
+
+        fetcher.AddStockIds(&["1".to_string()]);
+        fetcher.StartProcess(&mut rec);
+
+        assert_eq!(fetcher.GetError(), "API script is not set.");
+        assert!(fetcher.HasFinished());
+    }
+
+    #[test]
+    fn cycle_returns_false_when_finished() {
+        let mut fetcher = emStocksPricesFetcher::new("", "", "");
+        let mut rec = emStocksRec::default();
+        assert!(!fetcher.Cycle(&mut rec));
+    }
+
+    #[test]
+    fn poll_process_handles_exit_with_error() {
+        let mut fetcher =
+            emStocksPricesFetcher::new("script.py", "", "key");
+        // Simulate an active process state without real process
+        // (PollProcess will see pipes closed and process not running)
+        fetcher.current_process_active = true;
+        fetcher.current_symbol = "TST".to_string();
+
+        let mut rec = emStocksRec::default();
+        let mut s = StockRec::default();
+        s.id = "1".to_string();
+        s.symbol = "TST".to_string();
+        rec.stocks.push(s);
+        fetcher.AddStockIds(&["1".to_string()]);
+
+        // PollProcess with no real child: pipes return Closed, process not running,
+        // exit status is None (maps to -1), so it should fail.
+        fetcher.PollProcess(&mut rec);
+
+        // Should have set error since exit status != 0
+        assert!(!fetcher.GetError().is_empty());
+        assert!(fetcher.GetError().contains("API script failed"));
+    }
+
+    #[test]
+    fn start_process_returns_early_when_all_done() {
+        let mut fetcher =
+            emStocksPricesFetcher::new("script.py", "", "key");
+        let mut rec = emStocksRec::default();
+        // No stocks added — StartProcess should return immediately
+        fetcher.StartProcess(&mut rec);
+        assert!(!fetcher.current_process_active);
+    }
+
+    #[test]
+    fn start_process_skips_missing_stock_rec() {
+        let mut fetcher =
+            emStocksPricesFetcher::new("script.py", "", "key");
+        let mut rec = emStocksRec::default();
+        // Add stock ID "1" but no matching StockRec in rec
+        fetcher.AddStockIds(&["1".to_string()]);
+        fetcher.StartProcess(&mut rec);
+        // Should have skipped past it without activating
+        assert!(!fetcher.current_process_active);
+        assert!(fetcher.HasFinished());
     }
 }
