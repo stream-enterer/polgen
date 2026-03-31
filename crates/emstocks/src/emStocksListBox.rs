@@ -444,11 +444,13 @@ impl emStocksListBox {
 
     /// Port of C++ DeleteStocks.
     /// Removes selected stocks from rec.
-    /// DIVERGED: C++ has `ask` parameter for dialog confirmation. Rust
-    /// performs the operation directly since dialog system is deferred.
+    /// When `ask=true`, a confirmation dialog would be shown ("Are you sure to
+    /// delete the following selected stocks?"); for now, performs directly.
+    /// TODO: Wire actual dialog when panel event loop is available.
     /// C++ takes no arguments (reads from owned FileModel).
-    /// Rust takes `rec` parameter.
-    pub fn DeleteStocks(&mut self, rec: &mut emStocksRec) {
+    /// Rust takes `rec` and `ask` parameters.
+    pub fn DeleteStocks(&mut self, rec: &mut emStocksRec, ask: bool) {
+        let _ = ask; // TODO: show confirmation dialog when modal event loop available
         if self.GetSelectionCount() == 0 {
             return;
         }
@@ -471,26 +473,33 @@ impl emStocksListBox {
 
     /// Port of C++ CutStocks.
     /// Cuts selected stocks to clipboard.
-    /// DIVERGED(Phase 4): dialog ask parameter pending.
-    /// C++ takes no arguments. Rust takes `rec` parameter.
-    pub fn CutStocks(&mut self, rec: &mut emStocksRec) {
+    /// When `ask=true`, a confirmation dialog would be shown before cutting;
+    /// for now, performs directly.
+    /// TODO: Wire actual dialog when panel event loop is available.
+    /// C++ takes no arguments. Rust takes `rec` and `ask` parameters.
+    pub fn CutStocks(&mut self, rec: &mut emStocksRec, ask: bool) {
         self.CopyStocks(rec);
         if self.GetSelectionCount() > 0 {
-            self.DeleteStocks(rec);
+            self.DeleteStocks(rec, false); // inner delete doesn't ask again
         }
+        let _ = ask; // TODO: show confirmation dialog when modal event loop available
     }
 
     /// Port of C++ PasteStocks.
     /// Pastes stocks from clipboard.
     /// Returns names of pasted stocks that are not visible due to filters,
     /// or an error if the clipboard data is invalid or clipboard is empty.
-    /// DIVERGED(Phase 4): dialog ask parameter pending.
-    /// C++ takes no arguments.
+    /// When `ask=true`, a confirmation dialog would be shown before pasting;
+    /// for now, performs directly.
+    /// TODO: Wire actual dialog when panel event loop is available.
+    /// C++ takes no arguments. Rust takes `rec`, `config`, and `ask` parameters.
     pub fn PasteStocks(
         &mut self,
         rec: &mut emStocksRec,
         config: &emStocksConfig,
+        ask: bool,
     ) -> Result<Vec<String>, String> {
+        let _ = ask; // TODO: show confirmation dialog when modal event loop available
         let clipboard_text = if let Ok(mut clipboard) = arboard::Clipboard::new() {
             clipboard.get_text().unwrap_or_default()
         } else {
@@ -554,14 +563,17 @@ impl emStocksListBox {
 
     /// Port of C++ SetInterest.
     /// Sets interest level on selected stocks.
-    /// DIVERGED: C++ has `ask` parameter for dialog confirmation. Rust
-    /// performs directly. C++ takes no arguments beyond interest.
-    /// Rust takes `rec` parameter.
+    /// When `ask=true`, a confirmation dialog would be shown before changing
+    /// interest; for now, performs directly.
+    /// TODO: Wire actual dialog when panel event loop is available.
+    /// C++ takes no arguments beyond interest. Rust takes `rec` and `ask` parameters.
     pub fn SetInterest(
         &self,
         rec: &mut emStocksRec,
         interest: Interest,
+        ask: bool,
     ) {
+        let _ = ask; // TODO: show confirmation dialog when modal event loop available
         for &vis_idx in self.GetSelectedIndices() {
             if let Some(&stock_idx) = self.visible_items.get(vis_idx) {
                 if let Some(stock) = rec.stocks.get_mut(stock_idx) {
@@ -917,7 +929,7 @@ mod tests {
         lb.UpdateItems(&rec, &config);
         lb.Select(1); // select second visible item (Beta)
 
-        lb.DeleteStocks(&mut rec);
+        lb.DeleteStocks(&mut rec, false);
         assert_eq!(rec.stocks.len(), 2);
         assert_eq!(rec.stocks[0].name, "Alpha");
         assert_eq!(rec.stocks[1].name, "Gamma");
@@ -930,7 +942,7 @@ mod tests {
         rec.stocks.push(make_stock("1", "Alpha", Interest::High));
 
         let mut lb = emStocksListBox::new();
-        lb.DeleteStocks(&mut rec);
+        lb.DeleteStocks(&mut rec, false);
         assert_eq!(rec.stocks.len(), 1);
     }
 
@@ -945,7 +957,7 @@ mod tests {
         lb.UpdateItems(&rec, &config);
         lb.Select(0); // select Alpha
 
-        lb.CutStocks(&mut rec);
+        lb.CutStocks(&mut rec, false);
         assert_eq!(rec.stocks.len(), 1);
         assert_eq!(rec.stocks[0].name, "Beta");
     }
@@ -1056,7 +1068,7 @@ mod tests {
         lb.UpdateItems(&rec, &config);
         lb.Select(0);
 
-        lb.SetInterest(&mut rec, Interest::High);
+        lb.SetInterest(&mut rec, Interest::High, false);
         // Only the selected stock should change
         assert_eq!(
             rec.stocks[lb.visible_items[0]].interest,

@@ -151,7 +151,7 @@ impl PanelBehavior for emStocksFilePanel {
                 InputKey::Key('X') => {
                     // C++: ListBox->CutStocks()
                     let Self { list_box, model, .. } = self;
-                    list_box.as_mut().unwrap().CutStocks(model.GetWritableRec());
+                    list_box.as_mut().unwrap().CutStocks(model.GetWritableRec(), false);
                     return true;
                 }
                 InputKey::Key('C') => {
@@ -163,7 +163,7 @@ impl PanelBehavior for emStocksFilePanel {
                 InputKey::Key('V') => {
                     // C++: ListBox->PasteStocks()
                     let Self { list_box, model, config, .. } = self;
-                    let _ = list_box.as_mut().unwrap().PasteStocks(model.GetWritableRec(), config);
+                    let _ = list_box.as_mut().unwrap().PasteStocks(model.GetWritableRec(), config, false);
                     return true;
                 }
                 InputKey::Key('P') => {
@@ -218,7 +218,7 @@ impl PanelBehavior for emStocksFilePanel {
         if input_state.IsNoMod() && event.key == InputKey::Delete {
             // C++: ListBox->DeleteStocks()
             let Self { list_box, model, .. } = self;
-            list_box.as_mut().unwrap().DeleteStocks(model.GetWritableRec());
+            list_box.as_mut().unwrap().DeleteStocks(model.GetWritableRec(), false);
             return true;
         }
 
@@ -228,19 +228,19 @@ impl PanelBehavior for emStocksFilePanel {
                 InputKey::Key('H') => {
                     // C++: ListBox->SetInterest(HIGH_INTEREST)
                     let Self { list_box, model, .. } = self;
-                    list_box.as_ref().unwrap().SetInterest(model.GetWritableRec(), Interest::High);
+                    list_box.as_ref().unwrap().SetInterest(model.GetWritableRec(), Interest::High, false);
                     return true;
                 }
                 InputKey::Key('M') => {
                     // C++: ListBox->SetInterest(MEDIUM_INTEREST)
                     let Self { list_box, model, .. } = self;
-                    list_box.as_ref().unwrap().SetInterest(model.GetWritableRec(), Interest::Medium);
+                    list_box.as_ref().unwrap().SetInterest(model.GetWritableRec(), Interest::Medium, false);
                     return true;
                 }
                 InputKey::Key('L') => {
                     // C++: ListBox->SetInterest(LOW_INTEREST)
                     let Self { list_box, model, .. } = self;
-                    list_box.as_ref().unwrap().SetInterest(model.GetWritableRec(), Interest::Low);
+                    list_box.as_ref().unwrap().SetInterest(model.GetWritableRec(), Interest::Low, false);
                     return true;
                 }
                 _ => {}
