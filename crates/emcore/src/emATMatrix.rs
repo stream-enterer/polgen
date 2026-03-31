@@ -284,7 +284,8 @@ impl AffineMatrix {
         )
     }
 
-    // DIVERGED: TransX, TransY — merged into single method returning (tx, ty) tuple
+    // DIVERGED: TransX, TransY — also available as individual methods below;
+    // tuple-returning method added for idiomatic Rust use.
     /// Transform source coordinates to target coordinates.
     pub fn transform_point(&self, sx: f64, sy: f64) -> (f64, f64) {
         (
@@ -293,7 +294,18 @@ impl AffineMatrix {
         )
     }
 
-    // DIVERGED: InverseTransX, InverseTransY — merged into single method returning Option<(sx, sy)>
+    /// Transform source X coordinate. C++ `emATMatrix::TransX`.
+    pub fn TransX(&self, sx: f64, sy: f64) -> f64 {
+        self.a[0][0] * sx + self.a[1][0] * sy + self.a[2][0]
+    }
+
+    /// Transform source Y coordinate. C++ `emATMatrix::TransY`.
+    pub fn TransY(&self, sx: f64, sy: f64) -> f64 {
+        self.a[0][1] * sx + self.a[1][1] * sy + self.a[2][1]
+    }
+
+    // DIVERGED: InverseTransX, InverseTransY — also available as individual methods below;
+    // tuple-returning method added for idiomatic Rust use.
     /// Transform target coordinates back to source coordinates.
     ///
     /// For inverse-transforming more than about 4 points, use `inverse()`
@@ -311,6 +323,16 @@ impl AffineMatrix {
                 - self.a[0][0] * self.a[2][1])
                 / det,
         ))
+    }
+
+    /// Inverse-transform target X coordinate. C++ `emATMatrix::InverseTransX`.
+    pub fn InverseTransX(&self, tx: f64, ty: f64) -> Option<f64> {
+        self.inverse_transform_point(tx, ty).map(|(sx, _)| sx)
+    }
+
+    /// Inverse-transform target Y coordinate. C++ `emATMatrix::InverseTransY`.
+    pub fn InverseTransY(&self, tx: f64, ty: f64) -> Option<f64> {
+        self.inverse_transform_point(tx, ty).map(|(_, sy)| sy)
     }
 
     /// Get an element. Row index i is 0..3, column index j is 0..2.
@@ -564,6 +586,23 @@ mod tests {
         let mut actual = m1;
         actual.multiply_assign(&m2);
         assert!(matrices_approx_eq(&actual, &expected));
+    }
+
+    #[test]
+    fn test_individual_trans_methods() {
+        // Identity + translation (10, 20)
+        let m = AffineMatrix::translate(10.0, 20.0);
+        let (tx, ty) = m.transform_point(5.0, 7.0);
+        assert_eq!(m.TransX(5.0, 7.0), tx);
+        assert_eq!(m.TransY(5.0, 7.0), ty);
+    }
+
+    #[test]
+    fn test_individual_inverse_trans_methods() {
+        let m = AffineMatrix::translate(10.0, 20.0);
+        let (ix, iy) = m.inverse_transform_point(15.0, 27.0).unwrap();
+        assert_eq!(m.InverseTransX(15.0, 27.0).unwrap(), ix);
+        assert_eq!(m.InverseTransY(15.0, 27.0).unwrap(), iy);
     }
 }
 
