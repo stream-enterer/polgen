@@ -1221,8 +1221,9 @@ impl emStocksItemChart {
             i3 += 1;
         }
 
-        // DIVERGED: C++ uses PaintLine with emRoundedStroke and emStrokeEnd per segment.
-        // Rust PaintPolyline accepts thickness and draws connected segments.
+        // DIVERGED: C++ uses per-segment PaintLine with emRoundedStroke and emStrokeEnd.
+        // Rust emPainter::PaintLine does not accept stroke parameters; PaintPolyline with
+        // thickness is the closest equivalent and produces visually similar output.
         let mut vertices: Vec<(f64, f64)> = Vec::new();
         for i in i0..=i3 {
             if !self.prices[i].valid {
