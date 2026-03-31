@@ -242,6 +242,9 @@ pub struct emView {
     zoomed_out_before_sg: bool,
     /// Stress test state. Created when STRESS_TEST flag is set, dropped when cleared.
     stress_test: Option<StressTest>,
+    /// Whether the soft keyboard is shown (touch platforms only).
+    /// C++ emView::IsSoftKeyboardShown / ShowSoftKeyboard.
+    soft_keyboard_shown: bool,
 }
 
 impl emView {
@@ -290,6 +293,7 @@ impl emView {
             viewing_dirty: true,
             zoomed_out_before_sg: true,
             stress_test: None,
+            soft_keyboard_shown: false,
         }
     }
 
@@ -347,6 +351,21 @@ impl emView {
 
     pub fn IsActivationAdherent(&self) -> bool {
         self.activation_adherent
+    }
+
+    /// Whether the soft keyboard is currently shown.
+    /// C++ `emView::IsSoftKeyboardShown()`.
+    pub fn IsSoftKeyboardShown(&self) -> bool {
+        self.soft_keyboard_shown
+    }
+
+    /// Show or hide the soft keyboard.
+    /// C++ `emView::ShowSoftKeyboard(bool show)`.
+    /// DIVERGED: C++ delegates to CurrentViewPort which delegates to the
+    /// platform window. Desktop stub stores flag only — no actual keyboard
+    /// is shown until a platform-specific viewport implements this.
+    pub fn ShowSoftKeyboard(&mut self, show: bool) {
+        self.soft_keyboard_shown = show;
     }
 
     // --- Seeking ---
@@ -3579,6 +3598,18 @@ mod tests {
                  expected sign={first_sign}"
             );
         }
+    }
+
+    #[test]
+    fn test_soft_keyboard_toggle() {
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("root");
+        let mut view = emView::new(root, 800.0, 600.0);
+        assert!(!view.IsSoftKeyboardShown());
+        view.ShowSoftKeyboard(true);
+        assert!(view.IsSoftKeyboardShown());
+        view.ShowSoftKeyboard(false);
+        assert!(!view.IsSoftKeyboardShown());
     }
 }
 

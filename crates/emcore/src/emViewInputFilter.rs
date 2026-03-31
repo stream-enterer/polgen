@@ -2201,7 +2201,7 @@ impl emDefaultTouchVIF {
                 }
                 GestureAction::ToggleSoftKeyboard => {
                     dlog!("Touch gesture: toggle soft keyboard");
-                    // TODO: _view.ShowSoftKeyboard(!_view.IsSoftKeyboardShown())
+                    _view.ShowSoftKeyboard(!_view.IsSoftKeyboardShown());
                 }
                 GestureAction::ForwardInput {
                     key,
