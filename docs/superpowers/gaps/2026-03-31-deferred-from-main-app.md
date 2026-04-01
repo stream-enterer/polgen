@@ -96,6 +96,54 @@ Both are specialized and lower priority.
 
 The current golden test infrastructure covers emCore rendering. No golden tests exist for emMain-level panels (starfield, cosmos items, control panel). These should be added once the panels are stable to prevent regressions.
 
+### 9. Eagle Logo Rendering
+
+The C++ `emMainContentPanel::PaintEagle()` draws the eagle shape using hundreds of polygon coordinate pairs. The Rust port replaces this with a text placeholder ("Eagle Mode"). The full polygon data is in `~/git/eaglemode-0.96.4/src/emMain/emMainContentPanel.cpp` lines 132-400+.
+
+### 10. Star.tga Textured Star Rendering
+
+The C++ starfield loads `Star.tga` from resources and renders large stars as textured images with HSV-shifted glow layers. The Rust port uses `PaintEllipse` for all star sizes. Needs `emGetInsResImage` / resource loading infrastructure.
+
+**C++ source:** `emStarFieldPanel::PaintOverlay()` in `~/git/eaglemode-0.96.4/src/emMain/emStarFieldPanel.cpp` lines 102-147
+
+### 11. Startup Animation
+
+The C++ `emMainWindow::StartupEngineClass` runs a ~2-second choreographed zoom-in animation from overview to the default visit target (3 phases: fade-in, zoom, settle). The Rust port skips this entirely — the window opens directly at the root view.
+
+**C++ source:** `~/git/eaglemode-0.96.4/src/emMain/emMainWindow.cpp`
+
+### 12. Detached Control Window
+
+The C++ `emMainWindow` creates a separate OS window for the floating sidebar (`emWindow` for detached control panel). The Rust port embeds the control panel directly in the main panel's split layout. The C++ behavior allows the sidebar to be in its own OS window with independent drag/resize.
+
+### 13. Slider Drag Interaction
+
+The `emMainPanel` slider panel renders as a solid color strip but does not respond to mouse drag. The C++ `SliderPanel::Input()` tracks mouse press/drag/release to resize the control/content split, and `DragSlider()` updates `UnifiedSliderPos` and saves to config. Also missing: double-click-to-reset and auto-hide timer (5s delay in fullscreen mode).
+
+**C++ source:** `~/git/eaglemode-0.96.4/src/emMain/emMainPanel.cpp`
+
+### 14. Autoplay View Animator Panel Traversal
+
+The `emAutoplayViewAnimator` state machine structure is ported but all panel-dependent methods are stubs (`SetGoalToItemAt`, `SetGoalToPreviousItemOf`, `SetGoalToNextItemOf`, `SkipToPreviousItem`, `SkipToNextItem`). These need the panel tree traversal API (`GetFirstChild`, `GetNext`, etc.) and `emVisitingViewAnimator` integration.
+
+**C++ source:** `~/git/eaglemode-0.96.4/src/emMain/emAutoplay.cpp`
+
+### 15. IPC Single-Instance
+
+`emMain::CalcServerName()` is ported and derives the server name from hostname + DISPLAY. However, `try_ipc_client()` always returns false (no actual IPC attempt). Needs `emMiniIpc::emMiniIpcClient::TrySend()` and `emMiniIpcServer` to be wired for single-instance behavior.
+
+### 16. emSubViewPanel Integration
+
+The C++ `emMainPanel` uses `emSubViewPanel` for both control and content sides, giving each independent zoom/pan navigation. The Rust port creates `emMainControlPanel` and `emMainContentPanel` as direct children without independent views. This means the control panel zooms with the content — not C++ behavior.
+
+### 17. Items Requiring Review
+
+**emRec color round-trip fidelity:** The bookmark and cosmos item Record implementations serialize colors as `{R G B A}` int sub-structs. This may not match the C++ `emColorRec` format exactly — worth testing with actual `.emVcItem` and `.emBookmarks` files loaded from the C++ installation.
+
+**emBookmarksGroupPanel ownership divergence:** C++ `emBookmarksPanel` is recursive (creates child `emBookmarksPanel` for groups). Rust ownership rules prevent a type from creating children of itself in `LayoutChildren`, so a separate `emBookmarksGroupPanel` type was introduced. This means groups only render one level deep — nested groups within groups won't show their children.
+
+**TicTacToe Easter egg:** The C++ starfield creates a TicTacToe panel at depth > 50 with 1/11213 probability. This is noted in comments but not implemented.
+
 ## How to Use This Document
 
 When picking the next work after the main app launch, use this as a menu. Priority order for maximum user impact:
