@@ -289,7 +289,9 @@ impl PanelBehavior for emDirPanel {
         let cfg_gen = self.config.borrow().GetChangeSignal();
         if cfg_gen != self.last_config_gen {
             self.last_config_gen = cfg_gen;
-            // Reset child_count to force update_children to recreate
+            // C++ calls InvalidatePainting() + UpdateChildren() + InvalidateChildrenLayout().
+            // Rust resets child_count to force update_children to recreate all children,
+            // which implicitly covers painting and layout invalidation.
             self.child_count = 0;
             changed = true;
         }
@@ -340,6 +342,11 @@ impl PanelBehavior for emDirPanel {
         }
 
         self.file_panel.refresh_vir_file_state();
+        // C++ returns emFilePanel::Cycle() busy state. Return true (busy) while
+        // the model is loading, so the engine keeps cycling us.
+        if !self.loading_done && self.dir_model.is_some() {
+            return true;
+        }
         changed
     }
 
