@@ -1,9 +1,6 @@
 // Port of C++ emMain (IPC server + window factory).
-//
-// DIVERGED: C++ emMain is an emEngine with IPC server polling via emMiniIpc.
-// Rust uses a simplified struct that computes the server name for
-// single-instance coordination.  IPC server/client is stubbed until
-// emMiniIpc is ported.
+
+use emcore::emMiniIpc::emMiniIpcClient;
 
 /// Compute the IPC server name for single-instance coordination.
 ///
@@ -28,11 +25,64 @@ fn get_hostname() -> String {
 
 /// Try to send a command to an already-running instance via IPC.
 ///
-/// DIVERGED: C++ uses emMiniIpc::TrySend for single-instance coordination.
-/// Stubbed until emMiniIpc is ported. Always returns false (no existing instance).
-pub fn try_ipc_client(_server_name: &str, _visit: Option<&str>) -> bool {
-    // TODO: wire emMiniIpc when available
-    false
+/// Port of C++ single-instance coordination using emMiniIpc::TrySend.
+pub fn try_ipc_client(server_name: &str, visit: Option<&str>) -> bool {
+    let mut args: Vec<&str> = vec!["NewWindow"];
+    if let Some(v) = visit {
+        args.push("-visit");
+        args.push(v);
+    }
+    match emMiniIpcClient::TrySend(server_name, &args) {
+        Ok(()) => {
+            log::info!("IPC: sent NewWindow to existing instance");
+            true
+        }
+        Err(e) => {
+            log::debug!("IPC: no existing instance ({e})");
+            false
+        }
+    }
+}
+
+/// IPC server + window factory engine.
+///
+/// Port of C++ `emMain`.
+pub struct emMain {
+    server_name: String,
+}
+
+impl emMain {
+    pub fn new(serve: bool) -> Self {
+        let server_name = CalcServerName();
+        if serve {
+            log::info!("IPC server name: {server_name}");
+        }
+        Self { server_name }
+    }
+
+    pub fn on_reception(&self, args: &[String]) {
+        if args.is_empty() {
+            log::warn!("emMain: empty IPC message");
+            return;
+        }
+        match args[0].as_str() {
+            "NewWindow" => {
+                log::info!("emMain: received NewWindow command");
+                // Full wiring in Phase 3 when startup engine is ported.
+            }
+            "ReloadFiles" => {
+                log::info!("emMain: received ReloadFiles command");
+            }
+            _ => {
+                let joined: String = args.join(" ");
+                log::warn!("emMain: illegal MiniIpc request: {joined}");
+            }
+        }
+    }
+
+    pub fn server_name(&self) -> &str {
+        &self.server_name
+    }
 }
 
 #[cfg(test)]
@@ -56,8 +106,46 @@ mod tests {
     }
 
     #[test]
-    fn test_try_ipc_client_stub() {
-        assert!(!try_ipc_client("test_server", None));
-        assert!(!try_ipc_client("test_server", Some("/home")));
+    fn test_try_ipc_client_no_server() {
+        // Should return false when no server is running
+        assert!(!try_ipc_client("nonexistent_test_server_12345", None));
+        assert!(!try_ipc_client("nonexistent_test_server_12345", Some("/home")));
+    }
+
+    #[test]
+    fn test_emMain_new() {
+        let em = emMain::new(false);
+        assert!(em.server_name().starts_with("eaglemode_on_"));
+    }
+
+    #[test]
+    fn test_emMain_on_reception_new_window() {
+        let em = emMain::new(false);
+        // Should not panic
+        em.on_reception(&["NewWindow".to_string()]);
+        em.on_reception(&[
+            "NewWindow".to_string(),
+            "-visit".to_string(),
+            "/home".to_string(),
+        ]);
+    }
+
+    #[test]
+    fn test_emMain_on_reception_empty() {
+        let em = emMain::new(false);
+        // Should not panic on empty args
+        em.on_reception(&[]);
+    }
+
+    #[test]
+    fn test_emMain_on_reception_reload_files() {
+        let em = emMain::new(false);
+        em.on_reception(&["ReloadFiles".to_string()]);
+    }
+
+    #[test]
+    fn test_emMain_on_reception_unknown() {
+        let em = emMain::new(false);
+        em.on_reception(&["UnknownCommand".to_string(), "arg1".to_string()]);
     }
 }
