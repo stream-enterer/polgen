@@ -7,8 +7,12 @@ use std::rc::Rc;
 
 use emcore::emColor::emColor;
 use emcore::emContext::emContext;
+use emcore::emCursor::emCursor;
+use emcore::emInput::emInputEvent;
+use emcore::emInputState::emInputState;
 use emcore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
 use emcore::emPainter::emPainter;
+use emcore::emPainter::{TextAlignment, VAlign};
 use emcore::emPanelCtx::PanelCtx;
 use emcore::emPanelTree::PanelId;
 
@@ -37,6 +41,57 @@ impl PanelBehavior for SliderPanel {
             h,
             emColor::from_packed(0x333344FF),
             emColor::TRANSPARENT,
+        );
+    }
+}
+
+// ── StartupOverlayPanel ──────────────────────────────────────────────────────
+
+/// Full-screen overlay shown during startup.
+///
+/// Port of C++ `emMainPanel::StartupOverlayPanel` (emMainPanel.cpp:505-565).
+///
+/// Eats all input events, shows "Loading..." text, and returns a wait cursor.
+/// `IsOpaque()` returns `false` — this is critical: otherwise the sub-view panels
+/// for content and control would get "non-viewed" state.
+pub struct StartupOverlayPanel;
+
+impl PanelBehavior for StartupOverlayPanel {
+    fn IsOpaque(&self) -> bool {
+        false
+    }
+
+    fn GetCursor(&self) -> emCursor {
+        emCursor::Wait
+    }
+
+    fn Input(
+        &mut self,
+        _event: &emInputEvent,
+        _state: &PanelState,
+        _input_state: &emInputState,
+    ) -> bool {
+        // Eat all input events during startup.
+        true
+    }
+
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        painter.Clear(emColor::from_packed(0x808080FF));
+        painter.PaintTextBoxed(
+            0.0,
+            0.0,
+            w,
+            h,
+            "Loading...",
+            h,
+            emColor::from_packed(0xFFFFFFFF),
+            emColor::from_packed(0x808080FF),
+            TextAlignment::Center,
+            VAlign::Center,
+            TextAlignment::Center,
+            1.0,
+            false,
+            0.0,
         );
     }
 }
@@ -364,6 +419,18 @@ mod tests {
         assert_eq!(panel.control_x, 0.0);
         // And control_w set to 1 - slider_w by the branch formula.
         assert!((panel.control_w - (1.0 - panel.slider_w)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_startup_overlay_panel_not_opaque() {
+        let panel = StartupOverlayPanel;
+        assert!(!panel.IsOpaque());
+    }
+
+    #[test]
+    fn test_startup_overlay_panel_cursor() {
+        let panel = StartupOverlayPanel;
+        assert_eq!(panel.GetCursor(), emCursor::Wait);
     }
 
     #[test]
