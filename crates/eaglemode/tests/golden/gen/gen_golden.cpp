@@ -5115,6 +5115,52 @@ static void gen_main_panel_layouts() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Cosmos item border
+// ═══════════════════════════════════════════════════════════════════
+
+static void gen_cosmos_item_border() {
+    double contentTallness = 0.75;
+    double borderScaling = 1.0;
+    emColor bgColor(0x20, 0x20, 0x40);
+    emColor borderColor(0x40, 0x60, 0xA0);
+    emColor titleColor(0xE0, 0xE0, 0xFF);
+    const char* title = "Test Cosmos Item";
+
+    double b_val = emMin(contentTallness, 1.0) * borderScaling;
+    double bl = b_val * 0.03, bt = b_val * 0.05, br = b_val * 0.03, bb = b_val * 0.03;
+    double panelH = contentTallness + bt + bb;
+
+    const int W = 400, H = 300;
+    emImage img(W, H, 4);
+    img.Fill(emColor::BLACK);
+    emPainter pixel_p = make_painter(img);
+
+    double sx = (double)W, sy = (double)H / panelH;
+    emPainter p(pixel_p, pixel_p.GetClipX1(), pixel_p.GetClipY1(),
+        pixel_p.GetClipX2(), pixel_p.GetClipY2(), 0.0, 0.0, sx, sy);
+
+    double w = 1.0, h = panelH;
+
+    // Top border strip
+    p.PaintRect(0.0, 0.0, w, bt * h, borderColor);
+    // Bottom border strip
+    p.PaintRect(0.0, (1.0 - bb) * h, w, bb * h, borderColor);
+    // Left border strip
+    p.PaintRect(0.0, bt * h, bl * w, (1.0 - bt - bb) * h, borderColor);
+    // Right border strip
+    p.PaintRect((1.0 - br) * w, bt * h, br * w, (1.0 - bt - bb) * h, borderColor);
+    // Background
+    p.PaintRect(bl * w, bt * h, (1.0 - bl - br) * w, (1.0 - bt - bb) * h, bgColor);
+    // Title text
+    double fontH = bt * h * 0.7;
+    if (fontH >= 1.0) {
+        p.PaintText(bl * w, bt * h * 0.15, title, fontH, 1.0, titleColor);
+    }
+
+    dump_painter("cosmos_item_border", img);
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Main
 // ═══════════════════════════════════════════════════════════════════
 
@@ -5387,6 +5433,9 @@ int main() {
 
     printf("Generating main panel layout golden files...\n");
     gen_main_panel_layouts();
+
+    printf("Generating cosmos item border golden files...\n");
+    gen_cosmos_item_border();
 
     printf("Done!\n");
 

@@ -1,6 +1,7 @@
 mod animator;
 mod common;
 mod composition;
+mod cosmos_items;
 mod eagle_logo;
 mod compositor;
 mod input;
