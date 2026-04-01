@@ -94,18 +94,11 @@ impl Default for emVirtualCosmosItemRec {
 
 impl Record for emVirtualCosmosItemRec {
     fn from_rec(rec: &RecStruct) -> Result<Self, RecError> {
-        let bg = rec
-            .get_struct("backgroundcolor")
-            .and_then(|s| emColorRec::FromRecStruct(s, true).ok())
-            .unwrap_or_else(|| emColor::from_packed(0xAAAAAAFF));
-        let border_color = rec
-            .get_struct("bordercolor")
-            .and_then(|s| emColorRec::FromRecStruct(s, true).ok())
-            .unwrap_or_else(|| emColor::from_packed(0xAAAAAAFF));
-        let title_color = rec
-            .get_struct("titlecolor")
-            .and_then(|s| emColorRec::FromRecStruct(s, true).ok())
-            .unwrap_or_else(|| emColor::from_packed(0x000000FF));
+        let bg = parse_color_field(rec, "backgroundcolor", emColor::from_packed(0xAAAAAAFF));
+        let border_color =
+            parse_color_field(rec, "bordercolor", emColor::from_packed(0xAAAAAAFF));
+        let title_color =
+            parse_color_field(rec, "titlecolor", emColor::from_packed(0x000000FF));
 
         Ok(Self {
             Name: rec.get_str("name").unwrap_or("").to_string(),
@@ -182,6 +175,27 @@ impl Record for emVirtualCosmosItemRec {
     fn IsSetToDefault(&self) -> bool {
         *self == Self::default()
     }
+}
+
+/// Parse a color field that may be either a hex string or `{R G B A}` struct.
+///
+/// C++ `.emVcItem` files use `"#BBB"` format (hex strings).
+/// The Rust `to_rec` writes `{R G B A}` struct format.
+/// Support both for round-trip compatibility.
+fn parse_color_field(rec: &RecStruct, field: &str, default: emColor) -> emColor {
+    // Try hex string first (C++ .emVcItem files use "#BBB" format)
+    if let Some(s) = rec.get_str(field)
+        && let Some(c) = emColor::TryParse(s)
+    {
+        return c;
+    }
+    // Fall back to struct format {R G B A}
+    if let Some(s) = rec.get_struct(field)
+        && let Ok(c) = emColorRec::FromRecStruct(s, true)
+    {
+        return c;
+    }
+    default
 }
 
 // ── emVirtualCosmosModel ──────────────────────────────────────────────────────
@@ -904,5 +918,44 @@ mod tests {
         item.CopyToUser = false;
         item.TryPrepareItemFile("/orig", "/user");
         assert_eq!(item.ItemFilePath, "/orig/foo.tga");
+    }
+
+    #[test]
+    fn test_vcitem_hex_color_parsing() {
+        // C++ .emVcItem files use hex string colors like "#BBB"
+        let mut rec = RecStruct::new();
+        rec.set_str("backgroundcolor", "#BBB");
+        rec.set_str("bordercolor", "#333");
+        rec.set_str("titlecolor", "#EEF");
+        rec.set_str("filename", "test.emFileLink");
+
+        let item = emVirtualCosmosItemRec::from_rec(&rec).unwrap();
+        // #BBB = #BBBBBB = RGB(187, 187, 187)
+        assert_eq!(
+            item.BackgroundColor.GetRed(),
+            187,
+            "BackgroundColor red should be 187, got {}",
+            item.BackgroundColor.GetRed()
+        );
+        assert_eq!(item.BackgroundColor.GetGreen(), 187);
+        assert_eq!(item.BackgroundColor.GetBlue(), 187);
+        // #333 = #333333 = RGB(51, 51, 51)
+        assert_eq!(item.BorderColor.GetRed(), 51);
+        assert_eq!(item.BorderColor.GetGreen(), 51);
+        assert_eq!(item.BorderColor.GetBlue(), 51);
+        // #EEF = #EEEEFF = RGB(238, 238, 255)
+        assert_eq!(item.TitleColor.GetRed(), 238);
+        assert_eq!(item.TitleColor.GetGreen(), 238);
+        assert_eq!(item.TitleColor.GetBlue(), 255);
+    }
+
+    #[test]
+    fn test_vcitem_struct_color_still_works() {
+        // Ensure the struct-format colors (from to_rec) still parse
+        let mut item = emVirtualCosmosItemRec::default();
+        item.BackgroundColor = emColor::rgba(10, 20, 30, 255);
+        let rec = item.to_rec();
+        let loaded = emVirtualCosmosItemRec::from_rec(&rec).unwrap();
+        assert_eq!(loaded.BackgroundColor, item.BackgroundColor);
     }
 }
