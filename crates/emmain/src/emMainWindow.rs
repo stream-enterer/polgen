@@ -7,6 +7,7 @@
 // wiring (raise existing window, link to content view) requires Phase 3's
 // startup engine integration.  The startup animation remains deferred.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use winit::event_loop::ActiveEventLoop;
@@ -20,6 +21,16 @@ use emcore::emWindow::{WindowFlags, ZuiWindow};
 
 use crate::emMainControlPanel::emMainControlPanel;
 use crate::emMainPanel::emMainPanel;
+
+/// Shared state between StartupEngine and emMainWindow.
+///
+/// The engine advances `state` as it progresses through startup stages;
+/// the window reads it to drive panel creation.
+#[derive(Debug)]
+pub(crate) struct StartupState {
+    pub(crate) state: u8,
+    pub(crate) _done: bool,
+}
 
 /// Configuration for creating an emMainWindow.
 pub struct emMainWindowConfig {
@@ -51,6 +62,7 @@ pub struct emMainWindow {
     pub(crate) _control_panel_id: Option<PanelId>,
     pub(crate) _content_panel_id: Option<PanelId>,
     pub(crate) startup_engine_id: Option<EngineId>,
+    pub(crate) startup_state: Option<Rc<RefCell<StartupState>>>,
     pub(crate) _to_close: bool,
     pub(crate) _close_signal: Option<SignalId>,
     pub(crate) _visit_identity: Option<String>,
@@ -72,6 +84,7 @@ impl emMainWindow {
             _control_panel_id: None,
             _content_panel_id: None,
             startup_engine_id: None,
+            startup_state: None,
             _to_close: false,
             _close_signal: None,
             _visit_identity: None,
@@ -84,30 +97,97 @@ impl emMainWindow {
             config,
         }
     }
+
+    /// Read shared startup state and drive panel creation stages.
+    ///
+    /// Called from the application event loop after the scheduler runs engines.
+    /// Port of C++ `emMainWindow` startup handling (emMainWindow.cpp:362-422).
+    pub fn cycle_startup(&mut self, app: &mut App) {
+        let Some(ref shared) = self.startup_state else {
+            return;
+        };
+        let state = shared.borrow().state;
+
+        match state {
+            5 => {
+                // Advance emMainPanel to creation_stage 1 (create control panel).
+                if let Some(main_id) = self.main_panel_id {
+                    app.tree
+                        .with_behavior_as::<emMainPanel, _>(main_id, |mp| {
+                            mp.advance_creation_stage();
+                        });
+                }
+            }
+            6 => {
+                // Advance emMainPanel to creation_stage 2 (create content panel).
+                if let Some(main_id) = self.main_panel_id {
+                    app.tree
+                        .with_behavior_as::<emMainPanel, _>(main_id, |mp| {
+                            mp.advance_creation_stage();
+                        });
+                }
+            }
+            _ => {}
+        }
+    }
 }
 
-/// Stub startup engine registered with the scheduler.
+/// Startup engine registered with the scheduler.
 ///
 /// Port of C++ `emMainWindow::StartupEngineClass` (emMainWindow.cpp:86-260).
-/// States 0-11 drive panel creation and the startup zoom animation; currently
-/// a no-op stub that immediately goes to sleep.
+/// States 0-6 drive panel creation; states 7-11 drive the startup zoom
+/// animation (deferred to Task 5).
 pub(crate) struct StartupEngine {
-    _state: u8,
+    state: u8,
     _root_panel_id: PanelId,
+    shared: Rc<RefCell<StartupState>>,
 }
 
 impl StartupEngine {
-    pub(crate) fn new(root_panel_id: PanelId) -> Self {
+    pub(crate) fn new(root_panel_id: PanelId, shared: Rc<RefCell<StartupState>>) -> Self {
         Self {
-            _state: 0,
+            state: 0,
             _root_panel_id: root_panel_id,
+            shared,
         }
     }
 }
 
 impl emEngine for StartupEngine {
-    fn Cycle(&mut self, _ctx: &mut EngineCtx<'_>) -> bool {
-        false
+    fn Cycle(&mut self, ctx: &mut EngineCtx<'_>) -> bool {
+        match self.state {
+            // States 0-2: idle wake-ups.
+            0..=2 => {
+                self.state += 1;
+                true
+            }
+            // State 3: MainPanel already created (Task 3). Update shared state and advance.
+            3 => {
+                self.shared.borrow_mut().state = 3;
+                self.state += 1;
+                true
+            }
+            // State 4: signal bookmark acquisition.
+            4 => {
+                self.shared.borrow_mut().state = 4;
+                self.state += 1;
+                !ctx.IsTimeSliceAtEnd()
+            }
+            // State 5: signal control panel creation.
+            5 => {
+                self.shared.borrow_mut().state = 5;
+                self.state += 1;
+                !ctx.IsTimeSliceAtEnd()
+            }
+            // State 6: signal content panel creation.
+            6 => {
+                self.shared.borrow_mut().state = 6;
+                self.state += 1;
+                !ctx.IsTimeSliceAtEnd()
+            }
+            // States 7+ handled in Task 5.
+            _ => false,
+        }
     }
 }
 
@@ -151,8 +231,15 @@ pub fn create_main_window(
     app.windows.insert(window_id, window);
     mw.window_id = Some(window_id);
 
+    // Create shared startup state for engine ↔ window communication.
+    let shared = Rc::new(RefCell::new(StartupState {
+        state: 0,
+        _done: false,
+    }));
+    mw.startup_state = Some(Rc::clone(&shared));
+
     // Register StartupEngine with the scheduler
-    let startup_engine = StartupEngine::new(root_id);
+    let startup_engine = StartupEngine::new(root_id, shared);
     let engine_id = app
         .scheduler
         .borrow_mut()
@@ -246,20 +333,34 @@ mod tests {
     }
 
     #[test]
-    fn test_startup_engine_cycle_returns_false() {
+    fn test_startup_engine_initial_state() {
         use emcore::emPanelTree::PanelId;
         use slotmap::KeyData;
 
-        // Create a dummy PanelId
         let panel_id = PanelId::from(KeyData::from_ffi(0x0100_0000_0000_0000));
-        let mut engine = StartupEngine::new(panel_id);
+        let shared = Rc::new(RefCell::new(StartupState {
+            state: 0,
+            _done: false,
+        }));
+        let engine = StartupEngine::new(panel_id, Rc::clone(&shared));
 
-        // We can't easily construct an EngineCtx without a full scheduler,
-        // but we can verify the engine was created in state 0.
-        assert_eq!(engine._state, 0);
+        assert_eq!(engine.state, 0);
+        assert_eq!(engine._root_panel_id, panel_id);
+        assert_eq!(shared.borrow().state, 0);
+        assert!(!shared.borrow()._done);
 
         // Verify the type implements emEngine (compile-time check).
         let _: &dyn emEngine = &engine;
-        let _ = &mut engine;
+    }
+
+    #[test]
+    fn test_startup_state_debug() {
+        let state = StartupState {
+            state: 3,
+            _done: false,
+        };
+        let debug = format!("{state:?}");
+        assert!(debug.contains("state: 3"));
+        assert!(debug.contains("_done: false"));
     }
 }
