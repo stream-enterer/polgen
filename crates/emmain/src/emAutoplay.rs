@@ -323,51 +323,79 @@ impl emAutoplayViewAnimator {
     /// Set goal to display the item at the given panel identity.
     ///
     /// Port of C++ `emAutoplayViewAnimator::SetGoalToItemAt(const emString&)`.
-    /// Panel tree traversal is stubbed pending panel API availability.
-    pub fn SetGoalToItemAt(&mut self, _panel_identity: &str) {
-        log::warn!(
-            "emAutoplayViewAnimator::SetGoalToItemAt: panel traversal not yet implemented"
-        );
+    pub fn SetGoalToItemAt(&mut self, panel_identity: &str) {
+        self.ClearGoal();
+        self.State = AutoplayState::Unfinished;
+        self.CurrentPanelIdentity = panel_identity.to_string();
+        self.CameFrom = CameFromType::Parent;
+        self.CurrentPanelState = CurrentPanelState::NotVisited;
+        self.OneMoreWakeUp = true;
     }
 
     /// Set goal to the previous item relative to the given panel identity.
     ///
     /// Port of C++ `emAutoplayViewAnimator::SetGoalToPreviousItemOf`.
-    /// Panel tree traversal is stubbed pending panel API availability.
-    pub fn SetGoalToPreviousItemOf(&mut self, _panel_identity: &str) {
-        log::warn!(
-            "emAutoplayViewAnimator::SetGoalToPreviousItemOf: panel traversal not yet implemented"
-        );
+    pub fn SetGoalToPreviousItemOf(&mut self, panel_identity: &str) {
+        self.ClearGoal();
+        self.State = AutoplayState::Unfinished;
+        self.Backwards = true;
+        self.SkipCurrent = true;
+        self.CurrentPanelIdentity = panel_identity.to_string();
+        self.CameFrom = CameFromType::Parent;
+        self.CurrentPanelState = CurrentPanelState::NotVisited;
+        self.OneMoreWakeUp = true;
     }
 
     /// Set goal to the next item relative to the given panel identity.
     ///
     /// Port of C++ `emAutoplayViewAnimator::SetGoalToNextItemOf`.
-    /// Panel tree traversal is stubbed pending panel API availability.
-    pub fn SetGoalToNextItemOf(&mut self, _panel_identity: &str) {
-        log::warn!(
-            "emAutoplayViewAnimator::SetGoalToNextItemOf: panel traversal not yet implemented"
-        );
+    pub fn SetGoalToNextItemOf(&mut self, panel_identity: &str) {
+        self.ClearGoal();
+        self.State = AutoplayState::Unfinished;
+        self.Backwards = false;
+        self.SkipCurrent = true;
+        self.CurrentPanelIdentity = panel_identity.to_string();
+        self.CameFrom = CameFromType::Parent;
+        self.CurrentPanelState = CurrentPanelState::NotVisited;
+        self.OneMoreWakeUp = true;
     }
 
     /// Skip backwards to the previous item in the current traversal.
     ///
     /// Port of C++ `emAutoplayViewAnimator::SkipToPreviousItem`.
-    /// Panel tree traversal is stubbed pending panel API availability.
     pub fn SkipToPreviousItem(&mut self) {
-        log::warn!(
-            "emAutoplayViewAnimator::SkipToPreviousItem: panel traversal not yet implemented"
-        );
+        if self.State == AutoplayState::NoGoal {
+            return;
+        }
+        if self.Backwards {
+            self.SkipItemCount += 1;
+        } else if self.SkipItemCount > 0 {
+            self.SkipItemCount -= 1;
+        } else {
+            self.InvertDirection();
+            self.SkipCurrent = true;
+            self.SkipItemCount += 1;
+        }
+        self.OneMoreWakeUp = true;
     }
 
     /// Skip forward to the next item in the current traversal.
     ///
     /// Port of C++ `emAutoplayViewAnimator::SkipToNextItem`.
-    /// Panel tree traversal is stubbed pending panel API availability.
     pub fn SkipToNextItem(&mut self) {
-        log::warn!(
-            "emAutoplayViewAnimator::SkipToNextItem: panel traversal not yet implemented"
-        );
+        if self.State == AutoplayState::NoGoal {
+            return;
+        }
+        if !self.Backwards {
+            self.SkipItemCount += 1;
+        } else if self.SkipItemCount > 0 {
+            self.SkipItemCount -= 1;
+        } else {
+            self.InvertDirection();
+            self.SkipCurrent = true;
+            self.SkipItemCount += 1;
+        }
+        self.OneMoreWakeUp = true;
     }
 
     //------------------------------------------------------------------
@@ -712,6 +740,35 @@ impl emAutoplayViewAnimator {
         }
 
         AdvanceResult::Failed
+    }
+
+    /// Low-priority cycle that advances panel traversal.
+    ///
+    /// Port of C++ `emAutoplayViewAnimator::LowPriCycle` (emAutoplay.cpp:232-324).
+    /// Simplified: no view/animation integration yet. Drives `AdvanceCurrentPanel`
+    /// until an item is found, traversal fails, or the goal is reached.
+    /// Returns true if more work is needed (an item was found to visit).
+    pub fn LowPriCycle(&mut self, tree: &PanelTree) -> bool {
+        if self.State != AutoplayState::Unfinished {
+            return false;
+        }
+
+        loop {
+            let result = self.AdvanceCurrentPanel(tree);
+            match result {
+                AdvanceResult::Again => {
+                    continue;
+                }
+                AdvanceResult::Failed => {
+                    self.State = AutoplayState::GivenUp;
+                    return false;
+                }
+                AdvanceResult::Finished => {
+                    self.State = AutoplayState::GoalReached;
+                    return false;
+                }
+            }
+        }
     }
 
     /// Invert the traversal direction (forward ↔ backward).
@@ -1385,5 +1442,122 @@ mod tests {
 
         let root = tree.find_panel_by_identity("root").unwrap();
         assert_eq!(tree.get_panel_name(root), "root");
+    }
+
+    // ── Goal/Skip method tests ────────────────────────────────────────
+
+    #[test]
+    fn test_set_goal_to_item_at() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.SetGoalToItemAt("root:panel1");
+        assert!(va.HasGoal());
+        assert_eq!(va.State, AutoplayState::Unfinished);
+        assert_eq!(va.CurrentPanelIdentity, "root:panel1");
+        assert_eq!(va.CameFrom, CameFromType::Parent);
+        assert_eq!(va.CurrentPanelState, CurrentPanelState::NotVisited);
+        assert!(va.OneMoreWakeUp);
+    }
+
+    #[test]
+    fn test_set_goal_to_next_item_of() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.SetGoalToNextItemOf("root:panel1");
+        assert!(va.HasGoal());
+        assert!(!va.Backwards);
+        assert!(va.SkipCurrent);
+        assert_eq!(va.CurrentPanelIdentity, "root:panel1");
+    }
+
+    #[test]
+    fn test_set_goal_to_previous_item_of() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.SetGoalToPreviousItemOf("root:panel1");
+        assert!(va.HasGoal());
+        assert!(va.Backwards);
+        assert!(va.SkipCurrent);
+        assert_eq!(va.CurrentPanelIdentity, "root:panel1");
+    }
+
+    #[test]
+    fn test_skip_to_next_item() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.State = AutoplayState::Unfinished;
+        va.SkipToNextItem();
+        assert_eq!(va.SkipItemCount, 1);
+        assert!(va.OneMoreWakeUp);
+    }
+
+    #[test]
+    fn test_skip_to_next_item_no_goal() {
+        let mut va = emAutoplayViewAnimator::new();
+        // State is NoGoal — should be a no-op
+        va.SkipToNextItem();
+        assert_eq!(va.SkipItemCount, 0);
+        assert!(!va.OneMoreWakeUp);
+    }
+
+    #[test]
+    fn test_skip_to_previous_item() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.State = AutoplayState::Unfinished;
+        va.SkipToPreviousItem();
+        // Going backwards when not backwards: inverts direction
+        assert!(va.Backwards);
+        assert!(va.SkipCurrent);
+        assert_eq!(va.SkipItemCount, 1);
+    }
+
+    #[test]
+    fn test_skip_to_previous_item_when_backwards() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.State = AutoplayState::Unfinished;
+        va.Backwards = true;
+        va.SkipToPreviousItem();
+        assert_eq!(va.SkipItemCount, 1);
+        assert!(va.Backwards);
+    }
+
+    #[test]
+    fn test_skip_to_next_item_decrements_when_backwards() {
+        let mut va = emAutoplayViewAnimator::new();
+        va.State = AutoplayState::Unfinished;
+        va.Backwards = true;
+        va.SkipItemCount = 2;
+        va.SkipToNextItem();
+        assert_eq!(va.SkipItemCount, 1);
+    }
+
+    #[test]
+    fn test_low_pri_cycle_finds_item() {
+        let mut tree = PanelTree::new();
+        let root = tree.create_root("root");
+        let child = tree.create_child(root, "a");
+        tree.set_focusable(child, true);
+        tree.SetAutoplayHandling(child, AutoplayHandlingFlags::ITEM);
+
+        let mut va = emAutoplayViewAnimator::new();
+        va.SetGoalToItemAt("root");
+        let result = va.LowPriCycle(&tree);
+        // Should reach goal (Finished)
+        assert!(!result);
+        assert_eq!(va.State, AutoplayState::GoalReached);
+    }
+
+    #[test]
+    fn test_low_pri_cycle_no_goal() {
+        let tree = PanelTree::new();
+        let mut va = emAutoplayViewAnimator::new();
+        assert!(!va.LowPriCycle(&tree));
+    }
+
+    #[test]
+    fn test_low_pri_cycle_fails_on_missing_panel() {
+        let tree = PanelTree::new();
+        let mut va = emAutoplayViewAnimator::new();
+        va.State = AutoplayState::Unfinished;
+        va.CurrentPanelIdentity = "nonexistent".to_string();
+        let result = va.LowPriCycle(&tree);
+        assert!(!result);
+        assert_eq!(va.State, AutoplayState::GivenUp);
     }
 }
