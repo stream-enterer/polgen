@@ -2,8 +2,10 @@
 //
 // DIVERGED: C++ emMainWindow creates an OS window + emMainPanel + detached
 // control window + StartupEngine.  Rust creates a single ZuiWindow with
-// emMainPanel as the root panel.  The detached control window and startup
-// animation are deferred.
+// emMainPanel as the root panel.  CreateControlWindow and DoCustomCheat are
+// added (see create_control_window / do_custom_cheat below) but full runtime
+// wiring (raise existing window, link to content view) requires Phase 3's
+// startup engine integration.  The startup animation remains deferred.
 
 use std::rc::Rc;
 
@@ -12,6 +14,7 @@ use winit::event_loop::ActiveEventLoop;
 use emcore::emGUIFramework::App;
 use emcore::emWindow::{WindowFlags, ZuiWindow};
 
+use crate::emMainControlPanel::emMainControlPanel;
 use crate::emMainPanel::emMainPanel;
 
 /// Configuration for creating an emMainWindow.
@@ -67,6 +70,58 @@ pub fn create_main_window(
     );
     let window_id = window.winit_window.id();
     app.windows.insert(window_id, window);
+}
+
+/// Create a detached control window.
+///
+/// Port of C++ `emMainWindow::CreateControlWindow` (emMainWindow.cpp:309-327).
+/// Creates a second OS window with `WF_AUTO_DELETE`, hosting an
+/// `emMainControlPanel`.
+///
+/// Triggered by the `"ccw"` cheat code in `DoCustomCheat`.
+///
+/// Note: Full wiring (raise existing window, link to content view) requires
+/// Phase 3's startup engine integration. This establishes the API shape.
+pub fn create_control_window(
+    app: &mut App,
+    event_loop: &ActiveEventLoop,
+) -> Option<winit::window::WindowId> {
+    let ctrl_panel = emMainControlPanel::new(Rc::clone(&app.context));
+    let root_id = app.tree.create_root("ctrl_window_root");
+    app.tree.set_behavior(root_id, Box::new(ctrl_panel));
+
+    let flags = WindowFlags::AUTO_DELETE;
+    let close_signal = app.scheduler.borrow_mut().create_signal();
+    let flags_signal = app.scheduler.borrow_mut().create_signal();
+
+    let window = ZuiWindow::create(
+        event_loop,
+        app.gpu(),
+        root_id,
+        flags,
+        close_signal,
+        flags_signal,
+    );
+    let window_id = window.winit_window.id();
+    app.windows.insert(window_id, window);
+    Some(window_id)
+}
+
+/// Handle a custom cheat code.
+///
+/// Port of C++ `emMainWindow::DoCustomCheat` (emMainWindow.cpp:266-277).
+///
+/// Currently recognized cheats:
+/// - `"ccw"`: Create a detached control window.
+pub fn do_custom_cheat(cheat: &str, app: &mut App, event_loop: &ActiveEventLoop) {
+    match cheat {
+        "ccw" => {
+            create_control_window(app, event_loop);
+        }
+        _ => {
+            log::debug!("Unknown cheat code: {cheat}");
+        }
+    }
 }
 
 #[cfg(test)]
