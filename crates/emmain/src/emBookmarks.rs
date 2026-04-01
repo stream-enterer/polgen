@@ -5,6 +5,9 @@ use emcore::emColor::emColor;
 use emcore::emConfigModel::emConfigModel;
 use emcore::emContext::emContext;
 use emcore::emInstallInfo::{emGetInstallPath, InstallDirType};
+use emcore::emPanel::{NoticeFlags, PanelBehavior, PanelState};
+use emcore::emPainter::{emPainter, TextAlignment, VAlign};
+use emcore::emPanelCtx::PanelCtx;
 use emcore::emRec::{RecError, RecStruct, RecValue};
 use emcore::emRecRecord::Record;
 use emcore::emRecRecTypes::emColorRec;
@@ -496,6 +499,273 @@ impl emBookmarksModel {
     }
 }
 
+// ── emBookmarkButton ──────────────────────────────────────────────────────────
+
+/// A panel button representing a single bookmark entry.
+///
+/// Port of C++ `emBookmarksPanel`'s bookmark child (C++ uses anonymous button
+/// widgets embedded in the raster group; Rust gives each a named type).
+pub struct emBookmarkButton {
+    bookmark: emBookmarkRec,
+}
+
+impl emBookmarkButton {
+    pub fn new(bookmark: emBookmarkRec) -> Self {
+        Self { bookmark }
+    }
+}
+
+impl PanelBehavior for emBookmarkButton {
+    fn get_title(&self) -> Option<String> {
+        Some(self.bookmark.entry.Name.clone())
+    }
+
+    fn GetCanvasColor(&self) -> emColor {
+        self.bookmark.entry.BgColor
+    }
+
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        let bg = self.bookmark.entry.BgColor;
+        let fg = self.bookmark.entry.FgColor;
+        // Draw background.
+        painter.PaintRect(0.0, 0.0, w, h, bg, emColor::TRANSPARENT);
+        // Draw bookmark name centered in the button.
+        if !self.bookmark.entry.Name.is_empty() {
+            let font_h = h * 0.4;
+            painter.PaintTextBoxed(
+                0.0,
+                0.0,
+                w,
+                h,
+                &self.bookmark.entry.Name,
+                font_h,
+                fg,
+                bg,
+                TextAlignment::Center,
+                VAlign::Center,
+                TextAlignment::Center,
+                0.0,
+                false,
+                0.5,
+            );
+        }
+    }
+
+    fn Cycle(&mut self, _ctx: &mut PanelCtx) -> bool {
+        // Navigation is not wired yet — log intent for now.
+        false
+    }
+}
+
+// ── emBookmarksPanel ──────────────────────────────────────────────────────────
+
+/// Panel rendering bookmark buttons from `emBookmarksModel`.
+///
+/// Simplified port of C++ `emBookmarksPanel` (extends `emRasterGroup`).
+/// Renders each `emBookmarkEntryUnion::Bookmark` as an `emBookmarkButton`
+/// and each `emBookmarkEntryUnion::Group` as a nested `emBookmarksPanel`.
+/// Listens to the model change signal and recreates children when the model
+/// updates.
+pub struct emBookmarksPanel {
+    ctx: Rc<emContext>,
+    model: Rc<RefCell<emBookmarksModel>>,
+    /// Cached snapshot of entries — used to detect model changes.
+    entries: Vec<emBookmarkEntryUnion>,
+    children_created: bool,
+}
+
+impl emBookmarksPanel {
+    pub fn new(ctx: Rc<emContext>) -> Self {
+        let model = emBookmarksModel::Acquire(&ctx);
+        let entries = model.borrow().GetRec().entries.clone();
+        Self {
+            ctx,
+            model,
+            entries,
+            children_created: false,
+        }
+    }
+
+    fn model_changed(&self) -> bool {
+        let current = self.model.borrow().GetRec().entries.clone();
+        current != self.entries
+    }
+
+    fn sync_entries(&mut self) {
+        self.entries = self.model.borrow().GetRec().entries.clone();
+    }
+}
+
+impl PanelBehavior for emBookmarksPanel {
+    fn get_title(&self) -> Option<String> {
+        Some("Bookmarks".to_string())
+    }
+
+    fn GetCanvasColor(&self) -> emColor {
+        GROUP_BG_DEFAULT
+    }
+
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        // Draw group background.
+        painter.PaintRect(0.0, 0.0, w, h, GROUP_BG_DEFAULT, emColor::TRANSPARENT);
+    }
+
+    fn Cycle(&mut self, ctx: &mut PanelCtx) -> bool {
+        if self.model_changed() {
+            self.sync_entries();
+            self.children_created = false;
+            ctx.DeleteAllChildren();
+        }
+        if !self.children_created {
+            self.children_created = true;
+            // LayoutChildren creates the children — returning true triggers a
+            // layout pass.
+            return true;
+        }
+        false
+    }
+
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        // Delete old children if needed.
+        if ctx.child_count() == 0 && !self.entries.is_empty() {
+            // Create child panels for each entry in the snapshot.
+            let entries = self.entries.clone();
+            for (i, entry) in entries.iter().enumerate() {
+                let name = format!("bm_{i}");
+                match entry {
+                    emBookmarkEntryUnion::Bookmark(bm) => {
+                        let btn = emBookmarkButton::new(bm.clone());
+                        ctx.create_child_with(&name, Box::new(btn));
+                    }
+                    emBookmarkEntryUnion::Group(grp) => {
+                        // Build a nested panel backed by a temporary model
+                        // snapshot.  The child holds its own ctx reference so
+                        // it can re-acquire the model for sub-entries.
+                        let sub_panel = emBookmarksGroupPanel::new(
+                            Rc::clone(&self.ctx),
+                            grp.clone(),
+                        );
+                        ctx.create_child_with(&name, Box::new(sub_panel));
+                    }
+                }
+            }
+        }
+
+        // Lay out children in a vertical stack.
+        let children = ctx.children();
+        if children.is_empty() {
+            return;
+        }
+        let n = children.len() as f64;
+        let child_h = 1.0 / n;
+        for (i, child) in children.iter().enumerate() {
+            let y = i as f64 * child_h;
+            ctx.layout_child(*child, 0.0, y, 1.0, child_h);
+        }
+    }
+
+    fn notice(&mut self, flags: NoticeFlags, _state: &PanelState) {
+        if flags.contains(NoticeFlags::LAYOUT_CHANGED) {
+            // Force LayoutChildren to re-run.
+        }
+    }
+}
+
+// ── emBookmarksGroupPanel ─────────────────────────────────────────────────────
+
+/// Panel rendering a single bookmark group's children.
+///
+/// DIVERGED: C++ uses recursive emBookmarksPanel for groups.  In Rust we use
+/// a separate struct `emBookmarksGroupPanel` to avoid ownership issues when
+/// recursively creating child panels from within `LayoutChildren`.  The
+/// behavior is identical; only the type name differs.
+pub struct emBookmarksGroupPanel {
+    _ctx: Rc<emContext>,
+    group: emBookmarkGroupRec,
+    children_created: bool,
+}
+
+impl emBookmarksGroupPanel {
+    pub fn new(ctx: Rc<emContext>, group: emBookmarkGroupRec) -> Self {
+        Self {
+            _ctx: ctx,
+            group,
+            children_created: false,
+        }
+    }
+}
+
+impl PanelBehavior for emBookmarksGroupPanel {
+    fn get_title(&self) -> Option<String> {
+        Some(self.group.entry.Name.clone())
+    }
+
+    fn GetCanvasColor(&self) -> emColor {
+        self.group.entry.BgColor
+    }
+
+    fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, _state: &PanelState) {
+        let bg = self.group.entry.BgColor;
+        painter.PaintRect(0.0, 0.0, w, h, bg, emColor::TRANSPARENT);
+        if !self.group.entry.Name.is_empty() {
+            let fg = self.group.entry.FgColor;
+            let font_h = h * 0.15;
+            painter.PaintTextBoxed(
+                0.0,
+                0.0,
+                w,
+                font_h * 1.5,
+                &self.group.entry.Name,
+                font_h,
+                fg,
+                bg,
+                TextAlignment::Center,
+                VAlign::Center,
+                TextAlignment::Center,
+                0.0,
+                false,
+                0.5,
+            );
+        }
+    }
+
+    fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
+        if self.children_created {
+            return;
+        }
+        self.children_created = true;
+
+        let entries = self.group.Bookmarks.clone();
+        for (i, entry) in entries.iter().enumerate() {
+            let name = format!("grp_bm_{i}");
+            match entry {
+                emBookmarkEntryUnion::Bookmark(bm) => {
+                    let btn = emBookmarkButton::new(bm.clone());
+                    ctx.create_child_with(&name, Box::new(btn));
+                }
+                emBookmarkEntryUnion::Group(sub_grp) => {
+                    let sub = emBookmarksGroupPanel::new(
+                        Rc::clone(&self._ctx),
+                        sub_grp.clone(),
+                    );
+                    ctx.create_child_with(&name, Box::new(sub));
+                }
+            }
+        }
+
+        let children = ctx.children();
+        if children.is_empty() {
+            return;
+        }
+        let n = children.len() as f64;
+        let child_h = 1.0 / n;
+        for (i, child) in children.iter().enumerate() {
+            let y = i as f64 * child_h;
+            ctx.layout_child(*child, 0.0, y, 1.0, child_h);
+        }
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -724,5 +994,28 @@ mod tests {
         let model = emBookmarksModel::Acquire(&ctx);
         let model = model.borrow();
         assert_eq!(model.GetFormatName(), "emBookmarks");
+    }
+
+    #[test]
+    fn test_bookmarks_panel_new() {
+        let ctx = emcore::emContext::emContext::NewRoot();
+        let panel = emBookmarksPanel::new(Rc::clone(&ctx));
+        assert_eq!(panel.get_title(), Some("Bookmarks".to_string()));
+    }
+
+    #[test]
+    fn test_bookmark_button_title() {
+        let mut bm = emBookmarkRec::default();
+        bm.entry.Name = "Home".to_string();
+        let btn = emBookmarkButton::new(bm);
+        assert_eq!(btn.get_title(), Some("Home".to_string()));
+    }
+
+    #[test]
+    fn test_bookmarks_panel_behavior() {
+        use emcore::emPanel::PanelBehavior;
+        let ctx = emcore::emContext::emContext::NewRoot();
+        let panel = emBookmarksPanel::new(Rc::clone(&ctx));
+        let _: Box<dyn PanelBehavior> = Box::new(panel);
     }
 }
