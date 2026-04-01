@@ -31,10 +31,10 @@ use crate::emMainControlPanel::emMainControlPanel;
 /// Port of C++ `emMainPanel::SliderPanel` (emMainPanel.cpp:377-502).
 ///
 /// DIVERGED: C++ SliderPanel holds a `MainPanel&` and calls
-/// `MainPanel.DragSlider(dy)` / `MainPanel.DoubleClickSlider()` directly.
+/// `MainPanel._DragSlider(dy)` / `MainPanel._DoubleClickSlider()` directly.
 /// Rust cannot hold parent references in the panel tree. Instead, the parent
 /// (`emMainPanel`) reads this panel's state via `with_behavior_as` and calls
-/// its own `DragSlider` / `DoubleClickSlider`. The drag wiring is in Task 7.
+/// its own `_DragSlider` / `_DoubleClickSlider`. The drag wiring is in Task 7.
 pub(crate) struct SliderPanel {
     mouse_over: bool,
     pressed: bool,
@@ -152,7 +152,7 @@ impl PanelBehavior for SliderPanel {
                     // press_slider_y is set by parent via set_press_slider_y
                     // before Input dispatch (or in LayoutChildren).
                 } else if event.repeat == 1 {
-                    // C++ unconditionally calls MainPanel.DoubleClickSlider()
+                    // C++ unconditionally calls MainPanel._DoubleClickSlider()
                     // here. In Rust, the parent reads slider state and
                     // handles it (Task 7 wiring). Reset pressed if active.
                     self.pressed = false;
@@ -331,6 +331,10 @@ pub struct emMainPanel {
     slider_pressed: bool,
     children_created: bool,
     last_height: f64,
+
+    // Mouse movement tracking for slider auto-hide (C++ emMainPanel::Input)
+    old_mouse_x: f64,
+    old_mouse_y: f64,
 }
 
 impl emMainPanel {
@@ -373,6 +377,8 @@ impl emMainPanel {
             slider_min_y: 0.0,
             slider_max_y: 0.0,
             last_height: 1.0,
+            old_mouse_x: 0.0,
+            old_mouse_y: 0.0,
         }
     }
 
@@ -475,7 +481,7 @@ impl emMainPanel {
 
     /// Apply a slider drag delta in parent coordinate space.
     ///
-    /// Port of C++ `emMainPanel::DragSlider` (emMainPanel.cpp:342-357).
+    /// Port of C++ `emMainPanel::_DragSlider` (emMainPanel.cpp:342-357).
     pub(crate) fn _DragSlider(&mut self, delta_y: f64) {
         let mut y = self.slider_y + delta_y;
         if y <= self.slider_min_y {
@@ -497,7 +503,7 @@ impl emMainPanel {
 
     /// Toggle the slider between open and closed on double-click.
     ///
-    /// Port of C++ `emMainPanel::DoubleClickSlider` (emMainPanel.cpp:360-374).
+    /// Port of C++ `emMainPanel::_DoubleClickSlider` (emMainPanel.cpp:360-374).
     pub(crate) fn _DoubleClickSlider(&mut self) {
         if self.unified_slider_pos < 0.01 {
             if self.config.borrow().GetControlViewSize() < 0.01 {
@@ -582,6 +588,27 @@ impl PanelBehavior for emMainPanel {
                 255, self.control_edges_color, 0o750,
             );
         }
+    }
+
+    fn Input(
+        &mut self,
+        _event: &emInputEvent,
+        _state: &PanelState,
+        input_state: &emInputState,
+    ) -> bool {
+        // Port of C++ emMainPanel::Input (emMainPanel.cpp:143-158) —
+        // detect mouse movement for slider hiding.
+        if (self.old_mouse_x - input_state.mouse_x).abs() > 2.5
+            || (self.old_mouse_y - input_state.mouse_y).abs() > 2.5
+            || input_state.GetLeftButton()
+            || input_state.GetMiddleButton()
+            || input_state.GetRightButton()
+        {
+            self.old_mouse_x = input_state.mouse_x;
+            self.old_mouse_y = input_state.mouse_y;
+            // UpdateSliderHiding(true) will be wired in Task 8
+        }
+        false
     }
 
     fn LayoutChildren(&mut self, ctx: &mut PanelCtx) {
@@ -880,7 +907,7 @@ mod tests {
         assert!(!panel.hidden);
     }
 
-    // ── DragSlider / DoubleClickSlider tests ─────────────────────────────
+    // ── _DragSlider / _DoubleClickSlider tests ─────────────────────────────
 
     #[test]
     fn test_drag_slider_clamps_to_min() {
