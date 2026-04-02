@@ -1725,6 +1725,9 @@ impl<'a> emPainter<'a> {
     /// Tiny-text fallback: at very small sizes, render non-space runs as
     /// colored rectangles with reduced alpha (1/3 per C++).
     #[allow(clippy::too_many_arguments)]
+    /// Tiny-text fallback: literal port of C++ PaintText else branch (lines 2139-2163).
+    /// Renders non-space character runs as colored rectangles with alpha/3.
+    #[allow(clippy::too_many_arguments)]
     fn paint_text_tiny(
         &mut self,
         x: f64,
@@ -1735,25 +1738,37 @@ impl<'a> emPainter<'a> {
         color: emColor,
         canvas_color: emColor,
     ) {
-        let reduced_alpha = (color.GetAlpha() as u32).div_ceil(3) as u8;
+        // C++ line 2140: color.SetAlpha((emByte)((color.GetAlpha()+2)/3))
+        let reduced_alpha = ((color.GetAlpha() as u32 + 2) / 3) as u8;
         let rc = color.SetAlpha(reduced_alpha);
         let mut cx = x;
-        let mut run_start: Option<f64> = None;
+        let mut run_start = x; // C++ x1 = x initially
+        let mut in_run = false;
 
+        // C++ iterates bytes, splits on c <= 0x20 (space and all control chars).
+        // For text that has already been split by formatted renderer,
+        // only space (0x20) should be present as a whitespace character.
+        // But match C++ exactly: split on ANY byte <= 0x20.
         for ch in text.chars() {
-            if ch == ' ' {
-                // Flush non-space run.
-                if let Some(start) = run_start.take() {
-                    self.PaintRect(start, y, cx - start, char_height, rc, canvas_color);
+            if ch <= ' ' {
+                // C++ line 2143-2150: flush run, advance past whitespace.
+                if in_run && cx > run_start {
+                    self.PaintRect(run_start, y, cx - run_start, char_height, rc, canvas_color);
                 }
-            } else if run_start.is_none() {
-                run_start = Some(cx);
+                cx += char_width;
+                run_start = cx;
+                in_run = false;
+            } else {
+                if !in_run {
+                    run_start = cx;
+                    in_run = true;
+                }
+                cx += char_width;
             }
-            cx += char_width;
         }
         // Flush final run.
-        if let Some(start) = run_start {
-            self.PaintRect(start, y, cx - start, char_height, rc, canvas_color);
+        if in_run && cx > run_start {
+            self.PaintRect(run_start, y, cx - run_start, char_height, rc, canvas_color);
         }
     }
 
