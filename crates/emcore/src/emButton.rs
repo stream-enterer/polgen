@@ -172,6 +172,7 @@ impl emButton {
 
         // C++ DoBorder paints the border first, then DoButton paints the face
         // inside the content round rect.
+        self.border.how_to_text = self.GetHowTo(enabled, true);
         self.border
             .paint_border(painter, w, h, &self.look, false, true, pixel_scale);
 

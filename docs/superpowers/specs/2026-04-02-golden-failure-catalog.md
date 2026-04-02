@@ -7,12 +7,13 @@ Supersedes the 2026-04-01 catalog. 37 tests across 12 groups.
 - G1 hypothesis (area sampling carry-over) **disproven** — 23 former-G1 tests reclassified into 4 new groups (A-D)
 - G2-G9 hypotheses **re-validated** — all confirmed with identical divergence patterns
 - widget_listbox max_diff dropped 136→25 (IO field overlay fixed, remaining divergence is HowTo text)
+- **HowTo text fix applied** — 7 widget types now populate `how_to_text` in `Paint()`. Groups A+B root cause reclassified from "missing HowTo text" to "PaintTextBoxed text rendering divergence". 11 tests improved (max_diff reduced), 4 slightly regressed (text rendering divergence > old flat-background divergence at some glyph positions), 5 composite tests unchanged.
 
 ## Summary
 
 | Group | Code Path | Tests | max_diff range | Status | Likely cause |
 |-------|-----------|-------|----------------|--------|--------------|
-| A | `emBorder::paint_border` / `set_how_to_text` | 15 | 22-54 | verified | Widgets set `has_how_to=true` but never populate `how_to_text`; pill renders without text |
+| A | `PaintTextBoxed` via `emBorder::paint_border` | 15 | 13-54 | verified | HowTo text populated (fixed), residual divergence is `PaintTextBoxed` rendering vs C++ |
 | B | Same as A (composite) | 5 | 153-255 | verified | Composite widgets aggregating Sub-group A child divergences |
 | G2 | `fill_polygon_aa` / `rasterize_polynomial` | 6 | 12-255 | carried forward | Polygon rasterizer FP edge-crossing accumulation differs from C++ |
 | C | `PaintEllipse` / `PaintImageColored` | 2 | 53-69 | verified | Star rendering sub-pixel interpolation differs from C++ |
@@ -29,45 +30,51 @@ Supersedes the 2026-04-01 catalog. 37 tests across 12 groups.
 
 ---
 
-## Group A: Missing HowTo Pill Text — 15 tests
+## Group A: HowTo Text Rendering Divergence — 15 tests
 
-**Priority:** 1 (highest — fixes 15 tests directly + 5 composite tests indirectly = 20 total)
+**Priority:** 1 (largest group — needs `PaintTextBoxed` fix to resolve)
+
+**Status: PARTIALLY FIXED.** HowTo text is now populated (7 widgets wired to call `GetHowTo()` in `Paint()`). Residual divergence is `PaintTextBoxed` producing different glyph pixels from C++.
 
 **Tests (15):**
 
-| Test | max_diff | fail_px | fail% |
-|------|----------|---------|-------|
-| colorfield_expanded | 54 | 4733 | 0.74% |
-| listbox_expanded | 33 | 346 | 0.05% |
-| widget_button_normal | 31 | 156 | 0.03% |
-| widget_radiobutton | 31 | 205 | 0.04% |
-| widget_textfield_content | 26 | 198 | 0.04% |
-| widget_textfield_empty | 26 | 198 | 0.04% |
-| widget_textfield_single_char_square | 26 | 256 | 0.05% |
-| widget_listbox_single | 25 | 387 | 0.08% |
-| widget_listbox_empty | 25 | 164 | 0.03% |
-| widget_listbox | 25 | 164 | 0.03% |
-| widget_colorfield | 24 | 1288 | 0.27% |
-| widget_colorfield_alpha_near | 24 | 3385 | 0.71% |
-| widget_colorfield_alpha_opaque | 24 | 1288 | 0.27% |
-| widget_colorfield_alpha_zero | 24 | 2752 | 0.57% |
-| widget_checkbox_unchecked | 22 | 185 | 0.04% |
+| Test | pre-fix max_diff | post-fix max_diff | Change |
+|------|-----------------|-------------------|--------|
+| colorfield_expanded | 54 | 54 | — (dominated by IO field ±1-5 LSB) |
+| listbox_expanded | 33 | 36 | +3 |
+| widget_button_normal | 31 | 14 | -17 |
+| widget_radiobutton | 31 | 26 | -5 |
+| widget_textfield_content | 26 | 31 | +5 |
+| widget_textfield_empty | 26 | 31 | +5 |
+| widget_textfield_single_char_square | 26 | 31 | +5 |
+| widget_listbox_single | 25 | 24 | -1 |
+| widget_listbox_empty | 25 | 24 | -1 |
+| widget_listbox | 25 | 24 | -1 |
+| widget_colorfield | 24 | 14 | -10 |
+| widget_colorfield_alpha_near | 24 | 14 | -10 |
+| widget_colorfield_alpha_opaque | 24 | 14 | -10 |
+| widget_colorfield_alpha_zero | 24 | 14 | -10 |
+| widget_checkbox_unchecked | 22 | 13 | -9 |
 
-**Divergent code path:** `emBorder::paint_border()` at `emBorder.rs:1995`. Widgets call `.with_how_to(true)` in their constructors but never call `set_how_to_text()`. The `paint_border()` method paints the HowTo pill rounded-rect unconditionally but skips text rendering because `self.how_to_text.is_empty()`.
+**Divergent code path:** `emBorder::paint_border()` → `PaintTextBoxed()` for the HowTo pill text. Both Rust and C++ now render the same text content onto the pill, but `PaintTextBoxed` produces different glyph anti-aliasing pixels.
 
-**C++ reference:** `emBorder.cpp:904-928` — C++ `GetHowTo()` is a virtual method that always assembles text from `HowToPreface + HowToDisabled + HowToFocus`, so text is never empty when `HasHowTo()` returns true.
+**C++ reference:** `emBorder.cpp:904-928` (HowTo pill rendering), `emPainter.cpp` `PaintTextBoxed` (text rasterization).
 
-**Spatial pattern:** Divergent pixels cluster in a small rectangular region at the HowTo pill location (left edge of border, y≈288-295). Rust actual values are flat `rgb(97,108,144)` (pill background color), while C++ expected values vary (text glyph pixels anti-aliased onto pill background). Max_diff depends on text contrast at the rendered zoom level.
+**Spatial pattern:** Divergent pixels cluster in the HowTo pill region (left edge of border, y≈288-295). Both sides render text — the divergence is in glyph edge anti-aliasing, not missing content.
 
-**Root cause hypothesis (VERIFIED):** The 7 affected widget types (`emButton`, `emCheckBox`, `emCheckButton`, `emColorField`, `emListBox`, `emRadioButton`, `emTextField`) set `has_how_to = true` but never populate the text. Only `emScalarField` correctly populates `how_to_text` (at `emScalarField.rs:310`). Fixing the 7 widget constructors to populate HowTo text should resolve all 15 tests.
+**Root cause:** Two layers:
+1. ~~Missing `how_to_text`~~ **(FIXED)** — 7 widget types now call `self.border.how_to_text = self.GetHowTo(enabled, true)` before `paint_border()`.
+2. **`PaintTextBoxed` rendering divergence (REMAINING)** — Rust text rasterization produces different anti-aliased glyph pixels from C++. This is a sub-pixel precision issue in text layout and glyph rendering, not a missing feature. At some glyph positions the Rust rendering differs more from C++ than the old flat background did, explaining the 4 tests that show slightly increased max_diff.
 
-**Note:** colorfield_expanded (max_diff=54) has 222 HowTo-divergent pixels + 4511 additional ±1-5 LSB divergences in colorfield gradient content. The HowTo fix would reduce its max_diff but may not eliminate it entirely.
+**Note:** colorfield_expanded (max_diff=54) also has ±1-5 LSB divergences in IO field overlay content beyond the HowTo region, keeping its max_diff unchanged.
 
 ---
 
 ## Group B: Composite Widget HowTo Text — 5 tests
 
-**Priority:** 2 (same fix as Group A resolves these)
+**Priority:** 2 (resolves when Group A's PaintTextBoxed divergence is fixed)
+
+**Status: PARTIALLY FIXED.** HowTo text populated in child widgets. Composite max_diff unchanged because it's dominated by child PaintTextBoxed divergences composited onto dark backgrounds.
 
 **Tests (5):**
 
@@ -83,9 +90,9 @@ Supersedes the 2026-04-01 catalog. 37 tests across 12 groups.
 
 **C++ reference:** Same as Group A.
 
-**Spatial pattern:** Large max_diff (153-255) because composited HowTo text on dark backgrounds produces high contrast between "flat pill background" (Rust) and "text on pill background" (C++). Diff distributions show 73-90% of failing pixels in the diff 64-191 range. Pixel coordinates match expected HowTo pill positions within child widget layouts.
+**Spatial pattern:** Large max_diff (153-255) because composited HowTo text rendering divergences on dark backgrounds produce high contrast. Both sides now render text, but glyph pixel differences amplify through compositing.
 
-**Root cause hypothesis (VERIFIED):** These are aggregates of Group A divergences. testpanel_expanded renders 4 TkTestPanels containing all widget types; composition_tktest_1x/2x render all widget types in a raster grid; widget_file_selection_box contains child text fields + buttons; composed_border_nest contains Button + TextField children.
+**Root cause:** Aggregates of Group A divergences. testpanel_expanded renders 4 TkTestPanels containing all widget types; composition_tktest_1x/2x render all widget types in a raster grid; widget_file_selection_box contains child text fields + buttons; composed_border_nest contains Button + TextField children.
 
 ---
 
@@ -342,9 +349,9 @@ All 37 failing tests are accounted for, each in exactly one group:
 
 ## Fix Priority Summary
 
-| Priority | Group(s) | Tests Fixed | Effort | Notes |
-|----------|----------|-------------|--------|-------|
-| 1 | A + B | 20 | Low | Wire `GetHowTo()` into 7 widget `Paint()` methods |
+| Priority | Group(s) | Tests | Effort | Notes |
+|----------|----------|-------|--------|-------|
+| 1 | A + B | 20 | Medium | ~~Wire `GetHowTo()`~~ (DONE). Remaining: fix `PaintTextBoxed` glyph rendering |
 | 2 | G2 | 6 | Medium | Match C++ in-place `dx/dy` accumulation in polygon rasterizer |
 | 3 | C | 2 | Medium | Per-function investigation of PaintEllipse/PaintImageColored |
 | 4 | G3 | 2 | Low | Port C++ compile-time Hermite factor table literally |

@@ -1115,6 +1115,7 @@ impl emTextField {
         self.last_h = h;
         self.enabled = enabled;
 
+        self.border.how_to_text = self.GetHowTo(enabled, true);
         self.border
             .paint_border(painter, w, h, &self.look, false, enabled, pixel_scale);
         let (content, radius) = self.border.GetContentRoundRect(w, h, &self.look);

@@ -999,6 +999,7 @@ impl emListBox {
     pub fn Paint(&mut self, painter: &mut emPainter, w: f64, h: f64, pixel_scale: f64) {
         self.last_w = w;
         self.last_h = h;
+        self.border.how_to_text = self.GetHowTo(true, true);
         self.border
             .paint_border(painter, w, h, &self.look, false, true, pixel_scale);
 

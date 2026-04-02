@@ -295,6 +295,7 @@ impl emRadioButton {
         self.last_w = w;
         self.last_h = h;
         self.enabled = enabled;
+        self.border.how_to_text = self.GetHowTo(enabled, true);
         self.border
             .paint_border(painter, w, h, &self.look, false, true, pixel_scale);
 

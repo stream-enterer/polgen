@@ -12,6 +12,7 @@ use crate::emStroke::{LineCap, LineJoin, emStroke};
 use super::emBorder::{emBorder, OuterBorderType};
 use crate::emLook::emLook;
 use crate::emBorder::with_toolkit_images;
+use crate::emButton::HOWTO_BUTTON;
 
 /// emCheckBox widget — Margin border with ShownBoxed paint path.
 /// Matches C++ `emCheckBox` (which extends `emCheckButton` extends `emButton`).
@@ -106,6 +107,7 @@ impl emCheckBox {
         self.last_h = h;
         self.enabled = enabled;
         // Paint outer border (Margin = transparent spacing only).
+        self.border.how_to_text = self.GetHowTo(enabled, true);
         self.border
             .paint_border(painter, w, h, &self.look, false, true, pixel_scale);
 
@@ -344,6 +346,22 @@ impl emCheckBox {
         self.border.preferred_size_for_content(tw + 8.0, th + 4.0)
     }
 
+    /// Help text describing how to use this checkbox.
+    ///
+    /// Chains border → button → check-button sections.
+    /// C++ emCheckBox inherits `emCheckButton::GetHowTo`.
+    pub fn GetHowTo(&self, enabled: bool, focusable: bool) -> String {
+        let mut text = self.border.GetHowTo(enabled, focusable);
+        text.push_str(HOWTO_BUTTON);
+        text.push_str(HOWTO_CHECK_BUTTON);
+        if self.checked {
+            text.push_str(HOWTO_CHECKED);
+        } else {
+            text.push_str(HOWTO_NOT_CHECKED);
+        }
+        text
+    }
+
     // DIVERGED: Clicked — renamed to toggle (private); C++ Clicked is protected virtual
     fn toggle(&mut self) {
         self.checked = !self.checked;
@@ -352,6 +370,22 @@ impl emCheckBox {
         }
     }
 }
+
+/// C++ `emCheckButton::HowToCheckButton`.
+const HOWTO_CHECK_BUTTON: &str = "\n\n\
+    CHECK BUTTON\n\n\
+    This button can have checked or unchecked state. Usually this is a yes-or-no\n\
+    answer to a question. Whenever the button is triggered, the check state toggles.\n";
+
+/// C++ `emCheckButton::HowToChecked`.
+const HOWTO_CHECKED: &str = "\n\n\
+    CHECKED\n\n\
+    Currently this check button is checked.\n";
+
+/// C++ `emCheckButton::HowToNotChecked`.
+const HOWTO_NOT_CHECKED: &str = "\n\n\
+    UNCHECKED\n\n\
+    Currently this check button is not checked.\n";
 
 #[cfg(test)]
 mod tests {
