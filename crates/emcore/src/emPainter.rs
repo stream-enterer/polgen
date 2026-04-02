@@ -1,6 +1,5 @@
 use std::sync::OnceLock;
 
-use super::emFontCacheBitmapFont;
 use crate::emPainterDrawList::DrawOp;
 use super::emFontCache;
 use super::emPainterInterpolation;
@@ -1545,17 +1544,74 @@ impl<'a> emPainter<'a> {
     ///   - If not formatted: character count = columns, 1 row.
     ///   - Width  = `char_height * columns / CHAR_BOX_TALLNESS`
     ///   - Height = `char_height * (1.0 + rel_line_space) * rows`
+    /// Measure text dimensions at a given character height.
+    /// Literal port of C++ `emPainter::GetTextSize` (emPainter.cpp:2287-2335).
+    /// Operates on raw bytes to match C++ byte-index arithmetic exactly.
     pub fn GetTextSize(
         text: &str,
         char_height: f64,
         formatted: bool,
         rel_line_space: f64,
     ) -> (f64, f64) {
-        let (columns, rows) = if formatted {
-            emFontCacheBitmapFont::measure_formatted(text)
+        let bytes = text.as_bytes();
+        let text_len = bytes.len();
+        let (columns, rows);
+
+        if formatted {
+            let mut max_columns = 0i32;
+            let mut row_count = 1i32;
+            let mut rowcols = 0i32;
+            let mut i = 0usize;
+            while i < text_len {
+                let c = bytes[i];
+                if c <= 0x0d {
+                    if c == 0x09 {
+                        // Tab: align to next multiple of 8 using C++ byte-index trick
+                        rowcols = (((rowcols + i as i32 + 8) & !7) - i as i32) - 1;
+                    } else if c == 0x0a {
+                        // LF
+                        let rc = rowcols + i as i32;
+                        if max_columns < rc {
+                            max_columns = rc;
+                        }
+                        rowcols = -(i as i32) - 1;
+                        row_count += 1;
+                    } else if c == 0x0d {
+                        // CR (optionally followed by LF)
+                        let rc = rowcols + i as i32;
+                        if max_columns < rc {
+                            max_columns = rc;
+                        }
+                        if i + 1 < text_len && bytes[i + 1] == 0x0a {
+                            i += 1;
+                        }
+                        rowcols = -(i as i32) - 1;
+                        row_count += 1;
+                    }
+                    // C++ checks c==0 for NUL, but Rust &str never contains NUL
+                } else if c >= 0x80 {
+                    // Multi-byte UTF-8: count decoded character as 1 column,
+                    // skip continuation bytes (matching C++ emDecodeChar skip).
+                    let n = utf8_char_len(c);
+                    if n > 1 {
+                        i += n - 1;
+                        rowcols -= (n - 1) as i32;
+                    }
+                }
+                i += 1;
+            }
+            let rc = rowcols + text_len as i32;
+            if max_columns < rc {
+                max_columns = rc;
+            }
+            columns = max_columns as usize;
+            rows = row_count as usize;
         } else {
-            (text.chars().count(), 1)
-        };
+            // Non-formatted: count decoded characters
+            columns = text.chars().count();
+            rows = 1;
+        }
+
         let w = char_height * columns as f64 / emFontCache::CHAR_BOX_TALLNESS;
         let h = char_height * (1.0 + rel_line_space) * rows as f64;
         (w, h)
@@ -1748,36 +1804,29 @@ impl<'a> emPainter<'a> {
             rel_line_space,
         }) else { return; };
 
+        // Literal port of C++ PaintTextBoxed (emPainter.cpp:2174-2284).
         let (mut tw, mut th) =
             Self::GetTextSize(text, max_char_height, formatted, rel_line_space);
-        if tw <= 0.0 || th <= 0.0 {
+        if tw <= 0.0 {
             return;
         }
 
-        // C++ PaintTextBoxed mutation-based fitting (emPainter.cpp lines 2175-2208).
-        // All of ch, tw, th, ws are mutated together to maintain consistency.
         let mut ch = max_char_height;
 
-        // Step 1: if text is taller than box, scale everything down proportionally.
         if th > h {
             ch *= h / th;
             tw *= h / th;
             th = h;
         }
-
-        // Step 2: compute width scale and handle squeeze/expand.
         let mut ws = w / tw;
         if ws < 1.0 {
-            // Text is wider than box — squeeze horizontally.
             tw = w;
             if ws < min_width_scale {
-                // Can't squeeze enough — shrink char height to compensate.
                 th *= ws / min_width_scale;
                 ch *= ws / min_width_scale;
                 ws = min_width_scale;
             }
         } else {
-            // Text fits — don't stretch beyond 1.0 unless minWidthScale demands it.
             ws = 1.0;
             if ws < min_width_scale {
                 ws = min_width_scale;
@@ -1790,8 +1839,6 @@ impl<'a> emPainter<'a> {
             }
         }
 
-        // Box alignment — position of text block within the box.
-        // C++ compensates for trailing relLineSpace in vertical alignment.
         let mut bx = x;
         if box_h_align != TextAlignment::Left {
             if box_h_align == TextAlignment::Right {
@@ -1810,65 +1857,98 @@ impl<'a> emPainter<'a> {
         }
 
         if formatted {
-            self.paint_text_formatted(
-                bx,
-                by,
-                tw,
-                text,
-                ch,
-                ws,
-                color,
-                canvas_color,
-                text_alignment,
-                rel_line_space,
-            );
+            // Literal port of C++ formatted rendering (emPainter.cpp:2222-2279).
+            // Operates on raw bytes to match C++ byte-index column arithmetic.
+            let cw = ch * ws / emFontCache::CHAR_BOX_TALLNESS;
+            let bytes = text.as_bytes();
+            let text_len = bytes.len();
+            let mut ty = by;
+            let mut i = 0usize;
+            loop {
+                let mut tx = bx;
+                // Per-line text alignment: measure line width first.
+                if text_alignment != TextAlignment::Left {
+                    let mut j2 = i;
+                    let mut cols2 = -(j2 as i32);
+                    while j2 < text_len {
+                        let c = bytes[j2];
+                        if c <= 0x0d {
+                            if c == 0x09 {
+                                cols2 = ((cols2 + j2 as i32 + 8) & !7) - j2 as i32;
+                            } else if c == 0x0a || c == 0x0d {
+                                break;
+                            }
+                        } else if c >= 0x80 {
+                            let n = utf8_char_len(c);
+                            if n > 1 {
+                                j2 += n - 1;
+                                cols2 -= (n - 1) as i32;
+                            }
+                        }
+                        j2 += 1;
+                    }
+                    cols2 += j2 as i32;
+                    if text_alignment == TextAlignment::Right {
+                        tx += tw - cols2 as f64 * cw;
+                    } else {
+                        tx += (tw - cols2 as f64 * cw) * 0.5;
+                    }
+                }
+
+                // Render line segments (split by tabs).
+                let mut cols = 0i32;
+                let mut j = i;
+                let mut k = -(i as i32);
+                while i < text_len {
+                    let c = bytes[i];
+                    if c <= 0x0d {
+                        if c == 0x09 {
+                            // Tab: flush preceding text segment, advance to tab stop.
+                            if j < i {
+                                let seg = &text[j..i];
+                                self.PaintText(
+                                    tx + cols as f64 * cw,
+                                    ty, seg, ch, ws, color, canvas_color,
+                                );
+                                cols += k + i as i32;
+                            }
+                            cols = (cols + 8) & !7;
+                            j = i + 1;
+                            k = -(j as i32);
+                        } else if c == 0x0a || c == 0x0d {
+                            break;
+                        }
+                    } else if c >= 0x80 {
+                        let n = utf8_char_len(c);
+                        if n > 1 {
+                            i += n - 1;
+                            k -= (n - 1) as i32;
+                        }
+                    }
+                    i += 1;
+                }
+                // Flush remaining segment on this line.
+                if j < i {
+                    let seg = &text[j..i];
+                    self.PaintText(
+                        tx + cols as f64 * cw,
+                        ty, seg, ch, ws, color, canvas_color,
+                    );
+                }
+
+                // End of text?
+                if i >= text_len {
+                    break;
+                }
+                // Handle \r\n
+                if bytes[i] == 0x0d && i + 1 < text_len && bytes[i + 1] == 0x0a {
+                    i += 1;
+                }
+                i += 1;
+                ty += ch * (1.0 + rel_line_space);
+            }
         } else {
-            // C++ non-formatted: PaintText(x, y, text, ch, ws, color, canvasColor)
-            // No per-line text alignment in non-formatted mode.
             self.PaintText(bx, by, text, ch, ws, color, canvas_color);
-        }
-    }
-
-    /// Render formatted text (handles `\n`, `\r\n`, `\t`) line by line.
-    #[allow(clippy::too_many_arguments)]
-    fn paint_text_formatted(
-        &mut self,
-        bx: f64,
-        by: f64,
-        block_w: f64,
-        text: &str,
-        char_height: f64,
-        width_scale: f64,
-        color: emColor,
-        canvas_color: emColor,
-        text_alignment: TextAlignment,
-        rel_line_space: f64,
-    ) {
-        let line_step = char_height * (1.0 + rel_line_space);
-        let rcw = char_height / emFontCache::CHAR_BOX_TALLNESS * width_scale;
-        let mut line_y = by;
-
-        // Split on newlines, handling \r\n
-        let normalized = text.replace("\r\n", "\n");
-        for line in normalized.split('\n') {
-            // Expand tabs to spaces (align to 8).
-            let expanded = expand_tabs(line);
-            let line_w = expanded.chars().count() as f64 * rcw;
-            let lx = match text_alignment {
-                TextAlignment::Left => bx,
-                TextAlignment::Center => bx + (block_w - line_w) * 0.5,
-                TextAlignment::Right => bx + block_w - line_w,
-            };
-            self.PaintText(
-                lx,
-                line_y,
-                &expanded,
-                char_height,
-                width_scale,
-                color,
-                canvas_color,
-            );
-            line_y += line_step;
         }
     }
 
@@ -6107,18 +6187,19 @@ impl<'a> emPainter<'a> {
             if combined_alpha == 0 {
                 return;
             }
+            // Use hash table lookups to match C++ PaintScanlineCol exactly.
+            use super::emColor::blend_hash_lookup;
+            let a = combined_alpha;
             let cv = self.state.canvas_color;
-            let a = combined_alpha as u32;
-            let cr = (cv.GetRed() as u32 * a + 127) / 255;
-            let cg = (cv.GetGreen() as u32 * a + 127) / 255;
-            let cb = (cv.GetBlue() as u32 * a + 127) / 255;
-            // Source: (c*a+127)/255 (C++ hash table).
-            let pm_r = ((color.GetRed() as u32 * a + 127) / 255) as i32;
-            let pm_g = ((color.GetGreen() as u32 * a + 127) / 255) as i32;
-            let pm_b = ((color.GetBlue() as u32 * a + 127) / 255) as i32;
-            let delta_r = pm_r - cr as i32;
-            let delta_g = pm_g - cg as i32;
-            let delta_b = pm_b - cb as i32;
+            let cr = blend_hash_lookup(cv.GetRed(), a) as i32;
+            let cg = blend_hash_lookup(cv.GetGreen(), a) as i32;
+            let cb = blend_hash_lookup(cv.GetBlue(), a) as i32;
+            let pm_r = blend_hash_lookup(color.GetRed(), a) as i32;
+            let pm_g = blend_hash_lookup(color.GetGreen(), a) as i32;
+            let pm_b = blend_hash_lookup(color.GetBlue(), a) as i32;
+            let delta_r = pm_r - cr;
+            let delta_g = pm_g - cg;
+            let delta_b = pm_b - cb;
             let data = self.GetImage(proof).GetWritableMap();
             for col in x1..x2 {
                 let off = row_base + col as usize * 4;
@@ -6144,13 +6225,14 @@ impl<'a> emPainter<'a> {
                     data[off..off + 4].copy_from_slice(&pixel);
                 }
             } else {
-                // Source: (c*a+127)/255 (C++ hash table).
-                let alpha = ea as u32;
-                let t = (255 - alpha) * 257;
-                let sr = (color.GetRed() as u32 * alpha + 127) / 255;
-                let sg = (color.GetGreen() as u32 * alpha + 127) / 255;
-                let sb = (color.GetBlue() as u32 * alpha + 127) / 255;
-                let sa = (255u32 * alpha + 127) / 255;
+                // Use hash table to match C++ PaintScanlineCol exactly.
+                use super::emColor::blend_hash_lookup;
+                let alpha = ea as u8;
+                let t = (255 - alpha as u32) * 257;
+                let sr = blend_hash_lookup(color.GetRed(), alpha) as u32;
+                let sg = blend_hash_lookup(color.GetGreen(), alpha) as u32;
+                let sb = blend_hash_lookup(color.GetBlue(), alpha) as u32;
+                let sa = blend_hash_lookup(255, alpha) as u32;
                 let data = self.GetImage(proof).GetWritableMap();
                 for col in x1..x2 {
                     let off = row_base + col as usize * 4;
@@ -6224,22 +6306,14 @@ impl<'a> emPainter<'a> {
 }
 
 /// Expand tab characters to spaces, aligning to 8-column tab stops.
-fn expand_tabs(line: &str) -> String {
-    let mut result = String::with_capacity(line.len());
-    let mut col = 0usize;
-    for ch in line.chars() {
-        if ch == '\t' {
-            let next_tab = (col / 8 + 1) * 8;
-            for _ in col..next_tab {
-                result.push(' ');
-            }
-            col = next_tab;
-        } else {
-            result.push(ch);
-            col += 1;
-        }
-    }
-    result
+/// Return the byte length of a UTF-8 character from its leading byte.
+/// Matches the skip count of C++ `emDecodeChar` continuation byte handling.
+fn utf8_char_len(lead: u8) -> usize {
+    if lead < 0x80 { 1 }
+    else if lead < 0xC0 { 1 } // continuation byte (shouldn't be lead)
+    else if lead < 0xE0 { 2 }
+    else if lead < 0xF0 { 3 }
+    else { 4 }
 }
 
 /// Choose number of polygon segments for circle approximation.
