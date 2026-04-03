@@ -328,13 +328,33 @@ fn blend_scanline_premul_canvas(
         }
 
         let off = i * 4;
-        // Canvas path: C++ hash table lookup (emPainter_ScTlPSCol.cpp:121).
-        let cr = blend_hash_lookup(canvas.GetRed(), a) as i32;
-        let cg = blend_hash_lookup(canvas.GetGreen(), a) as i32;
-        let cb = blend_hash_lookup(canvas.GetBlue(), a) as i32;
-        dest[off] = (dest[off] as i32 + pm[0] as i32 - cr).clamp(0, 255) as u8;
-        dest[off + 1] = (dest[off + 1] as i32 + pm[1] as i32 - cg).clamp(0, 255) as u8;
-        dest[off + 2] = (dest[off + 2] as i32 + pm[2] as i32 - cb).clamp(0, 255) as u8;
+        // Canvas-blend: C++ does packed u32 arithmetic with wrapping.
+        // pix = hR[sr] + hG[sg] + hB[sb]          (source contribution, shifted)
+        // pix -= hcR[a] + hcG[a] + hcB[a]          (canvas contribution, shifted)
+        // *p += pix                                  (wrapping add to dest pixel)
+        //
+        // On little-endian with OPFI_8888_0BGR layout [R:0, G:8, B:16, 0:24],
+        // the packed u32 is: R | (G << 8) | (B << 16).
+        // Carries between channels propagate via wrapping, matching C++ exactly.
+        //
+        // C++ reference: emPainter_ScTlPSInt.cpp lines 369-371 (HAVE_CVC path).
+        let pix_r = pm[0] as u32;
+        let pix_g = pm[1] as u32;
+        let pix_b = pm[2] as u32;
+        let pix: u32 = pix_r | (pix_g << 8) | (pix_b << 16);
+
+        let cr = blend_hash_lookup(canvas.GetRed(), a) as u32;
+        let cg = blend_hash_lookup(canvas.GetGreen(), a) as u32;
+        let cb = blend_hash_lookup(canvas.GetBlue(), a) as u32;
+        let cvs: u32 = cr | (cg << 8) | (cb << 16);
+
+        let dest_packed: u32 = dest[off] as u32
+            | ((dest[off + 1] as u32) << 8)
+            | ((dest[off + 2] as u32) << 16);
+        let result = dest_packed.wrapping_add(pix.wrapping_sub(cvs));
+        dest[off] = result as u8;
+        dest[off + 1] = (result >> 8) as u8;
+        dest[off + 2] = (result >> 16) as u8;
         // Canvas blend: dest alpha unchanged
     }
 }
