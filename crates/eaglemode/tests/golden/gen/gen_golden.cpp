@@ -95,6 +95,28 @@ private:
 static emStandardScheduler* g_sched = nullptr;
 static emRootContext*        g_ctx   = nullptr;
 
+extern FILE* g_draw_op_log;
+extern int g_draw_op_seq;
+
+static FILE* open_draw_op_log(const char* test_name) {
+    char path[1024];
+    snprintf(path, sizeof(path), "target/golden-divergence/%s.cpp_ops.jsonl", test_name);
+    FILE* f = fopen(path, "w");
+    if (f) {
+        g_draw_op_log = f;
+        g_draw_op_seq = 0;
+    }
+    return f;
+}
+
+static void close_draw_op_log() {
+    if (g_draw_op_log) {
+        fclose(g_draw_op_log);
+        g_draw_op_log = nullptr;
+        g_draw_op_seq = 0;
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // Helpers
 // ═══════════════════════════════════════════════════════════════════
@@ -4204,7 +4226,9 @@ static void render_and_dump_sized(const char* name, GoldenViewPort& vp,
         fprintf(stderr, "PreparePainter failed for %s\n", name);
         exit(1);
     }
+    open_draw_op_log(name);
     vp.DoPaintView(p, 0);
+    close_draw_op_log();
     dump_compositor(name, img);
 }
 
@@ -5141,6 +5165,7 @@ static void gen_cosmos_item_border() {
 
     double w = 1.0, h = panelH;
 
+    open_draw_op_log("cosmos_item_border");
     // Top border strip
     p.PaintRect(0.0, 0.0, w, bt * h, borderColor);
     // Bottom border strip
@@ -5156,6 +5181,7 @@ static void gen_cosmos_item_border() {
     if (fontH >= 1.0) {
         p.PaintText(bl * w, bt * h * 0.15, title, fontH, 1.0, titleColor);
     }
+    close_draw_op_log();
 
     dump_painter("cosmos_item_border", img);
 }
