@@ -41,7 +41,10 @@ use emcore::emTextField::emTextField;
 
 use emcore::emTunnel::emTunnel;
 
+use emcore::emPainterDrawList::DrawOp;
+
 use super::common::*;
+use super::draw_op_dump::{dump_draw_ops, dump_draw_ops_enabled};
 
 /// Skip test if golden data hasn't been generated yet.
 macro_rules! require_golden {
@@ -59,6 +62,19 @@ fn settle(tree: &mut PanelTree, view: &mut emView) {
         tree.HandleNotice(view.IsFocused(), view.GetCurrentPixelTallness());
         view.Update(tree);
     }
+}
+
+/// Record DrawOps for a compositor test if DUMP_DRAW_OPS=1.
+fn maybe_record_draw_ops(name: &str, tree: &mut PanelTree, view: &emView, w: u32, h: u32) {
+    if !dump_draw_ops_enabled() {
+        return;
+    }
+    let mut ops: Vec<DrawOp> = Vec::new();
+    {
+        let mut rec = emPainter::new_recording(w, h, &mut ops);
+        view.Paint(tree, &mut rec);
+    }
+    dump_draw_ops(name, &ops);
 }
 
 // ─── PanelBehavior wrappers for widgets ──────────────────────────
@@ -172,6 +188,8 @@ fn render_and_compare_tol(
     let mut view = emView::new(root, 800.0, 600.0);
     view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
     settle(&mut tree, &mut view);
+
+    maybe_record_draw_ops(name, &mut tree, &view, w, h);
 
     let mut compositor = SoftwareCompositor::new(w, h);
     compositor.render(&mut tree, &view);
@@ -981,6 +999,8 @@ fn golden_widget_label_long_narrow() {
     let mut view = emView::new(root, 800.0, 600.0);
     view.flags.insert(ViewFlags::NO_ACTIVE_HIGHLIGHT);
     settle(&mut tree, &mut view);
+
+    maybe_record_draw_ops("widget_label_long_narrow", &mut tree, &view, w, h);
 
     let mut compositor = SoftwareCompositor::new(w, h);
     compositor.render(&mut tree, &view);

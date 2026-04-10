@@ -2325,7 +2325,9 @@ static void render_and_dump(const char* name, GoldenViewPort& vp,
         fprintf(stderr, "PreparePainter failed for %s\n", name);
         exit(1);
     }
+    open_draw_op_log(name);
     vp.DoPaintView(p, 0);
+    close_draw_op_log();
     dump_compositor(name, img);
 }
 
