@@ -247,6 +247,26 @@ pub struct emPainter<'a> {
     state_stack: Vec<PainterState>,
 }
 
+/// The 9 target rectangles computed by PaintBorderImage's boundary logic.
+/// Each rect is (x, y, w, h) in logical coordinates, plus corresponding
+/// source rect (src_x, src_y, src_w, src_h) in image pixels.
+/// Order: UL(0), U(1), UR(2), L(3), C(4), R(5), LL(6), B(7), LR(8).
+#[derive(Clone, Debug)]
+pub struct BorderImageSlices {
+    /// Adjusted insets after RoundX/RoundY pixel-rounding.
+    pub adj_l: f64,
+    pub adj_t: f64,
+    pub adj_r: f64,
+    pub adj_b: f64,
+    /// Center dimensions after inset adjustment.
+    pub dst_cx: f64,
+    pub dst_cy: f64,
+    /// 9 target rects: (x, y, w, h) in logical coordinates.
+    pub target_rects: [(f64, f64, f64, f64); 9],
+    /// 9 source rects: (src_x, src_y, src_w, src_h) in image pixels.
+    pub source_rects: [(i32, i32, i32, i32); 9],
+}
+
 impl<'a> emPainter<'a> {
     /// Create a new painter targeting the given RGBA image.
     ///
@@ -2226,6 +2246,103 @@ impl<'a> emPainter<'a> {
 
     // --- 9-slice border images ---
 
+    /// Compute the 9-slice boundary rectangles for a border image.
+    ///
+    /// `x, y, w, h` — target rectangle in logical coordinates.
+    /// `l, t, r, b` — target insets (logical coordinates).
+    /// `img_ox, img_oy` — source image origin offset (0 for full-image, src_x/src_y for sub-rect).
+    /// `img_w, img_h` — source image region size (full image dims or sub-rect dims).
+    /// `src_l, src_t, src_r, src_b` — source insets (image pixel coordinates).
+    /// `canvas_color` — when not opaque, target inset boundaries are pixel-rounded.
+    ///
+    /// Returns `None` if `w <= 0` or `h <= 0`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_border_image_slices(
+        &self,
+        x: f64,
+        y: f64,
+        w: f64,
+        h: f64,
+        l: f64,
+        t: f64,
+        r: f64,
+        b: f64,
+        img_ox: i32,
+        img_oy: i32,
+        img_w: i32,
+        img_h: i32,
+        src_l: i32,
+        src_t: i32,
+        src_r: i32,
+        src_b: i32,
+        canvas_color: emColor,
+    ) -> Option<BorderImageSlices> {
+        if w <= 0.0 || h <= 0.0 {
+            return None;
+        }
+
+        let mut l = l;
+        let mut r = r;
+        let mut t = t;
+        let mut b = b;
+
+        // C++ lines 1903-1908: pixel-round inset boundaries when not opaque.
+        if !canvas_color.IsOpaque() {
+            let f = self.RoundX(x + l) - x;
+            if f > 0.0 && f < w - r { l = f; }
+            let f = x + w - self.RoundX(x + w - r);
+            if f > 0.0 && f < w - l { r = f; }
+            let f = self.RoundY(y + t) - y;
+            if f > 0.0 && f < h - b { t = f; }
+            let f = y + h - self.RoundY(y + h - b);
+            if f > 0.0 && f < h - t { b = f; }
+        }
+
+        let src_cx = img_w - src_l - src_r;
+        let src_cy = img_h - src_t - src_b;
+        let dst_cx = w - l - r;
+        let dst_cy = h - t - b;
+
+        // C++ bit layout:  8=UL 5=U 2=UR / 7=L 4=C 1=R / 6=LL 3=B 0=LR
+        // Order: UL(0), U(1), UR(2), L(3), C(4), R(5), LL(6), B(7), LR(8)
+        let target_rects = [
+            (x,             y,             l,      t),      // UL
+            (x + l,         y,             dst_cx, t),      // U
+            (x + w - r,     y,             r,      t),      // UR
+            (x,             y + t,         l,      dst_cy), // L
+            (x + l,         y + t,         dst_cx, dst_cy), // C
+            (x + w - r,     y + t,         r,      dst_cy), // R
+            (x,             y + h - b,     l,      b),      // LL
+            (x + l,         y + h - b,     dst_cx, b),      // B
+            (x + w - r,     y + h - b,     r,      b),      // LR
+        ];
+
+        let ox = img_ox;
+        let oy = img_oy;
+        let source_rects = [
+            (ox,                     oy,                     src_l,  src_t),  // UL
+            (ox + src_l,             oy,                     src_cx, src_t),  // U
+            (ox + img_w - src_r,     oy,                     src_r,  src_t),  // UR
+            (ox,                     oy + src_t,             src_l,  src_cy), // L
+            (ox + src_l,             oy + src_t,             src_cx, src_cy), // C
+            (ox + img_w - src_r,     oy + src_t,             src_r,  src_cy), // R
+            (ox,                     oy + img_h - src_b,     src_l,  src_b),  // LL
+            (ox + src_l,             oy + img_h - src_b,     src_cx, src_b),  // B
+            (ox + img_w - src_r,     oy + img_h - src_b,     src_r,  src_b),  // LR
+        ];
+
+        Some(BorderImageSlices {
+            adj_l: l,
+            adj_t: t,
+            adj_r: r,
+            adj_b: b,
+            dst_cx,
+            dst_cy,
+            target_rects,
+            source_rects,
+        })
+    }
+
     /// Draw a 9-slice border image stretched to fill a rectangle.
     ///
     /// `l,t,r,b` are **target** insets (logical coordinates).
@@ -2279,27 +2396,12 @@ impl<'a> emPainter<'a> {
         let iw_i = image.GetWidth() as i32;
         let ih_i = image.GetHeight() as i32;
 
-        let mut l = l;
-        let mut r = r;
-        let mut t = t;
-        let mut b = b;
-
-        // C++ lines 1903-1908: pixel-round inset boundaries when not opaque.
-        if !canvas_color.IsOpaque() {
-            let f = self.RoundX(x + l) - x;
-            if f > 0.0 && f < w - r { l = f; }
-            let f = x + w - self.RoundX(x + w - r);
-            if f > 0.0 && f < w - l { r = f; }
-            let f = self.RoundY(y + t) - y;
-            if f > 0.0 && f < h - b { t = f; }
-            let f = y + h - self.RoundY(y + h - b);
-            if f > 0.0 && f < h - t { b = f; }
-        }
-
-        let src_cx = iw_i - src_l - src_r;
-        let src_cy = ih_i - src_t - src_b;
-        let dst_cx = w - l - r;
-        let dst_cy = h - t - b;
+        let Some(slices) = self.compute_border_image_slices(
+            x, y, w, h, l, t, r, b,
+            0, 0, iw_i, ih_i,
+            src_l, src_t, src_r, src_b,
+            canvas_color,
+        ) else { return; };
 
         let saved_alpha = self.state.alpha;
         let saved_canvas = self.state.canvas_color;
@@ -2313,32 +2415,22 @@ impl<'a> emPainter<'a> {
 
         // C++ bit layout:  8=UL 5=U 2=UR / 7=L 4=C 1=R / 6=LL 3=B 0=LR
         // C++ order: 8, 5, 2, 7, 4, 1, 6, 3, 0 (matching emPainter.cpp:1910-1981)
-        if which_sub_rects & (1 << 8) != 0 {
-            self.paint_image_rect(proof, x, y, l, t, image, 0, 0, src_l, src_t, ext);
-        }
-        if which_sub_rects & (1 << 5) != 0 && dst_cx > 0.0 {
-            self.paint_image_rect(proof, x + l, y, dst_cx, t, image, src_l, 0, src_cx, src_t, ext);
-        }
-        if which_sub_rects & (1 << 2) != 0 {
-            self.paint_image_rect(proof, x + w - r, y, r, t, image, iw_i - src_r, 0, src_r, src_t, ext);
-        }
-        if which_sub_rects & (1 << 7) != 0 && dst_cy > 0.0 {
-            self.paint_image_rect(proof, x, y + t, l, dst_cy, image, 0, src_t, src_l, src_cy, ext);
-        }
-        if which_sub_rects & (1 << 4) != 0 && dst_cx > 0.0 && dst_cy > 0.0 {
-            self.paint_image_rect(proof, x + l, y + t, dst_cx, dst_cy, image, src_l, src_t, src_cx, src_cy, ext);
-        }
-        if which_sub_rects & (1 << 1) != 0 && dst_cy > 0.0 {
-            self.paint_image_rect(proof, x + w - r, y + t, r, dst_cy, image, iw_i - src_r, src_t, src_r, src_cy, ext);
-        }
-        if which_sub_rects & (1 << 6) != 0 {
-            self.paint_image_rect(proof, x, y + h - b, l, b, image, 0, ih_i - src_b, src_l, src_b, ext);
-        }
-        if which_sub_rects & (1 << 3) != 0 && dst_cx > 0.0 {
-            self.paint_image_rect(proof, x + l, y + h - b, dst_cx, b, image, src_l, ih_i - src_b, src_cx, src_b, ext);
-        }
-        if which_sub_rects & (1 << 0) != 0 {
-            self.paint_image_rect(proof, x + w - r, y + h - b, r, b, image, iw_i - src_r, ih_i - src_b, src_r, src_b, ext);
+        const BIT_ORDER: [u16; 9] = [1 << 8, 1 << 5, 1 << 2, 1 << 7, 1 << 4, 1 << 1, 1 << 6, 1 << 3, 1 << 0];
+        // Map from C++ order to slice index: UL=0, U=1, UR=2, L=3, C=4, R=5, LL=6, B=7, LR=8
+        const SLICE_ORDER: [usize; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+        for i in 0..9 {
+            let bit = BIT_ORDER[i];
+            let si = SLICE_ORDER[i];
+            if which_sub_rects & bit == 0 { continue; }
+            // Center-row slices need dst_cy > 0; center-col slices need dst_cx > 0.
+            let needs_cx = si == 1 || si == 4 || si == 7; // U, C, B
+            let needs_cy = si == 3 || si == 4 || si == 5; // L, C, R
+            if needs_cx && slices.dst_cx <= 0.0 { continue; }
+            if needs_cy && slices.dst_cy <= 0.0 { continue; }
+            let (dx, dy, dw, dh) = slices.target_rects[si];
+            let (sx, sy, sw, sh) = slices.source_rects[si];
+            self.paint_image_rect(proof, dx, dy, dw, dh, image, sx, sy, sw, sh, ext);
         }
 
         self.state.canvas_color = saved_canvas;
@@ -2401,26 +2493,12 @@ impl<'a> emPainter<'a> {
             which_sub_rects,
         }) else { return; };
 
-        let mut l = l;
-        let mut r = r;
-        let mut t = t;
-        let mut b = b;
-
-        if !canvas_color.IsOpaque() {
-            let f = self.RoundX(x + l) - x;
-            if f > 0.0 && f < w - r { l = f; }
-            let f = x + w - self.RoundX(x + w - r);
-            if f > 0.0 && f < w - l { r = f; }
-            let f = self.RoundY(y + t) - y;
-            if f > 0.0 && f < h - b { t = f; }
-            let f = y + h - self.RoundY(y + h - b);
-            if f > 0.0 && f < h - t { b = f; }
-        }
-
-        let src_cx = src_w - src_l - src_r;
-        let src_cy = src_h - src_t - src_b;
-        let dst_cx = w - l - r;
-        let dst_cy = h - t - b;
+        let Some(slices) = self.compute_border_image_slices(
+            x, y, w, h, l, t, r, b,
+            src_x, src_y, src_w, src_h,
+            src_l, src_t, src_r, src_b,
+            canvas_color,
+        ) else { return; };
 
         let saved_alpha = self.state.alpha;
         let saved_canvas = self.state.canvas_color;
@@ -2431,32 +2509,20 @@ impl<'a> emPainter<'a> {
 
         let ext = super::emTexture::ImageExtension::Clamp;
 
-        if which_sub_rects & (1 << 8) != 0 {
-            self.paint_image_rect(proof, x, y, l, t, image, src_x, src_y, src_l, src_t, ext);
-        }
-        if which_sub_rects & (1 << 5) != 0 && dst_cx > 0.0 {
-            self.paint_image_rect(proof, x + l, y, dst_cx, t, image, src_x + src_l, src_y, src_cx, src_t, ext);
-        }
-        if which_sub_rects & (1 << 2) != 0 {
-            self.paint_image_rect(proof, x + w - r, y, r, t, image, src_x + src_w - src_r, src_y, src_r, src_t, ext);
-        }
-        if which_sub_rects & (1 << 7) != 0 && dst_cy > 0.0 {
-            self.paint_image_rect(proof, x, y + t, l, dst_cy, image, src_x, src_y + src_t, src_l, src_cy, ext);
-        }
-        if which_sub_rects & (1 << 4) != 0 && dst_cx > 0.0 && dst_cy > 0.0 {
-            self.paint_image_rect(proof, x + l, y + t, dst_cx, dst_cy, image, src_x + src_l, src_y + src_t, src_cx, src_cy, ext);
-        }
-        if which_sub_rects & (1 << 1) != 0 && dst_cy > 0.0 {
-            self.paint_image_rect(proof, x + w - r, y + t, r, dst_cy, image, src_x + src_w - src_r, src_y + src_t, src_r, src_cy, ext);
-        }
-        if which_sub_rects & (1 << 6) != 0 {
-            self.paint_image_rect(proof, x, y + h - b, l, b, image, src_x, src_y + src_h - src_b, src_l, src_b, ext);
-        }
-        if which_sub_rects & (1 << 3) != 0 && dst_cx > 0.0 {
-            self.paint_image_rect(proof, x + l, y + h - b, dst_cx, b, image, src_x + src_l, src_y + src_h - src_b, src_cx, src_b, ext);
-        }
-        if which_sub_rects & (1 << 0) != 0 {
-            self.paint_image_rect(proof, x + w - r, y + h - b, r, b, image, src_x + src_w - src_r, src_y + src_h - src_b, src_r, src_b, ext);
+        const BIT_ORDER: [u16; 9] = [1 << 8, 1 << 5, 1 << 2, 1 << 7, 1 << 4, 1 << 1, 1 << 6, 1 << 3, 1 << 0];
+        const SLICE_ORDER: [usize; 9] = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+        for i in 0..9 {
+            let bit = BIT_ORDER[i];
+            let si = SLICE_ORDER[i];
+            if which_sub_rects & bit == 0 { continue; }
+            let needs_cx = si == 1 || si == 4 || si == 7;
+            let needs_cy = si == 3 || si == 4 || si == 5;
+            if needs_cx && slices.dst_cx <= 0.0 { continue; }
+            if needs_cy && slices.dst_cy <= 0.0 { continue; }
+            let (dx, dy, dw, dh) = slices.target_rects[si];
+            let (sx, sy, sw, sh) = slices.source_rects[si];
+            self.paint_image_rect(proof, dx, dy, dw, dh, image, sx, sy, sw, sh, ext);
         }
 
         self.state.canvas_color = saved_canvas;

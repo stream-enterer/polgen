@@ -132,7 +132,7 @@ struct YWeights {
 ///
 /// Key difference from `ScaleTransform24`: NO -0.5 pixel-center offset.
 /// TX = tx_sub * tdx_f64 (not (tx_sub - 0.5) * tdx_f64).
-pub(crate) struct AreaSampleTransform {
+pub struct AreaSampleTransform {
     /// Source-per-dest horizontal step (24fp), post-reduction.
     pub tdx: i64,
     /// Source-per-dest vertical step (24fp), post-reduction.
@@ -166,7 +166,7 @@ pub(crate) struct AreaSampleTransform {
 /// scanlines into 256px chunks (limited by InterpolationBuffer = 1024 bytes =
 /// 256 RGBA pixels). This struct bridges batch boundaries, created fresh at the
 /// start of each scanline row and passed to each batch call.
-pub(crate) struct AreaSampleCarryState {
+pub struct AreaSampleCarryState {
     /// Y-accumulated column value (up to 4 channels), after FINPREMUL.
     /// Corresponds to C++ `cy` (cyr, cyg, cyb, cya).
     pub cy: [u64; 4],
@@ -177,13 +177,19 @@ pub(crate) struct AreaSampleCarryState {
     pub ox: u32,
 }
 
-impl AreaSampleCarryState {
-    pub fn new() -> Self {
+impl Default for AreaSampleCarryState {
+    fn default() -> Self {
         Self {
             cy: [0; 4],
             pcy_col: i32::MIN,
             ox: 0,
         }
+    }
+}
+
+impl AreaSampleCarryState {
+    pub fn new() -> Self {
+        Self::default()
     }
 }
 
@@ -204,7 +210,7 @@ pub(crate) struct ScaleTransform24 {
 }
 
 /// Source section bounds for 9-slice sub-region sampling.
-pub(crate) struct SectionBounds {
+pub struct SectionBounds {
     /// Pixel X offset into the full image for the section start.
     pub ox: i32,
     /// Pixel Y offset into the full image for the section start.
@@ -1037,7 +1043,7 @@ pub(crate) fn sample_adaptive_premul_fp_section(
 /// Uses 24-bit fixed-point coordinates. `ix`, `iy` are relative to the section
 /// origin (before the -1.5 offset that C++ applies for the 4x4 kernel).
 /// Returns the interpolated luminance as u8.
-pub(crate) fn sample_adaptive_lum_section(
+pub fn sample_adaptive_lum_section(
     image: &emImage,
     ix: i32,
     iy: i32,
@@ -1269,7 +1275,7 @@ pub(crate) fn sample_linear_gradient(
 /// scanline row and passes it to each batch call. This reproduces the C++
 /// behavior where carry flows naturally across all pixels on a scanline.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn interpolate_scanline_area_sampled(
+pub fn interpolate_scanline_area_sampled(
     image: &emImage,
     dest_x_start: i32,
     dest_y: i32,
