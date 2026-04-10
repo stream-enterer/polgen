@@ -10,6 +10,7 @@ use super::emTexture::{ImageExtension, ImageQuality, emTexture};
 /// During the recording phase, a single-threaded tree walk captures all
 /// draw operations into a `DrawList`. During the replay phase, multiple
 /// threads independently replay the list into their own tile buffers.
+#[derive(Debug)]
 pub(crate) enum DrawOp {
     // State management
     PushState,
@@ -364,6 +365,10 @@ impl DrawList {
 
     pub fn ops_mut(&mut self) -> &mut Vec<DrawOp> {
         &mut self.ops
+    }
+
+    pub fn ops(&self) -> &[DrawOp] {
+        &self.ops
     }
 
     /// Replay all recorded operations into the given painter.

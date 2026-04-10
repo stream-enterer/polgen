@@ -836,6 +836,7 @@ fn golden_widget_border_roundrect_thin() {
     result.unwrap();
 }
 
+
 // ─── BV-4: widget_border_instrument_cramped ─────────────────────
 
 #[test]
