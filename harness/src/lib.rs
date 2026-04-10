@@ -540,6 +540,103 @@ pub unsafe extern "C" fn rust_paint_border_image(
     0
 }
 
+// ── Layer 11: Polygon rasterization ─────────────────────────────
+
+use emcore::emPainterScanline::{rasterize, ClipBounds, WindingRule};
+
+#[repr(C)]
+pub struct CPolygonVertex {
+    pub x: f64,
+    pub y: f64,
+}
+
+#[repr(C)]
+pub struct CSpan {
+    pub x_start: i32,
+    pub x_end: i32,
+    pub opacity_beg: i32,
+    pub opacity_mid: i32,
+    pub opacity_end: i32,
+}
+
+#[repr(C)]
+pub struct CScanlineSpans {
+    pub y: i32,
+    pub span_count: i32,
+    pub spans: [CSpan; 64],
+}
+
+/// Rasterize a polygon into per-scanline spans with AA coverage.
+///
+/// `vertices`: array of `n_vertices` polygon vertices in pixel-space f64.
+/// `winding_rule`: 0 = NonZero, 1 = EvenOdd.
+/// `out_scanlines`: caller-allocated array of `max_scanlines` `CScanlineSpans`.
+/// `out_scanline_count`: receives the actual number of scanlines written.
+///
+/// Returns 0 on success, -1 if output buffer too small (partial results written).
+///
+/// # Safety
+/// `vertices` must point to `n_vertices` valid `CPolygonVertex` structs.
+/// `out_scanlines` must point to `max_scanlines` valid `CScanlineSpans` structs.
+/// `out_scanline_count` must point to a valid i32.
+#[no_mangle]
+pub unsafe extern "C" fn rust_rasterize_polygon(
+    vertices: *const CPolygonVertex,
+    n_vertices: i32,
+    clip_x1: f64,
+    clip_y1: f64,
+    clip_x2: f64,
+    clip_y2: f64,
+    winding_rule: i32,
+    out_scanlines: *mut CScanlineSpans,
+    max_scanlines: i32,
+    out_scanline_count: *mut i32,
+) -> i32 {
+    let n = n_vertices as usize;
+    let verts: Vec<(f64, f64)> = std::slice::from_raw_parts(vertices, n)
+        .iter()
+        .map(|v| (v.x, v.y))
+        .collect();
+
+    let clip = ClipBounds {
+        x1: clip_x1,
+        y1: clip_y1,
+        x2: clip_x2,
+        y2: clip_y2,
+    };
+
+    let wr = if winding_rule == 1 {
+        WindingRule::EvenOdd
+    } else {
+        WindingRule::NonZero
+    };
+
+    let scanlines = rasterize(&verts, clip, wr);
+
+    let max = max_scanlines as usize;
+    let count = scanlines.len().min(max);
+
+    for (i, (y, spans)) in scanlines.iter().enumerate().take(count) {
+        let out = &mut *out_scanlines.add(i);
+        out.y = *y;
+        let span_count = spans.len().min(64);
+        out.span_count = span_count as i32;
+        for (j, span) in spans.iter().enumerate().take(span_count) {
+            out.spans[j] = CSpan {
+                x_start: span.x_start,
+                x_end: span.x_end,
+                opacity_beg: span.opacity_beg,
+                opacity_mid: span.opacity_mid,
+                opacity_end: span.opacity_end,
+            };
+        }
+    }
+
+    *out_scanline_count = count as i32;
+
+    if scanlines.len() > max { -1 } else { 0 }
+}
+
 // ── Layer 10: Linear gradient interpolation ─────────────────────
 
 #[repr(C)]
