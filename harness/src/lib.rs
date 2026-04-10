@@ -888,3 +888,45 @@ pub unsafe extern "C" fn rust_paint_text(
     0
 }
 
+// ── Layer 16: PaintRoundRect (AA polygon fill) ──
+
+/// Paint a round rect using the Rust PaintRoundRect pipeline.
+///
+/// # Safety
+/// `canvas` must point to `canvas_w * canvas_h * 4` read/write bytes.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn rust_paint_round_rect(
+    canvas: *mut u8,
+    canvas_w: i32,
+    canvas_h: i32,
+    scale_x: f64,
+    scale_y: f64,
+    offset_x: f64,
+    offset_y: f64,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    radius: f64,
+    color: u32,
+) -> i32 {
+    let fb_size = (canvas_w * canvas_h * 4) as usize;
+    let fb_slice = std::slice::from_raw_parts(canvas, fb_size);
+    let mut target = emImage::new(canvas_w as u32, canvas_h as u32, 4);
+    target.GetWritableMap()[..fb_size].copy_from_slice(fb_slice);
+
+    let mut painter = emPainter::new(&mut target);
+    painter.SetOrigin(offset_x, offset_y);
+    painter.SetScaling(scale_x, scale_y);
+
+    let c = emColor::from_packed(color);
+    painter.PaintRoundRect(x, y, w, h, radius, c);
+
+    let result = target.GetMap();
+    let out_slice = std::slice::from_raw_parts_mut(canvas, fb_size);
+    out_slice.copy_from_slice(&result[..fb_size]);
+
+    0
+}
+
