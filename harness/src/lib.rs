@@ -505,6 +505,7 @@ pub unsafe extern "C" fn rust_paint_border_image(
     canvas_g: u8,
     canvas_b: u8,
     canvas_a: u8,
+    which_sub_rects: i32,
 ) -> i32 {
     let src_size = (src_w * src_h * 4) as usize;
     let src_slice = std::slice::from_raw_parts(src_data, src_size);
@@ -529,7 +530,7 @@ pub unsafe extern "C" fn rust_paint_border_image(
         src_l, src_t, src_r, src_b,
         alpha,
         canvas,
-        0x1FF, // all 9 sub-rects
+        which_sub_rects as u16,
     );
 
     // Copy result back to caller's framebuffer.
@@ -750,3 +751,140 @@ pub unsafe extern "C" fn rust_paint_image_rect(
 
     0
 }
+
+// ── Layer 13: PaintImageColored (two-color luminance mapping) ──
+
+/// Paint an image colored (two-color luminance mapping) using the full Rust pipeline.
+///
+/// `img_data`: source image pixels (`img_w * img_h * img_ch` bytes).
+/// `canvas`: target framebuffer RGBA pixels (`canvas_w * canvas_h * 4` bytes), modified in place.
+/// `color1`, `color2`: the two mapping colors as packed u32 RGBA.
+/// `canvas_color`: packed u32 RGBA (0 = no canvas color).
+/// `extension`: 0=TILED, 1=EDGE, 2=ZERO, 3=EDGE_OR_ZERO.
+///
+/// Returns 0 on success.
+///
+/// # Safety
+/// `img_data` must point to `img_w * img_h * img_ch` readable bytes.
+/// `canvas` must point to `canvas_w * canvas_h * 4` read/write bytes.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn rust_paint_image_colored(
+    canvas: *mut u8,
+    canvas_w: i32,
+    canvas_h: i32,
+    scale_x: f64,
+    scale_y: f64,
+    offset_x: f64,
+    offset_y: f64,
+    img_data: *const u8,
+    img_w: i32,
+    img_h: i32,
+    img_ch: i32,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    src_x: i32,
+    src_y: i32,
+    src_w: i32,
+    src_h: i32,
+    color1: u32,
+    color2: u32,
+    canvas_color: u32,
+    extension: i32,
+) -> i32 {
+    let fb_size = (canvas_w * canvas_h * 4) as usize;
+    let fb_slice = std::slice::from_raw_parts(canvas, fb_size);
+    let mut target = emImage::new(canvas_w as u32, canvas_h as u32, 4);
+    target.GetWritableMap()[..fb_size].copy_from_slice(fb_slice);
+
+    let img_size = (img_w * img_h * img_ch) as usize;
+    let img_slice = std::slice::from_raw_parts(img_data, img_size);
+    let mut source = emImage::new(img_w as u32, img_h as u32, img_ch as u8);
+    source.GetWritableMap()[..img_size].copy_from_slice(img_slice);
+
+    let mut painter = emPainter::new(&mut target);
+    painter.SetOrigin(offset_x, offset_y);
+    painter.SetScaling(scale_x, scale_y);
+
+    let c1 = emColor::from_packed(color1);
+    let c2 = emColor::from_packed(color2);
+    let cc = emColor::from_packed(canvas_color);
+
+    let ext = match extension {
+        0 => ImageExtension::Repeat,
+        1 => ImageExtension::Clamp,
+        2 => ImageExtension::Zero,
+        _ => ImageExtension::EdgeOrZero,
+    };
+
+    painter.PaintImageColored(
+        x, y, w, h, &source,
+        src_x as u32, src_y as u32, src_w as u32, src_h as u32,
+        c1, c2, cc, ext,
+    );
+
+    // Copy result back to caller's framebuffer.
+    let result = target.GetMap();
+    let out_slice = std::slice::from_raw_parts_mut(canvas, fb_size);
+    out_slice.copy_from_slice(&result[..fb_size]);
+
+    0
+}
+
+// ── Layer 14: PaintText (text rendering via colored glyph atlas) ──
+
+/// Paint text using the full Rust PaintText pipeline.
+///
+/// `canvas`: target framebuffer RGBA pixels, modified in place.
+/// `text`: null-terminated UTF-8 string.
+/// `color`: packed u32 RGBA text color.
+/// `canvas_color`: packed u32 RGBA (0 = no canvas color).
+///
+/// Returns 0 on success.
+///
+/// # Safety
+/// `canvas` must point to `canvas_w * canvas_h * 4` read/write bytes.
+/// `text` must be a valid null-terminated UTF-8 string.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn rust_paint_text(
+    canvas: *mut u8,
+    canvas_w: i32,
+    canvas_h: i32,
+    scale_x: f64,
+    scale_y: f64,
+    offset_x: f64,
+    offset_y: f64,
+    text: *const std::ffi::c_char,
+    x: f64,
+    y: f64,
+    char_height: f64,
+    width_scale: f64,
+    color: u32,
+    canvas_color: u32,
+) -> i32 {
+    let fb_size = (canvas_w * canvas_h * 4) as usize;
+    let fb_slice = std::slice::from_raw_parts(canvas, fb_size);
+    let mut target = emImage::new(canvas_w as u32, canvas_h as u32, 4);
+    target.GetWritableMap()[..fb_size].copy_from_slice(fb_slice);
+
+    let mut painter = emPainter::new(&mut target);
+    painter.SetOrigin(offset_x, offset_y);
+    painter.SetScaling(scale_x, scale_y);
+
+    let c = emColor::from_packed(color);
+    let cc = emColor::from_packed(canvas_color);
+
+    let text_str = std::ffi::CStr::from_ptr(text).to_str().unwrap_or("");
+
+    painter.PaintText(x, y, text_str, char_height, width_scale, c, cc);
+
+    let result = target.GetMap();
+    let out_slice = std::slice::from_raw_parts_mut(canvas, fb_size);
+    out_slice.copy_from_slice(&result[..fb_size]);
+
+    0
+}
+
