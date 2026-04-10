@@ -7,7 +7,7 @@ pub(crate) const MAX_INTERP_BYTES: usize = 1024;
 
 /// Stack-allocated interpolation buffer matching C++ ScanlineTool's 1024-byte buffer.
 /// Holds up to `MAX_INTERP_BYTES / ch` pixels of interpolated source data.
-pub(crate) struct InterpolationBuffer {
+pub struct InterpolationBuffer {
     data: [u8; MAX_INTERP_BYTES],
     len: usize,
     ch: u8,
@@ -15,7 +15,7 @@ pub(crate) struct InterpolationBuffer {
 
 impl InterpolationBuffer {
     #[inline]
-    pub(crate) fn new(ch: u8) -> Self {
+    pub fn new(ch: u8) -> Self {
         Self {
             data: [0u8; MAX_INTERP_BYTES],
             len: 0,
@@ -36,7 +36,7 @@ impl InterpolationBuffer {
 
     /// Raw data slice for the first `len` pixels. Length = len * ch bytes.
     #[inline]
-    pub(crate) fn raw_data(&self) -> &[u8] {
+    pub fn raw_data(&self) -> &[u8] {
         &self.data[..self.len * self.ch as usize]
     }
 
@@ -86,7 +86,7 @@ impl InterpolationBuffer {
 
 /// Blend mode determined once per paint call. Controls which blend *path*
 /// (canvas vs source-over), not the alpha value (which varies per pixel).
-pub(crate) enum BlendMode {
+pub enum BlendMode {
     /// Canvas-color compositing (C++ HAVE_CVC). Writes RGB only.
     CanvasBlend { canvas: emColor, painter_alpha: u8 },
     /// Standard source-over alpha compositing. Writes RGBA.
@@ -450,7 +450,7 @@ fn blend_scanline_premul_source_over(
 /// - `color2`: gradient color for luminance=255 (foreground color)
 /// - `mode`: blend mode (canvas or source-over, with painter_alpha)
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn blend_colored_scanline(
+pub fn blend_colored_scanline(
     dest: &mut [u8],
     lums: &[u8],
     count: usize,

@@ -3,7 +3,7 @@ use crate::emPainter::Fixed12;
 
 /// Winding rule for polygon fill.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum WindingRule {
+pub enum WindingRule {
     EvenOdd,
     NonZero,
 }
@@ -11,7 +11,7 @@ pub(crate) enum WindingRule {
 /// f64 clip bounds for scanline rasterization, matching C++ emPainter's
 /// `double ClipX1, ClipY1, ClipX2, ClipY2`.
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct ClipBounds {
+pub struct ClipBounds {
     pub x1: f64,
     pub y1: f64,
     pub x2: f64,
@@ -25,7 +25,7 @@ pub(crate) struct ClipBounds {
 ///   `alpha = (color_alpha * opacity_12bit + 0x800) >> 12`
 /// This avoids the precision loss of a two-step 12→8→8 conversion.
 #[derive(Clone, Debug)]
-pub(crate) struct Span {
+pub struct Span {
     pub x_start: i32,
     pub x_end: i32,
     /// Opacity of leftmost pixel (0-4096 scale).
@@ -40,7 +40,7 @@ pub(crate) struct Span {
 ///
 /// Vertices are in pixel-space f64 coordinates. NonZero uses the C++-ported
 /// polynomial coverage algorithm; EvenOdd uses edge-crossing with Fixed12.
-pub(crate) fn rasterize(
+pub fn rasterize(
     vertices: &[(f64, f64)],
     clip: ClipBounds,
     winding_rule: WindingRule,
