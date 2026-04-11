@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use crate::emImage::emImage;
 use crate::emFileModel::{emFileModel, FileState};
-use crate::emResTga::load_tga;
 use crate::emSignal::SignalId;
 
 /// Load an image from a file path synchronously.
